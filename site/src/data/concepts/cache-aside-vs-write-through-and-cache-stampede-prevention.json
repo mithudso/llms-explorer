@@ -1,0 +1,275 @@
+{
+  "slug": "cache-aside-vs-write-through-and-cache-stampede-prevention",
+  "concept": "Cache-aside vs write-through and cache stampede prevention",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Cache-aside vs write-through and cache stampede prevention. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Write-through updates the cache when the backing store is written. It trades additional write work and potentially unused cached entries for fewer subsequent read misses. (medium confidence)",
+          "source": "https://aws.amazon.com/caching/best-practices/",
+          "note": null,
+          "claimId": "clm:977f59af0dfad4778903bf3756abe963864539c5e04f5c67118aed4113cc678e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8f47cf1c6921becda60476fc19565f3594145f9f8e77a776a7d99259f1867a86"
+          ]
+        },
+        {
+          "text": "The groupcache singleflight implementation stores in-flight calls in a Group-local map and deletes the entry after completion. It suppresses overlapping work within that Group; it neither retains a cached value nor coordinates separate processes. A shared lock service is a separate coordination mechanism. (medium confidence)",
+          "source": "https://github.com/golang/groupcache/blob/master/singleflight/singleflight.go",
+          "note": null,
+          "claimId": "clm:eb844e908360f042020c334c229b3533e4bc86f1f03650dbeb888f8360ff886f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:133d2cc1288d0b5f1d25b9d0aac7594070bb6dd51e974318826462e38e1c945f",
+            "ev:e36e1691882348d2034b84feca14f5d9bb6d5ee28928ece65c2dc2b12dbe21d7"
+          ]
+        },
+        {
+          "text": "A cache can add overhead when most reads miss. Assess hit rate and freshness requirements before assuming that caching an expensive query result or precomputed value will improve read offload. (medium confidence)",
+          "source": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "note": null,
+          "claimId": "clm:35b3a71aad42d9aeca82505b2b22a913a8c7145bab6ad3e711d023af01ad82b3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0daf856524b0fe27f094b5dfe6b94964ddf4ed07df44530aadb728c6be557569"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Do not interpret write-through as automatic atomicity across two stores. Readers seeing the new value depends on successful coordinated writes; a partial failure can leave divergent values that require recovery. (medium confidence)",
+          "source": "https://redis.io/blog/cache-layer-architecture-guide/",
+          "note": null,
+          "claimId": "clm:e936bc7ea5c4228692270018a1b55f1d45df7fc3f350a0005c3ff1b0f4b39928",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4297fc5c89fb3b74ace945f1e456229ea36a1b058d94abe9673c1d110bd9b6b2"
+          ]
+        },
+        {
+          "text": "Cache-aside alone does not detect every database update. Explicit invalidation and TTLs limit stale copies, but concurrent fills, reordered writes, and writers bypassing the cache can still create stale windows. (medium confidence)",
+          "source": "https://redis.io/blog/cache-layer-architecture-guide/",
+          "note": null,
+          "claimId": "clm:d09280af7a164d79287f2b0181ccaccdcca01fa220dfcf826fe8fc657ff6fb32",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:43f36848d6305a332f4343245279a7f280a088a2b53c2eed82ced682d2cc1280",
+            "ev:7a75270c022b842a2baf17a4bc4d71bf71d838098b826a1f003073cfbf59542a",
+            "ev:cfcca34f86a8be7177ac9526b92821defec92fd467aaedb41f61ea0c56787790"
+          ]
+        },
+        {
+          "text": "A cache stampede occurs when concurrent requests miss the same popular key and independently regenerate it. More backend work can slow regeneration and widen the miss window, creating a feedback loop. (medium confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:a09e2d20e6931704c8185b23f1be2f6c98c0fe8494dc5d9bd55f8984a13efe20",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:076897ec068b1245f9b0e1de11607ccc49de0982dbb5681a7625661ff89ee162"
+          ]
+        },
+        {
+          "text": "TTL jitter staggers expiration across different keys. It does not itself serialize concurrent misses for one expired hot key; combine it with per-key fill coordination when that workload is possible. This limit follows from the distinct mechanisms described by the sources. (medium confidence)",
+          "source": "https://redis.io/blog/cache-layer-architecture-guide/",
+          "note": null,
+          "claimId": "clm:bde55bcdc3cc8fcb57ab5546aac9e618467f6590562ac7d8a2efb955ea6dc807",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3d2cb4e3c1b6c2b67cb74761d8225ef1fe3ee9ce05f6f49fc582cce10f026af8",
+            "ev:4823b07518e69392f2afb1ea968d5028bf74820ca7691a3f49362b0efdb356f8"
+          ]
+        },
+        {
+          "text": "Lock-based stampede protection needs failure handling: waiters can remain without a fresh value if the refresher fails, and lock expiry must allow recovery. A remote lock service also introduces latency and an availability dependency. (medium confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:2e784c08d0da6813b4d8c8013a2d50ae41aef5d09d032de4ad1656e402d23d4c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:133d2cc1288d0b5f1d25b9d0aac7594070bb6dd51e974318826462e38e1c945f",
+            "ev:3d2cb4e3c1b6c2b67cb74761d8225ef1fe3ee9ce05f6f49fc582cce10f026af8"
+          ]
+        },
+        {
+          "text": "Cache-aside and write-through are complementary: demand loading can refill entries missing after eviction or node failure even when writes proactively populate the cache. (medium confidence)",
+          "source": "https://aws.amazon.com/caching/best-practices/",
+          "note": null,
+          "claimId": "clm:bd5f59aff1781c331cefabf128a61bcb3d29ac2ccde4582ba5a1bf4793f141cb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8f47cf1c6921becda60476fc19565f3594145f9f8e77a776a7d99259f1867a86"
+          ]
+        },
+        {
+          "text": "A cache stampede occurs when concurrent misses regenerate the same expired popular entry. More requests and slower regeneration increase duplicate work; the overload can further slow regeneration and amplify the failure. (high confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:12959a215dad88b052955fa7121f9fd3a4ee525eac90850619af912067fc72c5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:076897ec068b1245f9b0e1de11607ccc49de0982dbb5681a7625661ff89ee162"
+          ]
+        },
+        {
+          "text": "During a coordinated refresh, other callers can wait or receive a retained stale value if the application permits staleness. A cold miss has no prior value to serve, so stale-serving behavior cannot replace a cold-miss policy. (medium confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:7c044daf9076b58eed7288697aef1358eed67f8a16ef3f02b3cf06f46f5d4c5a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3d2cb4e3c1b6c2b67cb74761d8225ef1fe3ee9ce05f6f49fc582cce10f026af8",
+            "ev:53bf7461aafdfcabddf842999d4692eb5f5750a1b6b7ca1be549a848f487f98c"
+          ]
+        },
+        {
+          "text": "Locks add coordination latency and failure modes. A failed refresh owner can leave callers waiting or serving stale data until lock expiry; lock lifetime must account for regeneration duration and recovery. (medium confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:de344b24a90e22d8953b0531d86ff8aa000a5bfb82ca8ec58ba71564bcb385d8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:133d2cc1288d0b5f1d25b9d0aac7594070bb6dd51e974318826462e38e1c945f",
+            "ev:3d2cb4e3c1b6c2b67cb74761d8225ef1fe3ee9ce05f6f49fc582cce10f026af8"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Probabilistic early refresh uses randomized decisions before expiry to reduce coordinated regeneration without an external lock service. It is a load-control trade-off rather than an exact one-refresher guarantee. (medium confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:8d20cfbc9877dd6816d6798ad6766bb04d67b05ff4caf26dab985ac7d8f3cfb8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:133d2cc1288d0b5f1d25b9d0aac7594070bb6dd51e974318826462e38e1c945f",
+            "ev:820eddd69c33b1e762210187ca819236be60f1e7e90f9210c5a50fd67ad71311"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Cache-aside checks the cache first; a miss makes the application read the database, populate the cache, and return the result. This offloads repeated reads but leaves a slower miss path. (medium confidence)",
+          "source": "https://redis.io/blog/cache-layer-architecture-guide/",
+          "note": null,
+          "claimId": "clm:5af73b8cb31a92a2b21476a0242f5825966995c04b70f4368616b6646aec1b26",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:43f36848d6305a332f4343245279a7f280a088a2b53c2eed82ced682d2cc1280"
+          ]
+        },
+        {
+          "text": "Write-through updates the cache and backing database on each write. Waiting for both increases write latency and can populate the cache with data that is never read. (medium confidence)",
+          "source": "https://redis.io/blog/cache-layer-architecture-guide/",
+          "note": null,
+          "claimId": "clm:6cb01a248e96a31d92c8e7d10013a785ffd5ab03c30aac6812bc4f543a72c6e7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4297fc5c89fb3b74ace945f1e456229ea36a1b058d94abe9673c1d110bd9b6b2"
+          ]
+        },
+        {
+          "text": "Per-key request coalescing lets one caller regenerate while duplicate callers share its result. Shared cache entries alone do not provide this coordination. (medium confidence)",
+          "source": "https://github.com/golang/groupcache/blob/master/singleflight/singleflight.go",
+          "note": null,
+          "claimId": "clm:f3573f4585cde49f2da1f091004c871eda9e9b310cf6fd1ceeb312da4518aed2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4823b07518e69392f2afb1ea968d5028bf74820ca7691a3f49362b0efdb356f8",
+            "ev:e36e1691882348d2034b84feca14f5d9bb6d5ee28928ece65c2dc2b12dbe21d7"
+          ]
+        },
+        {
+          "text": "The inspected groupcache singleflight implementation stores in-flight calls in a Group-local map guarded by a mutex. It suppresses duplicates within that Group; this primitive alone does not coordinate independent application processes or retain completed results. (low confidence)",
+          "source": "https://github.com/golang/groupcache/blob/master/singleflight/singleflight.go",
+          "note": null,
+          "claimId": "clm:597a1f8ea4a450765fe0833d03eb308d4a651dc27909eb6b423ff8dc6dccd38a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e36e1691882348d2034b84feca14f5d9bb6d5ee28928ece65c2dc2b12dbe21d7"
+          ]
+        },
+        {
+          "text": "A per-key lock can elect a refresher while other requests wait or receive a retained stale value. Serving stale data requires an application policy that accepts those older results. (medium confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:f1bcdd520f0e44eab760b623dce66f18d41e61381c6d989a87d4651f61328eb7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3d2cb4e3c1b6c2b67cb74761d8225ef1fe3ee9ce05f6f49fc582cce10f026af8",
+            "ev:53bf7461aafdfcabddf842999d4692eb5f5750a1b6b7ca1be549a848f487f98c"
+          ]
+        },
+        {
+          "text": "Moving every refresh a fixed interval before expiry merely moves the herd earlier unless refresh requests are collapsed or otherwise limited. (low confidence)",
+          "source": "https://blog.cloudflare.com/sometimes-i-cache/",
+          "note": null,
+          "claimId": "clm:6ad983a8402fd875de6a0c3aa6cdb41e294506d364f9c629a8ba2d5c247255fb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:445e8bcbbbc3f1551f38c74223cdb5396c7aa5231de203aea06aa2adf9c09b05"
+          ]
+        },
+        {
+          "text": "A Hyperswitch issue dated 2026-09-29 reports that get_or_populate_redis executed the fallback 100 times for 100 concurrent requests to one missing key. This is a reporter-provided reproduction, not an independently verified production outage or a statement about the current fix status. (low confidence) (verified as of 2026-10-31)",
+          "source": "https://github.com/juspay/hyperswitch/issues/14499",
+          "note": null,
+          "claimId": "clm:8ad3d4c962255cd472c74f263d5a73c95a67000ea2f8b7dd8b24cac22d6f6d88",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e47e9bf692ff091da6a54c82ac5401a62b6839311d884a8b4e8dd88261305d4e"
+          ]
+        },
+        {
+          "text": "With cache-aside, the application checks the cache, fetches a miss from the backing store, then populates the cache. Only requested entries consume cache space. (high confidence)",
+          "source": "https://aws.amazon.com/caching/best-practices/",
+          "note": null,
+          "claimId": "clm:678dfcb4545b33ba48d978773d47cc7ec04b1d60a882b51d6510aca6ab04d505",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:45668d86cef916ab4111cb14cd61aaf891309ce8bdef56adda0d24ff0cf27419"
+          ]
+        },
+        {
+          "text": "Cache-aside does not guarantee consistency. Update the backing store before invalidating its cached entry; deleting first permits a reader to reload the old value before the write finishes. External writers and concurrent fills still require consistency handling. (medium confidence)",
+          "source": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "note": null,
+          "claimId": "clm:79ec8d8a3d2cf43719549e223f78a71c715727fdb6620e5b561c5ec66138c8ec",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7a75270c022b842a2baf17a4bc4d71bf71d838098b826a1f003073cfbf59542a",
+            "ev:b1e81c10ea21ad563f7740a712da5737097e2a6c6d9b692a92efd2c9477ee8c3",
+            "ev:c35fb558518f0cc4de0a02903681e8a33b71d95ec3d5335fcf7a858ac2a49386"
+          ]
+        },
+        {
+          "text": "Probabilistic early refresh reduces stampedes without a shared coordination service, but it does not guarantee exactly one refresh. A fixed early-refresh window with every request refreshing merely moves the herd earlier. (medium confidence)",
+          "source": "https://blog.cloudflare.com/sometimes-i-cache/",
+          "note": null,
+          "claimId": "clm:2282d015f7d7f203f30e925064acac00178f0d15131ed7eef87fdbb9b107437e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:133d2cc1288d0b5f1d25b9d0aac7594070bb6dd51e974318826462e38e1c945f",
+            "ev:445e8bcbbbc3f1551f38c74223cdb5396c7aa5231de203aea06aa2adf9c09b05",
+            "ev:820eddd69c33b1e762210187ca819236be60f1e7e90f9210c5a50fd67ad71311"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "f9520f3650afd106197c38960d484a2dd33b9eb5be5a7178a2081a475c6fff37",
+  "canonicalConceptId": "concept:f27a82ef593671cf9ecb09753d42f3acb70565336c40ae684e16d8bbe7b99b8c"
+}

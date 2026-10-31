@@ -148,13 +148,17 @@ def build(repo_root: Path, today: str | None = None,
     # queue first, child references second: a name the tree itself produced is a
     # stronger signal than a hand-written line, so it wins on the parent
     # (ConceptTree._derive_frontier does the same, and the two must agree)
+    queue_rows = queue_frontier(repo_root)
+    first_queue_row = {}
+    for row in queue_rows:
+        first_queue_row.setdefault(row["concept"], row)
     frontier: dict[str, dict] = {
         e["concept"]: {"concept": e["concept"], "parent": e["parentConcept"],
                        "parent_slug": slug_of.get(e["parentConcept"]),
                        "source": "research-queue"}
-        for e in queue_frontier(repo_root) if e["concept"] not in by_name}
+        for e in queue_rows if e["concept"] not in by_name}
     for name, f in frontier.items():
-        e = next((q for q in queue_frontier(repo_root) if q["concept"] == name), None)
+        e = first_queue_row.get(name)
         if e and e.get("cvs") is not None:
             f["cvs"] = e["cvs"]
     for n in nodes_in:

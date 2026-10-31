@@ -1,0 +1,161 @@
+{
+  "slug": "cache-stampede-protection-leases-request-coalescing-ttl-jitter",
+  "concept": "Cache stampede protection: leases, request coalescing, TTL jitter",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Cache stampede protection: leases, request coalescing, TTL jitter. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Application guidance for read offload: coordinate the expensive refill per logical result, spread TTLs across results, and decide whether stale results are acceptable while refresh runs. These are cache-layer design inferences from the cited mechanisms; they do not establish a built-in MongoDB stampede guarantee. (medium confidence)",
+          "source": "https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf",
+          "note": null,
+          "claimId": "clm:3dd8b74fdbfb141adbfa6be30adb9291d4a72e840487a1b400821e4a930a46bb",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "A cache-refill lease can combine authorization to populate a key with throttling of refill attempts. Facebook's design binds a token to the requested key, checks it on refill, and invalidates it when a delete arrives, preventing an obsolete fill from being accepted. (low confidence)",
+          "source": "https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf",
+          "note": null,
+          "claimId": "clm:e6a045a76654a7e00f54c10f2a851737848a755600017672b403523719c5f38a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7da9bdc9aa38b4af4d4aa49e1c81a929c08827e0cf488aa3d45dc8d5f963ff75"
+          ]
+        },
+        {
+          "text": "Refreshing every request inside a fixed early-refresh window can merely move the stampede earlier. Early refresh still needs a mechanism that limits concurrent origin work. (low confidence)",
+          "source": "https://blog.cloudflare.com/sometimes-i-cache/",
+          "note": null,
+          "claimId": "clm:e816cfa9fec91ea4a1ccc2e6f4757fbafe91f87ae88655a8f5669a3dd3bc0c6a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c2900930bbca9713f0aa30a16448ccf84d577d21ea8a19a06badcaee5dc2842"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A hot cache entry can cause concurrent backend recomputation when it expires. Longer recomputation leaves more time for duplicate misses, and the resulting load can slow recomputation further. (high confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:c06f1d9a36a268b36567502fdef1ca0ae18da89efe19f79e31483052d3dcc8ae",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Probabilistic early refresh lets requests volunteer before expiry and avoids a shared lock-service round trip. It reduces stampede risk but permits multiple refreshes, or no refresh in a given interval; it cannot replace coordination when a strict single-refill guarantee is required. (high confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:bae51e878f3c3202c0d055a6b2d471cbc5d330e0212d7cf92e9d0624afd253a7",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Lock-based refresh needs a follower policy: callers can wait for regeneration or use a retained stale value when the application permits it. Without a usable value, callers need an explicit absence or failure path. (medium confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:f93110a2138608620a042fd29512fecd002b26c7624b48369676a18cec19b169",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Refresh locks require failure handling and a suitable expiry. If the owner fails, followers can remain blocked or receive stale data until recovery; contacting a shared lock service also adds latency and an availability dependency. (medium confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:8964b8523bc5ac812cc4d99b5b61552bb74738cc0785ff0eaf80b41d32c633d6",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Go singleflight.Group.Do suppresses overlapping calls for the same key within that Group. Its shared in-memory Group is not a cross-machine lease service; separate application instances need coordination if one fleet-wide refresh is required. (high confidence)",
+          "source": "https://pkg.go.dev/golang.org/x/sync/singleflight",
+          "note": null,
+          "claimId": "clm:44d16608044f56daf5762225d856d8dc5e816f0c5201c73491af3cf64b34b614",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Random TTL jitter spreads expiration times across keys and reduces synchronized backend refill load. It complements per-key coalescing: choosing a random expiry for one shared key does not itself serialize that key's concurrent misses. The latter conclusion follows from the mechanisms' different scopes. (medium confidence)",
+          "source": "https://docs.aws.amazon.com/whitepapers/latest/database-caching-strategies-using-redis/cache-validity.html",
+          "note": null,
+          "claimId": "clm:cf9b1ed3d796a72000bd4a04d28129f740058b9a0ae0c63988f700c2d2bd123c",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Facebook's 2013 implementation rate-limited lease-token issuance per key and told other callers to wait briefly. Treat this as a historical implementation example, not a universal lease-duration recommendation. (low confidence)",
+          "source": "https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf",
+          "note": null,
+          "claimId": "clm:09f25413d80ba35341748d43cee03aef081d1a853e07a6727ef2bf5fb7570dbb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f976c8581ac909d721ed1fc7653fc7c4fee49d17420955c89ac8d26186d3e76c"
+          ]
+        },
+        {
+          "text": "Non-leading requests need an explicit response policy: wait for regeneration, return an acceptable stale value, or handle the missing value. A failed lock holder can leave readers waiting or using stale data until the lock expires. (high confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:1fc0c794b8c578ddb801f9721806ab73a7e3b9cc14cc335efadcd0e3986bae2d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4a6581d8be93ed7d84a6a7871bf2304ccbe9170bd71ab117a35e8dbfaf07fcae"
+          ]
+        },
+        {
+          "text": "Lock TTL must accommodate regeneration time: if it expires while regeneration is still running, another caller can start duplicate work. Long lock lifetimes also delay recovery after a holder fails, so lease duration and waiter behavior need joint design. (medium confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:f3da9da281a37c309dc7ab61a4770b8af024a60cb1a2d46d0233647152892ef5",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Per-key request coalescing allows one in-flight computation and shares its result with concurrent callers, reducing duplicate origin work within the coordinator's scope. (high confidence)",
+          "source": "https://pkg.go.dev/golang.org/x/sync/singleflight",
+          "note": null,
+          "claimId": "clm:cf1909f20607e550a2785bc51ec24aaa448e77508b261b843daec82a6eebfb44",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Facebook's 2013 memcache design issues a key-bound lease token on a miss and validates that token on cache fill. A delete invalidates the token, preventing an obsolete fill. Rate-limiting lease issuance also reduces simultaneous database fetches while other clients wait and retry. These are properties of that design, not guarantees of every Memcached deployment. (low confidence)",
+          "source": "https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf",
+          "note": null,
+          "claimId": "clm:550a4678e1f30fb825ecdd0157b61723287f3e577b93868051c7f32ee3dcf8fa",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:18399aed10d23ab61bfc6232b9f0d92923261a41a882c8de0e95321ff9f10407"
+          ]
+        },
+        {
+          "text": "Probabilistic early refresh lets requests independently decide to regenerate before expiry, with refresh probability increasing near expiration. This avoids a shared lock but provides no deterministic guarantee of exactly one origin request. (medium confidence)",
+          "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
+          "note": null,
+          "claimId": "clm:0a1a764eb9fb3ac002eacadc516969a4910c8cce0c43bd79b441665a93c895d9",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "a1c5f24b155d1b2bb8262229e50893ace254a9c74626366db74f202197e735e7",
+  "canonicalConceptId": "concept:d72dcc9ff1458dcec59bb0de590ee6253d249c3e989d0d04ccbc8c4226d99a3f"
+}

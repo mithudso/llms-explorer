@@ -95,6 +95,18 @@ the adaptive lane, so its standard default is 1 (two research passes in total).
 
 ## Research and shared resources
 
+Generated briefs use the same domain policy as mechanical source qualification.
+Software requires one independent organization with primary docs/repository evidence;
+security and scientific research require two. The depth contract separately sets
+the distinct meaningful source-URL floor. Mirrors, repositories and tracker hosts
+do not create additional organizations. These rules do not waive negation,
+exact claim evidence or the full commissioned question.
+
+For a new child with a frontier-only parent, completion resolves the documented
+queue/tree lineage to an existing canonical ancestor. Unanchored, cyclic or
+ambiguous new placement fails instead of silently making the child a root.
+Existing curated placement and literal held-parent context remain intact.
+
 Finish freezes research-artifact/v1 from current canonical statements and the
 current bound gate. Immutable claim IDs identify exact statement versions; concept
 IDs follow the hub tree's stable owner. SUPPORTED and NOT-SAMPLED stay distinct.
@@ -104,6 +116,19 @@ approved citations. Redacted wording is labeled REDACTED-PROJECTION. Projection
 writes share a durable preimage journal and roll back on failure. An interrupted
 transaction is restored before retry. Source snapshots, quotes and raw logs stay
 private. Embeddings remain paused.
+
+Repair callers bind `required_gate_claim_ids` in the manifest to every changed
+assertion version and surviving prior dissent target. The gate adds these exact
+IDs without reducing the risky-claim or ordinary-sample floors. Finish rejects
+an absent or stale required judgment. A stronger gate on unchanged finalized
+claims requires native `init --refresh` and a fresh artifact/publication checkpoint;
+the original claims, accepted artifact and paid attempts stay preserved.
+
+A current supported claim subset does not establish full commissioned scope.
+If `cohort_completion_assessment` exists, `ready_for_full_scope_export` must be
+true before COMPLETED finalization or ranked export. An explicit incomplete
+assessment blocks promotion while its claim gate can still verify the subset.
+Preserve the full question, unsupported design preimages and next source action.
 
 Workers preserve every private attempt and retry recognized transient failures
 at most twice within the original deadline. Format-only gate failures get one

@@ -1,0 +1,144 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "COUNT_SCAN and sharded count accuracy",
+  "slug": "count-scan-and-sharded-count-accuracy",
+  "canonical_concept_id": "concept:7e8ed9ee2971490b66cddcbeec7d79799532d5d765ea371e76fb5a0d438f8bdf",
+  "canonical_artifact_sha256": "8349717d22a5f7bd8a120392085f7d39c51a9e1a5306eb9f98d5ceb58042b95c",
+  "claims": [
+    {
+      "id": "clm:1e75138859551553bc54f1957b7c565f5c4cc249fe3c19763f984e8d5658ed22",
+      "text": "COUNT_SCAN is not necessarily constant-time: the SERVER-39191 direct-shard log examined roughly 6.9 million index keys despite examining zero documents. A covered count can therefore still do substantial index work. (low confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-39191",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:d0e8d6e4717f339143b4ded568919f1a5ec8dd1e327ad81839eee5e9650f62b3"
+      ]
+    },
+    {
+      "id": "clm:30166cf51d9f3f6381e2bbdc6112395d4045b8bf24747a2e8675cadc6ded037c",
+      "text": "SERVER-103369 proposes orphan-chunk skipping inside COUNT_SCAN when the index contains the shard key, and describes additional FETCH support as necessary for the more general case. The issue page is unresolved with no fix version and was last updated April 10, 2025; it is a proposal, not proof of released support. (low confidence) (verified as of 2026-10-31)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-103369",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9b8ae907769133e0622593e1fa2116d9ae1ad60afa0c3d5f97aae3ed7e7ad598"
+      ]
+    },
+    {
+      "id": "clm:d45771d0fae76551a4fc256042a1fa2763971a3ea111d7e94c77d917bd6e6716",
+      "text": "MongoDB documents index-only count eligibility when predicates use indexed fields and a single contiguous index-key range. A first-hand Stack Overflow question reports COUNT_SCAN for equality and IXSCAN for an $in predicate. This is evidence about query shape, not a guarantee that sharding ownership filtering can be omitted. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.count.md",
+      "also": [
+        "https://stackoverflow.com/questions/49554932/what-is-the-difference-between-count-scan-and-ixscan"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:cee56a9c4c734bddaeb767660575ba2420e781c8a98da3aa372bcbb151616a2f",
+        "ev:df53aeb8a300e01a012dfe2f5e3f78a38bf019bf7b876a42c3b925b6d6002404"
+      ]
+    },
+    {
+      "id": "clm:dcda4af1f7ce98ba26fa377c9d5c00d18edf6875d42561f85a982e18baf74af9",
+      "text": "Inference from the documented planner history and the separate metadata-count defect: a faster direct-shard plan or the presence of an index does not by itself establish a correct cluster-wide count. Validate the operation routed through mongos and its shard ownership handling rather than summing physical shard counts as an accuracy workaround. (medium confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-39191",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-33753"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3b4e9a30c8626de7b6bfc15c3b7c05a1209b052e583e9358eddd67fc862c64be",
+        "ev:a42bbc9e32972b78ecb9210e57ca3e48093e6e234fbe57b1e1937bfd3cebc63c"
+      ]
+    },
+    {
+      "id": "clm:6aed617f13c3b22c550d0f1b52e55a8e459aab4d31323875e4b3dd38747d2326",
+      "text": "A count command without a query predicate reads collection metadata. On sharded collections, orphaned documents or an ongoing chunk migration can make that count inaccurate; this metadata shortcut must be distinguished from an index-driven COUNT_SCAN plan. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/count.md",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-33753"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:07b8ba21fe3260719e683d9e8c12e4eb6b945df024c7381d035e1f1b78397e29",
+        "ev:0817ad87ce4c58ac204e0fd8149c0a608559284df998b381c6672160079dde4c"
+      ]
+    },
+    {
+      "id": "clm:1eabbc1b0ff81affd4d165f1345136f1db4731862c6730b9656a8f2b7089dc79",
+      "text": "For counts that must exclude orphaned documents, MongoDB documents countDocuments() as an aggregation-based alternative to metadata counts and recommends aggregation with $count for sharded collections. These recommendations address orphan and metadata errors; they do not promise that separately issued reads observe an identical moment during concurrent writes. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/count.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments.md",
+        "https://jira.mongodb.org/browse/SERVER-3645"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:936a54f45dfd34f970b7600077af32bf12834416a453d9c5d9d70ade0f98a65f",
+        "ev:a8fe3f67cbbad682477be41cff1968ee4c187073a0b7fb88a792a196295697cb"
+      ]
+    },
+    {
+      "id": "clm:a4eac8672c5a12aceadcfbc8c63736b73551a3d640116e91ca129ddeff58f7e2",
+      "text": "SERVER-39191 records a MongoDB 4.0.5 workload where a direct-shard count used COUNT_SCAN with zero documents examined, while the mongos-routed count used IXSCAN and examined documents to filter orphans. The issue lists fix version 4.9.0; its old description must not be generalized into a permanent ban on COUNT_SCAN for sharded counts. (medium confidence) (verified as of 2026-10-31)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-39191",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-3645"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:10c2b7b067bf68d31e77ebe70133f46e50891b7990b680b5de6232675bae69f2"
+      ]
+    },
+    {
+      "id": "clm:06aeccaa5fe7f05a055104ce53b08b30abfb4c04afab4d3e89bde84364a5908a",
+      "text": "Alibaba Cloud documents checking each shard in find().explain(\"executionStats\"): nonzero chunkSkips in SHARDING_FILTER indicates orphaned documents. Its example passes 102 documents from FETCH, filters two orphans, and returns 100. This can help diagnose a count discrepancy without treating every index entry as a logically owned document. (low confidence) (verified as of 2026-10-31)",
+      "source_url": "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:d76db890bd80d9f4b66ff74c9b65d367209d84706c76587ebcb64640fc7aaab8"
+      ]
+    },
+    {
+      "id": "clm:905169848ffd8ec982c08607da3d19f77bafa333ad95ad5be6ceeb3d1d071a1f",
+      "text": "Tencent's consistency-verification guide says its row-count check obtains metadata counts with estimatedDocumentCount() or stats(), which can disagree with actual rows after unexpected shutdown or with orphans. It recommends countDocuments() for comparison and warns about scanning cost. (low confidence) (verified as of 2026-10-31)",
+      "source_url": "https://intl.cloud.tencent.com/jp/document/product/240/64797",
+      "also": [
+        "https://indonesia.tencentcloud.com/ind/document/product/571/61537"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b943226ddc30dfbe275d087a67fea26971832bdeaef09a921fb40177d6f52a34"
+      ]
+    },
+    {
+      "id": "clm:8ed573b1c994ca2c04786f7a6f5a981d2540af637e0173b406331bcf37a68499",
+      "text": "MongoDB's historical fix made counts with predicates sharding aware starting in the 4.0 release series. Predicate-free metadata counts remained separate follow-on work; old statements that all sharded count() operations overcount orphans need this scope. (high confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-3645",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-33753",
+        "https://www.mongodb.com/docs/manual/reference/command/count.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:07b8ba21fe3260719e683d9e8c12e4eb6b945df024c7381d035e1f1b78397e29",
+        "ev:0bfca6729879d9d8487d3d5ffa42f499695eeb539d6b05c4b6888d21476631c2"
+      ]
+    },
+    {
+      "id": "clm:7a80002919f648c35bc5d1b6675ddbf49934706e3ce2b59501c7080c9b430540",
+      "text": "For an empty-filter countDocuments(), MongoDB documents a full collection scan by default and suggests hinting the _id_ index or using an all-matching indexed predicate. This optimization does not promise COUNT_SCAN or zero document fetches for every sharded plan. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments.md",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-39191"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:417993da194e2363cdd2dcbf97da75bf1e63e1c4c60c677b0932cdda7142432b",
+        "ev:6875bb3e5875e45dffedb6ce79664713e553bc182a55a7381f9a4ff654e25a77"
+      ]
+    }
+  ],
+  "projection_sha256": "8f8fee43e69707c6ab5f048316ebece12f190cdda509018d9e4abe4bca5e16f9"
+}

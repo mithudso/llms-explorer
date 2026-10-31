@@ -2,7 +2,7 @@
 """Plan and resume ranked /dr research in source-sharing cohorts.
 
 Only `run` starts model calls. Plans preserve every ranked row, skip existing
-checkouts, and group eligible concepts by parent. Each cohort uses Luna/max,
+checkouts, and group eligible concepts by parent. Each cohort uses Sol/medium,
 the shared source library, a blind Sol/medium gate, and website completion.
 """
 from __future__ import annotations
@@ -62,12 +62,32 @@ def sync_row_outcomes(plan):
 def reviewed_gate_current(shared, cohort):
     """Only an independently verified current gate permits explicit review resume."""
     try:
+        # Scope/owner reviews have no research run. load_manifest exits the
+        # process for a missing run, so check before loading an optional one.
+        if not (shared.run_dir(cohort["id"]) / "manifest.json").is_file():
+            return False
         manifest = shared.load_manifest(cohort["id"])
+        if checker := getattr(shared, "verify_completion_scope", None):
+            checker(manifest)
         if not manifest.get("concepts") or any(row["status"] != "done" for row in manifest["concepts"]):
             return False
         shared.verify_current_gate(manifest)
         return True
     except (OSError, ValueError, KeyError):
+        return False
+
+
+def artifact_gate_current(manifest):
+    """A stronger fresh gate must refresh an already-finalized projection."""
+    if manifest.get("gate_contract_version") != 2:
+        return True
+    try:
+        reference = manifest["codex_artifacts"]["canonical_artifact"]
+        artifact = json.loads(Path(reference["path"]).read_text())
+        packet = manifest["gate"]["packet_sha256"]
+        return bool(packet and artifact["validation"]["packet_sha256"] == packet
+                    and artifact["artifact_sha256"] == reference["sha256"])
+    except (OSError, ValueError, KeyError, TypeError):
         return False
 
 
@@ -261,13 +281,13 @@ def eligible_now(repo, hub, cohort, run_id, resume_names=()):
             (key(name) in resumable or (key(name) in pending and (key(name) not in covered or key(name) in revisit)))]
 
 
-def execute(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False):
+def execute(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False, cohort_ids=()):
     with (plan_path.parent / ".runner.lock").open("a") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError("This ranked plan already has a runner") from None
-        return execute_locked(repo, hub, plan_path, max_cohorts, retry_reviewed=retry_reviewed)
+        return execute_locked(repo, hub, plan_path, max_cohorts, retry_reviewed=retry_reviewed, cohort_ids=cohort_ids)
 
 
 def execute_all(repo, hub, plan_path):
@@ -295,8 +315,12 @@ def _execute_all_locked(repo, hub, plan_path):
             return result
 
 
-def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False):
+def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False, cohort_ids=()):
     plan = json.loads(plan_path.read_text())
+    selected = set(cohort_ids)
+    unknown = selected - {row["id"] for row in plan["cohorts"]}
+    if unknown:
+        raise ValueError("Unknown cohort selection: " + ", ".join(sorted(unknown)))
     run_id = plan_path.parent.name
     marker = Path(os.environ.get("LLMSX_HOME") or Path.home() / ".llmsx") / "jobs/batches" / run_id / "run.json"
     marker.parent.mkdir(parents=True, exist_ok=True)
@@ -313,6 +337,8 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False)
     try:
         shared = load("ranked_adapter", repo / "scripts/codex_dr_run.py").load_shared()
         for cohort in plan["cohorts"]:
+            if selected and cohort["id"] not in selected:
+                continue
             if cohort["status"] in ("complete", "skipped"):
                 continue
             if cohort["status"] == "needs-review":
@@ -352,6 +378,8 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False)
                 return run_command(command, log, env, timeout=min(limit, remaining))
             phase(adapter + ["init", parent, "--slug", slug, "--concepts", "cohort initialization"])
             manifest = prepare_manifest(shared, slug, parent, picked, plan_path)
+            if checker := getattr(shared, "verify_completion_scope", None):
+                checker(manifest)
             if cohort.get("materials") or cohort.get("parents") or cohort.get("scopes"):
                 with shared.run_lock(slug):
                     manifest["cohort_source_materials"] = cohort.get("materials", [])
@@ -385,7 +413,12 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False)
             atomic(plan_path, plan)
             # Include pages saved by earlier /dr runs in the shared FTS index.
             phase([sys.executable, str(hub / "scripts/source_library.py"), "reconcile"], 300)
-            if manifest["status"] != "finalized":
+            if manifest["status"] == "finalized" and not artifact_gate_current(manifest):
+                # Native refresh reopens only manifest lifecycle fields. Claims,
+                # accepted artifacts and every paid attempt stay in place.
+                phase(adapter + ["init", parent, "--slug", slug, "--refresh"])
+                manifest = shared.load_manifest(slug)
+            if manifest["status"] != "finalized" or not artifact_gate_current(manifest):
                 strict = manifest.get("gate_contract_version") == 2
                 checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py") if strict else None
                 stages = shared.run_dir(slug) / "checkpoints/stages.json"
@@ -424,8 +457,10 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False)
                 if not gate_current:
                     phase(adapter + ["gate", slug, "--model", "gpt-6.1-sol", "--effort", "medium"], 1200)
                 if strict:
-                    shared.verify_current_gate(shared.load_manifest(slug))
-                    checkpoints.run_stage(stages, "gate", current_claims, [shared.run_dir(slug) / "gate.json"], lambda: None)
+                    manifest = shared.load_manifest(slug)
+                    shared.verify_current_gate(manifest)
+                    gate_inputs = {"claims": current_claims, "gate_packet_sha256": manifest["gate"]["packet_sha256"]}
+                    checkpoints.run_stage(stages, "gate", gate_inputs, [shared.run_dir(slug) / "gate.json"], lambda: None)
                 gate = json.loads((shared.run_dir(slug) / "gate.json").read_text())
                 if not gate.get("verdicts"):
                     raise RuntimeError("Blind claim gate returned no verdicts")
@@ -434,9 +469,10 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False)
                     raise RuntimeError(f"blind claim gate needs review: {len(dissent)} non-supported verdicts")
                 finish_command = adapter + ["finish", slug, "--status", "COMPLETED", "--stop-reason", "Ranked source-sharing cohort; scout and blind gate completed."]
                 if strict:
-                    checkpoints.run_stage(stages, "export", current_claims, [shared.run_dir(slug) / "artifacts/receipt.json"], lambda command=finish_command: phase(command))
+                    checkpoints.run_stage(stages, "export", gate_inputs, [shared.run_dir(slug) / "artifacts/receipt.json"], lambda command=finish_command: phase(command))
                 else:
                     phase(finish_command)
+            manifest = shared.load_manifest(slug)
             errors = []
             documents = shared.load_claims(slug, errors)
             if errors or any(row["status"] != "done" or row["slug"] not in documents
@@ -449,7 +485,8 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False)
             site_command = [sys.executable, str(repo / "scripts/research_site_sync.py"), "--repo", str(repo), "--hub", str(hub), "--apply"]
             if manifest.get("gate_contract_version") == 2:
                 checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py")
-                checkpoints.run_stage(shared.run_dir(slug) / "checkpoints/stages.json", "local-publication", documents,
+                publication_inputs = {"claims": documents, "gate_packet_sha256": manifest["gate"]["packet_sha256"]}
+                checkpoints.run_stage(shared.run_dir(slug) / "checkpoints/stages.json", "local-publication", publication_inputs,
                     [repo / "site/src/data/tree.json", repo / "site/src/data/context.json", repo / "site/src/data/concepts"],
                     lambda command=site_command: phase(command, 600))
             else:
@@ -493,6 +530,8 @@ def main(argv=None):
     parser.add_argument("--plan", type=Path, required=True)
     parser.add_argument("--size", type=int, default=4, choices=range(1, 9))
     parser.add_argument("--max-cohorts", type=int)
+    parser.add_argument("--cohort", action="append", default=[],
+                        help="Run only this exact cohort ID; repeat to select several")
     parser.add_argument("--continue-on-review", action="store_true",
                         help="Keep evidence dissent withheld and process independent remaining cohorts")
     parser.add_argument("--retry-reviewed", action="store_true",
@@ -500,6 +539,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.retry_reviewed and (args.action != "run" or args.continue_on_review):
         parser.error("--retry-reviewed requires run and cannot combine with --continue-on-review")
+    if args.cohort and (args.action != "run" or args.continue_on_review):
+        parser.error("--cohort requires run and cannot combine with --continue-on-review")
     if args.action == "plan":
         result = make_plan(args.repo, args.hub, args.source or args.hub / "concept-tree/RESEARCH_QUEUE_RANKED.md", args.size)
         atomic(args.plan, result)
@@ -515,7 +556,8 @@ def main(argv=None):
         if args.max_cohorts is not None:
             parser.error("--continue-on-review cannot be combined with --max-cohorts")
         return execute_all(args.repo, args.hub, args.plan)
-    return execute(args.repo, args.hub, args.plan, args.max_cohorts, retry_reviewed=args.retry_reviewed)
+    return execute(args.repo, args.hub, args.plan, args.max_cohorts,
+                   retry_reviewed=args.retry_reviewed, cohort_ids=args.cohort)
 
 
 if __name__ == "__main__":

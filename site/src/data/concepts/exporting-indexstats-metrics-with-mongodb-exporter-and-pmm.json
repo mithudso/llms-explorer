@@ -1,0 +1,222 @@
+{
+  "slug": "exporting-indexstats-metrics-with-mongodb-exporter-and-pmm",
+  "concept": "Exporting $indexStats metrics with mongodb_exporter and PMM",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Exporting $indexStats metrics with mongodb_exporter and PMM. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Inspect the actual /metrics exposition when validating export: Prometheus text samples consist of a metric name, optional labels and a numeric value, with optional HELP and TYPE lines. Prometheus requires each metric-name/label combination to be unique. The exporter reference shows --web.telemetry-path=\"/metrics\" as an example. (high confidence)",
+          "source": "https://prometheus.io/docs/instrumenting/exposition_formats/",
+          "note": null,
+          "claimId": "clm:ff905bff9ff8bbfe19a2802768a3168adf3358a17e1049e15c11cd19446b5d69",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:01427f2576413e7ba646eccd5ad2378ca36435f7da7ebeb891768cd4d1378e78",
+            "ev:fca0a8945b280419b06797f0ea92211d9965e0f1828c07e10e0325cc7ed53422"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The exporter README recommends clusterMonitor on admin and read on local for its monitoring user; MongoDB documents clusterMonitor as sufficient for the $indexStats stage itself. Check permissions for the enabled collector set when diagnosing missing index-use metrics. (high confidence)",
+          "source": "https://github.com/percona/mongodb_exporter",
+          "note": null,
+          "claimId": "clm:f3233228539a211b694875d4c66d10940ded41323eb49efe07e68eb4c3cf33f2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6d0873cb9a0561ce1baf0967918a18c6d92b8c9a6b0cad17039c359a682bbba8",
+            "ev:90caeb0337095767764cc227ac77380862a28e62f0a262637ec5b7d455acedcd"
+          ]
+        },
+        {
+          "text": "The index-use metric identified by Percona support is mongodb_indexstats_accesses_ops. The collector attaches database, collection and key_name labels, plus topology labels and a shard label when applicable; preserve these dimensions when checking whether a specific index has an exported series. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://forums.percona.com/t/view-index-usage/26802",
+          "note": null,
+          "claimId": "clm:f849a60ae2f2aa5740bb6e59f1c2b2e28697cf8753cd352af4322964e57a68bf",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3d0b480f7af6b1742528baf3111c3e4a657d1fc07e6b363c62c925a473f652d9",
+            "ev:fd60e10058819d33e75634f2ad4236fa8f6e4235c93fec6d7a05eb1e6ffd3c2f"
+          ]
+        },
+        {
+          "text": "MongoDB $indexStats accesses.ops counts user operations that used an index on the node where statistics are collected; it excludes internal uses such as TTL deletions and replication. Because the exporter reads $indexStats, its operation metric inherits that scope. A zero count on one observed node is therefore insufficient evidence that an index is unused throughout the deployment. (high confidence)",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/indexstats/",
+          "note": null,
+          "claimId": "clm:b6e6e8ae214c432ba3f9a89915dd5f7d162f897d7787ef1765bcb6f4a91564de",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:69ef7315d58e036fcd79034c95c41b60e735d4cdb9ee55f36716dc95cbb050b7",
+            "ev:bf0fbe07b6d50401bd9ae20fa60aa3d6bcd0ed27d8315ca24ebdb90def11aee6"
+          ]
+        },
+        {
+          "text": "Exporter PR #1321 documents PMM-15198: scraping $indexStats through mongos produced identical label sets for different shards, causing duplicate-metric errors and discarded shard statistics. The fix adds shard labels, and the v0.53.0 release lists that fix. This is a concrete version-specific cause of incomplete export even with indexstats enabled. (high confidence)",
+          "source": "https://github.com/percona/mongodb_exporter/pull/1321",
+          "note": null,
+          "claimId": "clm:4851a3d093a29e4f96c467e080e8e9484ffa8e431b2f6d47eb2514186de29949",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5448d19f2df6673f2adb462de4aa3a7e716145e157861484a43ca812925f5e72",
+            "ev:a39c22908859ace82ad606be63e0b92086069723bb9bb3b033cd05390b5466a7"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Percona identifies mongodb_indexstats_accesses_ops as the index-usage metric. A PMM 3.6.0 scrape-error log shows database, collection, and key_name labels, plus cl_role; verify the actual exported labels before writing selectors. (medium confidence) (verified as of 2026-03-20)",
+          "source": "https://forums.percona.com/t/view-index-usage/26802",
+          "note": null,
+          "claimId": "clm:6313fa6b35432ed1570a2ffaad6c67cd1ec08b9f4796258bfb55f5f9000a83b1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2376649f78f2ec494951e140e40b746c856e743692e5d2828c5a9ecd83739225",
+            "ev:7fc33216fef514d4145f720fdbf58a9e2d50e4119be85cb2a767bcb022961a1c"
+          ]
+        },
+        {
+          "text": "PMM exposes --stats-collections to scope namespaces and --max-collections-limit to control collection-count limits; zero removes that limit. The standalone exporter uses --collector.collstats-limit, which also gates indexstats. A collection limit can therefore suppress usage metrics even when the collector is enabled. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://docs.percona.com/percona-monitoring-and-management/2/details/commands/pmm-admin.html",
+          "note": null,
+          "claimId": "clm:0d870037cdfa0e536dad1b4c2f354af4915c2775f94828c51b691590e30034fb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6c59adeebd530a45b174e6e976ef78607222e7fd8b299801f9c6275194f5deab",
+            "ev:7ea1d1cc7d3f60aa4017bdaf431a83470d6dd0990b5a35cb086df321478dd8a2"
+          ]
+        },
+        {
+          "text": "A March 2026 PMM 3.6.0 operator deployment reported duplicate mongodb_indexstats_accesses_ops samples from mongos, with the error \"was collected before with the same name and label values\". The reporter confirmed --disable-collectors=indexstats on mongos as a workaround. This is a historical report, not evidence that every later release is affected. (low confidence) (verified as of 2026-03-23)",
+          "source": "https://forums.percona.com/t/mongodb-instance-summary-dashboard-shows-no-data-for-mongos-services-on-pmm-3-6-0/40383",
+          "note": null,
+          "claimId": "clm:7bcafbfd190cbf87eae977fdb2ab4061c6f03c04eccf09de1601d2dc5efd8bde",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b706366ef01c0e5dcc9826983276459750739e22406b9fdbd8109c940e520a4c"
+          ]
+        },
+        {
+          "text": "PMM 2 --stats-collections accepts comma-separated database[.collection] namespaces to scope indexstats and collstats. The documentation warns that enabling all collectors can significantly increase memory use in sharded or collection-heavy deployments. This warning concerns the enabled collector set and does not quantify indexstats-only overhead; scope the required namespaces and verify exported series before broadening collection. (medium confidence) (verified as of 2026-10-29)",
+          "source": "https://docs.percona.com/percona-monitoring-and-management/2/details/commands/pmm-admin.html",
+          "note": null,
+          "claimId": "clm:464d03ef8de7310db5cb5fd87bec318fd1e0e9dba6b39211f5eb330bfcb19c68",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a107aa98e0896b9745af65186a11ab3afc393891997ab368ea07ff4601d86999"
+          ]
+        },
+        {
+          "text": "A March 31, 2026 AWS DocumentDB issue reports indexstats failing during collection discovery with the literal error \"Field 'type' is currently not supported\", including attempts with explicit collection lists and discovery disabled. Treat this as a reported compatibility limitation for that environment, not proof that MongoDB $indexStats itself is unavailable or that all DocumentDB versions fail. (low confidence)",
+          "source": "https://github.com/percona/mongodb_exporter/issues/1264",
+          "note": null,
+          "claimId": "clm:f42e5e47a5c4e864f3901b9dc92311f998ca23457790b4374815be3d0cdd0875",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9ad7e92217198d1c0dfba0c9b914d07fa269f04d7aac5f94517f811dd581355e"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "PMM 2 documents indexstats as an optional collector. When registering a MongoDB service, --enable-all-collectors enables it; --disable-collectors excludes named collectors. PMM registration flags differ from standalone mongodb_exporter flags, so --collector.indexstats is not the documented pmm-admin activation flag. (high confidence) (verified as of 2026-10-29)",
+          "source": "https://docs.percona.com/percona-monitoring-and-management/2/details/commands/pmm-admin.html",
+          "note": null,
+          "claimId": "clm:7aa6030b09c7eeefe5024d7fb6678c01d67ef4802ee2ae89002834d3355915d6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:293d091ea5d98916b764db8007c5a40ab265f506bf5a602be4b7515e670656c2",
+            "ev:7ea1d1cc7d3f60aa4017bdaf431a83470d6dd0990b5a35cb086df321478dd8a2"
+          ]
+        },
+        {
+          "text": "Prometheus text exposition requires each metric-name and label combination to be unique. Consequently, exporter results for different shard hosts must remain distinguishable; the PMM mongos duplicate-series report illustrates a violation rather than zero index usage. (high confidence)",
+          "source": "https://prometheus.io/docs/instrumenting/exposition_formats/",
+          "note": null,
+          "claimId": "clm:7e8647c779fe7890e7cb5acc749c5d73b7d72301064b29f6de15dc07f7c3044f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:279a6fe2f605c082cc0d1b568a72e7a8d101d960b1fd716c54594eedaa1291f5",
+            "ev:b706366ef01c0e5dcc9826983276459750739e22406b9fdbd8109c940e520a4c"
+          ]
+        },
+        {
+          "text": "PMM 2 --max-collections-limit can disable indexstats and other collection-level collectors when the collection count exceeds the limit. Zero removes the limit; -1 delegates the limit to PMM. The standalone exporter exposes the corresponding limit as --collector.collstats-limit, whose inspected default is zero. Thus an absent index-use series can mean collection was suppressed rather than that index usage was zero. (high confidence) (verified as of 2026-10-29)",
+          "source": "https://docs.percona.com/percona-monitoring-and-management/2/details/commands/pmm-admin.html",
+          "note": null,
+          "claimId": "clm:2d192184a8d9560470368c0c57681acd4f8ad684480d9d6cf66c561181686810",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7ea1d1cc7d3f60aa4017bdaf431a83470d6dd0990b5a35cb086df321478dd8a2",
+            "ev:a107aa98e0896b9745af65186a11ab3afc393891997ab368ea07ff4601d86999",
+            "ev:b4533203fdbd9ba4fe09c4a41defa88f3736696813ce34de9439d6c477f192e1"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Percona mongodb_exporter implements a collector backed by MongoDB $indexStats. Enable it explicitly with --collector.indexstats; --collect-all enables all standalone exporter collectors. Select collections with --mongodb.indexstats-colls=db1.col1,db2.col2, or use --discovering-mode for collection discovery. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/percona/mongodb_exporter",
+          "note": null,
+          "claimId": "clm:cd957afb3d4eb1a650f39beabd9e9848d6210d3e51496aef3073350c141ffb69",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:18755b4f36c5b8becf62ea34cc1abf0833615452ea7ca00c44f53f390261f722",
+            "ev:2f62458df43752133e833e133e0ea9d8bf986577c9f159e039cdd2a8430296af"
+          ]
+        },
+        {
+          "text": "Enabling all collectors can increase exporter CPU and memory costs, especially for numerous collections or sharding. PMM documents namespace scoping and places indexstats among its slower, low-resolution collectors. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://docs.percona.com/percona-monitoring-and-management/2/details/commands/pmm-admin.html",
+          "note": null,
+          "claimId": "clm:18d07301a7c2566dd1acd1f79ff4db38b32044bdbfb305e6d6e7a09c0522d904",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:24444c7b1d2a04e8e35a8c96ef81c29a05ab3663941a838aac9e3a5088e979d3",
+            "ev:7ea1d1cc7d3f60aa4017bdaf431a83470d6dd0990b5a35cb086df321478dd8a2",
+            "ev:f086bea6127ac12b766a3da7dfa9eb85844687c20a6b4b63d423902e99c311c7"
+          ]
+        },
+        {
+          "text": "An exported $indexStats accesses.ops value represents user operations using an index, excluding TTL deletion and replication/internal work. MongoDB resets these statistics after restart, index recreation, or index modification; exporting them does not change those source semantics. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/indexstats/",
+          "note": null,
+          "claimId": "clm:3d4d8ca43813d76aa90665bf4b8cac97ed93384f7613462884ac2c084b2184d2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:58725520f8c7241422937d0321d0575a8791ba90ff88d218a85f771609b6af59",
+            "ev:bf0fbe07b6d50401bd9ae20fa60aa3d6bcd0ed27d8315ca24ebdb90def11aee6"
+          ]
+        },
+        {
+          "text": "In the inspected collector, sanitizeMetrics retains accesses.ops and optional building, and omits accesses.since from the exported document. MongoDB itself supplies accesses.since, so this exporter output does not by itself expose the full $indexStats result or its statistics-start timestamp. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/percona/mongodb_exporter/blob/main/exporter/indexstats_collector.go",
+          "note": null,
+          "claimId": "clm:3d6e82f1631f97bcf08347d9b906e933e6f4518844c84eb3129abd4af043d417",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8e232b55e2efabec0099ba35090a1e2ca17d160ca93b882ca691ae37468ac8bd",
+            "ev:d692a1a0b3f2dfd43ef118edfaab47f4848f190d5b7857a363575d87f9ca61d1"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "bda86301951272e106e071ace42037deb9fa7c0c08e13f0676588e0184927200",
+  "canonicalConceptId": "concept:19b7981c3241ff92b31baa1ebf123fd848c18c1ff07e25cc7ea8d402c3b95a1f"
+}

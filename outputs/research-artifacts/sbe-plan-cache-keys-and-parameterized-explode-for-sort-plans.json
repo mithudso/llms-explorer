@@ -1,0 +1,192 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "SBE plan cache keys and parameterized explode-for-sort plans",
+  "slug": "sbe-plan-cache-keys-and-parameterized-explode-for-sort-plans",
+  "canonical_concept_id": "concept:e7f137b3bcffda3adea68ce2c91c57c532c7654b3e06839e4cf3c7c3f5360888",
+  "canonical_artifact_sha256": "a9bc92c3cdad35aa4c5955b140d205e00a1179c32ca0552b0cbb67f01a7d436d",
+  "claims": [
+    {
+      "id": "clm:6cb667eeafcba601d3253d9253e174a77c1b8a04b4379d93a1c1f217b8237e64",
+      "text": "In the r7.0.12 SBE encoder, a parameterized InMatchExpression with a sort contributes min(maxScansToExplode + 1, number of unique equalities) to the key. Counts at or below the cap remain distinct; larger counts share this component. This does not guarantee that the entire keys match or that the planner actually chooses explosion. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/r7.0.12/src/mongo/db/query/canonical_query_encoder.cpp",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-88892",
+        "https://jira.mongodb.org/browse/SERVER-83712"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:25f28516aad8da1e402e058715420b594167f14e6af9dbeae1100bcd909d59f2"
+      ]
+    },
+    {
+      "id": "clm:d606900e599d6619a724681dbd8f39323f2097f9ea65276564a74ec3606f0bdc",
+      "text": "The r7.0.12 encoder omits the $in equality-count component when there is no sort. SERVER-83712 records this reduction of unnecessary key fragmentation, with fix versions including 7.0.12 and 7.3.3. Treat earlier 7.0 patch releases separately. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/r7.0.12/src/mongo/db/query/canonical_query_encoder.cpp",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-83712"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:028e145ded183c752282f7e6f14960a785fd8602fb272c6edfd1d9195a38c5ba",
+        "ev:25f28516aad8da1e402e058715420b594167f14e6af9dbeae1100bcd909d59f2"
+      ]
+    },
+    {
+      "id": "clm:d67e9f7a473788d692faac0cae3a29d2601ab9ddcbcad4312b815fc6299b8215",
+      "text": "Explode-for-sort can replace one index scan with several scans combined in sorted order to avoid a blocking sort. For a parameterized $in predicate, its unique equality count matters because it can determine the number of merge branches in the cached execution tree. (high confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-66459",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/r7.0.12/src/mongo/db/query/canonical_query_encoder.cpp",
+        "https://jira.mongodb.org/browse/SERVER-88892"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:bb788d92420f7bc4833688d28dd6c8615747db61cde85ef99c3cf9144941cf15",
+      "text": "SERVER-89436 gives find({a:\"foo\",b:[1]}) and find({a:\"bar\",b:[2]}) as queries sharing a classic key but having different historical SBE keys because array equality literals are not parameterized. Equality to an array is distinct from parameterized $in cardinality. (medium confidence) (verified as of 2025-04-11)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-89436",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/r7.0.12/src/mongo/db/query/canonical_query_encoder.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:d37c0ece55088b0987d39cab982186593c9dd471f978b14f8e342b5592e49237"
+      ]
+    },
+    {
+      "id": "clm:6f5a7c03305f9f66a76a3bfd7355720555d582590c1993e9e0414db22810eeb1",
+      "text": "When investigating similar $in queries, compare their actual planCacheKey values and cached entries with profiler evidence such as fromPlanCache, replanned, and replanReason. A different key alone does not prove that MongoDB retrieved and rejected an inefficient cached plan; the latter diagnosis requires execution evidence. This is a diagnostic inference from the documented fields and Percona's cache-reuse examples. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-plans/",
+      "also": [
+        "https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/",
+        "https://jira.mongodb.org/browse/SERVER-89436",
+        "https://github.com/mongodb/mongo/blob/r7.0.12/src/mongo/db/query/canonical_query_encoder.cpp"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:846eae9a9f822a83508eddc02e5b374d084e69f2258e9cac8f6c67843515686b",
+      "text": "MongoDB documents planCacheKey as depending on both the plan-cache query shape and supporting indexes. Different constants can change partial-index eligibility and produce different keys even when the documented query shape is the same, so $in cardinality is not the only possible cause of a key difference. (low confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-plans/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9893a5203803dd819d5378765c2429b474ff7d89109f8aac4982bd69865aa68a"
+      ]
+    },
+    {
+      "id": "clm:642f07f0d33af997a4950170f8f565a55a579f4b6e9024215fef1f27937691a0",
+      "text": "At r7.0.12, no-sort queries omit the extra parameterized $in count, and counts above the explosion limit share the maxScansToExplode + 1 sentinel. These remove particular key differences; all other key components must still match for reuse. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/r7.0.12/src/mongo/db/query/canonical_query_encoder.cpp",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-83712",
+        "https://jira.mongodb.org/browse/SERVER-88892"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:25f28516aad8da1e402e058715420b594167f14e6af9dbeae1100bcd909d59f2"
+      ]
+    },
+    {
+      "id": "clm:445cee5081c6d5912c4178d04a3d0933fdaa37bf4bee49e1330dbcbbf7e8b25c",
+      "text": "Use normal query executions and profiler/cache inspection to test reuse: MongoDB documents that explain ignores existing cache entries and does not create a new one. Explain output by itself therefore cannot demonstrate that repeated parameterized executions reused the SBE cache. (low confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-plans/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7dd0d5654d917c0302de18244c68803361d7afeb4870ec51cd0a6eb31b338266"
+      ]
+    },
+    {
+      "id": "clm:77b7e74b0355880a69f75a38016e2ae342e3da5634c8a3034a54ee5fad5afa4b",
+      "text": "SERVER-66459 documents an old correctness failure: explosion discarded interval evaluation trees, causing scans to retain literal high/low keys instead of recomputing bounds for new parameters. A subsequent query using the cached plan could miss matching documents. This is a historical bug description, not evidence that all current SBE executions are affected. (low confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-66459",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1fff2d7945be446eafa305872bf62bb62dc37e6c804dd777ba5bf5713d51f835"
+      ]
+    },
+    {
+      "id": "clm:82bd753376c13757e22583baea722111b1ec546f3938b39b6def885a2d977a71",
+      "text": "SERVER-89436 describes the historical SBE cache as mapping a conservatively parameterized shape to a clonable executable SBE plan. The r7.0.12 encoder replaces eligible constants with parameter markers; structural compatibility constrains reuse. (high confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-89436",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/r7.0.12/src/mongo/db/query/canonical_query_encoder.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8418c36a3039c63d231b0a0ca1fff6d2fa06fc50368dfe7c00f153f303d9aacc",
+        "ev:889f23f84bb0065c20b1d555a6ff1985d9f5fb8fc783759c7ee634a499032d66"
+      ]
+    },
+    {
+      "id": "clm:2dd0df4d834116b0d10a4accd56adeac623be4931e325feb79f61062adf68a50",
+      "text": "SERVER-88892 proposes creating the required number of cloned index-scan branches beneath a cached SortedMergeStage after runtime parameter binding. The reviewed issue is Open with no fix version; it does not establish shipped runtime branch resizing. (low confidence) (verified as of 2024-05-01)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-88892",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:45a3343bf29fc126d7a3c534bf733990c262f7ad6e8899e72f2a40a7d195886e",
+        "ev:a52b11bd55955897a8880e86135b6628a209602c9f62f2162bc0acfbc1e1501c"
+      ]
+    },
+    {
+      "id": "clm:8a236758eedd5655eb6b30d08c3c1df1110f511136ea070e40cf9df04017de16",
+      "text": "SERVER-83712 lists the no-sort key improvement as fixed in 7.0.12, 7.3.3, 8.0.0-rc1 and 8.1.0-rc0. Do not assume every older version omitted $in length without a sort. (low confidence) (verified as of 2026-09-21)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-83712",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:028e145ded183c752282f7e6f14960a785fd8602fb272c6edfd1d9195a38c5ba"
+      ]
+    },
+    {
+      "id": "clm:8a07b09b827f86b6f05abfba2f25759c01db182115c0c09a4fa9350396b59a97",
+      "text": "SERVER-90415 records switching 8.0 release builds to the classic cache while retaining the SBE cache under the SBE-full feature flag. [redacted] separately describes 8.0 still parameterizing queries and generating interval evaluation trees while the SBE cache was unreachable. SBE execution does not itself establish SBE cache usage. (high confidence) (verified as of 2026-09-21)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-90415",
+      "also": [
+        "https://example.test/withheld-reference"
+      ],
+      "validation_status": "REDACTED-PROJECTION",
+      "origin_validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:848031d6762cd4be4d67f1ed0a99a7b1cc4d53e4f0673cbfaa33bba94e647a9f",
+        "ev:aa9be67b737ece3eaf149fb218d9424946155ba951b64c0d570f761f3805bf09"
+      ]
+    },
+    {
+      "id": "clm:c4c0130ac6391e857cee27f0fec1974c65f609cd8e18baff2edae69a6e26cea7",
+      "text": "On the SBE-cache path described in SERVER-89436, MongoDB caches a clonable SBE execution plan using more conservative parameterization than the classic cache, which caches index-selection information and rebuilds the execution tree. This trades broader reuse for avoiding stage construction on an SBE cache hit. (low confidence) (verified as of 2025-04-11)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-89436",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:889f23f84bb0065c20b1d555a6ff1985d9f5fb8fc783759c7ee634a499032d66"
+      ]
+    },
+    {
+      "id": "clm:b096e20fd3a6d84a12599541f655279349f402901c69562e040826f4137e1593",
+      "text": "SERVER-90415 records switching 8.0 and master release builds to the classic plan cache while retaining the SBE cache under the SBE-full feature flag. Its fix versions include 8.0.0-rc7 and 8.1.0-rc0. An operation executing in SBE therefore does not establish that the SBE execution-tree cache or its special $in cardinality encoding was used. (low confidence) (verified as of 2026-09-21)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-90415",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:848031d6762cd4be4d67f1ed0a99a7b1cc4d53e4f0673cbfaa33bba94e647a9f"
+      ]
+    },
+    {
+      "id": "clm:5e46c26664c94ea06d641131fae3c6c473d802759887f0909c263aa2a9a31c03",
+      "text": "Netdata's MongoDB Top Queries function reads system.profile and exposes Plan Cache Key and Query Framework as separate hidden columns. This provides a concrete monitoring interface for comparing keys alongside classic/SBE execution, subject to profiling being enabled. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://learn.netdata.cloud/docs/collecting-metrics/collectors/databases/mongodb",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:d8f73e40630ad64ab0dd00bcb6aa060c57098b9107362af4d595654596542ce9"
+      ]
+    }
+  ],
+  "projection_sha256": "e154dae1a9ed94ea266c2b9e935c254ecdaecf7a311ed1b0c3a0e5828c220a88"
+}

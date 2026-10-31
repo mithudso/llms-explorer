@@ -1,0 +1,212 @@
+{
+  "slug": "mixed-schema-measurement-predicate-safety",
+  "concept": "Mixed-schema measurement predicate safety",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Mixed-schema measurement predicate safety. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Time-series measurement pushdown must preserve every bucket that could contain a match. MongoDB's query README describes control.min/control.max bucket filters before unpacking; SERVER-59505 demonstrates why naïvely applying these bounds to mixed arrays/scalars or objects/non-objects can wrongly discard matching measurements. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:e33cdf66f33992084932d73caf0a40484c2b5e8c44dca1144e2400240d9ef5ae",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7d2faa53f80ee32b13505615cdce3508223e88a7dddb6e1fb216dc831d0ad44d",
+            "ev:e6a01ac541c45d703eeba280df15c7b64402e0ab3d83d45818f6506ac84ef307"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "SERVER-59505 reproduces x:[0,2], x:[3,1], and x:10 in one bucket whose control.min.x is 10: an unsafe pushed-down x<5 test excludes the bucket even though array elements match. It also shows that control.max.x.y need not be the maximum of x.y when x mixes objects and non-objects. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-59505",
+          "note": null,
+          "claimId": "clm:735b5dfec9d2cc88ced2239a3e4e4ee9cadb4f32333b4008a4845ec4d13b2167",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7d2faa53f80ee32b13505615cdce3508223e88a7dddb6e1fb216dc831d0ad44d"
+          ]
+        },
+        {
+          "text": "The old-collection explanation is not exhaustive: SERVER-107361 records that keeping buckets open for large measurements could skip schema checks even when timeseriesBucketsMayHaveMixedSchemaData was false. Percona's release notes repeat this upstream defect and its upgrade-plus-collMod remediation. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-107361",
+          "note": null,
+          "claimId": "clm:ff9ee1d6562b1a51a5b0ca2b4558b2677c1bf19c0ce7f326c30b933d98f26817",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:40175de3cf376aee22e9a0f5305bc5e94ce80fb4d654345a9a9fa5150f38d418",
+            "ev:e2dbe73fb386aa32ba43a8cf4ccd910ea3707e3ed3f21d7eb5c18bf6d66d9676"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Methodological inference: an empty result caused by unsafe bucket pruning cannot be repaired merely by choosing a faster access path. Investigate correctness separately before attributing observed behavior to replanning; these bug records do not establish a replanReason signature. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-59505",
+          "note": null,
+          "claimId": "clm:a5b16c0055248c08f355346b2a60f0a31e1f752713f4f26ae7f7b41f2e4f35bc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:12d440815104320a2fe9cf1aed9499a02fb02ebc7bef0aac432f01d61a77826c",
+            "ev:7d2faa53f80ee32b13505615cdce3508223e88a7dddb6e1fb216dc831d0ad44d"
+          ]
+        },
+        {
+          "text": "In the master MixedSchemaBucketsState header read on 2026-10-30, mustConsiderMixedSchemaBucketsInReads returns true for every state except NoMixedSchemaBuckets, explicitly including Invalid to fail safe. canStoreMixedSchemaBucketsSafely returns true only for DurableMayHaveMixedSchemaBuckets. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/mixed_schema_buckets_state.h",
+          "note": null,
+          "claimId": "clm:b014240cdc7a9119b115efdb08a7527217c6d55cb37aba9cd3fa341bcfd26b70",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:26c8401cbc13932e4362b87647e56fcb3d83c92875f6d7d0bccfeff8eaadd2d2"
+          ]
+        },
+        {
+          "text": "A firsthand September 2022 report describes a measurement-field index build failing on MongoDB 6.0.1 with a mixed-schema bucket error while metadata/time-field indexes succeeded. This is a historical user observation, not evidence that measurement indexes are generally unsupported in 6.0+. (low confidence)",
+          "source": "https://stackoverflow.com/questions/73855411/mongodb-time-series-add-secondary-indexes",
+          "note": null,
+          "claimId": "clm:2ea955dc71dad1d6661f6534a8357980b9e9d6a9738c0f9ece2037313fa1f492",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c139cf3db27827ff0302e45dc2d46525a71b045f0e3a1e78cc5b0f8ee96afc87"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB's time-series query implementation describes measurement equality filtering with control.max >= value and control.min <= value before unpacking. This is bucket pruning; mixed-type correctness requires additional care beyond the simplified bounds example. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:d922671043492b82b15627b264ba530355658dce8ab4eff59b2e128c075cd814",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7d2faa53f80ee32b13505615cdce3508223e88a7dddb6e1fb216dc831d0ad44d",
+            "ev:e6a01ac541c45d703eeba280df15c7b64402e0ab3d83d45818f6506ac84ef307"
+          ]
+        },
+        {
+          "text": "SERVER-59505 lists fixes in 5.0.4, 5.1.0-rc3, and 5.2.0. Its reproducer describes a historical defect and must not be presented as proof that all current mixed-schema queries return incorrect results. (low confidence) (verified as of 2024-12-12)",
+          "source": "https://jira.mongodb.org/browse/SERVER-59505",
+          "note": null,
+          "claimId": "clm:bc851a72ebb118ff679e83e6d2588ff3fd6ce4131087022b40afc787d7f26c03",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7d2faa53f80ee32b13505615cdce3508223e88a7dddb6e1fb216dc831d0ad44d"
+          ]
+        },
+        {
+          "text": "SERVER-91194 documents that cloning collections created in 5.0–5.1 could lose timeseriesBucketsMayHaveMixedSchemaData, making queries miss matches. TOOLS-3777 explains why a true catalog flag can remain unsafe if its durable WiredTiger configuration representation is absent. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-91194",
+          "note": null,
+          "claimId": "clm:56a80e8c1d2799de631c95e1ad43640f48fb210661abd4740d9d1cf786eec7c0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:12d440815104320a2fe9cf1aed9499a02fb02ebc7bef0aac432f01d61a77826c",
+            "ev:b530a57d7e633568dd777b04d90c862d537c3aeae144b249187b2d777e28e8e8"
+          ]
+        },
+        {
+          "text": "For collections affected by SERVER-91194, the documented remediation combines upgrading to a fixed version with setting timeseriesBucketsMayHaveMixedSchemaData:true using collMod. An upgrade alone does not prove historical collection metadata is repaired. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-91194",
+          "note": null,
+          "claimId": "clm:7a6775daaa2ae29aa48e44b1b02f3a792cf1c33ddfc3bb92a0c927d2af5dfb76",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:12d440815104320a2fe9cf1aed9499a02fb02ebc7bef0aac432f01d61a77826c",
+            "ev:b530a57d7e633568dd777b04d90c862d537c3aeae144b249187b2d777e28e8e8"
+          ]
+        },
+        {
+          "text": "SERVER-107361 lists fixed versions 7.0.26 and 8.0.13, alongside 8.2.0-rc3 and 8.3.0-rc0. Percona documents inclusion of the fix in its 7.0.26-14 release; this is downstream confirmation of an upstream fix, not an independent discovery. (medium confidence) (verified as of 2025-11-25)",
+          "source": "https://jira.mongodb.org/browse/SERVER-107361",
+          "note": null,
+          "claimId": "clm:e3273d20fea9a2d14af86c20d97f45d0891cc26b5c43d7336d2a49ce38bc6e84",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:40175de3cf376aee22e9a0f5305bc5e94ce80fb4d654345a9a9fa5150f38d418",
+            "ev:e2dbe73fb386aa32ba43a8cf4ccd910ea3707e3ed3f21d7eb5c18bf6d66d9676"
+          ]
+        },
+        {
+          "text": "MongoDB records SERVER-59505 as fixed in 5.0.4, 5.1.0-rc3 and 5.2.0. These historical fix versions do not establish that every later mixed-schema defect is fixed. (low confidence) (verified as of 2024-12-12)",
+          "source": "https://jira.mongodb.org/browse/SERVER-59505",
+          "note": null,
+          "claimId": "clm:e117aaf83d5018d7b078352eeafa4a68d137848037552da94e27c3f202396df9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7d2faa53f80ee32b13505615cdce3508223e88a7dddb6e1fb216dc831d0ad44d"
+          ]
+        },
+        {
+          "text": "SERVER-91194 concerns collections created in 5.0–5.1 and subsequently cloned after upgrade: initial sync, chunk migration, movePrimary, resharding and dump/restore could default timeseriesBucketsMayHaveMixedSchemaData to false. Missing flag information can make reads omit matching documents that remain stored. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-91194",
+          "note": null,
+          "claimId": "clm:a12d7d0c0a3329e5d57233d5b05e79651734b0c204e1002ac801b282408a0466",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:12d440815104320a2fe9cf1aed9499a02fb02ebc7bef0aac432f01d61a77826c"
+          ]
+        },
+        {
+          "text": "validate can detect mixed-schema buckets inconsistent with the catalog flag. SERVER-91194 warns that validation can be impactful and recommends its linked hidden-secondary procedure to reduce production impact. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-91194",
+          "note": null,
+          "claimId": "clm:53ed499e6ed31f9f8415dc9c657b660dbb1ee133f63a36ee07a607edf9c43242",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:12d440815104320a2fe9cf1aed9499a02fb02ebc7bef0aac432f01d61a77826c"
+          ]
+        },
+        {
+          "text": "SERVER-107361 shows that large-measurement bucket rollover could return kNone before checking schema incompatibility, permitting mixed-schema data despite a false catalog flag. This scopes any blanket claim that post-5.2 bucket creation always prevents mixed schemas. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-107361",
+          "note": null,
+          "claimId": "clm:59d7bceb7fc845e63ca208babff3a38b41c0487228f83bb4c62355e69c5ca28c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e2dbe73fb386aa32ba43a8cf4ccd910ea3707e3ed3f21d7eb5c18bf6d66d9676"
+          ]
+        },
+        {
+          "text": "SERVER-107361 lists fixes in MongoDB 7.0.26, 8.0.13, 8.2.0-rc3 and 8.3.0-rc0. Percona's 7.0.26-14 and 8.0.16-5 notes include the fix and repeat the requirement to flag affected collections after upgrading; these release notes describe incorporated upstream fixes, not independent discovery. (high confidence) (verified as of 2026-09-29)",
+          "source": "https://jira.mongodb.org/browse/SERVER-107361",
+          "note": null,
+          "claimId": "clm:97805a0c6cea9ee3ed4ac2715f42f0e955840ef3a847b9f265e6182791d9e094",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:40175de3cf376aee22e9a0f5305bc5e94ce80fb4d654345a9a9fa5150f38d418",
+            "ev:533aa4d28e740b7acaa032118926739bee2f4839b5bd25f8375e805ef18df75d",
+            "ev:e2dbe73fb386aa32ba43a8cf4ccd910ea3707e3ed3f21d7eb5c18bf6d66d9676"
+          ]
+        },
+        {
+          "text": "For investigation of replanning loops, treat mixed-schema predicate safety as a separate correctness prerequisite: the cited defects concern unsafe bucket pruning or lost catalog state. They do not establish that a replanReason message identifies or repairs mixed-schema buckets; this is a diagnostic inference from the defect mechanisms. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-59505",
+          "note": null,
+          "claimId": "clm:d7e30d733865b5ab6d0255cd069e4ace5521deee3d03442df8c22c14d8986767",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:12d440815104320a2fe9cf1aed9499a02fb02ebc7bef0aac432f01d61a77826c",
+            "ev:7d2faa53f80ee32b13505615cdce3508223e88a7dddb6e1fb216dc831d0ad44d",
+            "ev:e2dbe73fb386aa32ba43a8cf4ccd910ea3707e3ed3f21d7eb5c18bf6d66d9676"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "a859baf86d5cb80fe4f4ce48d6b6beb543d38b26abbb7b87f12e678ff5a4d841",
+  "canonicalConceptId": "concept:06f00444b2ba58d7c6f633f0426f3d6800494ad262ed908c49ead9456f368f0f"
+}

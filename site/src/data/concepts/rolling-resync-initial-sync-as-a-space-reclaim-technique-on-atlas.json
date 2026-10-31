@@ -1,0 +1,231 @@
+{
+  "slug": "rolling-resync-initial-sync-as-a-space-reclaim-technique-on-atlas",
+  "concept": "Rolling resync (initial sync) as a space-reclaim technique on Atlas",
+  "generated": "2026-10-30",
+  "summary": "Source-anchored research for Rolling resync (initial sync) as a space-reclaim technique on Atlas. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Resyncing a replica-set member is a documented way to reclaim fragmented database-file space after deletions. MongoDB's WiredTiger storage FAQ, Percona's fragmentation advisor, and Cisco's CPS operations procedure independently describe this use; the latter two concern their own deployments and do not establish an Atlas procedure. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage.md",
+          "note": null,
+          "claimId": "clm:bc81059a55c195c87ba28f32aa383a4241aa04e28cfea1d14b9b355c693f9f45",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a7f9b2d1b0361b6da72164c3093a84b69b8b00c9b2e8995ac81f3bdb931be99f",
+            "ev:c310e1bf0e2863f71a0d3e4cea3213f6d912e12af93f0c80418488d3991b8bb2",
+            "ev:cc2cf34836d0f5b199c048bc37269f2827d8a2b13d615f3b8e818974c9bf33c4"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Cisco CPS Operations Guide 24.2.0 explicitly describes member resync as a way to reduce fragmentation and reclaim disk space. Its procedure requires an available primary and stops the target server before clearing its data directory. This is independent evidence for the self-managed mechanism, not authorization or instructions for Atlas. (low confidence)",
+          "source": "https://www.cisco.com/c/en/us/td/docs/wireless/quantum-policy-suite/R24-2-0/CPS-OperationsGuide/cps24-2-0operationsguide.pdf",
+          "note": null,
+          "claimId": "clm:cdeb5164efb53eb5381b7ba828f775382f4927d7a4bb75b7dca1f1e40bc4a42a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c310e1bf0e2863f71a0d3e4cea3213f6d912e12af93f0c80418488d3991b8bb2"
+          ]
+        },
+        {
+          "text": "A self-managed resync destroys the destination member's existing dbPath contents and requires an accessible, up-to-date source. MongoDB warns that resyncing from stale data can undo majority-commit guarantees and cause data loss; Cisco separately requires an available primary during its resync procedure. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/resync-replica-set-member.md",
+          "note": null,
+          "claimId": "clm:6ad906dd0270d243e81a0c39a7636781dc76779c87d0f4a9ccc3c5b262929a24",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:74d7780c0168ce043c77e5897d3ce28824522b6f5abe8b359c3a9bcead63b71d",
+            "ev:c310e1bf0e2863f71a0d3e4cea3213f6d912e12af93f0c80418488d3991b8bb2",
+            "ev:f5b9f8f6cad68eb35d0a323634fa882455fe4ed2388410be6ded1fb81a065a2a"
+          ]
+        },
+        {
+          "text": "Inference: a routine Atlas scaling or node-replacement operation must not be advertised as guaranteed defragmentation merely because it performs an initial sync. Atlas may copy a snapshot or files, whereas the logical reclaim rationale depends on rebuilding documents and indexes. Confirm the actual sync method and measure the result before relying on space savings. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/atlas/scale-cluster.md",
+          "note": null,
+          "claimId": "clm:919513e95d892d70767a88611af36ffca78096f6e23ad7224680a85bebd8aa87",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1e7e7e5cb3c479ffb80b9ae644ba3ee0b9b67fc9aaa3fa11df883ad7b4e05fc9",
+            "ev:5bfad530d6af27bb769b14f21f4272d25d1345ebcb5e7e2a93d1adaaf8fe5cfc",
+            "ev:ab938810bd828bb7972d02a93ccf96e2b303101d0824311b6a771807de6d6cce",
+            "ev:cc2cf34836d0f5b199c048bc37269f2827d8a2b13d615f3b8e818974c9bf33c4",
+            "ev:cc47002393ca86089b4051ab030925f1a8b72d758f1c4a0b480b5f58f11b8f66"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "The Cloud Manager rolling-resync recipe cannot be copied verbatim onto Atlas: it waits for rs.stepDown(), while MongoDB's Atlas-specific guidance says Atlas does not support rs.stepDown() or member-priority changes. This evidence scopes the self-managed recipe; it does not establish whether Atlas Support offers a managed logical-resync workflow. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/mongocli/current/command/mongocli-cloud-manager-clusters-resync.md",
+          "note": null,
+          "claimId": "clm:5db95b88a92c9efb66d8f24f1ff1b5937dc9ab20c112575cfeecbf3a686e6f5c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3bd84fed7f54874376d522a1ada24ee55a3a5385e32ec33d2f59df35dc2c9b3c",
+            "ev:e8cc1114958e8d527deced607c3c2e3506da51ba5665ffb0a0dfe72761eae99f"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Logical initial sync scans source collections, inserts their documents into new destination collections, builds their indexes, and applies buffered oplog changes. Combined with MongoDB's documented resync-based reclaim method, this explains why a logical rebuild can remove historical free space rather than preserve the source file layout; it does not guarantee an exact final size. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-sync.md",
+          "note": null,
+          "claimId": "clm:aa39d81807d3109e7a34db7b46f181936ac1eacc3543450a7c22bd08d6674e34",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:40657b25abe7881f3f5036195d55dc19480e428bad4a92fc5024f9123c5c6736",
+            "ev:5bfad530d6af27bb769b14f21f4272d25d1345ebcb5e7e2a93d1adaaf8fe5cfc",
+            "ev:cc2cf34836d0f5b199c048bc37269f2827d8a2b13d615f3b8e818974c9bf33c4"
+          ]
+        },
+        {
+          "text": "Atlas documents cloud-based initial sync as creating a source-node snapshot and restoring it to a new node. Its scaling documentation says Atlas Core NVMe clusters use file-copy-based initial sync whenever initial sync is required. Both differ from the document-and-index rebuild performed by logical initial sync. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/atlas/scale-cluster.md",
+          "note": null,
+          "claimId": "clm:c3da1381e2be06500fdd9f004724d51ed0567d3aa540273c632789c10c79a843",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1e7e7e5cb3c479ffb80b9ae644ba3ee0b9b67fc9aaa3fa11df883ad7b4e05fc9",
+            "ev:5bfad530d6af27bb769b14f21f4272d25d1345ebcb5e7e2a93d1adaaf8fe5cfc",
+            "ev:ab938810bd828bb7972d02a93ccf96e2b303101d0824311b6a771807de6d6cce",
+            "ev:cc47002393ca86089b4051ab030925f1a8b72d758f1c4a0b480b5f58f11b8f66"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Resyncing a replica-set member can reclaim unused WiredTiger file space that deletions leave available for internal reuse. Percona documents rolling node resync as an alternative to per-collection compaction. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage.md",
+          "note": null,
+          "claimId": "clm:92fd25c40c9df70a4dc3051edfc7ed93f64ca39e9d73330b5d93841e40eaeafa",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a7f9b2d1b0361b6da72164c3093a84b69b8b00c9b2e8995ac81f3bdb931be99f",
+            "ev:cc2cf34836d0f5b199c048bc37269f2827d8a2b13d615f3b8e818974c9bf33c4"
+          ]
+        },
+        {
+          "text": "Atlas cloud-based initial sync restores a cloud-provider snapshot, whereas logical initial sync scans documents and rebuilds indexes. Therefore, do not assume that an Atlas node replacement or any operation called initial sync will reclaim fragmentation; verify which sync method it uses. This reclaim caution is an inference from the documented mechanisms. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-sync.md",
+          "note": null,
+          "claimId": "clm:097df0869d86bdf0ea37c905b790ea5d7ef5c000dff913c192b4013057f3031e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5bfad530d6af27bb769b14f21f4272d25d1345ebcb5e7e2a93d1adaaf8fe5cfc",
+            "ev:cc47002393ca86089b4051ab030925f1a8b72d758f1c4a0b480b5f58f11b8f66"
+          ]
+        },
+        {
+          "text": "The documented mongocli rolling-resync commands belong to Cloud Manager and Ops Manager. They resync secondaries, wait for an operator-requested primary stepdown, and then resync the former primary; they remove the contents of each target dbPath. These pages do not establish an Atlas command or Atlas customer access to dbPath. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/mongocli/current/command/mongocli-cloud-manager-clusters-resync.md",
+          "note": null,
+          "claimId": "clm:1d735033d4f886a572aa1adff4d9401e925d47fe74e86e956d76717b2a736f82",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3bd84fed7f54874376d522a1ada24ee55a3a5385e32ec33d2f59df35dc2c9b3c",
+            "ev:76637795b5914c9197cd7e963076258f698067ca787d6a6d9600f8df5c74a93a"
+          ]
+        },
+        {
+          "text": "Initial sync needs temporary local-database space for oplog records and a source oplog window long enough to cover synchronization; missing required oplog history can force a restart. A member in initial sync does not acknowledge writes. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-sync.md",
+          "note": null,
+          "claimId": "clm:e28928e7d1e59a0b105fae6b1cf3466c7fe41611bca75245a558d4ba2397817e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4b1a3e460c95a2ea41972185301d60253f3a24754682a1127526456e3ab683bf",
+            "ev:5bfad530d6af27bb769b14f21f4272d25d1345ebcb5e7e2a93d1adaaf8fe5cfc",
+            "ev:8f58ea22f2262bf5b71b405024af267dc4d4295092ed6a17aa94ba79cffb36b9"
+          ]
+        },
+        {
+          "text": "Treat rolling resync as a capacity and availability operation, not a guarantee of zero application impact: Percona warns that large datasets can take a long time, and MongoDB documents source-primary performance reduction during initial sync on NVMe clusters. (medium confidence)",
+          "source": "https://docs.percona.com/percona-monitoring-and-management/3/advisors/checks/mongodb-collections-fragmented.html",
+          "note": null,
+          "claimId": "clm:b2cba04ccf0da3f46d1c38f69cbc3c26b6d26c46542b19577426bbaa1a50be82",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:308869ec3641efb35a23239e493512609246716bd77925255e7cdc11c424570a",
+            "ev:a7f9b2d1b0361b6da72164c3093a84b69b8b00c9b2e8995ac81f3bdb931be99f"
+          ]
+        },
+        {
+          "text": "The Atlas cluster-modification documentation states that Atlas Core NVMe clusters use file-copy-based initial sync whenever initial sync is required. A tier change on such a cluster should therefore not be presented as a verified logical rebuild for reclaiming fragmentation. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/atlas/scale-cluster.md",
+          "note": null,
+          "claimId": "clm:ffdc101c2af84c1cb933ee207c86f3cf3e58b04d83d0fe2fcd3a9ebdde56e6d4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1e7e7e5cb3c479ffb80b9ae644ba3ee0b9b67fc9aaa3fa11df883ad7b4e05fc9",
+            "ev:ab938810bd828bb7972d02a93ccf96e2b303101d0824311b6a771807de6d6cce"
+          ]
+        },
+        {
+          "text": "For self-managed rolling resync, rotate only one member at a time to preserve the write quorum. MongoDB's Cloud Manager CLI documents initial-syncing secondaries in rolling order, waiting for an operator-requested primary stepdown, then initial-syncing the former primary. These are self-managed and Cloud Manager instructions, not evidence of an Atlas resync command. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/resync-replica-set-member.md",
+          "note": null,
+          "claimId": "clm:350f54384b6f359db8ef77c6f1a9c71c4dd9daa7073b8315a12e006e0cdca874",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3bd84fed7f54874376d522a1ada24ee55a3a5385e32ec33d2f59df35dc2c9b3c",
+            "ev:f5b9f8f6cad68eb35d0a323634fa882455fe4ed2388410be6ded1fb81a065a2a"
+          ]
+        },
+        {
+          "text": "Logical initial sync needs temporary disk space for buffered oplog records in the destination local database and a source oplog window sufficient for catch-up. If catch-up detects an oplog continuity gap, the initial sync must restart from the beginning. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-sync.md",
+          "note": null,
+          "claimId": "clm:df380ea124b5104994a69bdd715b2cfd7746e2bf659db5125483de4652e2b388",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4b1a3e460c95a2ea41972185301d60253f3a24754682a1127526456e3ab683bf",
+            "ev:5bfad530d6af27bb769b14f21f4272d25d1345ebcb5e7e2a93d1adaaf8fe5cfc"
+          ]
+        },
+        {
+          "text": "Rolling execution does not guarantee zero application impact. MongoDB warns that initial sync adds traffic and load to the source; Atlas warns that migrations can affect a busy primary and secondary-read capacity. Percona also notes that rolling resync can take substantial time for large datasets. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/resync-replica-set-member.md",
+          "note": null,
+          "claimId": "clm:f3eb6372b6d73cbccb87a0e92e515a8e933407f91fab8c40c79f56613a6cd042",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a7f9b2d1b0361b6da72164c3093a84b69b8b00c9b2e8995ac81f3bdb931be99f",
+            "ev:ab938810bd828bb7972d02a93ccf96e2b303101d0824311b6a771807de6d6cce",
+            "ev:f5b9f8f6cad68eb35d0a323634fa882455fe4ed2388410be6ded1fb81a065a2a"
+          ]
+        },
+        {
+          "text": "MongoDB's Atlas scaling workflow migrates secondaries before the primary, one node at a time per replica set. Its availability guidance recommends retryable writes for primary elections. This supports planning for an election during a managed rolling operation, but does not establish a user-triggered Atlas logical-resync feature. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/atlas/scale-cluster.md",
+          "note": null,
+          "claimId": "clm:73467c932e80238e7b7d6095cd90c495554a701f05895c237dd5b8c9f60708be",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ab938810bd828bb7972d02a93ccf96e2b303101d0824311b6a771807de6d6cce"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "a22dcd926dac108558593acbb56f7b0e948d51295dc92ed21f572dd49bac3c8f",
+  "canonicalConceptId": "concept:5641c102e4a33f655363380180ae92ced191f815250b61315a5e01890eaa4637"
+}

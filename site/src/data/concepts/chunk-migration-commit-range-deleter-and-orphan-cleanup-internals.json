@@ -1,0 +1,224 @@
+{
+  "slug": "chunk-migration-commit-range-deleter-and-orphan-cleanup-internals",
+  "concept": "Chunk migration commit, range deleter and orphan cleanup internals",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Chunk migration commit, range deleter and orphan cleanup internals. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "In ApsaraDB for MongoDB, receiveChunkWaitForRangeDeleterTimeoutMS controls how long an incoming migration waits for orphan deletion. Alibaba documents ExceededTimeLimit errors when deletion of the incoming range does not finish in time; this is a managed-service setting and must not be assumed identical on every upstream version. (low confidence) (verified as of 2026-09-11)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/user-guide/parameter-tuning-recommendations",
+          "note": null,
+          "claimId": "clm:dfc083ebc4fa72ce87835695a9cf6b65e8c069dc5dbff339d000744829c138fe",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c4422dcc40390fb85b0899147dddba5073e526e92a114efa182f6f1f954585e4"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Range deletion consumes CPU, cache and disk I/O. Alibaba documents a tradeoff: smaller deletion batches or longer intervals can reduce resource spikes, but excessive delay prolongs orphan cleanup and can cause overlapping migration timeouts. Its parameter values describe ApsaraDB and should not be assumed to be upstream defaults. (high confidence)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/user-guide/parameter-tuning-recommendations",
+          "note": null,
+          "claimId": "clm:3b66c03b97122dacde03e9150bc3f0fda59b32c635a7c5fed505dc5a0eb9431a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:79fa1abc4850b3e4766b8058b9dd180de6a82f209d130cbe4963491090f881a7",
+            "ev:aa8653dd1f0a7b4d0a22495cb500af8fa6294ab54edf554cfef918687862cb02"
+          ]
+        },
+        {
+          "text": "Current cleanupOrphaned documentation describes a command that waits for background cleanup rather than directly deleting documents, and marks it deprecated since 8.0. Do not apply older looping cleanup examples as a description of current range-deleter internals. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/cleanuporphaned/",
+          "note": null,
+          "claimId": "clm:8de0b8ebef52c00c47ad5260eb8506e83856cec4258f8c14a5d58d809abf5a14",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2bd53092d5e909c043b8df312aa87ec04782e49cf2d0d7b95d0fe9399155c479"
+          ]
+        },
+        {
+          "text": "Current cleanupOrphaned semantics wait for automatic orphan cleanup rather than directly deleting documents. The command runs against the shard primary and waits across the namespace regardless of startingFromKey; older range-iteration scripts require version-specific interpretation. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/cleanuporphaned/",
+          "note": null,
+          "claimId": "clm:3a30eb264e5d8b992281d6774e0d74e944c8d91b47c7fcfb46fdcc8e8f308990",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:21442f15f55319fff1b802193abe9bc8a15edb5b5428f76dc26995b4bb6e61f0",
+            "ev:e1a13dac218df9bed2b20e98030c54949684c082f4739feab00e688ef7381818"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Migration commit changes cluster metadata after the recipient catches up with changes made during copying. Donor-side physical deletion follows that ownership change; the balancer can start another migration before the preceding deletion phase finishes. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:ed9d85974a47df273a1c0115a61fe4d4b7558b0c2da94293dfd3a8221ab8040d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:21b593c0c872dad03ff0eaf1dc91d99683f0042cf18f79d547d16778380f6bdb"
+          ]
+        },
+        {
+          "text": "The balancer can begin another range migration before an earlier donor deletion finishes. Cleanup is asynchronous, and ordinary orphan copies can therefore remain after successful migrations without implying that migration failed. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:0f5cc08899e93dcafe33b16f1927ba9fab2a571be32234ae7d792eae62aa8b87",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:622144358b631dfb41323a9669ea639fc64163003418c3c3675159a0b75216f5",
+            "ev:bffa9742fe221fa2f009a9dab80c0409303c654364262aa7695fd215fe373034"
+          ]
+        },
+        {
+          "text": "Under the documented default cleanup sequence, the donor waits for pre-existing primary reads, then waits orphanCleanupDelaySecs, then deletes the orphan range. This creates a delay between ownership transfer and replicated physical deletion; it is not a fixed upper bound on cleanup completion. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:42fe205b9484961a74b5d59628422d555b6c52954d56a0ba56f7d82997078e3f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c4a2e544580bfda014c38e5f9a11c81e1ca3490030a9cffc06e945aaba7cf9e6"
+          ]
+        },
+        {
+          "text": "Waiting for deletion with the migration's wait-for-delete option bypasses orphanCleanupDelaySecs. Jin's MongoDB 8.0.32 experiment observed zero remaining donor documents for the explicitly waited range while ten earlier delayed cleanup tasks still remained. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:f8dc870dfaa314deddd3d3dfa87967d8e18e6a523777ecfa62793e4cdb59b60b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3607298461a473feba82ab8545d1d3833364e16e8b42ba40b12a5d44b07402df",
+            "ev:b2972764e6aa9bba493aeb44b4402b2f36d86f09cd430cbbdf8ec240e62ffa1f",
+            "ev:da4192c64f6cdf009424886d2143b51b21d310f3279267541c2323569c632806"
+          ]
+        },
+        {
+          "text": "A recipient can wait for outstanding deletions that overlap an incoming range, and the wait can time out. Alibaba documents receiveChunkWaitForRangeDeleterTimeoutMS for this condition; Jin independently reproduced the migration timeout and overlap log message in MongoDB 8.0.32. (high confidence)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/user-guide/parameter-tuning-recommendations",
+          "note": null,
+          "claimId": "clm:e18f1888616c6493d8a932e837b49da98d029d0b56c7cffa0ad2462c2b9fc47b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1f65a6acddf4931f8fbd5056c7408a5a5266a45f2e5586e74886c47dd6f090ce",
+            "ev:c4422dcc40390fb85b0899147dddba5073e526e92a114efa182f6f1f954585e4",
+            "ev:da4192c64f6cdf009424886d2143b51b21d310f3279267541c2323569c632806"
+          ]
+        },
+        {
+          "text": "SERVER-125663 describes an internal pending-to-ready gate: migration commit registers an in-memory deletion task and removes pending from the durable config.rangeDeletions document; an operation observer calls clearPending() to unblock deletion. Its reported race drops that collection first, causing NoMatchingDocument and leaving the in-memory deletion chain stalled. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-125663",
+          "note": null,
+          "claimId": "clm:6bbe41abcb2f4c34325ddf15455017e7e4e099773a1e4c7ac02a15858832871f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c607912ed7916fbd0998a4f2e0e069c2f8c05e1d86daa92602492f3c6e16620a"
+          ]
+        },
+        {
+          "text": "SERVER-91970 records why range-deletion bookkeeping must account for overlapping donor tasks as well as recipient tasks: interrupted migration recovery can race with immediately migrating the newly received range onward and marking the wrong pending task ready. The issue identifies fixes in 7.0.13, 8.0.0-rc14 and 8.1.0-rc0. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-91970",
+          "note": null,
+          "claimId": "clm:7e687bfe417b54ed8fae4efb02b47de9df095d010a9cc9058794043c82e90b19",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:94a1db1e5451f6278ea5a5cee1700e9950be30477284a6b484cea8ac5ae0c80d"
+          ]
+        },
+        {
+          "text": "The shard-local config.rangeDeletions collection stores persistent range-deletion tasks identified by collection UUID and a half-open shard-key interval [min, max). The pending flag means a range is not yet ready for deletion. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/README_range_deleter.md",
+          "note": null,
+          "claimId": "clm:4bbbb52f5fe907949b94909697182c4c7bdf6d7c827fe122fafd134eb64590d8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:67754bd203b5f560267fbcd7c362aa6109a3e9d6bde0964a825b3a066d45cd30"
+          ]
+        },
+        {
+          "text": "At migration start, donor and recipient each create a pending deletion task. Commit readies the donor task and deletes the recipient task; abort deletes the donor task and readies the recipient task, cleaning up the unsuccessful copy. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/README_range_deleter.md",
+          "note": null,
+          "claimId": "clm:5a4acc87fc5679a8c701c9716652b99ec141fdb1a503d7e08ecc92b4fa78132e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2ac79e95a753199900bf695beb76c5274dd4ace4022d8344ff308dddfa75da58"
+          ]
+        },
+        {
+          "text": "The range deleter runs on shard primaries and waits for local reads retaining a range to drain. It exposes a completion future that resolves only after every deletion task overlapping the requested range completes. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/README_range_deleter.md",
+          "note": null,
+          "claimId": "clm:a64518ab1ea4bcd63341258e52e1ec49eb1fbcb4d4ac97463b882efee4967498",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:308b59b131deea55f95d33ee73fc5d1d4acaaaaa3e005ace57fef50a858f6038"
+          ]
+        },
+        {
+          "text": "Step-down stops range cleanup and clears in-memory service state. Step-up asynchronously rebuilds registrations from persisted tasks, temporarily excluding writes to config.rangeDeletions during recovery; persisted state permits cleanup to survive primary crashes and restarts. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/README_range_deleter.md",
+          "note": null,
+          "claimId": "clm:e6782af804c212b68747e714c64d0aaaaa3c8a2d22d1e57f910f1314875191a0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6bfc3fd34c46e06e683eb508bfe34320b4dd26fd620a48b2f9baddee89638e6c",
+            "ev:fc1c19ff52e6d9998ceca657bcb7b4ddb8841111e52690aecab7eac8a8f32d79"
+          ]
+        },
+        {
+          "text": "Range migration uses majority acknowledgment at specific transition points independently of _secondaryThrottle. Before further outgoing cleanup or new incoming migrations proceed, cleanup writes from a completed outgoing migration must have replicated to a majority. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:5ab00ba393b02f924e244c166ab25d7c61cf02b1955301a9d376f1e247755ad6",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Range deletion can produce substantial CPU, cache and disk-I/O load. rangeDeleterBatchSize limits documents per batch, while rangeDeleterBatchDelayMS spaces deletion batches; larger delays trade lower instantaneous pressure for a longer cleanup backlog. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:0835e788f1b2bcee5886f908e2f5337e10395916183995802378129edfd0f101",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2557d229eabf28e15ff25308e4b4342b581eac6f89c0c6fc717e4d7748705af2",
+            "ev:79fa1abc4850b3e4766b8058b9dd180de6a82f209d130cbe4963491090f881a7",
+            "ev:aa8653dd1f0a7b4d0a22495cb500af8fa6294ab54edf554cfef918687862cb02"
+          ]
+        },
+        {
+          "text": "Idle cursors can prevent cleanup from completing. Alibaba documents the diagnostic message \"will be scheduled after all possibly dependent queries finish\" and inspecting $currentOp with idleCursors enabled to identify retained cursors. (high confidence) (verified as of 2026-09-23)",
+          "source": "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster",
+          "note": null,
+          "claimId": "clm:2661675abb97bce79e3a171d18041eac3734c346537215a7d1f355ff8e9ad060",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:334b635bc72374143d61e41bb652e5848637b8420e16168954bcea1f056095a9"
+          ]
+        },
+        {
+          "text": "Orphan copies can affect tools that read each shard directly. Huawei documents that its DRS full extraction includes both owned and orphaned documents and that an Ignore conflict policy can preserve whichever copy arrives first, causing inconsistent migration results. (low confidence) (verified as of 2025-06-03)",
+          "source": "https://support.huaweicloud.com/eu/drs_faq/drs_09_0101.html",
+          "note": null,
+          "claimId": "clm:6ca4e1982db6acbb9684a1afbfc1de97f34336ea9d487058d7e224069e0a6ef2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:33d1e7914f8e519149d647fddffa0565a5240544fc8071b4553cd466a2c91107"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "e7f2a47f51310a33d73955db44c74f8816307e893d84fd1961143008f1145e3e",
+  "canonicalConceptId": "concept:adf950bb24c834b9eb4f877b4bcc75a9944eae2f2bffa6bdb1a9c220f33df1c5"
+}

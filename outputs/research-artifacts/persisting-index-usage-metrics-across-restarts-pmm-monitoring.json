@@ -1,0 +1,177 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Persisting index usage metrics across restarts (PMM/monitoring)",
+  "slug": "persisting-index-usage-metrics-across-restarts-pmm-monitoring",
+  "canonical_concept_id": "concept:393e98095a814ed496852167e46e66253eb95899fdfecdb7b5d1dd8543b97dd8",
+  "canonical_artifact_sha256": "4fcc319aa16ba347ba1fbed890be7f87bef41043362699256043e20a78f3d8b6",
+  "claims": [
+    {
+      "id": "clm:99e3bd81f8525b946fed3ee74c6174be978008ad7951e6c9565ea23749d6e821",
+      "text": "MongoDB $indexStats accesses.ops resets when mongod restarts. Index drop/recreation and index modification through collMod also reset the affected index statistics; accesses.since identifies when gathering began. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:243ecdee1220b76eae932f67fbd8c627bb080ee95f1a93a30263304c49d0349b"
+      ]
+    },
+    {
+      "id": "clm:e3e7273b7434609d5542068b23b58e3efb0837b59c6a68df951c695764c2c471",
+      "text": "PMM can retain previously collected index usage samples across a MongoDB instance restart even though MongoDB resets its live statistics. Retention must cover the complete application workload cycle, including infrequent reporting jobs, to support unused-index assessment. (high confidence)",
+      "source_url": "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0e2414cc93ab4e08c3dcf0dabb4afcdefd84505f80ae191afc780bcef078252c"
+      ]
+    },
+    {
+      "id": "clm:67a2d34f0ec48000067c6312e58d46eb8be4555409a977c2c983348c471d02f4",
+      "text": "The indexstats collector must be enabled to obtain index-usage metrics. A Percona support answer identifies mongodb_indexstats_accesses_ops as the metric to inspect when troubleshooting missing index-usage data. (medium confidence)",
+      "source_url": "https://forums.percona.com/t/view-index-usage/26802",
+      "also": [
+        "https://pmm-doc-3.onrender.com/reference/dashboards/dashboard-mongodb-unused-indexes.html"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:067b5436735c0a1b285d4cd5464c164c74dc62b945b1373c54ad0dc947fd33c6",
+      "text": "A March 2026 support report for PMM 3.6.0 describes duplicate mongodb_indexstats_accesses_ops series when indexstats runs through mongos across multiple shards. The reporter confirmed that disabling indexstats on mongos resolved the reported scrape errors. This is evidence of a version-specific monitoring gap, not proof that every later release has the defect. (low confidence) (verified as of 2026-03-23)",
+      "source_url": "https://forums.percona.com/t/mongodb-instance-summary-dashboard-shows-no-data-for-mongos-services-on-pmm-3-6-0/40383",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:59fdbddd3f332989724fc86705c88c24022fcc80c77998c018cb4d49b979934b"
+      ]
+    },
+    {
+      "id": "clm:0e7e411ea099aa696b8e55821ce95a0cdab6e795a019077a0f56de32664e1dde",
+      "text": "Zero $indexStats accesses does not prove that an index has no purpose: the counter excludes internal TTL deletion and chunk split/migration operations. Long retention does not remove this semantic limitation. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:38c429a81b344041ddda05b5b5e58a38eb18efa00e90119ba6090f4b9f712734"
+      ]
+    },
+    {
+      "id": "clm:6ccb836373a08698c98bcc0781db9f90ad95bcd5031ff763c77eccbada9ac548",
+      "text": "Monitoring history cannot guarantee an exact lifetime operation count: inference from MongoDB reset behavior and Prometheus sample-based reset handling shows that increments after the last pre-reset scrape can be lost. A reset that occurs and is overtaken between samples may also be invisible as a decrease. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://prometheus.io/docs/prometheus/latest/querying/functions/"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:0c4c91d8a2712b101b34321c807ec1527abe83bf9e0faa4ef6fcc62a6aae6777",
+      "text": "Prometheus increase() and rate() adjust for observed counter resets. increase() extrapolates across the selected range and can return fractional results; rate() should be applied before aggregation so resets remain detectable. These functions analyze sampled counters rather than reconstructing an exact lifetime ledger. (low confidence)",
+      "source_url": "https://prometheus.io/docs/prometheus/latest/querying/functions/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4c7d67e639f3c78e6d65d37ac34d75c9bcef63fb8a9799f565362be05819c2a1",
+        "ev:95b2d46033157737357de4ff593819e8530680cc49a7210389a9dacec6c9d55d"
+      ]
+    },
+    {
+      "id": "clm:ed5f5b0075cc9ad6b0befc87e6f6fb0fd92dbc9763e97102fbe5ad724ebafd43",
+      "text": "For a series with counter semantics, Prometheus increase() adjusts observed decreases caused by resets and extrapolates across the requested window, so results can be fractional. Applying this to exported MongoDB usage requires verifying the deployed metric and label behavior rather than assuming that a raw end-minus-start subtraction survives restarts. (medium confidence)",
+      "source_url": "https://prometheus.io/docs/prometheus/latest/querying/functions/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+        "https://github.com/percona/mongodb_exporter/blob/main/exporter/indexstats_collector.go"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:243ecdee1220b76eae932f67fbd8c627bb080ee95f1a93a30263304c49d0349b",
+        "ev:4c7d67e639f3c78e6d65d37ac34d75c9bcef63fb8a9799f565362be05819c2a1",
+        "ev:74050ce9b126347024fd122d5accc0cf5a69b729353397161ca35f63bc29fd8b"
+      ]
+    },
+    {
+      "id": "clm:a6c71a223348c58016bbe729fb693ef937ef44637464c3b361df48d693d9133f",
+      "text": "A zero index-access counter is scoped to its observation period and node. Review every relevant replica-set member and allow infrequent workloads to run before deciding that an index is unused. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
+        "https://pmm-doc-3.onrender.com/reference/dashboards/dashboard-mongodb-unused-indexes.html"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:720790fa319179122e23863ad5d5009c174c018b3530476efa9488c0307f0b43",
+      "text": "The PMM 3 MongoDB Unused Indexes documentation describes zero-access candidates and least-used counts since the last restart, and directs readers to check instance uptime. Historical sample retention therefore must not be equated with that dashboard automatically reconstructing lifetime usage. (medium confidence) (verified as of 2026-10-26)",
+      "source_url": "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-unused-indexes.html",
+      "also": [
+        "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
+        "https://pmm-doc-3.onrender.com/reference/dashboards/dashboard-mongodb-unused-indexes.html",
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8425c2a84fb3ac137dc321a4bd6f40d8455b87b8fa02df016beab2e6d7b2b039",
+        "ev:cfba7574e5bd601ec302b87790678824fde19c8ebdcacd4288371c1a2152ea38"
+      ]
+    },
+    {
+      "id": "clm:da10a43e50b5a7986f2f6debc6fe7a5bb2e7c5fbda5f443fbe4098e0a3c91915",
+      "text": "Collect and review index usage on every relevant replica-set member: $indexStats reports accesses local to the executing node, and an index unused on one member may be used on another. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-unused-indexes.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:243ecdee1220b76eae932f67fbd8c627bb080ee95f1a93a30263304c49d0349b",
+        "ev:c3aa2c83433c799c41c39525ff17fe29423380b056f5557e6d966565fb9c945d"
+      ]
+    },
+    {
+      "id": "clm:383b4e6442cb98868982018ea332c31845c0513b9407cb0b3860a332a23cfb66",
+      "text": "The inspected mongodb_exporter indexstats collector executes a $indexStats aggregation per selected collection, attaches database, collection and key_name labels, and emits accesses.ops. Its sanitizeMetrics function omits accesses.since; this collector code does not implement a durable accumulated usage total. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/percona/mongodb_exporter/blob/main/exporter/indexstats_collector.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:74050ce9b126347024fd122d5accc0cf5a69b729353397161ca35f63bc29fd8b"
+      ]
+    },
+    {
+      "id": "clm:acff269da66c9b3c5dd21bfd321c27641cb4d0cc20eb3d142bbd101fbbddbf8b",
+      "text": "If mongodb_indexstats_accesses_ops is absent, verify collector configuration before interpreting the absence as zero usage. A Percona PMM 2.40.1 support thread identifies the metric and a disabled indexstats collector; PMM 3 dashboard documentation also requires enabling indexstats collection. (medium confidence) (verified as of 2026-10-26)",
+      "source_url": "https://forums.percona.com/t/view-index-usage/26802",
+      "also": [
+        "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-unused-indexes.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4501c08738fe2bb21e8ba88f45706f4ddea57eb05427218e1e7e0550fc1fa0bd",
+        "ev:6c151791c1b4e8a5dac76cd9d7f1059aae8826250b1b02ff9b0d2591f11fae0e"
+      ]
+    },
+    {
+      "id": "clm:9c96884114b1faa0ade37c520eea8f400bfc440203f794463848b58cb974d1e1",
+      "text": "A conservative historical record should preserve node, database, collection and index identity plus sample time and MongoDB accesses.since where available. This is a design inference from node-local statistics, reset conditions and exporter labels; it helps distinguish a continuing index from a dropped and recreated index with the same name. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://github.com/percona/mongodb_exporter/blob/main/exporter/indexstats_collector.go"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:243ecdee1220b76eae932f67fbd8c627bb080ee95f1a93a30263304c49d0349b",
+        "ev:74050ce9b126347024fd122d5accc0cf5a69b729353397161ca35f63bc29fd8b"
+      ]
+    }
+  ],
+  "projection_sha256": "8fa8005292942697adc828070953d0af8194a641308f9acb2a9d9e52269a3ec8"
+}

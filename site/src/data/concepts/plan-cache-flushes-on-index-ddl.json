@@ -1,0 +1,171 @@
+{
+  "slug": "plan-cache-flushes-on-index-ddl",
+  "concept": "Plan cache flushes on index DDL",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Plan cache flushes on index DDL. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Methodological inference: when comparing compound-index and index-union alternatives, an index creation, drop, or hide is also a cache-state intervention. Inspect collection cache entries with $planCacheStats or getPlanCache().list() and distinguish executions immediately after DDL from later executions before attributing a timing difference solely to index structure. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+          "note": null,
+          "claimId": "clm:45d10421a46a5f431826eeef0ba4611360d1a9543757f01447c21135e9ad5678",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Creating or dropping an index invalidates cached query plans. MongoDB documents the clearing scope as the relevant collection; Percona lists index creation and dropping as invalidation triggers, and Alibaba Cloud independently documents clearing on index drop. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+          "note": null,
+          "claimId": "clm:4bb841b8e4626928b21d992ff03d4da86a41941c8d1f29bd2e42148aa7d2fbc6",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "An index addition or deletion can invalidate cached plans on the same collection even when that index is unrelated to the target query; invalidation is broader than removing only plans that used the changed index. (medium confidence)",
+          "source": "https://proxy-hk.tencentcloud.com/document/product/240/81407",
+          "note": null,
+          "claimId": "clm:e08fcd3081915562bdb8de4996c1b49f5a2bb99d83568bbdd76b08f86c1e7236",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "MongoDB's documented plan-cache flush triggers include hiding an index, in addition to creating and deleting indexes; a reversible hide operation therefore still changes the collection's cache state. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+          "note": null,
+          "claimId": "clm:0e34a0b85471dd0d9bfccfd6cb2c9567d20264ffd528dfecee0296cf0c20ace2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2f6f079315d0b0a8b8308b41e7c815e8e34a13593f2927c2aeb805ef86c3d5cd"
+          ]
+        },
+        {
+          "text": "Hiding an already hidden index is documented as a no-op on the index, although hideIndex still writes an empty oplog entry. The hidden-index manual distinguishes such calls from actual visibility changes when describing $indexStats resets; these statements alone do not establish whether the no-op flushes the plan cache. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+          "note": null,
+          "claimId": "clm:8ca1fec2380f35adb5a0f854b21826594d610c90bebb6890c6dafa88220a1609",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:06bf8e273b91daead4de0407393c03e886f05341ab090a3492ada772e58c4796",
+            "ev:25f051f8a7f5f4eb8d94e74b28339c4289c872a21f5b1e9001454033aed31e3a"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "For an index comparison, record DDL and inspect actual cache state with $planCacheStats or PlanCache.list(); explain bypasses existing cache entries and does not populate them, so it cannot demonstrate cache warm-up. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+          "note": null,
+          "claimId": "clm:3aee28bf58f8512c50cec30556f2693f1ec93e2b173eadd164ef039cca931e31",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4d2ba780f4ce8408944fc396b7f458ce86fa1d922f30fde24659acc8a0d43da2",
+            "ev:cbefae96ca520e8d2702869703f24aa0d36b60b50f8d4e575eebac82c25fd635",
+            "ev:dec3640d3ac3cef08819033820a25cdde91ab4f012cc2fd1a4b4b890bec11f4a"
+          ]
+        },
+        {
+          "text": "SERVER-60067 proposed evicting only SBE cached plans dependent on a dropped index. Its recorded resolution is Won't Do and it lists no fix version, so the proposal cannot substantiate a claim that dependency-only index-drop invalidation shipped. (low confidence) (verified as of 2022-12-06)",
+          "source": "https://jira.mongodb.org/browse/SERVER-60067",
+          "note": null,
+          "claimId": "clm:3846fc2e79c83bb11b9413f8794dc12780f3f2c3d33b545132d30c9aec9cecde",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:58905a207f810fba87b2f9684283d66331681f6d039114aa2a29bdac341c05fe"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "PlanCache.clear() explicitly removes a collection’s cached plans; PlanCache.clearPlansByQuery() permits targeted removal instead of changing indexes merely to force cache invalidation. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+          "note": null,
+          "claimId": "clm:90fc8a7e387ada2094c311bad224b7578dc4ef8bc4c6df2c1fb46693421391d0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2f6f079315d0b0a8b8308b41e7c815e8e34a13593f2927c2aeb805ef86c3d5cd"
+          ]
+        },
+        {
+          "text": "The historical SBE design in SERVER-60066 uses a process-global plan cache, unlike the classic engine's per-collection cache. It requires collection-dependent invalidation on collection drop; collection-scoped invalidation should not be described as necessarily having a physically separate cache in every execution engine. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-60066",
+          "note": null,
+          "claimId": "clm:43669e02b73eee655c841596b4e4173c8bfa44939622322e054c7998c0b146c5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2363d13048fe9e0b5f673f80d5645ef4379d88c43b9664652fe29e635d68df0b"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Hiding an index clears the collection plan cache. It also removes that index from planner consideration while retaining the maintained index, enabling a reversible experiment before dropping it. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+          "note": null,
+          "claimId": "clm:708666a5f3014ef2a06f8143b5c27e76f6be866ebac2b4f1b0a4f2f99eed67e8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2f6f079315d0b0a8b8308b41e7c815e8e34a13593f2927c2aeb805ef86c3d5cd",
+            "ev:ed8fa365ce8ed53a451f1cd5700ca5da6c5ecff87249f377ba3d39af8386470c"
+          ]
+        },
+        {
+          "text": "SERVER-32943 documents a historical background-build race: building an index flushed the cache, a concurrent query cached a plan without the unfinished index, and completion did not flush again. The issue records fixes in 3.6.9 and 4.0.0-rc0; its description is evidence of a legacy defect, not proof that current builds leave such plans cached. (low confidence) (verified as of 2023-10-29)",
+          "source": "https://jira.mongodb.org/browse/SERVER-32943",
+          "note": null,
+          "claimId": "clm:dbf68543469f130ed1bae3d6693d38c52143ad316a4319c5b5404b20596aea2b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0001bb690fc93523e7949b1302164d6ce9b60fe6ac8f6e895596f055e45f0174"
+          ]
+        },
+        {
+          "text": "The July 2026 description of SERVER-131831 identifies CollectionQueryInfo::rebuildIndexData and CollectionQueryInfo::clearQueryCache among the query-owned functions called by index DDL paths to maintain classic plan-cache consistency. It proposes consolidating those calls while preserving behavior; it does not establish a released version containing the refactor. (low confidence) (verified as of 2026-07-23)",
+          "source": "https://jira.mongodb.org/browse/SERVER-131831",
+          "note": null,
+          "claimId": "clm:7047e5733a06bb526a658a94a31679848488a4a892a25f5e5d95200fa631413c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:183796a641d0b9ede53e5cd8c2217ee108f88cd3b339d08be2e38b7e0a658a19",
+            "ev:fe233a4c183d7ab31d151d8d36c26357127c95a802857fedf75fcb1a7a7bf4c9"
+          ]
+        },
+        {
+          "text": "If an index filter restricts a query to an index that is subsequently hidden or absent, the optimizer can fall back to a collection scan; clearing cached plans does not make the filtered index available again. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md",
+          "note": null,
+          "claimId": "clm:22c5a91da5e3e22f2066f78b54ec25fff8d1f20488bdf8fdb99a3f17912d6dfe",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "A hidden index is excluded from query-plan selection but remains maintained. Hiding lets an operator evaluate removal and then restore planner access by unhiding, without rebuilding the index. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+          "note": null,
+          "claimId": "clm:0e24b8f9609acfeccade25485c3274604f5a6ef95bf45f0b90a10bdfec28320f",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "d76ab7c8ff0808761f6b4c75239421810e2848f16b6235be9554b2e756a151af",
+  "canonicalConceptId": "concept:78a5cbc5359ca1e4b7d4c19ee492b63017c9c2e9ccfcafadaa90d92e9ec32a42"
+}

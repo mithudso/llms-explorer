@@ -1,0 +1,117 @@
+{
+  "slug": "multiplanning-storms-after-a-plan-cache-flush",
+  "concept": "Multiplanning storms after a plan cache flush",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Multiplanning storms after a plan cache flush. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Percona's planning walkthrough identifies candidate generation and trial execution as CPU-, memory-, and potentially disk-intensive. Together with the documented cache lifecycle, this supports measuring cold-cache planning separately from warmed execution when comparing index strategies. (medium confidence)",
+          "source": "https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/",
+          "note": null,
+          "claimId": "clm:471ff06e2b55b3f6cd4f84002fe4c5bd0a9c31eea165e343be2e691effd81140",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:67d8aefcd0549a5b3ca3b8e48b2d4916f389e50be68bac5b38129a27db8224c6",
+            "ev:6e8702117e60458b0c05b39ec9080388ab058609738cb838ecf3302cd829bb3b"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Use planning duration alongside evidence of actual candidate evaluation and total operation cost. MongoDB's profiler documentation warns that older planningTimeMicros measurements can include pre-retry work; SERVER-62150 also identifies planningTimeMicros and queryFramework as diagnostic signals. A large timing value alone does not prove a multiplanning storm. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler.md",
+          "note": null,
+          "claimId": "clm:ecd40d62b7bf20e16a4ac7e78c7dc78db98d486713098c9063fe059182908815",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6a948057fbe254462cf889b7b7baf5412072d82f2beff2f5fb2829d02cfe26d4",
+            "ev:d0f76acc25b0adbb64f479a17aa45f5bd234d3dd68d262e1e2297c80510b9fe2"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Inference: concurrent arrivals during a cold-cache interval can amplify candidate-trial work and consume resources before a reusable entry becomes active. This risk follows from repeated evaluation in non-active states and MongoDB's explicit per-key multiplanning concurrency protection; it does not establish a universal outage threshold. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+          "note": null,
+          "claimId": "clm:11227c9076cca29aab53b38e995e83a49d56b6e5d0d0be3aa61c6f66efb8ca87",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1fd09ee37b24317183df25d1606a633d2330c7a2018cb0c019082a357291e4f7",
+            "ev:67d8aefcd0549a5b3ca3b8e48b2d4916f389e50be68bac5b38129a27db8224c6"
+          ]
+        },
+        {
+          "text": "Tencent's operational guidance warns that unrepresentative requests arriving after a flush can influence the subsequently cached choice. A cold-cache interval can therefore introduce plan-quality risk as well as planning overhead; repeated evaluation does not guarantee a better plan. (medium confidence)",
+          "source": "https://proxy-hk.tencentcloud.com/document/product/240/81407",
+          "note": null,
+          "claimId": "clm:c2127be7ba3a4023e81ba1527f8868cb8e515bfc8da9603f6be83a7172e05095",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "The inspected MongoDB master header describes MultiPlanRateLimiter: after aggregate concurrent candidate trials exceed a threshold, per-key tickets limit candidate concurrency; waiting trials yield resources, and cache-entry activation wakes waiters. This is source-level evidence of a safeguard, not proof that any particular released deployment enables it. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/multi_plan_rate_limiter.h",
+          "note": null,
+          "claimId": "clm:af3df581960e5a6945980707404981b8988278dc0367557b5da479179c079df3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1fd09ee37b24317183df25d1606a633d2330c7a2018cb0c019082a357291e4f7"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "SERVER-62150 records an SBE defect where planning could be proportional to the slowest candidate rather than the fastest, amplifying the cost of cache misses. The ticket says MongoDB 8.0 fixes this by using classic multiplanning even when SBE executes the winner; the defect must not be generalized to all later versions. (low confidence) (verified as of 2025-07-01)",
+          "source": "https://jira.mongodb.org/browse/SERVER-62150",
+          "note": null,
+          "claimId": "clm:8b677df6e58f8556054883c41536f3ba0c534549c3bc608aa87c249a10d8c106",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:164e4bf95ea780de31c2cc25d6b03ef6ab00a21027f1e5a20a696e3c6a4f4f24"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB documents Missing and Inactive cache states in which candidate plans are evaluated again; an Inactive placeholder is not a reusable plan. Consequently, a post-flush cache need not become reusable after just one execution. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+          "note": null,
+          "claimId": "clm:4bbc89ca6d8c6dc952337c9ab018a89879e232d9b1dd6c17267c0bd62334db55",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:67d8aefcd0549a5b3ca3b8e48b2d4916f389e50be68bac5b38129a27db8224c6"
+          ]
+        },
+        {
+          "text": "The 2024 First Past the Post paper experimentally evaluates MongoDB 7.0.1 candidate selection and reports suboptimal choices. It supplies independent evidence about trial-ranking limitations, but its abstract does not demonstrate concurrent post-flush overload or measure a storm. (low confidence)",
+          "source": "https://arxiv.org/abs/2409.16544",
+          "note": null,
+          "claimId": "clm:7b5e6085d2a2e315a6fd71b9e708bfefed68ec28c177acb7023a0f68a5b1dc9d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0d4e483ecdc5fcb0b3ecb1043becb831e552328879c5ec5eacd07fd5a0cc8b40"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "d76ab7c8ff0808761f6b4c75239421810e2848f16b6235be9554b2e756a151af",
+  "canonicalConceptId": "concept:de5cba6212198c8fd62f87b743b39f26df38696201714c14bd2e712ffb267fa4"
+}
