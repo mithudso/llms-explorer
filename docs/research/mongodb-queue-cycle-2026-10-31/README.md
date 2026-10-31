@@ -1,6 +1,6 @@
 # MongoDB queue and scout cycle checkpoint
 
-Version: 1.0.3
+Version: 1.0.4
 
 Delta: recover the existing queue, repair exact evidence, and consume new Antigravity leads in repeated source-grounded frontier reviews.
 
@@ -13,6 +13,8 @@ The original frozen plan retains all 461 identities. Current export and review s
 Two repair partitions now have current supported judgments for all 78 and 85 repaired identities, respectively, in addition to their normal sampling. Their immutable preimages and original attempts remain preserved. The last partition now also passes all 27 full-claim gates. The independent mechanical audit verifies all 82 repaired cohorts, 468 mandatory SUPPORTED identities, the 213 original target mappings and 10,445 unchanged paid files. Its separate semantic reread covers ten cases; it does not independently endorse every source entailment or repeat every origin/negation check. Native immutable attempts preserve original evidence and failed judgments. A pre-existing seven-claim Search-topology concept remains unchanged and is disclosed for depth review; no assertions were invented to increase its count.
 
 The revision monitor snapshots validated scout bundles every two minutes, including while a native exporter runs. It never grants evidence credit or declares saturation. Candidate reviews check meaningful existing assertions, source bodies, exact owner scopes and the five-axis CVS rubric. Independent audits retained 51 new or narrowed scopes across the first 13 topics and the next 60 proposed deltas. Their five-axis CVS arithmetic passes the canonical checker. Fresh exact-name coverage and reservation checks found all 51 available. Native research has started in separate private runs. Candidate qualification supplies no research completion credit; source-limited outcomes remain explicit. The independent 210-label review finds 205 already-covered competencies and five unresolved comparisons, with no exact holders or new commissions. The coverage corpus now includes 135 legacy MongoDB skill-reference files, and workers retrocheck started scopes before export.
+
+Completion and ranked export reject an explicitly incomplete commissioned scope even if its supported subset has a current green gate. The subset remains verifiable as a partial result. A native eight-assertion acceptance case rejected completion without mutating the manifest or an earlier artifact receipt; 57 focused regressions and the 27-file research skill mirror check pass.
 
 The runner skips owner-only reviews without manifests and supports exact cohort selection. Required repaired claim IDs now supplement the ordinary and risky selection. Completion rejects unjudged replacements. Stronger gate packets invalidate old export and publication checkpoints. A live finalized-cohort refresh exported all 73 current claims, retained its earlier artifact and made zero new paid research or gate calls. The site generator reads the research queue once per build. A frozen 2,290-node / 4,801-frontier comparison decreased generation from 55.014 seconds to 0.743 seconds with identical output bytes. The source/claim, privacy and transaction gates remain in place.
 

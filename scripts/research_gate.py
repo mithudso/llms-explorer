@@ -253,6 +253,14 @@ def verify_current(shared, manifest: dict) -> dict:
     return report
 
 
+def verify_completion_scope(manifest: dict) -> None:
+    """A supported subset does not answer an explicitly incomplete scope."""
+    assessment = manifest.get("cohort_completion_assessment")
+    if assessment is not None and (
+            not isinstance(assessment, dict) or assessment.get("ready_for_full_scope_export") is not True):
+        raise ValueError("completion requires the full commissioned scope; its assessment is not ready")
+
+
 def install(shared):
     original_create = shared._create_run
 
@@ -353,3 +361,4 @@ def install(shared):
     shared._create_run = create
     shared.cmd_gate = gate
     shared.verify_current_gate = lambda manifest: verify_current(shared, manifest)
+    shared.verify_completion_scope = verify_completion_scope

@@ -67,6 +67,8 @@ def reviewed_gate_current(shared, cohort):
         if not (shared.run_dir(cohort["id"]) / "manifest.json").is_file():
             return False
         manifest = shared.load_manifest(cohort["id"])
+        if checker := getattr(shared, "verify_completion_scope", None):
+            checker(manifest)
         if not manifest.get("concepts") or any(row["status"] != "done" for row in manifest["concepts"]):
             return False
         shared.verify_current_gate(manifest)
@@ -376,6 +378,8 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False,
                 return run_command(command, log, env, timeout=min(limit, remaining))
             phase(adapter + ["init", parent, "--slug", slug, "--concepts", "cohort initialization"])
             manifest = prepare_manifest(shared, slug, parent, picked, plan_path)
+            if checker := getattr(shared, "verify_completion_scope", None):
+                checker(manifest)
             if cohort.get("materials") or cohort.get("parents") or cohort.get("scopes"):
                 with shared.run_lock(slug):
                     manifest["cohort_source_materials"] = cohort.get("materials", [])

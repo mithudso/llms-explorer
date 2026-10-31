@@ -582,6 +582,7 @@ def load_shared(path: Path | None = None):
             manifest = shared.load_manifest(args.slug)
             shared.require_open(manifest)
             if args.status == "COMPLETED":
+                bound_gate.verify_completion_scope(manifest)
                 if shared.pending(manifest):
                     raise ValueError("cannot finish COMPLETED with pending concepts")
                 if not manifest.get("install_path"):

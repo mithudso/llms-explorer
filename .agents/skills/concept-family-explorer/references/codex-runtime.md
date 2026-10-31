@@ -56,6 +56,12 @@ an absent or stale required judgment. A stronger gate on unchanged finalized
 claims requires native `init --refresh` and a fresh artifact/publication checkpoint;
 the original claims, accepted artifact and paid attempts stay preserved.
 
+A current supported claim subset does not establish full commissioned scope.
+If `cohort_completion_assessment` exists, `ready_for_full_scope_export` must be
+true before COMPLETED finalization or ranked export. An explicit incomplete
+assessment blocks promotion while its claim gate can still verify the subset.
+Preserve the full question, unsupported design preimages and next source action.
+
 Workers preserve every private attempt and retry recognized transient failures
 at most twice within the original deadline. Format-only gate failures get one
 fresh attempt; substantive dissent and evidence binding failures stop. Exact

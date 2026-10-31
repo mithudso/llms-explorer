@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.87 - 2026-10-31
+
+- Native COMPLETED and ranked export now reject an explicitly incomplete commissioned scope even when its supported subset passes the current gate. Current-gate verification remains available for truthful partial results. A real CSI scope with eight supported assertions was rejected without changing its manifest or prior artifact receipt and without new source/model calls. All 57 focused gate/runner tests, Ruff and the 27-file research skill mirror check pass. Assessment absence preserves existing completed scope behavior.
+- Source repair PR61 merged into skills main. The mongosync full-restart and AtlasGov corrections pass offline guards and selected installed/body/catalog parity. Full hub catalog drift and cached harness state are unverified. An optional canonical filesystem catalog check found host-resolving aliases; the isolated tracked public catalog and CI pass. The pre-existing scheduled skills embedding daemon was observed passively; this session did not stop or configure it. Preserve the earlier disclosed index-test probe incident.
+- All ten R1 worker-A scopes now have current complete-scope receipts. Eight additional C scopes have current-ready receipts; CSI and CDC remain incomplete, and API key rotation awaits its planned-design scope interpretation. R2 admits two exact uncovered scopes after source/CVS/hold checks: pinned LangChain translator/tests and AKO user lifecycle. LangChain now has twelve mandatory supported assertions; AKO research is active. Scout polling/export monitoring is being drained and restarted with all four plans. There is no saturation or tree-exhaustion claim.
+
 ## v0.22.86 - 2026-10-31
 
 - The next qualified checkpoint has 73 finalized cohorts and 183 named concepts, including four new frontier cohorts. Its 2,793 canonical claims contain 2,455 SUPPORTED judgments and 338 ordinary NOT-SAMPLED claims. All current packet/artifact/projection bindings verify. Full site build/publication policy and all 296 site tests pass. Export polling remains active; serial writes pause briefly for this checkpoint.

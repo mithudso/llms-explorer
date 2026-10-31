@@ -56,6 +56,20 @@ def test_review_resume_skips_unstarted_owner_review_without_initializing(tmp_pat
     assert not (tmp_path / 'scope-review').exists()
 
 
+def test_green_subset_is_not_eligible_for_full_scope_export(tmp_path):
+    (tmp_path / 'manifest.json').write_text('{}')
+    manifest = {'concepts': [{'status': 'done'}]}
+    checked = []
+    def incomplete(value):
+        checked.append(value)
+        raise ValueError('completion requires the full commissioned scope')
+    shared = SimpleNamespace(run_dir=lambda slug: tmp_path, load_manifest=lambda slug: manifest,
+                             verify_completion_scope=incomplete,
+                             verify_current_gate=lambda value: pytest.fail('scope must be checked first'))
+    assert not ranked.reviewed_gate_current(shared, {'id': 'subset'})
+    assert checked == [manifest]
+
+
 def test_finalized_artifact_must_match_the_current_gate_packet(tmp_path):
     path = tmp_path / 'canonical.json'
     path.write_text(json.dumps({'artifact_sha256':'artifact', 'validation':{'packet_sha256':'previous'}}))

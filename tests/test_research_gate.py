@@ -51,6 +51,19 @@ def test_exact_unicode_span_and_deterministic_risk_coverage(pinned):
         assert gate.risks({'text': text})
 
 
+def test_supported_subset_does_not_establish_full_commissioned_scope(pinned):
+    _, manifest, _, root, packet, response = pinned
+    manifest['cohort_completion_assessment'] = {'ready_for_full_scope_export': False,
+                                                'remaining_gap': 'A required method is not sourced.'}
+    assert gate.validate(packet, response, root)['all_supported']
+    with pytest.raises(ValueError, match='full commissioned scope'):
+        gate.verify_completion_scope(manifest)
+    manifest['cohort_completion_assessment']['ready_for_full_scope_export'] = True
+    gate.verify_completion_scope(manifest)
+    del manifest['cohort_completion_assessment']
+    gate.verify_completion_scope(manifest)
+
+
 def test_repaired_ordinary_claims_are_additional_to_existing_sample_and_risk_floor():
     rows = [{'claim_id': str(i), 'risk': ['numeric'] if i < 3 else []} for i in range(24)]
     before = gate.select_claims(rows, 4, 'fixed')
