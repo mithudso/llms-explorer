@@ -75,6 +75,20 @@ def reviewed_gate_current(shared, cohort):
         return False
 
 
+def artifact_gate_current(manifest):
+    """A stronger fresh gate must refresh an already-finalized projection."""
+    if manifest.get("gate_contract_version") != 2:
+        return True
+    try:
+        reference = manifest["codex_artifacts"]["canonical_artifact"]
+        artifact = json.loads(Path(reference["path"]).read_text())
+        packet = manifest["gate"]["packet_sha256"]
+        return bool(packet and artifact["validation"]["packet_sha256"] == packet
+                    and artifact["artifact_sha256"] == reference["sha256"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+
+
 def ranked_rows(text):
     rows = []
     for line in text.splitlines():
@@ -395,7 +409,12 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False,
             atomic(plan_path, plan)
             # Include pages saved by earlier /dr runs in the shared FTS index.
             phase([sys.executable, str(hub / "scripts/source_library.py"), "reconcile"], 300)
-            if manifest["status"] != "finalized":
+            if manifest["status"] == "finalized" and not artifact_gate_current(manifest):
+                # Native refresh reopens only manifest lifecycle fields. Claims,
+                # accepted artifacts and every paid attempt stay in place.
+                phase(adapter + ["init", parent, "--slug", slug, "--refresh"])
+                manifest = shared.load_manifest(slug)
+            if manifest["status"] != "finalized" or not artifact_gate_current(manifest):
                 strict = manifest.get("gate_contract_version") == 2
                 checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py") if strict else None
                 stages = shared.run_dir(slug) / "checkpoints/stages.json"
@@ -434,8 +453,10 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False,
                 if not gate_current:
                     phase(adapter + ["gate", slug, "--model", "gpt-6.1-sol", "--effort", "medium"], 1200)
                 if strict:
-                    shared.verify_current_gate(shared.load_manifest(slug))
-                    checkpoints.run_stage(stages, "gate", current_claims, [shared.run_dir(slug) / "gate.json"], lambda: None)
+                    manifest = shared.load_manifest(slug)
+                    shared.verify_current_gate(manifest)
+                    gate_inputs = {"claims": current_claims, "gate_packet_sha256": manifest["gate"]["packet_sha256"]}
+                    checkpoints.run_stage(stages, "gate", gate_inputs, [shared.run_dir(slug) / "gate.json"], lambda: None)
                 gate = json.loads((shared.run_dir(slug) / "gate.json").read_text())
                 if not gate.get("verdicts"):
                     raise RuntimeError("Blind claim gate returned no verdicts")
@@ -444,9 +465,10 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False,
                     raise RuntimeError(f"blind claim gate needs review: {len(dissent)} non-supported verdicts")
                 finish_command = adapter + ["finish", slug, "--status", "COMPLETED", "--stop-reason", "Ranked source-sharing cohort; scout and blind gate completed."]
                 if strict:
-                    checkpoints.run_stage(stages, "export", current_claims, [shared.run_dir(slug) / "artifacts/receipt.json"], lambda command=finish_command: phase(command))
+                    checkpoints.run_stage(stages, "export", gate_inputs, [shared.run_dir(slug) / "artifacts/receipt.json"], lambda command=finish_command: phase(command))
                 else:
                     phase(finish_command)
+            manifest = shared.load_manifest(slug)
             errors = []
             documents = shared.load_claims(slug, errors)
             if errors or any(row["status"] != "done" or row["slug"] not in documents
@@ -459,7 +481,8 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False,
             site_command = [sys.executable, str(repo / "scripts/research_site_sync.py"), "--repo", str(repo), "--hub", str(hub), "--apply"]
             if manifest.get("gate_contract_version") == 2:
                 checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py")
-                checkpoints.run_stage(shared.run_dir(slug) / "checkpoints/stages.json", "local-publication", documents,
+                publication_inputs = {"claims": documents, "gate_packet_sha256": manifest["gate"]["packet_sha256"]}
+                checkpoints.run_stage(shared.run_dir(slug) / "checkpoints/stages.json", "local-publication", publication_inputs,
                     [repo / "site/src/data/tree.json", repo / "site/src/data/context.json", repo / "site/src/data/concepts"],
                     lambda command=site_command: phase(command, 600))
             else:

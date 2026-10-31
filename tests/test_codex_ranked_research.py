@@ -56,6 +56,20 @@ def test_review_resume_skips_unstarted_owner_review_without_initializing(tmp_pat
     assert not (tmp_path / 'scope-review').exists()
 
 
+def test_finalized_artifact_must_match_the_current_gate_packet(tmp_path):
+    path = tmp_path / 'canonical.json'
+    path.write_text(json.dumps({'artifact_sha256':'artifact', 'validation':{'packet_sha256':'previous'}}))
+    manifest = {'gate_contract_version':2, 'gate':{'packet_sha256':'current'},
+                'codex_artifacts':{'canonical_artifact':{'path':str(path),'sha256':'artifact'}}}
+    assert not ranked.artifact_gate_current(manifest)
+    path.write_text(json.dumps({'artifact_sha256':'artifact', 'validation':{'packet_sha256':'current'}}))
+    assert ranked.artifact_gate_current(manifest)
+    manifest['codex_artifacts']['canonical_artifact']['sha256'] = 'other'
+    assert not ranked.artifact_gate_current(manifest)
+    path.unlink()
+    assert not ranked.artifact_gate_current(manifest)
+
+
 def test_review_resume_flag_cannot_enable_unbounded_review_retry():
     with pytest.raises(SystemExit):
         ranked.main(['run', '--plan', 'plan.json', '--retry-reviewed', '--continue-on-review'])

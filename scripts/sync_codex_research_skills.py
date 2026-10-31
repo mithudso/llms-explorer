@@ -105,6 +105,13 @@ writes share a durable preimage journal and roll back on failure. An interrupted
 transaction is restored before retry. Source snapshots, quotes and raw logs stay
 private. Embeddings remain paused.
 
+Repair callers bind `required_gate_claim_ids` in the manifest to every changed
+assertion version and surviving prior dissent target. The gate adds these exact
+IDs without reducing the risky-claim or ordinary-sample floors. Finish rejects
+an absent or stale required judgment. A stronger gate on unchanged finalized
+claims requires native `init --refresh` and a fresh artifact/publication checkpoint;
+the original claims, accepted artifact and paid attempts stay preserved.
+
 Workers preserve every private attempt and retry recognized transient failures
 at most twice within the original deadline. Format-only gate failures get one
 fresh attempt; substantive dissent and evidence binding failures stop. Exact
