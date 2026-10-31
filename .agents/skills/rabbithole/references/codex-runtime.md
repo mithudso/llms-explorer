@@ -46,6 +46,11 @@ the distinct meaningful source-URL floor. Mirrors, repositories and tracker host
 do not create additional organizations. These rules do not waive negation,
 exact claim evidence or the full commissioned question.
 
+For a new child with a frontier-only parent, completion resolves the documented
+queue/tree lineage to an existing canonical ancestor. Unanchored, cyclic or
+ambiguous new placement fails instead of silently making the child a root.
+Existing curated placement and literal held-parent context remain intact.
+
 Finish freezes research-artifact/v1 from current canonical statements and the
 current bound gate. Immutable claim IDs identify exact statement versions; concept
 IDs follow the hub tree's stable owner. SUPPORTED and NOT-SAMPLED stay distinct.

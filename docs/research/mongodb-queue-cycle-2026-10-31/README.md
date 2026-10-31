@@ -1,6 +1,6 @@
 # MongoDB queue and scout cycle checkpoint
 
-Version: 1.0.6
+Version: 1.0.7
 
 Delta: recover the existing queue, repair exact evidence, and consume new Antigravity leads in repeated source-grounded frontier reviews.
 
@@ -35,3 +35,5 @@ The independent source corrections merged in skills PR61, PR62 and PR63. The lat
 This 94-cohort snapshot passes the complete build/publication policy and all 296 post-build site tests. The private source-read path error was recovered with exact preimage/hash/mode checks; independent readback confirms restoration. The source record and recovery attempts remain preserved.
 
 Generated research briefs now state the enforced domain source policy: software needs one primary organization, security/scientific research need two, and the depth contract separately sets meaningful URL counts. Historical contradictory wording caused a false source-floor block; 62 isolated research-flow regressions and six subtests now pass without changing gates or repeating paid discovery.
+
+New child placement now follows documented ancestry through frontier-only parents. Native completion rejects ambiguous/cyclic/unanchored placement; the held parent stays held. A journaled repair restores six new child breadcrumbs while preserving canonical evidence and concurrent validation state. The complete isolated research-flow suite passes 64 tests and six subtests. The API planned-procedure scope uses its permitted private unverified-design/public-eight-fact boundary after actual rendered/compiler readback; the plan receives no support verdict.

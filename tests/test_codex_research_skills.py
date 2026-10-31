@@ -574,6 +574,48 @@ class ResearchFlowTests(unittest.TestCase):
         self.assertTrue(all(not pack["changed"] for pack in second["packs"]))
         self.assertEqual(before, [(root / "concept-tree/tree.json").read_bytes() for root in (self.hub, self.repo)])
 
+    def test_frontier_parent_keeps_child_ancestry_without_completing_the_held_parent(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        manifest = self.shared.load_manifest("publication")
+        manifest.update(cohort_parent="Held frontier", cohort_parents={"Rename durability": "Held frontier"})
+        self.shared.save_manifest(manifest)
+        queues = {}
+        for root in (self.hub, self.repo):
+            path = root / "concept-tree/tree.json"
+            nodes = json.loads(path.read_text())
+            nodes[0]["childConcepts"] = []
+            path.write_text(json.dumps(nodes))
+            queue = root / "concept-tree/RESEARCH_QUEUE.md"
+            queues[root] = (f"- [ ] Concept: `Held frontier` | Parent: `Existing {root.name}` "
+                            "| Mode: `dr` | Queue-state: `held`\n")
+            queue.write_text(queues[root])
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        for root in (self.hub, self.repo):
+            nodes = json.loads((root / "concept-tree/tree.json").read_text())
+            child = next(node for node in nodes if node["concept"] == "Rename durability")
+            self.assertEqual(child["parentConcept"], f"Existing {root.name}")
+            self.assertFalse(any(node["concept"] == "Held frontier" for node in nodes))
+            self.assertEqual((root / "concept-tree/RESEARCH_QUEUE.md").read_text(), queues[root])
+        manifest = self.shared.load_manifest("publication")
+        self.assertEqual(manifest["cohort_parents"]["Rename durability"], "Held frontier")
+
+    def test_parent_resolution_refuses_ambiguous_cyclic_and_unanchored_lineage(self):
+        artifacts = module_at("test_parent_resolution", REPO / "scripts/codex_dr_artifacts.py")
+        nodes = [{"concept": "Root", "aliases": ["Root alias"], "childConcepts": ["Held"]},
+                 {"concept": "Other root", "childConcepts": []}]
+        before = copy.deepcopy(nodes)
+        self.assertEqual(artifacts.resolve_parent(nodes, "Held", [{"concept": "Held", "parentConcept": "Root alias"}]), "Root")
+        with self.assertRaisesRegex(ValueError, "ambiguous"):
+            artifacts.resolve_parent(nodes, "Held", [{"concept": "Held", "parent": "Other root"}])
+        with self.assertRaisesRegex(ValueError, "cycle"):
+            artifacts.resolve_parent(nodes, "A", [{"concept": "A", "parent": "B"},
+                                                   {"concept": "B", "parent": "A"}])
+        with self.assertRaisesRegex(ValueError, "unanchored"):
+            artifacts.resolve_parent(nodes, "Unknown", [])
+        self.assertEqual(nodes, before)
+
     def test_export_failure_leaves_finish_retryable(self):
         self.research()
         self.render()
