@@ -1,0 +1,560 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import ResearchReferenceRow from "../../components/ResearchReferenceRow.astro";
+import { RESEARCH_TASKS, aiReferences, aiRootName, resolveReference, type ResearchReference } from "../../data/research";
+import { tree } from "../../data/tree";
+import { promptReference } from "../../scripts/research-search";
+
+// Research by task: one page that answers "which reference file, guide and
+// skill fit the AI task in front of me". Search runs over every facts file
+// under the AI & LLM Engineering root (/research/references.json, fetched on
+// first use); the curated tasks below it pair a concept family with articles,
+// how-to recipes and skills. The tasks come from src/data/research-tasks.json,
+// which tools/twins.py also reads to write this page's twin, /research.md.
+const title = "Research by task";
+const description = "Match an AI or LLM task to a source-linked reference file for your prompt, a guide that shows the work, and a skill you can install.";
+// Copied prompts always name the public site, never a preview or local host.
+const site = (Astro.site?.href ?? "https://llms-explorer.com/").replace(/\/$/, "");
+const INSTALL = "npx skills add mithudso/llms-explorer";
+const install = (id: string) => `${INSTALL} --skill ${id}`;
+// test_research_page.py checks that each still finds a reference covering every word.
+const EXAMPLES = ["agent memory", "prompt caching", "RAG", "LLM judge", "MCP server security", "run a model locally"];
+
+const collections = {
+  blog: new Map((await getCollection("blog")).map((e) => [e.id, e.data])),
+  examples: new Map((await getCollection("examples")).map((e) => [e.id, e.data])),
+};
+const skills = new Map((await getCollection("skills")).map((e) => [e.id, e.data]));
+
+const missing: string[] = [];
+const tasks = RESEARCH_TASKS.map((task) => {
+  const references = task.references.flatMap((slug) => {
+    const ref = resolveReference(slug);
+    if (!ref) missing.push(`${task.id}: reference ${slug}`);
+    return ref ? [ref] : [];
+  });
+  const reads = task.reads.flatMap((read) => {
+    const entry = collections[read.collection].get(read.id);
+    if (!entry) missing.push(`${task.id}: ${read.collection} ${read.id}`);
+    return entry ? [{ ...read, title: entry.title, description: entry.description, href: `/${read.collection}/${read.id}/` }] : [];
+  });
+  const taskSkills = task.skills.flatMap((id) => {
+    const entry = skills.get(id);
+    if (!entry) missing.push(`${task.id}: skill ${id}`);
+    return entry ? [{ id, title: entry.title, description: entry.description, command: install(id) }] : [];
+  });
+  const family = tree.nodes[task.family];
+  if (!family) missing.push(`${task.id}: family ${task.family}`);
+  return { ...task, references, reads, skills: taskSkills, familyName: family?.concept ?? null };
+}).filter((task) => task.references.length > 0);
+if (missing.length) console.warn(`[research] dropped picks the build no longer has: ${missing.join(", ")}`);
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+// Skill descriptions are written for an agent's router and can run to several
+// hundred characters; a task row needs the first sentence, or the first 180
+// characters cut at a word.
+function brief(text: string, max = 180): string {
+  const sentence = text.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? text;
+  if (sentence.length <= max) return sentence;
+  return `${sentence.slice(0, sentence.lastIndexOf(" ", max - 1))
+    .replace(/\s+(?:a|an|and|by|for|in|of|or|the|to|with)$/i, "")
+    .replace(/[\s,;:—–-]+$/, "")}…`;
+}
+const aiFacts = aiReferences.reduce((sum, ref) => sum + ref.facts, 0);
+const sample = resolveReference("prompt-caching") ?? aiReferences[0] as ResearchReference | undefined;
+---
+<Base title={title} heading="Find research for your AI task" description={description} route="/research/">
+  <p class="eyebrow">AI & LLM work · {plural(aiReferences.length, "reference file")}</p>
+  <p class="lede">Match the task in front of you to a reference file your agent can read, a guide that shows the work, and a skill that does it.</p>
+  <p class="rs-proof">{aiReferences.length.toLocaleString("en-US")} facts files · {aiFacts.toLocaleString("en-US")} source-linked facts · filed under {aiRootName} in the <a href="/tree/">concept tree</a></p>
+
+  <section class="rs-finder" aria-labelledby="rs-search-title" data-research-search data-site={site}>
+    <h2 id="rs-search-title">Search by task</h2>
+    <form id="rs-form" role="search" hidden>
+      <label for="rs-q">What are you working on?</label>
+      <div class="rs-field">
+        <input id="rs-q" name="q" type="search" maxlength="120" autocomplete="off" spellcheck="false"
+          placeholder="For example: cache long prompts" aria-describedby="rs-hint" aria-controls="rs-results" />
+        <button class="btn" type="submit">Search</button>
+      </div>
+      <p id="rs-hint" class="rs-hint">Searches the names and topics of {plural(aiReferences.length, "reference file")}. <strong>Copy reference</strong> copies a file's link and an instruction to cite its sources, ready to paste into a prompt.</p>
+    </form>
+    <noscript><p class="tab-note">Search needs JavaScript. The tasks below work without it, and <a href="/context/">Context files</a> lists every reference file.</p></noscript>
+    <div class="rs-status-row" id="rs-status-row">
+      <p id="rs-status" role="status"></p>
+      <button id="rs-retry" class="btn secondary" type="button" hidden>Try again</button>
+    </div>
+    <div id="rs-empty" class="rs-empty" hidden>
+      <p>Try one or two broader words, such as <em>retrieval</em> instead of a product name. You can also open a task below, or <a href="/tree/">browse every subject in the concept tree</a>, which covers more than AI.</p>
+    </div>
+    <ol id="rs-results" class="rs-refs" aria-label="Matching reference files" hidden></ol>
+    <!-- After the results, so a result never sits below a block of suggestions on a phone. -->
+    <div id="rs-examples" class="rs-examples" role="group" aria-labelledby="rs-try" hidden>
+      <span id="rs-try">Try</span>
+      {EXAMPLES.map((q) => <button type="button" class="rs-chip" data-query={q} data-track="research_example" data-label={q}>{q}</button>)}
+    </div>
+    <template id="rs-ref-template"><ResearchReferenceRow reference={null} site={site} /></template>
+  </section>
+
+  <section class="rs-tasks" aria-labelledby="rs-tasks-title">
+    <div class="section-heading"><h2 id="rs-tasks-title">Start from a common task</h2><a href="/tree/">Browse the whole tree →</a></div>
+    <p class="rs-intro">Open a task to see its reference files, the articles and how-to recipes that show the work, and the skills you can install.</p>
+    <ul class="rs-task-list">
+      {tasks.map((task) => (
+        <li>
+          <details class="rs-task" id={`task-${task.id}`}>
+            <summary>
+              <span class="rs-task-title">{task.title}</span>
+              <span class="rs-task-meta">{[plural(task.references.length, "reference"), task.reads.length && plural(task.reads.length, "read"), task.skills.length && plural(task.skills.length, "skill")].filter(Boolean).join(" · ")}</span>
+            </summary>
+            <div class="rs-task-body">
+              <p class="rs-task-summary">{task.summary}</p>
+              <p class="rs-label" id={`refs-${task.id}`}>Reference files</p>
+              <ul class="rs-refs" aria-labelledby={`refs-${task.id}`}>
+                {task.references.map((ref) => <ResearchReferenceRow reference={ref} site={site} />)}
+              </ul>
+              {task.familyName && <p class="rs-family"><a href={`/tree/${task.family}/`}>See the {task.familyName} family in the concept tree →</a></p>}
+              {task.reads.length > 0 && (
+                <>
+                  <p class="rs-label" id={`reads-${task.id}`}>Read first</p>
+                  <ul class="rs-reads" aria-labelledby={`reads-${task.id}`}>
+                    {task.reads.map((read) => (
+                      <li>
+                        <span class="content-kind">{read.kind}</span>
+                        <a href={read.href}>{read.title}</a>
+                        <span class="rs-read-desc">{read.description}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {task.skills.length > 0 && (
+                <>
+                  <p class="rs-label" id={`skills-${task.id}`}>Install a skill</p>
+                  <ul class="rs-skills" aria-labelledby={`skills-${task.id}`}>
+                    {task.skills.map((skill) => (
+                      <li>
+                        <a class="rs-skill-name" href={`/skills/${skill.id}/`}>{skill.title}</a>
+                        <span class="rs-read-desc">{brief(skill.description)}</span>
+                        <div class="rs-cmd">
+                          <code>{INSTALL} <span class="rs-nowrap">--skill {skill.id}</span></code>
+                          <button type="button" class="rs-copy" hidden data-text={skill.command}
+                            aria-label={`Copy install command for ${skill.id}`} data-track="research_copy_install" data-label={skill.id}>Copy command</button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          </details>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="rs-use" aria-labelledby="rs-use-title">
+    <h2 id="rs-use-title">Use a reference file in a prompt</h2>
+    <ol>
+      <li>Pick the reference closest to your task. A reference file lists facts under facets, and each fact names the source it came from.</li>
+      <li>Select <strong>Copy reference</strong> and paste the text into your prompt. If your agent cannot open links, download <code>facts.md</code> and attach it, or paste the sections you need.</li>
+      <li>Check the answer against the cited sources. A source makes a claim traceable; it does not make it correct. Read <a href="/editorial/">how to judge the sources</a>.</li>
+    </ol>
+    {sample && (
+      <>
+        <p>For the {sample.concept} reference, the copied text reads:</p>
+        <pre class="rs-sample"><code>{promptReference(sample.concept, `${site}${sample.download}`)}</code></pre>
+      </>
+    )}
+    <p>New to this? <a href="/start-here/">Start here</a> walks through a first workflow with a short handoff file. Agents can read <a href="/context.md">/context.md</a> for the full list of facts files.</p>
+  </section>
+
+  <section class="rs-more" aria-labelledby="rs-more-title">
+    <h2 id="rs-more-title">Not finding it?</h2>
+    <ul class="resource-links">
+      <li><a href="/tree/">Browse the concept tree</a><span>Every researched subject, including topics outside AI</span></li>
+      <li><a href="/context/">Download any facts file</a><span>All reference files, grouped by subject and sized for loading</span></li>
+      <li><a href="/blog/">Read all guides & research</a><span>Experiments, implementation notes and architecture reports</span></li>
+      <li><a href="/skills/">Browse every skill</a><span>Read each full prompt before you install it</span></li>
+      <li><a href="/queue/">See the research queue</a><span>Topics being researched now, and what is waiting</span></li>
+    </ul>
+  </section>
+
+  <p id="rs-announce" class="rs-sr" role="status"></p>
+  <div id="rs-fallback" class="rs-fallback" role="group" aria-labelledby="rs-fallback-label" hidden>
+    <p id="rs-fallback-label">This browser blocked copying, so the text is selected for you. Press Ctrl+C (⌘C on a Mac), or touch and hold it on a phone.</p>
+    <textarea id="rs-fallback-text" readonly rows="5" aria-labelledby="rs-fallback-label"></textarea>
+    <button id="rs-fallback-close" class="btn secondary" type="button">Done</button>
+  </div>
+</Base>
+
+<script>
+  import { indexReferences, promptReference, taskHits, type IndexedReference, type ReferenceIndex } from "../../scripts/research-search";
+
+  const byId = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+  const finder = document.querySelector<HTMLElement>("[data-research-search]")!;
+  const site = finder.dataset.site ?? location.origin;
+  const form = byId<HTMLFormElement>("rs-form");
+  const input = byId<HTMLInputElement>("rs-q");
+  const status = byId("rs-status");
+  const retry = byId<HTMLButtonElement>("rs-retry");
+  const empty = byId("rs-empty");
+  const results = byId<HTMLOListElement>("rs-results");
+  const template = byId<HTMLTemplateElement>("rs-ref-template");
+  const announce = byId("rs-announce");
+  const fallback = byId("rs-fallback");
+  const fallbackText = byId<HTMLTextAreaElement>("rs-fallback-text");
+
+  // The search form, its suggestions and the copy buttons only work with this
+  // script, so the page ships them hidden and shows them here.
+  form.hidden = false;
+  byId("rs-examples").hidden = false;
+  for (const button of document.querySelectorAll<HTMLButtonElement>(".rs-copy")) button.hidden = false;
+
+  // ---- search: idle → loading → results | empty | error (with retry) ----
+
+  let index: IndexedReference[] | null = null;
+  let pending: Promise<IndexedReference[]> | null = null;
+  let request = 0; // a newer query wins over an older one still waiting on the index
+  const QUERY_ECHO_CHARS = 80;
+  let debounce: ReturnType<typeof setTimeout> | undefined;
+
+  // A stalled response must end in the error state, where "Try again" works.
+  const INDEX_TIMEOUT_MS = 15000;
+  const timeout = () => ("timeout" in AbortSignal ? AbortSignal.timeout(INDEX_TIMEOUT_MS) : undefined);
+
+  function loadIndex(): Promise<IndexedReference[]> {
+    if (index) return Promise.resolve(index);
+    pending ??= fetch("/research/references.json", { signal: timeout() }).then(async (response) => {
+      if (!response.ok) throw new Error(`references.json: HTTP ${response.status}`);
+      const body = (await response.json()) as ReferenceIndex;
+      if (!Array.isArray(body?.items)) throw new Error("references.json: no items array");
+      index = indexReferences(body.items);
+      return index;
+    }).catch((error: unknown) => {
+      pending = null; // the next search or "Try again" fetches afresh
+      throw error;
+    });
+    return pending;
+  }
+
+  type State = "idle" | "loading" | "results" | "empty" | "error";
+  function show(state: State, message = "") {
+    finder.dataset.state = state;
+    status.textContent = message;
+    retry.hidden = state !== "error";
+    empty.hidden = state !== "empty";
+    results.hidden = state !== "results";
+    results.setAttribute("aria-busy", String(state === "loading"));
+    if (state !== "results") results.replaceChildren();
+  }
+
+  function row(item: IndexedReference): HTMLLIElement {
+    const li = template.content.firstElementChild!.cloneNode(true) as HTMLLIElement;
+    const field = <T extends HTMLElement>(name: string) => li.querySelector<T>(`[data-field="${name}"]`)!;
+    const name = field<HTMLAnchorElement>("name");
+    name.textContent = item.concept;
+    name.href = `/tree/${item.slug}/`;
+    field("facts").textContent = `${item.facts.toLocaleString("en-US")} facts`;
+    if (item.family && item.familySlug) {
+      const family = field<HTMLAnchorElement>("family");
+      family.textContent = item.family;
+      family.href = `/tree/${item.familySlug}/`;
+    } else {
+      field("family-wrap").remove();
+    }
+    const copy = li.querySelector<HTMLButtonElement>(".rs-copy")!;
+    copy.dataset.concept = item.concept;
+    copy.dataset.url = `${site}${item.download}`;
+    copy.dataset.label = item.slug;
+    copy.setAttribute("aria-label", `Copy reference for ${item.concept}`);
+    copy.hidden = false;
+    const download = field<HTMLAnchorElement>("download");
+    download.href = item.download;
+    download.setAttribute("aria-label", `Download facts.md for ${item.concept}`);
+    return li;
+  }
+
+  function keepQueryInUrl(query: string) {
+    const url = new URL(location.href);
+    if (query) url.searchParams.set("q", query); else url.searchParams.delete("q");
+    history.replaceState(history.state, "", url);
+  }
+
+  async function search(raw: string) {
+    const id = ++request;
+    const query = raw.trim();
+    keepQueryInUrl(query);
+    if (!query) return show("idle");
+    if (!index) show("loading", "Loading the reference index…");
+    let items: IndexedReference[];
+    try {
+      items = await loadIndex();
+    } catch (error) {
+      if (id !== request) return;
+      console.error("research search: the reference index did not load", error);
+      return show("error", "The reference index did not load. Check your connection, then try again.");
+    }
+    if (id !== request) return;
+    let found: ReturnType<typeof taskHits>;
+    try {
+      found = taskHits(query, items);
+    } catch (error) {
+      console.error("research search: scoring failed", error);
+      return show("error", "Search failed on these words. Change them, then try again.");
+    }
+    // A ?q= link can carry any length; the status repeats only the start of it.
+    const echo = query.length > QUERY_ECHO_CHARS ? `${query.slice(0, QUERY_ECHO_CHARS)}…` : query;
+    if (!found.terms.length) return show("idle", "Add a topic word to search, such as caching, agents or evals.");
+    if (!found.hits.length) return show("empty", `No reference file matches “${echo}”.`);
+    show("results", (found.total > found.hits.length
+      ? `The ${found.hits.length} closest of ${found.total} reference files that match “${echo}”.`
+      : `${found.total} reference ${found.total === 1 ? "file matches" : "files match"} “${echo}”.`) +
+      (found.complete ? "" : " No file matches every word, so the closest come first."));
+    results.replaceChildren(...found.hits.map(row));
+  }
+
+  // After an explicit search, bring the answer into view: on a phone the
+  // keyboard or the suggestions can leave it below the fold. Typing never scrolls.
+  function reveal() {
+    const row = byId("rs-status-row");
+    if (row.getBoundingClientRect().top < innerHeight / 2) return; // already in easy view
+    const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    row.scrollIntoView({ block: "start", behavior: smooth ? "smooth" : "auto" });
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    clearTimeout(debounce);
+    void search(input.value).then(reveal);
+  });
+  input.addEventListener("input", () => {
+    clearTimeout(debounce);
+    ++request; // a reply for the old text must not land after this edit
+    debounce = setTimeout(() => void search(input.value), 250);
+  });
+  // Start the download when the reader reaches the box, before the first word.
+  input.addEventListener("focus", () => { void loadIndex().catch(() => {}); }, { once: true });
+  retry.addEventListener("click", () => {
+    input.focus();
+    void search(input.value);
+  });
+  for (const chip of document.querySelectorAll<HTMLButtonElement>(".rs-chip")) {
+    chip.addEventListener("click", () => {
+      input.value = chip.dataset.query ?? "";
+      clearTimeout(debounce);
+      void search(input.value).then(reveal);
+    });
+  }
+
+  // ---- copy: clipboard first, a selected text box when the browser refuses ----
+
+  let returnFocus: HTMLElement | null = null;
+  function closeFallback() {
+    fallback.hidden = true;
+    returnFocus?.focus();
+    returnFocus = null;
+  }
+
+  async function copy(button: HTMLButtonElement) {
+    const text = button.dataset.text ?? promptReference(button.dataset.concept ?? "", button.dataset.url ?? "");
+    const what = button.dataset.text ? "install command" : `reference for ${button.dataset.concept}`;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.warn("research: clipboard write refused, showing the text instead", error);
+      returnFocus = button;
+      button.closest("li")!.append(fallback);
+      fallbackText.value = text;
+      fallback.hidden = false;
+      fallbackText.focus();
+      fallbackText.setSelectionRange(0, text.length); // select() alone misses on iOS
+      return;
+    }
+    // The idle label is read once, so a second click while "Copied" shows
+    // cannot make "Copied" the label the button returns to.
+    button.dataset.idleLabel ??= button.textContent ?? "";
+    button.textContent = "Copied";
+    announce.textContent = `Copied the ${what}.`;
+    clearTimeout(restoreTimers.get(button));
+    restoreTimers.set(button, setTimeout(() => {
+      button.textContent = button.dataset.idleLabel ?? "";
+      announce.textContent = "";
+    }, 2000));
+  }
+  const restoreTimers = new WeakMap<HTMLButtonElement, ReturnType<typeof setTimeout>>();
+
+  document.addEventListener("click", (event) => {
+    const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button.rs-copy") : null;
+    if (button) void copy(button);
+  });
+  byId<HTMLButtonElement>("rs-fallback-close").addEventListener("click", closeFallback);
+  fallback.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeFallback();
+  });
+
+  // ---- deep links: /research/#task-rag opens that task; ?q= reruns a search ----
+
+  function openFromHash() {
+    let id = location.hash.slice(1);
+    try { id = decodeURIComponent(id); } catch { /* "#%" is not an id; keep it raw */ }
+    const target = id ? document.getElementById(id) : null;
+    if (target instanceof HTMLDetailsElement) target.open = true;
+  }
+  window.addEventListener("hashchange", openFromHash);
+  openFromHash();
+  const initial = new URLSearchParams(location.search).get("q");
+  if (initial) {
+    input.value = initial;
+    void search(initial);
+  }
+</script>
+
+<!-- Global, not scoped: Astro scopes a page's styles to the page's own markup,
+     so they would miss the rows ResearchReferenceRow renders and Base's <main>.
+     Every selector is rs- prefixed, and the stylesheet ships with this page only. -->
+<style is:global>
+  /* .btn and the row buttons set display, which beats the UA's [hidden] rule. */
+  [class^="rs-"][hidden], [id^="rs-"][hidden] { display: none !important; }
+  main:has(.rs-finder) > .eyebrow, main:has(.rs-finder) > .lede, .rs-proof, .rs-intro { max-width: 48rem; }
+  .rs-proof { color: var(--ink-muted); font-size: var(--step--1); }
+
+  .rs-finder {
+    margin: var(--sp-6) 0 var(--sp-7);
+    padding: clamp(1rem, 3vw, 2rem);
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+  }
+  .rs-finder > h2 { margin-top: 0; }
+  .rs-finder label { display: block; font-weight: 600; margin-bottom: var(--sp-2); }
+  .rs-field { display: flex; gap: var(--sp-2); max-width: 44rem; }
+  #rs-q {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.55em 0.8em;
+    font: inherit;
+    font-size: max(16px, var(--step-0)); /* below 16px, iOS Safari zooms the page on focus */
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+  }
+  .rs-hint { margin: var(--sp-3) 0; max-width: 44rem; color: var(--ink-muted); font-size: var(--step--1); }
+  .rs-examples { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-4); font-size: var(--step--1); color: var(--ink-muted); }
+  .rs-chip {
+    min-height: 44px;
+    padding: 0.3em 0.9em;
+    font: inherit;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .rs-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .rs-status-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-top: var(--sp-4); scroll-margin-top: 6rem; }
+  /* Never display:none — a live region outside the accessibility tree can drop its first announcement. */
+  #rs-status { margin: 0; font-size: var(--step--1); color: var(--ink-muted); overflow-wrap: anywhere; }
+  .rs-finder[data-state="error"] #rs-status { color: var(--ink); font-weight: 600; }
+  .rs-empty p { margin: var(--sp-2) 0 0; font-size: var(--step--1); color: var(--ink-muted); max-width: 44rem; }
+
+  .rs-refs { list-style: none; padding: 0; margin: var(--sp-3) 0 0; }
+  .rs-ref {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-4);
+    margin: 0;
+    padding: var(--sp-3) 0;
+    border-top: 1px solid var(--line);
+  }
+  .rs-ref-name { font-weight: 600; overflow-wrap: anywhere; }
+  .rs-ref-meta { display: block; font-size: var(--step--1); color: var(--ink-muted); overflow-wrap: anywhere; }
+  .rs-ref-actions { display: flex; align-items: center; gap: var(--sp-2); }
+  .rs-copy, .rs-md {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 0.85em;
+    font: inherit;
+    font-size: var(--step--1);
+    white-space: nowrap;
+    border-radius: var(--radius);
+  }
+  .rs-copy { font-weight: 600; color: var(--accent); background: transparent; border: 1px solid var(--accent); cursor: pointer; }
+  .rs-copy:hover { background: var(--accent-soft); }
+  .rs-md { font-family: var(--font-mono); }
+  .rs-ref > .rs-fallback, .rs-skills .rs-fallback { grid-column: 1 / -1; }
+
+  .rs-tasks { margin-top: var(--sp-7); }
+  .rs-task-list, #rs-results { max-width: 60rem; } /* keeps a row's actions within reach of its name */
+  .rs-intro { color: var(--ink-muted); }
+  .rs-task-list { list-style: none; padding: 0; margin: var(--sp-4) 0 0; }
+  .rs-task-list > li { margin: 0; border-top: 1px solid var(--line); }
+  .rs-task-list > li:last-child { border-bottom: 1px solid var(--line); }
+  .rs-task { scroll-margin-top: 6rem; }
+  .rs-task > summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--sp-1) var(--sp-3);
+    padding: var(--sp-4) 0;
+    cursor: pointer;
+    list-style: none;
+  }
+  .rs-task > summary::-webkit-details-marker { display: none; }
+  /* The second content line gives the marker empty alt text, so a screen reader
+     announces the task, not "triangle"; browsers without the syntax keep the first. */
+  .rs-task > summary::before { content: "▸"; content: "▸" / ""; width: 1em; color: var(--ink-faint); transition: transform 0.1s; }
+  .rs-task[open] > summary::before { transform: rotate(90deg); }
+  .rs-task > summary:hover .rs-task-title { color: var(--accent); }
+  .rs-task > summary:focus-visible, .rs-fallback textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .rs-task-title { flex: 1 1 18rem; font-family: var(--font-display); font-size: var(--step-1); font-weight: 600; line-height: 1.3; }
+  .rs-task-meta { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-faint); white-space: nowrap; }
+  .rs-task-body { padding: 0 0 var(--sp-5) calc(1em + var(--sp-3)); }
+  .rs-task-summary { max-width: 48rem; }
+  .rs-label { margin: var(--sp-5) 0 0; font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); }
+  .rs-family { margin: var(--sp-2) 0 0; font-size: var(--step--1); }
+  .rs-reads, .rs-skills { list-style: none; padding: 0; margin: var(--sp-2) 0 0; }
+  .rs-reads > li, .rs-skills > li { margin: 0; padding: var(--sp-3) 0; border-top: 1px solid var(--line); }
+  .rs-reads .content-kind { display: block; margin: 0 0 0.15rem; }
+  .rs-reads a, .rs-skill-name { font-weight: 600; }
+  .rs-read-desc { display: block; max-width: 48rem; font-size: var(--step--1); color: var(--ink-muted); }
+  .rs-cmd { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); }
+  .rs-cmd code { flex: 1 1 20rem; min-width: 0; padding: 0.55em 0.75em; font-size: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .rs-nowrap { white-space: nowrap; } /* a line break inside "--skill" reads as two flags */
+
+  .rs-use, .rs-more { margin-top: var(--sp-7); max-width: 48rem; }
+  .rs-sample { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+  .rs-fallback { margin-top: var(--sp-3); padding: var(--sp-3) var(--sp-4); background: var(--code-bg); border: 1px solid var(--line-strong); border-radius: var(--radius); }
+  .rs-fallback p { margin: 0 0 var(--sp-2); font-size: var(--step--1); color: var(--ink); }
+  .rs-fallback textarea {
+    display: block;
+    width: 100%;
+    margin-bottom: var(--sp-2);
+    padding: var(--sp-2);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--ink);
+    background: var(--paper-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    resize: vertical;
+  }
+  .rs-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  @media (max-width: 640px) {
+    .rs-field { flex-direction: column; }
+    .rs-field .btn { justify-content: center; }
+    .rs-ref { grid-template-columns: minmax(0, 1fr); }
+    .rs-task, .rs-status-row { scroll-margin-top: 9rem; } /* the sticky header wraps to two rows */
+    .rs-task-body { padding-left: 0; }
+  }
+</style>
