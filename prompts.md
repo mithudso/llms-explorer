@@ -995,3 +995,9 @@ User requested committing pending changes and updating this checkout to latest
 main. Reconcile existing draft PR #234, preserve local scratch and blocked vendor
 mirrors, run the required checks, merge the reviewed result, and synchronize the
 shared checkout. Preserve newer main fixes and unique checkpoint research.
+
+# MongoDB full claim validation — 2026-10-31
+
+User asked to start validating every MongoDB concept, fanning out agents,
+marking each concept in the tree as it is validated so no effort repeats, and to
+keep cycling until all MongoDB concepts are validated.
