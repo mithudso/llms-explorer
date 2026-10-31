@@ -1,0 +1,235 @@
+{
+  "slug": "snapshot-reads-on-secondaries-and-minsnapshothistorywindowinseconds",
+  "concept": "Snapshot reads on secondaries and minSnapshotHistoryWindowInSeconds",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Snapshot reads on secondaries and minSnapshotHistoryWindowInSeconds. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Cloud.ru's Managed DocumentDB parameter table exposes minSnapshotHistoryWindowInSeconds for shard components, with a 300-second default and a 0–86400-second range. Its managed-service range must not be substituted for another provider's limits. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://cloud.ru/docs/documentdb/ug/topics/guides__parameters__available-parameters-list",
+          "note": null,
+          "claimId": "clm:5e195324290776fd12b33dae95e1b8596a6e41472b2479d9a0c23b518f79208a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9a3e571e8ee78e155e19a8776d6bc2b79dec9f8ab4c66d05b096ae74a3703426"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Increasing minSnapshotHistoryWindowInSeconds increases disk usage because WiredTiger retains older modified values; the disk cost depends on the update workload. It is a retention setting, not a guarantee that every long-running query completes. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/long-running-queries.md",
+          "note": null,
+          "claimId": "clm:25165246bc3b31ea90a66574bb40e66d2ef35d543fac3145d7ccd760080a9b0d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4e22f610868760f9ce476b83fabbac00fbd5f38cda53c1aa3770e96bf9bd3f01",
+            "ev:7fd26f6f9559b9487c7c8b5bd9ef841f8c851848b237ce234ee0db944e7c5762"
+          ]
+        },
+        {
+          "text": "A secondary that has not reached a requested atClusterTime waits to serve the snapshot read. MongoDB recommends maxTimeMS to bound that wait; majority-committed snapshot data on a delayed secondary can still be stale when no timestamp is specified. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot.md",
+          "note": null,
+          "claimId": "clm:0c06e6e689e4013ab48c1c1f6e75b572c748631f8b5c6d506c52d6757a9dbed4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3ecfd52567eafd10f0cb3e3fa9223c3686241200d4553672110117b2991ac6b8",
+            "ev:80224302ebc43b807ec3b12910f7e0bc6cbd53d46a0441ab235826df12707202"
+          ]
+        },
+        {
+          "text": "A snapshot session reuses one snapshot across related reads. If the application does not supply snapshotTime in SessionOptions, the driver records the first read response’s atClusterTime and sends that timestamp on subsequent reads. Applications may instead supply snapshotTime when creating the session. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/long-running-queries.md",
+          "note": null,
+          "claimId": "clm:17b24e74751f7b01b2dde8680b08f482253ee0a169e10b630eeb2297ca728f8d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f745c3bc79f8456ef1bcb7bb715e8d6d66eaa443f48031cf674a1c703b86fd1c"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A snapshot session preserves its snapshot timestamp across supported reads. If SessionOptions does not supply snapshotTime, drivers save atClusterTime from the first read response and send it on subsequent reads; an application may instead supply snapshotTime. Snapshot sessions cannot also request causal consistency, and startTransaction on a snapshot session must fail. (high confidence)",
+          "source": "https://specifications.readthedocs.io/en/latest/sessions/snapshot-sessions/",
+          "note": null,
+          "claimId": "clm:daae2d046837201136ee0873a6d24c39cea2448a9d02dd1a5238149653ded6fb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f745c3bc79f8456ef1bcb7bb715e8d6d66eaa443f48031cf674a1c703b86fd1c"
+          ]
+        },
+        {
+          "text": "Budget retention for the complete interval from the first operation to the last operation in a snapshot session, including application delays. MongoDB documents increasing minSnapshotHistoryWindowInSeconds to 600 as an example, and driver tests use the same workaround for slow snapshot tests. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/long-running-queries.md",
+          "note": null,
+          "claimId": "clm:5f5b0d13e5306b683af46211ce2e2261de1bb36c5098afc8a095c9ec7aadb9b6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:494f7c445017a8b07182b6517b2937bfcc34b915acb2b76d70cee88f36b1c478",
+            "ev:7995c94172f4650d2550b40df91a240b679be412e7bb61bcb558381188dda007"
+          ]
+        },
+        {
+          "text": "MongoDB warns that changing snapshot-history defaults on config-server nodes can break internal operations. In particular, do not set minSnapshotHistoryWindowInSeconds to zero on config servers, because internal snapshot reads with atClusterTime can fail. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+          "note": null,
+          "claimId": "clm:5dd0a53587de895f9938a2b199dc7f68629aabbe55517e5fdac43f00b7b521a5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:fe5c021a2c69d6af6c2603c96d940ccd2994f578590c4d0c0fdc9b74d434741d"
+          ]
+        },
+        {
+          "text": "Snapshot sessions and causal consistency are mutually exclusive, and starting a transaction in a snapshot session must fail. Secondary snapshot sessions therefore must not be treated as secondary read-only transactions. (low confidence)",
+          "source": "https://specifications.readthedocs.io/en/latest/sessions/snapshot-sessions/",
+          "note": null,
+          "claimId": "clm:7255ea72940e51427023451b62efe8eab2cd0f68b72bb8aa222717b8037d55f4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:fb0c53773b2571dbd1695429fb347ea60c667af7fc76938b18d3049ed022873c"
+          ]
+        },
+        {
+          "text": "Alibaba Cloud's ApsaraDB for MongoDB 5.0 parameter table lists a 300-second default and an allowed range of 0–600 seconds, with no restart required. These are that managed service's documented settings, not a universal MongoDB upper limit. (low confidence) (verified as of 2026-07-31)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/user-guide/parameters-available-in-mongodb-5-0",
+          "note": null,
+          "claimId": "clm:034b203b0994761804659da7b423101195cf8d044ddbe024bc9a53e23c74fd60",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:77912fbd98ef1b0a1083b85448985c02f37baff1faebcd3695502d23da75fdf6"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "minSnapshotHistoryWindowInSeconds specifies the minimum retained snapshot-history window. MongoDB documents a default of 300 seconds; a requested timestamp older than available history can fail with SnapshotTooOld rather than silently reading newer data. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot.md",
+          "note": null,
+          "claimId": "clm:61159028a4ca1ec08cc721a54a2764d5057042643bfea5e1c782e74e5e3966c4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8b55e79e88d84a98325012a449e83587264403f57adafd5d8ebd6cdced1f8c93",
+            "ev:f6cfe90dfcfe28b5f5cb5964e7348655de742c354379bc0a2c47721987d27fd2"
+          ]
+        },
+        {
+          "text": "Budget the history window across the entire snapshot session, from its first read through its last, rather than giving each query an independent fresh window. Reads that outlast retained history may fail; 300 seconds is not a promise that every cursor is killed at precisely that elapsed time. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot.md",
+          "note": null,
+          "claimId": "clm:3a133a55db699af88baa93053d6a8bf2c6de1643d42eaa9e38e1a5ab6942d8a4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:15dd3a4b45f551cc0e151242773cb25cf8b0390243f4f1ba7f0d2fbebb431d19",
+            "ev:7fd26f6f9559b9487c7c8b5bd9ef841f8c851848b237ce234ee0db944e7c5762",
+            "ev:f6cfe90dfcfe28b5f5cb5964e7348655de742c354379bc0a2c47721987d27fd2"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB 5.0 introduced read concern snapshot outside multi-document transactions on primaries and secondaries, including sharded clusters. It returns majority-committed data from a single point in time across shards. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot.md",
+          "note": null,
+          "claimId": "clm:10036a3a7e627aecdfd4e40e9f202cf702ff1b8b6393487ce739e40d1635a039",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5ea978efbf2a4f032a4cc6541a8499c996c77453623a9b07df2e2bcdcc633cbb"
+          ]
+        },
+        {
+          "text": "Outside transactions, snapshot read concern supports find and aggregate, plus distinct only on unsharded collections; selecting a secondary alone does not request snapshot read concern. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot.md",
+          "note": null,
+          "claimId": "clm:5f266c9201976670d22bdec1ba00139eb9d658ecea5cd8a5e9823ea7418ba677",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:20eba154b5e19f2ec0bfbbaac348eb30193ca34387df27f68c0f376b9237284a",
+            "ev:566224b33f6604cd75c5c0c900958ddfb3be13cfc1e591314e8847d7c95eeb84",
+            "ev:5b4e3254c2d59d6db41e14a1e9a6b27f833a775d64c8ac34d4e871c4e8a6c607"
+          ]
+        },
+        {
+          "text": "In the replication implementation, reads using read concern levels other than snapshot can switch to newer snapshots after a storage-engine yield. A long-running local or majority read therefore lacks a single point-in-time view across its full execution. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
+          "note": null,
+          "claimId": "clm:5b06b387791132c761bd701e4b22a4c2e6d448396c508ade4f2c28099d73d0bf",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9d7245de83a7f1b64878d851488be094da14873779cdc95341429dac745a518a"
+          ]
+        },
+        {
+          "text": "minSnapshotHistoryWindowInSeconds specifies the minimum snapshot-history retention period. The documented default is 300 seconds; an atClusterTime no longer available in history can produce SnapshotTooOld (239). A snapshot read exceeding the retained history window may terminate. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+          "note": null,
+          "claimId": "clm:d43f42b0981cee70f19b505e028c25c2a31763db0f6cba72fdc0865aadf3baad",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7fd26f6f9559b9487c7c8b5bd9ef841f8c851848b237ce234ee0db944e7c5762",
+            "ev:8b55e79e88d84a98325012a449e83587264403f57adafd5d8ebd6cdced1f8c93",
+            "ev:f6cfe90dfcfe28b5f5cb5964e7348655de742c354379bc0a2c47721987d27fd2"
+          ]
+        },
+        {
+          "text": "For a self-managed mongod, minSnapshotHistoryWindowInSeconds accepts a nonnegative integer and can be set at startup or at runtime, for example db.adminCommand({setParameter:1,minSnapshotHistoryWindowInSeconds:600}). MongoDB documents that Atlas customers must contact Atlas Support to modify this value. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+          "note": null,
+          "claimId": "clm:4f4b00151db8f1e992d7173154a9ff1022168aa7ea87ffbdb75078002283d6a1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:95564a877bebd35f9cb1ca10ba3f538bcc0f22a95cf896f0ea049b5a452c9c87"
+          ]
+        },
+        {
+          "text": "Managed-service bounds are provider-specific: Alibaba Cloud documents a 0–600 second range and default 300 for its MongoDB 5.0 parameter, while Cloud.ru Managed DocumentDB documents a shard parameter range of 0–86400 and default 300. These ranges must not be generalized to self-managed MongoDB or Atlas. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/user-guide/parameters-available-in-mongodb-5-0",
+          "note": null,
+          "claimId": "clm:07db9f606dc1d776dcd53c6d3576d41bcfcbdc520a0d257cdb79e4d4934af67f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:77912fbd98ef1b0a1083b85448985c02f37baff1faebcd3695502d23da75fdf6",
+            "ev:9a3e571e8ee78e155e19a8776d6bc2b79dec9f8ab4c66d05b096ae74a3703426"
+          ]
+        },
+        {
+          "text": "Outside transactions, snapshot read concern supports find and aggregate, and distinct on unsharded collections; it does not make every read command snapshot-capable. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot.md",
+          "note": null,
+          "claimId": "clm:49f07909eb74d44d2a13ef17ae722c109cf94b7e93e00924a808c4067f0a9ca4",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "For self-managed deployments, MongoDB documents db.adminCommand({setParameter:1,minSnapshotHistoryWindowInSeconds:600}) to increase the window to 600 seconds. Longer retention consumes more disk for older modified values, with the cost depending on workload. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/long-running-queries.md",
+          "note": null,
+          "claimId": "clm:bd45143c05fc9c96647bfae9d8e27f5af9af36ae69fd30b7aed44831255f2eeb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7130ff643c24ab699e7749b82714acd32bacb1bbd2b4d801b571a4b36213ece2"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "e7f2a47f51310a33d73955db44c74f8816307e893d84fd1961143008f1145e3e",
+  "canonicalConceptId": "concept:1340675189945d7601df9e991e0bb8504efa70bf8962689aafcdb2b178916553"
+}

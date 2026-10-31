@@ -1,0 +1,238 @@
+{
+  "slug": "covered-distinct-and-group-on-sharded-collections",
+  "concept": "Covered distinct and $group on sharded collections",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Covered distinct and $group on sharded collections. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Indexes can cover distinct operations when all required fields are available from the index. For queries through mongos on sharded collections, coverage additionally requires the shard key in that index, including fields needed internally for sharding. An indexed distinct operation is therefore not automatically covered. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.distinct.md",
+          "note": null,
+          "claimId": "clm:2cad0b0eff0b0726913b251902556941d12fab8210a161532366c3cbb216c8ca",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0d59158fba9ad56f5e75dd6d9a475f05c0427847d39eaf4e50307427bcb99c7a",
+            "ev:0f789e2010e3ff6dc90aae997f16419129f7458a7528d03b1511d1907e4f1d46",
+            "ev:838e3894a05e0bd7d71a97fce53bca97c2245d7bcbd00fc44df07f5e88883a2b"
+          ]
+        },
+        {
+          "text": "Verify coverage separately from DISTINCT_SCAN selection: run explain(\"executionStats\"), inspect the shard execution plans for document fetches, and check documents examined. Index-only coverage means the operation needs no source documents; requesting an unindexed accumulator field can require document fetches even when a related distinct query is covered. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization.md",
+          "note": null,
+          "claimId": "clm:95cce8d9f9d01ad4631effa84d8ae7a82316be3e19d87e5a4aab43cc80cf0f05",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0d59158fba9ad56f5e75dd6d9a475f05c0427847d39eaf4e50307427bcb99c7a",
+            "ev:243c957647116a243705436af18d43def21191ecab65139f9b38ab0eb09236be",
+            "ev:71881c733745c4c623870248c7f29012f3f436fa2a0941deecb3f07ebba4da2a",
+            "ev:c03ed61384e7f52ec048958901aebe179b86b6d308da1b2d4a8e315491b567ed"
+          ]
+        },
+        {
+          "text": "SERVER-110423 documents incorrect $group results when DISTINCT_SCAN used a sparse index and silently omitted the null group for missing fields. Its updated issue record lists fixes in 7.0.32, 8.0.20, 8.2.2 and 8.3.0-rc0. The issue recommends upgrading or selecting a collection scan or eligible nonsparse index as a workaround. This correctness hazard is separate from orphan filtering and is not limited to sharded collections. (low confidence) (verified as of 2026-10-31)",
+          "source": "https://jira.mongodb.org/browse/SERVER-110423",
+          "note": null,
+          "claimId": "clm:866903530b1ddf7551d32e487f2255c602c226351cb214dc7409eb58fa08e9ff",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b6eec9d524fc5913a936e1a7568746e9390e8074adb0886478635374c4d2d15e"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "A 2016 first-person report describes distinct failing above 16 MB on a three-shard collection whose distinct field leads the shard key. Treat it as historical workload evidence of the result-size problem, not proof of a particular covered execution plan. (low confidence) (verified as of 2026-10-31)",
+          "source": "https://stackoverflow.com/questions/39777491/in-mongodb-how-do-i-find-distinct-values-of-a-large-sharded-collection",
+          "note": null,
+          "claimId": "clm:c81aab7db7469e7312c883fb01b77ad7be15172ccdcfb1ef6da54c1c45277f2d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1d4b8a06db82a5b608a570bbe598fd00fdc1306197b25d7c10a1bada7132bf14"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Covered execution does not remove the distinct result-size limit: distinct returns its values in a single array subject to the maximum BSON size, and MongoDB recommends $group when that result is too large. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.distinct.md",
+          "note": null,
+          "claimId": "clm:36c2a0cea5e342938691a95c26eb9bc0071c0612c6a7bba7224564af557ce85d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:554c15e928705d824a84910e14bb1787ec316d04945a180ce02a19110a2da935"
+          ]
+        },
+        {
+          "text": "The MongoDB 8.0 $group manual scopes its orphan warning to logically distinct-equivalent pipelines with $group at or near the beginning and no preceding $sort. It instructs users to inspect explain output for DISTINCT_SCAN. This is a versioned documentation caveat, not a claim that every $group plan is affected. (low confidence)",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/group/",
+          "note": null,
+          "claimId": "clm:c18a9d6a364c08b8ec11e5f8631df4612ec1f7d8c64f92aad6446c5c10c4e1ee",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0f56063c69fe7a2936e45ed8793be8772bcbb7bffe1d4a09df051fb8ddff7160"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "DISTINCT_SCAN can skip repeated index values instead of scanning every duplicate entry. It can outperform IXSCAN when many documents share a key, but scan parameters affect the comparison; the stage name alone does not establish a particular speedup. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md",
+          "note": null,
+          "claimId": "clm:e6da5b92eb985d5ccb08c80dad9b7b1646425bbba0a88f69a9145c1f66615d03",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2f7d5606dfc84945f4a313e887a721f074dfeadd87349fbda6052c9d7a6ca1aa",
+            "ev:95ba40fbcf2d28a4640e41f6393a29f3ec33f1ec8ee53034e86d2f1771957c0c"
+          ]
+        },
+        {
+          "text": "SERVER-13116, concerning distinct shard awareness, and SERVER-42160, concerning $group DISTINCT_SCAN shard filtering, both list Fixed with fix version 8.2.0-rc0. These tracker records establish a version boundary to investigate, rather than a universal contemporary orphan-return guarantee. (medium confidence) (verified as of 2026-10-31)",
+          "source": "https://jira.mongodb.org/browse/SERVER-13116",
+          "note": null,
+          "claimId": "clm:e145ab23c65a181ead47e7dd498bd34e6b0ff0cf2ad7fa8dfbe1185383584703",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:20d7a5791f38dc96689bbebcbad276b583fa8bdf2a43582a1d7bc4ec8c8b002d",
+            "ev:590e48fa13610409ec7c22efcfc314f2382a754c5dc67a029876d7e8ebc11852"
+          ]
+        },
+        {
+          "text": "SERVER-55200 documents a MongoDB 4.4.3 sharded sort/match/group/first reproduction that chose IXSCAN with FETCH and shard filtering instead of DISTINCT_SCAN. The issue lists Fixed in 8.2.0-rc0, so old advice that this shape can never use DISTINCT_SCAN on shards is version-sensitive. (low confidence) (verified as of 2026-10-31)",
+          "source": "https://jira.mongodb.org/browse/SERVER-55200",
+          "note": null,
+          "claimId": "clm:bc03cae6578e0d4680901a32974f2ec3abeefdab8ae787648b7127d6649a0145",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4f642437cfa914629e7a0484c5b948683a17a27829b1d32c6258e5958db1050b"
+          ]
+        },
+        {
+          "text": "A pipeline such as {$group: {_id: \"$field\"}} produces one output document per distinct group key; its output _id holds the group key rather than necessarily the source document identifier. $group does not guarantee output order. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md",
+          "note": null,
+          "claimId": "clm:0b7725eb6b1a4c91d181aab71acd265e8f8920b2b63bb085da67947439f22f25",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9cc5cac78299d7694adc95afbdb77af141548bdfcda44795a0f3b13241f96d41"
+          ]
+        },
+        {
+          "text": "For first/last-per-group workloads, sorting and grouping on the same field, using only $first or $last accumulators, and providing a matching index can enable an index optimization. Treat this as an eligibility pattern rather than a guarantee for every sharded deployment; SERVER-55200 documents a historical sharded pipeline that failed to choose DISTINCT_SCAN. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md",
+          "note": null,
+          "claimId": "clm:bc11a8edfc2bd7e2c74ae70fc56733afd1e45c451c0a64eae3e76bd9dfd7043b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4f642437cfa914629e7a0484c5b948683a17a27829b1d32c6258e5958db1050b",
+            "ev:994e92fe1f152c83e8b8f7943a8bd2bb39e0d292d0a93dc31373029e2def3a21"
+          ]
+        },
+        {
+          "text": "SERVER-42160 records that historical DISTINCT_SCAN-based $group plans omitted SHARDING_FILTER, allowing stale orphan values after updates or deletes. Its record lists 8.2.0-rc0 as the fix version; related distinct sharding bug SERVER-13116 and sharded optimization issue SERVER-55200 also list 8.2.0-rc0. These issue records require version-specific interpretation rather than a timeless assertion that sharded distinct cannot filter orphans. (medium confidence) (verified as of 2026-10-31)",
+          "source": "https://jira.mongodb.org/browse/SERVER-42160",
+          "note": null,
+          "claimId": "clm:f03c607b1acf04d5d62e31eb92f9b66b966cc45443c07323f2804aa6aafa0da3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2a0255d475fd3ce0f4d4165d63cd5572b6210830b950c9b6c3f1994541118eca",
+            "ev:36e74a495ff05ab3431ae19fec00ad0b56d7a08727a61e31e27da83a379b87bc",
+            "ev:590e48fa13610409ec7c22efcfc314f2382a754c5dc67a029876d7e8ebc11852"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB documents that distinct operations can use indexes and can be covered; a bare {$group: {_id: \"$field\"}} can also produce DISTINCT_SCAN. These are plan possibilities, not a guarantee that every sharded distinct or grouping query is covered. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.distinct.md",
+          "note": null,
+          "claimId": "clm:8577803a46de5a6c59e9c4470af3cde42007eda5a2ad162fa60381120abaa706",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:467e8599dabd8ae0542e752169071aeaba38e0a7f637a3a9a4fef720a6cefccf",
+            "ev:838e3894a05e0bd7d71a97fce53bca97c2245d7bcbd00fc44df07f5e88883a2b"
+          ]
+        },
+        {
+          "text": "For a pipeline that sorts and groups on the same field and uses only $first or $last accumulators, an index matching the sort can let MongoDB find each group's first or last document quickly. The documented example uses {year:1,title:1}; this general optimization still requires checking the actual sharded plan. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md",
+          "note": null,
+          "claimId": "clm:fdd614b4e9db64061a13b8ed2abffd06583c984fbbc9aa95177b721fc2bba18a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:994e92fe1f152c83e8b8f7943a8bd2bb39e0d292d0a93dc31373029e2def3a21"
+          ]
+        },
+        {
+          "text": "Within a transaction on a sharded collection, the documented distinct method and distinct command are prohibited; use an aggregation pipeline with $group to retrieve distinct values instead. This transaction restriction does not prohibit all nontransactional sharded distinct operations. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.distinct.md",
+          "note": null,
+          "claimId": "clm:136d9bc580b762d769114b44b8743ead7a6c3ac01030b1a51b8a4521e1abbea1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6ea4cf913edde38d7f86ad0a65df9eb11a3b3230c8f0b97eb1496e78f2966492"
+          ]
+        },
+        {
+          "text": "SERVER-42160 records that historical $group DISTINCT_SCAN plans omitted shard filtering and could emit stale orphan-derived values after updates or deletions. The issue lists a fix version of 8.2.0-rc0; its old description must not be presented as an unresolved defect in every current release. (low confidence) (verified as of 2026-10-31)",
+          "source": "https://jira.mongodb.org/browse/SERVER-42160",
+          "note": null,
+          "claimId": "clm:13ab585e14ac2bef4b34e5a104cacbaee7ca1351edce0eb89ff5bdc748b93553",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:36e74a495ff05ab3431ae19fec00ad0b56d7a08727a61e31e27da83a379b87bc"
+          ]
+        },
+        {
+          "text": "SERVER-133187 describes sharded $unwind+$group DISTINCT_SCAN support as an unresolved backlog task with no fix version. Its August 2026 example uses a compound index containing the shard-key prefix and a later multikey field; do not extrapolate unsharded unwind/group optimization to this sharded case. (low confidence) (verified as of 2026-10-31)",
+          "source": "https://jira.mongodb.org/browse/SERVER-133187",
+          "note": null,
+          "claimId": "clm:db21462026593f48134361e4ce88fe40b368bd26bc77aec53d8260c2d312618b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e7de4421c709f50a4e5c3445779fbd9c0c5ff5eddfbe63c17d0c223d155cd1e9"
+          ]
+        },
+        {
+          "text": "For ApsaraDB for MongoDB 5.0 or earlier, Alibaba documents inspecting SHARDING_FILTER.chunkSkips in executionStats to identify orphan documents. This is supporting diagnostic context for the historical shard-filtering defect, not a distinct-specific performance guarantee or a prescription for every newer version. (low confidence)",
+          "source": "https://help.aliyun.com/en/mongodb/support/how-to-clean-up-orphaned-documents",
+          "note": null,
+          "claimId": "clm:1270482289498a2b9c493954ef42dd135f359409f749af91cd7922a8940e2cf0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:91d579eff87e9a795c486560ece68803f70ae2b717dc20d460b530f89a26cd00"
+          ]
+        },
+        {
+          "text": "The distinct method documentation warns that sharded distinct may include orphaned data. The MongoDB 8.0 $group documentation similarly warns about orphaned results for distinct-like grouping plans using DISTINCT_SCAN; rewriting distinct as $group is not, by itself, proof that orphans are excluded. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.distinct.md",
+          "note": null,
+          "claimId": "clm:9abafc6864232d92e2676b16369272c3794938157340ffed3c04aec42a28f7a4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0f56063c69fe7a2936e45ed8793be8772bcbb7bffe1d4a09df051fb8ddff7160",
+            "ev:6ea77233817471c0b0d57237746afcb50ab1706a638b58ef13c6b603764d575c"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "8349717d22a5f7bd8a120392085f7d39c51a9e1a5306eb9f98d5ceb58042b95c",
+  "canonicalConceptId": "concept:81c52a390f4edc0c3f8609350242faa153b6fe12f043cd58e2b9e91f2fa363bf"
+}

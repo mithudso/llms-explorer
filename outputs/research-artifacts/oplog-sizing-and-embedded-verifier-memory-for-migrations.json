@@ -1,0 +1,155 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Oplog sizing and embedded-verifier memory for migrations",
+  "slug": "oplog-sizing-and-embedded-verifier-memory-for-migrations",
+  "canonical_concept_id": "concept:3134b1551bbd077dea8d2712e70614a22557d1e9a981d3bc9461da0a1317183f",
+  "canonical_artifact_sha256": "079ea975af5630a7ade1066de484c62d60f462ee571f6c0bb9f48f7e0d26d0d3",
+  "claims": [
+    {
+      "id": "clm:c2d33ad4bab32f4c6f43679d9bc9e5629700a4d1a2b533d4911ed60930e2a5e6",
+      "text": "Oplog retention is a time-and-write-rate budget, not just a fraction of dataset size. Alibaba documents that frequent updates, insert/delete churn and batch updates can consume oplog history without comparable data growth; minimum retention can also make oplog storage exceed its configured size. (low confidence)",
+      "source_url": "https://help.aliyun.com/en/mongodb/use-cases/best-practices-and-risks-for-oplog-settings",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b91f2e27b871cf446887b83b2e7b04f2fcc9e6090c66d43d3b56d5857d006084"
+      ]
+    },
+    {
+      "id": "clm:db347ae9bce35f1c66d75b013680b467a310f1e3420a64e0de951cec881f1c50",
+      "text": "Alibaba documents that initial-sync retention must cover the data-copy duration and that heavy writes can grow the oplog beyond its configured size when minimum retention is enforced. Extending migration retention therefore also requires disk-capacity planning. (low confidence)",
+      "source_url": "https://help.aliyun.com/en/mongodb/use-cases/best-practices-and-risks-for-oplog-settings",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b91f2e27b871cf446887b83b2e7b04f2fcc9e6090c66d43d3b56d5857d006084"
+      ]
+    },
+    {
+      "id": "clm:ae9154f418a7c478ba59ac2d07c1103432592dc18fec05f7f5f229f66c178dd8",
+      "text": "Destination disk planning must include both logical migrated data and oplog entries created by the copy. MongoDB illustrates this with 10 GB of data plus another 10 GB for insert oplog entries; this is an example, not a universal storage multiplier. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/mongosync/current/faq.md",
+      "also": [
+        "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md",
+        "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6c6cc74aaef96c8dfe52599395777b51181ec7d6f003ec490400d118c6a48067"
+      ]
+    },
+    {
+      "id": "clm:922ff63575684799ecd80dc35775dbc354aef6f799bde0972336e1a4cfdf88f2",
+      "text": "Change-stream migrations need source oplog entries to remain available until processed. MongoDB documents mongosync failure if unapplied changes roll off; Percona independently documents the same failure condition for PCSM. Large copies, pauses, and slow processing increase this risk. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md",
+      "also": [
+        "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:bfb69567f25802d83c2174fb780def57cbe9583b2d19a4b11a329de438290695",
+      "text": "Keeping the embedded verifier enabled requires sufficient destination oplog history. Shrinking that oplog can let verification fall behind and cause mongosync to error; destination-oplog reduction advice is explicitly conditional on disabling embedded verification. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/mongosync/current/faq.md",
+      "also": [
+        "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:8de33a8cb0e58512f4cd82f0562c749d1035a9793462265c4693e3df107140f1",
+      "text": "MongoDB's embedded-verifier documentation budgets approximately 10 GB of RAM plus 500 MB per million migrated documents on the mongosync host. Insufficient available memory causes /start to return an error; the documented options are increasing host RAM or restarting with verification disabled. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/mongosync/current/reference/verification/embedded.md",
+      "also": [
+        "https://www.mcclimon.org/portfolio/embedded-verifier/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:435bfa15638b5def33d70dee011f30a581689e930594aa661d629d20cca61677",
+        "ev:deae60d87e2310d058717214051c68752b7dd78dd9a736e95ced25bbc3c7a565"
+      ]
+    },
+    {
+      "id": "clm:a057eae615282d7b1e251ded473a7b5ded7321c902438666e949ca35e39bc1b5",
+      "text": "The embedded verifier stores state in memory and cannot resume verification progress. Stopping or pausing sync and starting mongosync again restarts verification from the beginning, potentially leaving verification substantially behind migration progress. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/mongosync/current/reference/verification/embedded.md",
+      "also": [
+        "https://www.mcclimon.org/portfolio/embedded-verifier/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:435bfa15638b5def33d70dee011f30a581689e930594aa661d629d20cca61677"
+      ]
+    },
+    {
+      "id": "clm:4a0c700c71408e15be722084c1db4d07fecb629d4de34cc7e46de84c4802bcaa",
+      "text": "CloudSpinx reports a mongosync 1.22.0 lab process peaking at about 1.3 GB for roughly half a million documents, below MongoDB's sizing guidance. This single small, local test is an observation rather than evidence that production hosts can safely ignore the documented memory allowance. (low confidence) (verified as of 2026-10-26)",
+      "source_url": "https://cloudspinx.co.ke/blog/mongodb-atlas-migration-kenya/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9b855bdb194d382e06c69e428f59ee93a7016e53bafded701ff11f346b2d1aa5",
+        "ev:d19b005cc97297d16c103857a7cea8d4312ba7184c73ca1748b5f734e6ced1fa"
+      ]
+    },
+    {
+      "id": "clm:354c35aaf466764c14124777e1b4cb638e902aec037a2addaa03f101035c34a0",
+      "text": "The standalone mongodb-labs migration-verifier persists change-stream resume tokens, unlike the embedded verifier's in-memory verification state. Its README still warns that excessive verifier lag can exceed oplog capacity and force verification to restart from the beginning. (medium confidence) (verified as of 2026-10-27)",
+      "source_url": "https://github.com/mongodb-labs/migration-verifier",
+      "also": [
+        "https://www.mongodb.com/docs/mongosync/current/reference/verification/embedded.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:435bfa15638b5def33d70dee011f30a581689e930594aa661d629d20cca61677",
+        "ev:66d9face4ac86cce99d8c63f6aa6136f4663767bfd351450f5041571e70bd565"
+      ]
+    },
+    {
+      "id": "clm:49b189e8764b47646f8ce5b872453514e96b954a6d03e41b9c880320cf545e5a",
+      "text": "Compare observed migration lag with the measured oplog window rather than relying on a fixed size alone. MongoDB and Percona both use db.getReplicationInfo().timeDiff and advise extending retention when migration lag approaches the window. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md",
+      "also": [
+        "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:dbc9ca0c1d184fb34ef18fae87caea2ee2af97feb723b4ba18e2d1573d90b41d",
+      "text": "For a sharded source, measure db.getReplicationInfo().timeDiff on every shard and use the smallest window. Compare it repeatedly with /progress lag.overallLagSeconds; increase retention or migration throughput before lag reaches that window. (low confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0af831a122a01be65639990702093706f7b86d35860eb98ca4284fd618f3e9a7"
+      ]
+    },
+    {
+      "id": "clm:a78e79260aa584ea67f277ea2de8e3af709ddd8356ae7ce41a7a1adb837548af",
+      "text": "The embedded verifier's implementation designer describes per-collection maps of document identifiers and 64-bit hashes, plus buffered change events during the initial scan. These structures explain why verification needs much more memory than its final collection checksums. (low confidence)",
+      "source_url": "https://www.mcclimon.org/portfolio/embedded-verifier/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3f198af6e5010527ece37afbf985e44c9d252313dfa513e1e96b10e3ead624c8"
+      ]
+    },
+    {
+      "id": "clm:1a4f0a1133fae2ff2f7b568ce4d91520148f59479b10ef49d870d067eebdd0db",
+      "text": "Destination disk planning must include the migrated dataset and oplog entries generated while loading it. Both MongoDB and Percona document this additional destination storage requirement. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md",
+      "also": [
+        "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:299486d5afaaeb7d506fe2ffa6953f5b038c20cef03788946c33044829f96460",
+        "ev:6c6cc74aaef96c8dfe52599395777b51181ec7d6f003ec490400d118c6a48067"
+      ]
+    }
+  ],
+  "projection_sha256": "017c6b2604b673d2bf34ebfa034d51670a3610e36409035662ecf2917b084611"
+}
