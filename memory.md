@@ -1,5 +1,10 @@
 # Memory
 
+## v0.22.83 - 2026-10-31
+
+- Removed repeated whole-queue parsing from site/tools/gen_tree.py. One queue snapshot now supplies every frontier lookup, preserving the existing duplicate-parent and first-score precedence. On an immutable real snapshot of2290nodes/4801frontier entries, generation fell from55.014seconds to0.743seconds (74.05x); all3,578,225outputbytes have the same SHA256. This shortens each qualified export without changing its claim, privacy or transaction gates.
+- All51focused generator/CVS/ranked-runner tests and Ruff pass. The full295site tests and build passed immediately before this output-preserving change. The private comparison and immutable input are under continuation-20261031/generator-performance/. Serial native exports and two-minute scout polling continue. Delta: memory0.22.82 to0.22.83; promptv78 unchanged.
+
 ## v0.22.82 - 2026-10-31
 
 - Integrated main at 77cbf7ff and pushed the recoverable checkpoint to draft PR250. The full site build/publication policy and all295 site tests pass; the34 combined ranked-runner/full-claim-validation tests passed after integration. The real25-term staged privacy gate is clean. Most final-head CI checks pass; the dedicated site build and Pages check were still running at this record.
