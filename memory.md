@@ -1,5 +1,23 @@
 # Memory
 
+## v0.22.80 - 2026-10-31
+
+- Checkpoint only: the frozen plan now records 42 complete cohorts / 83 concepts, 124 prior-coverage checkpoints and 254 review outcomes. One additional finalized four-concept cohort has a verified current gate and canonical artifact; its local-publication plan checkpoint still awaits native resume after an earlier tree compare-and-swap failure. No queue exhaustion is claimed.
+- Three disjoint workers repair the original 213 dissent judgments without repeating paid discovery. Each fresh gate may expose additional statement or citation errors; these remain withheld until corrected and freshly gated. Native immutable attempt directories retain the earlier packets, source bodies and worker traces; the latest gate aliases are mutable.
+- A periodic private monitor snapshots validated Antigravity revisions every 120 seconds. Its revised controller keeps polling while a serial export runs and drains the current exporter on stop. During this Git checkpoint, it polls scouts without exporting. It never starts research or gates and cannot declare saturation.
+- Initial frontier review accounts for all 466 supplied raw descendants and 54 scout proposals. It records 204 HAVE, 210 held/owned scopes, six awaiting existing gates, 99 unresolved scope reviews and one provisional new gap. These are review classifications, not accepted research or saturation. Later scouts remain to be consumed.
+- Stele transport recovered. Antigravity now owns the outer scout cycle TASK-971; Codex retains TASK-960/963. Concurrent TASK-972 validates all pack claims and writes claimValidation markers. Preserve its sidecar and tree markers during publication; KNOW-976 records the boundary.
+- Validation: 25 ranked-runner regressions and Ruff pass. Every checkpoint pack maps to a verified current gate and immutable canonical artifact. Draft PR250 remains unfinished; integrate current main and regenerate website data before CI. Preserve the shared snapshot branches, paused reservations/indexing/embeddings and deferred Hermes publication. Delta: memory 0.22.79 to 0.22.80; prompt v78 unchanged.
+
+## v0.22.79 - 2026-10-31
+
+- User extends MongoDB queue work to periodic Antigravity source/lead/concept checks and repeated frontier research until exhaustion. Preserve the frozen461-identity plan; new accepted gaps belong in separate rounds. No new global count or round cap. Empty-list and runner-exit statuses do not establish saturation.
+- Recovered the stopped runner: PID10941 absent, runner/global locks free. Forty cohorts/78 concepts have current v2 gates and canonical artifacts:1194claims,1053SUPPORTED and141ordinaryNOT-SAMPLED. These accepted outputs remain frozen. Eighty-two researched cohorts/254concepts need exact repair of213dissent judgments (160UNVERIFIED,44NOT-IN-SOURCE,9CONTRADICTED). Most dissent lacks a readable pinned body; do not repeat paid discovery or use unchanged retries.
+- Five dependent labels remain in four scope reviews. Three now have qualified owners available for exact coverage review. Preserve619heldMongoDBidentities/all694rawpausedreservations, old evidence and failed attempts, pausedindexing/embeddings and separateHermes publication.
+- TASK960/963 safely reclaimed after liveness checks; TASK971 outercycle created. Later Stele calls failed with Transport closed, so claim/link/decision writes after that failure are unconfirmed. Disk continuation and repair assignments preserve progress.
+- Runtime remains /Users/mitch/dev/worktrees/llms-explorer-mongodb-unheld-20261030 and draftPR250. Shared checkout has two snapshot commits and remains untouched. Preserve747 existing task paths; independently verified40 completed gates/artifacts. Fix the existing generated-tree drift before delivery. Detailed continuation: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-unheld-20261030/memory-20261031.md .
+- Progress: [completed] recovery and immutable baseline; [in progress] exact evidence/claim repair and fresh gates; [open] serial qualified export and dependency closure; [open] periodic scout/frontier rounds; [open] independent saturation and merged delivery. Delta: memory0.22.78 to0.22.79; prompt77 to78.
+
 ## v0.22.78 - 2026-10-30
 
 - First four-subject sharding cohort finalized COMPLETED:68canonicalclaims,54SUPPORTED and14ordinaryNOT-SAMPLED. Currentgate54/54passes;28pinnedreadablesnapshots,81boundspans. Artifacte31e8fae6b3f743945a0ebc090cea850b0c3795d1a8df298958019b23d433c37. Eight completepacks acrossbothroots; both-tree/site projectionsverified bylive-acceptance agent.

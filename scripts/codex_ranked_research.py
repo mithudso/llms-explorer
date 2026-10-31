@@ -2,7 +2,7 @@
 """Plan and resume ranked /dr research in source-sharing cohorts.
 
 Only `run` starts model calls. Plans preserve every ranked row, skip existing
-checkouts, and group eligible concepts by parent. Each cohort uses Luna/max,
+checkouts, and group eligible concepts by parent. Each cohort uses Sol/medium,
 the shared source library, a blind Sol/medium gate, and website completion.
 """
 from __future__ import annotations
@@ -62,6 +62,10 @@ def sync_row_outcomes(plan):
 def reviewed_gate_current(shared, cohort):
     """Only an independently verified current gate permits explicit review resume."""
     try:
+        # Scope/owner reviews have no research run. load_manifest exits the
+        # process for a missing run, so check before loading an optional one.
+        if not (shared.run_dir(cohort["id"]) / "manifest.json").is_file():
+            return False
         manifest = shared.load_manifest(cohort["id"])
         if not manifest.get("concepts") or any(row["status"] != "done" for row in manifest["concepts"]):
             return False

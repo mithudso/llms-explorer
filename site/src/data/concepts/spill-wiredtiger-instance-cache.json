@@ -1,0 +1,187 @@
+{
+  "slug": "spill-wiredtiger-instance-cache",
+  "concept": "Spill WiredTiger instance cache",
+  "generated": "2026-10-30",
+  "summary": "Source-anchored research for Spill WiredTiger instance cache. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "serverStatus.spillWiredTiger.cache exposes maximum bytes configured, bytes currently in the cache, tracked dirty bytes in the cache, dirty-trigger counts, and application-thread eviction time. Diagnostic inference: calculate this instance's dirty ratio as its tracked dirty bytes divided by its own maximum bytes configured. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md",
+          "note": null,
+          "claimId": "clm:04f6f0942ebc2f01271d5cbfe01e431e961cd331a67578bf2b5d9609351e41dc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6036a951f87b5c6deb7b188d906e62be87e91b1dd5a51865e03b794fe57fdf78"
+          ]
+        },
+        {
+          "text": "The inspected v8.2 declarations set spill dirty eviction target to 5 percent, dirty trigger to 80 percent, updates trigger to 80 percent, and minimum/maximum eviction threads to one each. They describe the dirty target as background-thread eviction and the dirty trigger as application-thread eviction. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/v8.2/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl",
+          "note": null,
+          "claimId": "clm:ca01c955db1f15dc4990758ffe958abce44b11e720c6aeb53810b736ec354b73",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8753f792bee449c5a7bb2cbcdb4b082c45756e018097c60a2fc983d15955e237"
+          ]
+        },
+        {
+          "text": "For the inspected v8.2 spill engine, both minimum and maximum eviction-thread counts default to one. These startup parameters are distinct from dirty target and trigger settings. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/v8.2/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl",
+          "note": null,
+          "claimId": "clm:134b2e8807f2cba52a4f5ba45ebb9cfc24aa8da173ff2e46a132727110b51050",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0832311dfea4bea516d45074163ee5eab8a6c0d00c0c9282ceb3d148ccf11edd",
+            "ev:45132167c39d669209ca30ea5191b9c9829590ce778c3c0e9a57842b0ba5ca95"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "A Komodo issue's April 3, 2026 startup log shows Opening spill WiredTiger with cache_size=498M, eviction_dirty_target=24MB, eviction_dirty_trigger=398MB, eviction_updates_trigger=398MB, one eviction thread, and logging disabled. This is one deployment observation, not a benchmark or evidence that these settings caused its connection-reset symptoms. (low confidence) (verified as of 2026-04-03)",
+          "source": "https://github.com/moghtech/komodo/issues/1320",
+          "note": null,
+          "claimId": "clm:abb8e5962337dd0bd1b37c9fac35ca8313d77213dcdfdacfb38993bc893be9d6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b7121eedd2a1d9f7a40a49d80a5307aee8a302b53b016d39273beff85eed7e6d"
+          ]
+        },
+        {
+          "text": "The inspected v8.2 defaults set spill dirty eviction target to 5% of spill-cache capacity, dirty trigger to 80%, and updates trigger to 80%. The engine converts these percentages to integer MB before opening WiredTiger. Background eviction threads handle the dirty target; application threads participate at the dirty trigger. These are spill-specific settings. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/v8.2/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl",
+          "note": null,
+          "claimId": "clm:1c4080806ef2fb554d326768b52672c9e39a37feb514f34c455aa6ac4a4343d4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:45132167c39d669209ca30ea5191b9c9829590ce778c3c0e9a57842b0ba5ca95",
+            "ev:f0aa597d340baed5237675a93205e56e49dcc62599262fd627ec808bafe05e14"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "WeKan documents a MongoDB 8.2.2 incident where disk exhaustion was followed by repeated startup failure of the temporary spill instance: Failed to clear dbpath of the internal WiredTiger instance preceded Failed to open the spill WiredTiger instance. Its account identifies the affected temporary directory as <dbPath>/_tmp/spilldb; this was a startup/storage incident, not a measured dirty-ratio failure. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/wekan/wekan-gantt-gpl/blob/main/docs/Databases/MongoDB/Storage-Requirements.md",
+          "note": null,
+          "claimId": "clm:12c198caf2e0aab758f9bb0cfb94dec2fd5cbb1fda0b713ee8ada370abf5216c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:63b8f8a04cf723022cd933668fd76642e8f99e8df70016d337746aafe1c5414f"
+          ]
+        },
+        {
+          "text": "Historical MongoDB issue SERVER-74133 describes spill writes inside a user multi-document transaction filling dirty cache with uncommitted, unevictable data and potentially stalling concurrent writes. The issue lists no affected or fixed versions, so it cannot establish that the same behavior remains in the separate spill-instance implementation. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-74133",
+          "note": null,
+          "claimId": "clm:96a072aeae71b90c779c354bcd266fb093edcfe3a49a4fd0f80d33a02af5d09a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4cb3d9811f7644269054e3402cdda91de4f773c6426cff48f5d21b7cef2ba249"
+          ]
+        },
+        {
+          "text": "WeKan reports a MongoDB 8.2 startup loop after disk exhaustion: spill-directory cleanup failed with \"Directory not empty\", followed by \"Failed to open the spill WiredTiger instance\" and WT_TRY_SALVAGE. Treat this as a reported spill-storage startup failure, not evidence that an eviction dirty threshold caused the incident. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/wekan/wekan-gantt-gpl/blob/main/docs/Databases/MongoDB/Storage-Requirements.md",
+          "note": null,
+          "claimId": "clm:acbf76353ce5cb0fc4acce49eb07817a7108b07f4941395f3651cb0e061d76a3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:63b8f8a04cf723022cd933668fd76642e8f99e8df70016d337746aafe1c5414f"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Percona PMM 3 documents panels for cache capacity, dirty versus clean page eviction, cache activity, and disk I/O. These support contextual diagnosis, but this page does not establish that its standard panels collect the separate spillWiredTiger subtree. Verify metric provenance before interpreting them as spill-cache measurements. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html",
+          "note": null,
+          "claimId": "clm:2ee049ffee4ed2222eeaa18efc0ef69a7e897f5dbacd39de35665a78c85fc6a2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2b398a71cc93c089e0e2d235fe7c9cc39c405f4582a879840f5d8b428f823947",
+            "ev:c42d1e5ec9a932bd7373e4ee992024b3db3a658c256314bf0d3dc16fe9278261"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB documents an isolated in-memory cache for its spill WiredTiger instance. The v8.2 implementation opens a separate WiredTiger connection and constructs its cache configuration from spill-specific startup options. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md",
+          "note": null,
+          "claimId": "clm:af14e5ec8b80cd0f7a32c88c5f9c48a2398993d4f1903793fb3a45e98892b1b5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:45132167c39d669209ca30ea5191b9c9829590ce778c3c0e9a57842b0ba5ca95",
+            "ev:6dbe24b5768eda8177ca960134522e67dcd95d95b22794e0627d9654dbdb2d86",
+            "ev:96e4a11ec2c494ce63875131804b7a77dad347ee8f60d6205372c265d36abd77"
+          ]
+        },
+        {
+          "text": "In the inspected v8.2 source, spillWiredTigerCacheSizePercentage defaults to 2.5, bounded by spillWiredTigerCacheSizeMinMB=100 and spillWiredTigerCacheSizeMaxMB=1000. The inspected sizing utility clamps systemMemoryMB * pct * 0.01 to those bounds; this is a separate allocation from the main cache. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/v8.2/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl",
+          "note": null,
+          "claimId": "clm:9c4c47e8dc39eedb642ea0cd7948f131f1c9901a6d96bc9cf4c964feb333d99d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:45132167c39d669209ca30ea5191b9c9829590ce778c3c0e9a57842b0ba5ca95",
+            "ev:6dbe24b5768eda8177ca960134522e67dcd95d95b22794e0627d9654dbdb2d86",
+            "ev:c1baf2e599862f24b8005090fac38fca96f52e5e0ff71034eb45f9ac34ab59b4",
+            "ev:d44f81b44a7f40b92a23a12e72ba410074289f90f75b6dfb2fbe186d70e91cd7"
+          ]
+        },
+        {
+          "text": "WiredTigerUtil::getSpillCacheSizeMB computes systemMemoryMB multiplied by pct multiplied by 0.01, truncates to int32_t, and clamps the result between minMB and maxMB; it rejects minMB greater than maxMB. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/wiredtiger_util.cpp",
+          "note": null,
+          "claimId": "clm:cba1e019f36d9e3327f265a83589884c1bf47b96aa7d5d524450c7faad562519",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d44f81b44a7f40b92a23a12e72ba410074289f90f75b6dfb2fbe186d70e91cd7"
+          ]
+        },
+        {
+          "text": "The v8.2 spill connection disables logging and spill-table creation also disables table logging. Independently posted Komodo startup logs show a spill connection configured with log=(enabled=false). This configuration concerns temporary spill data. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/v8.2/src/mongo/db/storage/wiredtiger/spill_wiredtiger_kv_engine.cpp",
+          "note": null,
+          "claimId": "clm:8d6e90392d8cb224183c9c76da56b96aca0d930b9e0ce85212ac87a1ca9d36bc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:370c28ae71bc96b6eadebd87ff1e4af202c76b28aa6b468556ff31f4422742e6",
+            "ev:45132167c39d669209ca30ea5191b9c9829590ce778c3c0e9a57842b0ba5ca95",
+            "ev:b7121eedd2a1d9f7a40a49d80a5307aee8a302b53b016d39273beff85eed7e6d"
+          ]
+        },
+        {
+          "text": "For deployments exposing these metrics, compute spill dirty occupancy as spillWiredTiger.cache[\"tracked dirty bytes in the cache\"] divided by spillWiredTiger.cache[\"maximum bytes configured\"], and cache occupancy with \"bytes currently in the cache\" over that same denominator. This is a derived monitoring method; it aligns with the spill engine calculating eviction thresholds from its own configured capacity. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md",
+          "note": null,
+          "claimId": "clm:e2b4305dfc9cfa8647f090d2394a1b41692a3ee6f54f08119226d38a867ff98d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:45132167c39d669209ca30ea5191b9c9829590ce778c3c0e9a57842b0ba5ca95",
+            "ev:6036a951f87b5c6deb7b188d906e62be87e91b1dd5a51865e03b794fe57fdf78"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "7bab45b5edf4cfe602faa4d23f2281f5a7fbab31d8e01c23d7658f2a25c23f07",
+  "canonicalConceptId": "concept:0f35823799426f11647769224c36166cb053232ab924b35df3f16bc3a2e47471"
+}

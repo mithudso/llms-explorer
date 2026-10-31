@@ -1,0 +1,137 @@
+{
+  "slug": "dropindexes-locking-and-in-flight-query-behavior",
+  "concept": "dropIndexes locking and in-flight query behavior",
+  "generated": "2026-10-30",
+  "summary": "Source-anchored research for dropIndexes locking and in-flight query behavior. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Waiting for the exclusive collection lock and being killed because an index disappears are separate effects. Inference from the documented scopes: a query that does not use or consider the removed index can still wait for collection access during the drop. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+          "note": null,
+          "claimId": "clm:7c7ff8da63cc3aadf6c7d68441f0b946c5dd42d375730e4a0f2c64f8acaca79e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:88867a1bbe84b551b2db9fa88ee29e626aee71810d768f47434d7b2645a41fab"
+          ]
+        },
+        {
+          "text": "SERVER-15019 records a separate regression introduced in development version 2.7.4: aggregation executor cancellation did not reach the underlying executor when dropIndexes removed its index. The issue lists 2.7.8 as the fix version. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-15019",
+          "note": null,
+          "claimId": "clm:667040dc1f23e8e066dfb37bd9cb4393d331fe8879441f6a4b3c51b4cbe947f5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7daf2c216656cc4b613bd9064f10d688c9428470838195d2633a7d16a23ae109"
+          ]
+        },
+        {
+          "text": "MongoDB’s concurrency FAQ says that from version 5.0, lock-free reads such as find, count, distinct, and read-only aggregate are not blocked merely because another operation holds an exclusive collection lock. Aggregations that write require an IX lock and can be blocked. The FAQ does not explicitly resolve how this general rule interacts with every dropIndexes metadata transition, so it does not guarantee uninterrupted reads during index removal. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/faq/concurrency.md",
+          "note": null,
+          "claimId": "clm:66c6fd47b60be5d270a2641923cddffd7ae3d2a168e5620611459daaef8c507a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b7b16e1880c8dd93661d8aaf346fa462c4f9bb3e12fe2937cea9f03b5ca29c0c"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Huawei Cloud DDS documents a reproduction in which a cursor consumes 101 documents, its x_1 index is dropped, and a later getMore fails with code 175, QueryPlanKilled, and an index-dropped message. This is direct evidence for DDS cursor invalidation, not an independent proof of the exact error response in every MongoDB release. (low confidence)",
+          "source": "https://support.huaweicloud.com/eu/bestpractice-dds/dds_0068.html",
+          "note": null,
+          "claimId": "clm:46abdb1dfb16f427cb31fc6d88dfffacd0c83a810a3e67d8f917a43e432446f4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:17b00edf5d75e1629fe8628633bfa6d1427a59e1e91e5517165a054c65a627f6"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB documents that dropIndexes and db.collection.dropIndex() obtain an exclusive lock on the specified collection for the operation duration. The documented lock scope is the collection; the command reference says subsequent collection operations wait for release, subject to the separately documented lock-free-read qualification. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+          "note": null,
+          "claimId": "clm:85a4466d3b789530509963711f204b9e97ab41d6cb4509c25cec06e780f9c7d0",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "The dropIndexes command reference says it kills queries using the index being dropped, potentially including queries considering that index during planning. Therefore an in-flight query depending on the removed index must not be assumed to complete transparently on another plan; this last sentence is an operational inference from the documented termination behavior. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+          "note": null,
+          "claimId": "clm:491efe861a6e747b9c2e05a09c615f07da298d57e275ee8233f017805d832db9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:88867a1bbe84b551b2db9fa88ee29e626aee71810d768f47434d7b2645a41fab"
+          ]
+        },
+        {
+          "text": "Mydbops dates the change from an exclusive parent-database lock to an exclusive collection lock to MongoDB 4.2, and says pre-4.2 removal killed all open queries on the collection. Current MongoDB documentation instead describes collection locking and killing only related queries. Treat database-wide locking and indiscriminate query termination as historical descriptions, not current defaults. (medium confidence)",
+          "source": "https://www.mydbops.com/blog/terminate-in-progress-index-builds-in-mongodb-series-3",
+          "note": null,
+          "claimId": "clm:bce040c98d7b91c1900a259629ec75f6e2eb18134e92f162eb123ad292ba4f52",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7bc77fa91d9afd345067cd74cd0041409bfa9c9dd9e0e7fd5df31e18bd67b575",
+            "ev:88867a1bbe84b551b2db9fa88ee29e626aee71810d768f47434d7b2645a41fab"
+          ]
+        },
+        {
+          "text": "If the specified index is still building, dropIndexes attempts to stop that build. On a replica set, run the operation on the primary: it stops the build and records abortIndexBuild, which secondaries replicate to stop and discard their build jobs. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+          "note": null,
+          "claimId": "clm:ce1885f4c234c0a143dc377e13c652a99337b280d5020f3697b1b59c972f9f0b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3cd9ca6f2482bf961fe90830d41368dcdbe816b90da197aa3b291fc87917772a"
+          ]
+        },
+        {
+          "text": "SERVER-14969 records an aggregation/index-drop server-crash defect affecting MongoDB 2.6 production releases through 2.6.4. The issue states that 2.6.5 fixes it by correctly interrupting aggregations using the removed index. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-14969",
+          "note": null,
+          "claimId": "clm:38bb597f88218089da8654bc988a7392f48d1867974c0ba8d551dc19a38c9cce",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0716432611a13167a8ade91c92bfb38550340cf9ef1401939c77f75b34d58b42"
+          ]
+        },
+        {
+          "text": "OneUptime recommends lower-traffic windows for production index drops and characterizes drops as generally fast. Combined with MongoDB's exclusive-lock guarantee, this supports planning for an interruption window, but does not establish any maximum lock duration. (medium confidence)",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-identify-unused-indexes-in-mongodb/view",
+          "note": null,
+          "claimId": "clm:70fa81d2f54c59b29284d54eec1c48e6ecdfd3e8129059ae81507213754c2301",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4c43d1c9e7bf86d572f4e03f4f31c744e5058186412112c64b24aea086e1810d",
+            "ev:ba1475893d4527a6a967dbdf26ab1a14dbe1581b607cc6905fea419bfeb07d6c"
+          ]
+        },
+        {
+          "text": "Long-running MongoDB operations periodically yield, including to allow index or collection drops to obtain exclusive access. Thus a drop need not wait for every long-running query to finish naturally; the command separately documents killing queries that depend on the removed index. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/faq/concurrency.md",
+          "note": null,
+          "claimId": "clm:fe05e8dbf08315409065e3aa1f5abd06e78cee78ae977296b89548bba0f4d4bd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:002856316f5e783efe29a032c02f926668ec863f156ed141037daed107c99827",
+            "ev:e9c30828b20c6ce554fe14d55d69e866b64a0e712e642e44d5a92dacf82d05c6"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "ab97ed7aab81906a9f563f8a2b7e18d8c804dcb895dfbb238fc3be3e90746809",
+  "canonicalConceptId": "concept:2f8391a0288810e7e96f7354988db72e78a0fe5480fde25f65db1bb053b34e41"
+}

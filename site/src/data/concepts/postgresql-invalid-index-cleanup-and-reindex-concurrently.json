@@ -1,0 +1,206 @@
+{
+  "slug": "postgresql-invalid-index-cleanup-and-reindex-concurrently",
+  "concept": "PostgreSQL invalid-index cleanup and REINDEX CONCURRENTLY",
+  "generated": "2026-10-30",
+  "summary": "Source-anchored research for PostgreSQL invalid-index cleanup and REINDEX CONCURRENTLY. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Invalid indexes are excluded from query plans. When indisready remains true, they can still receive writes and generate WAL despite providing no query benefit; the cost depends on their readiness state. (high confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-createindex.html",
+          "note": null,
+          "claimId": "clm:a09a821ff3c8381e630773a19a6e3ca6343fa932d1382441716c4f0b18ee154c",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "CREATE INDEX CONCURRENTLY IF NOT EXISTS is not an invalid-index repair strategy: an existing invalid name causes the retry to skip construction. Rails issue #52583 supplies a reproducer with a lock timeout followed by such a retry. (high confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-createindex.html",
+          "note": null,
+          "claimId": "clm:9a32bacdd3c6560756c5cb0a35c1fa99f559fdc14a043188919b9df9dfe3d720",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9b2b3b5472ffbca618fde092a8590d58bda57724c3f263b3bfab1ab676e046e4",
+            "ev:e4161379a9468378460c119184fcc1c5870d8f8bec2aa9fe5f04629ba2523e00"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Do not infer write maintenance solely from indisvalid=false. PostgreSQL's concurrent-reindex phases separately change indisready and indisvalid; failure before readiness can leave a different state from failure after readiness. (high confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-reindex.html",
+          "note": null,
+          "claimId": "clm:fc1572343c63154c3c140672b3e927c8dc608e716051de022f6a3bedca1cf952",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:23dad3894f6820fb9d317cf77edcc8f6fe9de7047a67f09b789fb6e6f84e6ed5"
+          ]
+        },
+        {
+          "text": "REINDEX CONCURRENTLY must run outside a transaction block, and only one concurrent index build can run per table. System catalogs and exclusion-constraint indexes cannot be rebuilt concurrently. (high confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-reindex.html",
+          "note": null,
+          "claimId": "clm:b2f22599c3dd6784ee756e3fa90c9e9d6ea0d3bce59a146db5021f043eb7833f",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Inlet reports separate failure reproductions with indisready=false after a first-scan uniqueness failure and indisready=true after cancellation during a late wait. These observations scope blanket statements that all invalid indexes are maintained on every write. (low confidence) (verified as of 2026-10-09)",
+          "source": "https://inletdb.com/migrations/postgres-create-index-concurrently/",
+          "note": null,
+          "claimId": "clm:8a51935a11e72a39b602fe96c03b71a1a1f343616daa37e859e10b46ce0f0fa3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9ba160d74085c1d6a1320959860d4243ddaeedfc654ac4da0876e5916e199bc8",
+            "ev:df76557251847b83e833cfa5c474a187c085a583b82541c1146a429c053beb67",
+            "ev:fb8dfa7f96d17540df3f411f71d5e4546f48336a844825b6ca8d1617f9312415"
+          ]
+        },
+        {
+          "text": "CREATE INDEX IF NOT EXISTS only suppresses an existing-name error; it does not guarantee the existing index matches the requested definition. Therefore it cannot be treated as validation or repair. (low confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-createindex.html",
+          "note": null,
+          "claimId": "clm:c7d92c7f8c44baaa168713afb3e4b13884b094015cf852a220cd42eca6863060",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "REINDEX CONCURRENTLY creates a replacement, swaps names and dependencies, then drops the old index. This is rebuilding, rather than documented continuation of the failed scan. (high confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-reindex.html",
+          "note": null,
+          "claimId": "clm:ea4cd5b16514732541e40e28fe9d0444fa972c85987f5d01c40b249243552423",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "If an INVALID leftover has suffix _ccnew, drop that transient replacement and retry REINDEX CONCURRENTLY. If it has suffix _ccold, the replacement succeeded; drop the obsolete original. Numeric suffixes can distinguish duplicate names. (high confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-reindex.html",
+          "note": null,
+          "claimId": "clm:ac108e8b9e5d4b4b7d3bce94ae148563a1585124f09bb3bc516a487edbbf34e9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:dcd68f530ce1c87f2e453eb6557ac73988b6967d57c748756e15634fe24f68dd"
+          ]
+        },
+        {
+          "text": "After a failed CREATE INDEX CONCURRENTLY, drop the invalid index and retry, or rebuild it with REINDEX INDEX CONCURRENTLY. The REINDEX documentation specifically limits concurrent rebuilding of an invalid index to REINDEX INDEX. (high confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-reindex.html",
+          "note": null,
+          "claimId": "clm:287da518a685d20f4d3cf759136ef5a6e50a7b9f28fa44b53dc8a02572b47b4d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:01eb25d94a8d8a0d9fa79742f2dca6a8aa392fd9a1bd0a54841f92ec532f3c5e",
+            "ev:b8d017e69b90b457b6737322ae177c47faac639e2a75ef971d45d7ecf4f8a97f"
+          ]
+        },
+        {
+          "text": "A unique concurrent index begins enforcing uniqueness before it becomes valid. If the build fails during its second scan, the invalid index continues to enforce uniqueness afterwards. (low confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-createindex.html",
+          "note": null,
+          "claimId": "clm:8bb10d0c5859f99d903c814f7c78e0f4437db9a9b1221fcc87937913908db4fc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ee24f246ac4039eecc9f59d5a4cdbbc8b5ea22573b4200a9097eb1dbf706bd4b"
+          ]
+        },
+        {
+          "text": "Concurrent rebuilding requires two table scans plus waits for existing transactions, trading additional work and elapsed time for continued ordinary writes. Monitor the phases through pg_stat_progress_create_index. (high confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-reindex.html",
+          "note": null,
+          "claimId": "clm:84cbb9f30d7a8575732ffad77b6a362fe3ee030a5dcddae7d0499645e23f63b7",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Find suspect indexes with SELECT indexrelid::regclass, indrelid::regclass, indisvalid, indisready FROM pg_index WHERE NOT indisvalid; inspect the table definition and dependencies before choosing cleanup. (high confidence)",
+          "source": "https://postgres.ai/blog/20260106-invalid-index-overhead",
+          "note": null,
+          "claimId": "clm:30122d95b5eedacdf5cbabc97f0c90f74bd43db3e8fa2e0c39b7bf27ff8b7a4a",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "PostgresAI's January 2026 overhead demonstrations manually change pg_index to indisvalid=false and indisready=true. Treat them as evidence for that explicit state, not evidence that every failed concurrent build leaves an identical state. (low confidence)",
+          "source": "https://postgres.ai/blog/20260106-invalid-index-overhead",
+          "note": null,
+          "claimId": "clm:3572fd296efc0e47c305546d90b7467156fc6ea4720afaf489eda85f897ed03a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a7d0b482e87c929dac6e0fd84f5f297ceaa3045c4076bb8e28e0923dedf70ae9",
+            "ev:c6637e206cc93dd8ced84211a009f3ae720ca10cf57033f5b38c8d8d56a1582f"
+          ]
+        },
+        {
+          "text": "Failed concurrent builds can leave invalid indexes that queries ignore but writes may still maintain. (medium confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-createindex.html",
+          "note": null,
+          "claimId": "clm:5def21545c76ed573c63d30823c5b10dde7b8748876f5d0478bba824ec702f53",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Concurrent reindexing permits writes, but takes SHARE UPDATE EXCLUSIVE locks, scans twice, waits for transactions and adds resource load; it is not lock-free. (low confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-reindex.html",
+          "note": null,
+          "claimId": "clm:159d402b5a630eb20a223e6ab37bd037d3c5fb6622d6c9651ef70268d3d6b73e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:629b75dd6ec7f1720162c28f30c8509596356320a5317f491451f0a015fd63c4"
+          ]
+        },
+        {
+          "text": "PostgresAI demonstrated maintenance, WAL generation, VACUUM work and blocked HOT updates with an index explicitly set to indisvalid=false and indisready=true. These experiments do not establish identical overhead for every invalid index state. (low confidence)",
+          "source": "https://postgres.ai/blog/20260106-invalid-index-overhead",
+          "note": null,
+          "claimId": "clm:ed9157f050e5cd8fb069dfe50ac92a954f7ca06dcbc9fa9a6ca2cdd748db362f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4ba9767d9eb03a128aa3da538a7862d65795171ef58446d75c5837903b8e6faf"
+          ]
+        },
+        {
+          "text": "Inspect pg_index.indisvalid and indisready to find invalid artifacts and distinguish their readiness. Check constraint dependencies and the index definition before deciding whether to remove or rebuild an artifact. (low confidence)",
+          "source": "https://postgres.ai/blog/20260106-invalid-index-overhead",
+          "note": null,
+          "claimId": "clm:5aeec459872d0d607cdd4f0aa83a2c1af9f49ec055141cbd432f2b3f9e68e819",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Depesz independently demonstrated REINDEX INDEX CONCURRENTLY on a primary-key index referenced by a foreign key; the documented dependency swap explains why manual drop-and-recreate is less straightforward here. (medium confidence)",
+          "source": "https://www.depesz.com/2019/03/29/waiting-for-postgresql-12-reindex-concurrently/",
+          "note": null,
+          "claimId": "clm:35ee99b2d704d2937aca7f163f84193c4dfbbf37c7ce5b6cdb73df2d6f34e25e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c524cdc0f42ae1c5f9fa588cb7e6799c373b687bf621d84d1a46f9c33dde23c",
+            "ev:fd7d4b1b1a37336bb0d1cbc712df1ac0d35ed0240f066f3662d01a81f325ca68"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "5117c4ed5a7d58176fbd573e5b13d0dcde23d96ca33f8a5879224ca59447609b",
+  "canonicalConceptId": "concept:496c9237f150882961af22527dba8fc5eb5ac39c49f33fc1c0c919f2a84749ea"
+}

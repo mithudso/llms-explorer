@@ -32,9 +32,11 @@ def test_atomic_updates_stale_rows_from_cohort_checkpoints(tmp_path):
         'complete', 'needs-review', 'complete']
 
 
-def test_review_resume_requires_current_supported_gate_and_completed_claims():
+def test_review_resume_requires_current_supported_gate_and_completed_claims(tmp_path):
     manifest = {'concepts': [{'status': 'done'}]}
-    shared = SimpleNamespace(load_manifest=lambda slug: manifest,
+    (tmp_path / 'manifest.json').write_text('{}')
+    shared = SimpleNamespace(run_dir=lambda slug: tmp_path,
+                             load_manifest=lambda slug: manifest,
                              verify_current_gate=lambda value: None)
     assert ranked.reviewed_gate_current(shared, {'id': 'reviewed'})
     def stale(value):
@@ -44,6 +46,14 @@ def test_review_resume_requires_current_supported_gate_and_completed_claims():
     shared.verify_current_gate = lambda value: None
     manifest['concepts'][0]['status'] = 'pending'
     assert not ranked.reviewed_gate_current(shared, {'id': 'reviewed'})
+
+
+def test_review_resume_skips_unstarted_owner_review_without_initializing(tmp_path):
+    def missing(slug):
+        raise AssertionError('an owner review must not load or create a research run')
+    shared = SimpleNamespace(run_dir=lambda slug: tmp_path / slug, load_manifest=missing)
+    assert not ranked.reviewed_gate_current(shared, {'id': 'scope-review'})
+    assert not (tmp_path / 'scope-review').exists()
 
 
 def test_review_resume_flag_cannot_enable_unbounded_review_retry():

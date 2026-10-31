@@ -1,0 +1,192 @@
+{
+  "slug": "oplog-sizing-in-kubernetes-operators-and-managed-mongodb-compatible-services",
+  "concept": "Oplog sizing in Kubernetes operators and managed MongoDB-compatible services",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Oplog sizing in Kubernetes operators and managed MongoDB-compatible services. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The Community Kubernetes Operator architecture describes MongoDB Agent orchestration that upgrades secondaries first and waits for their oplogs to catch up before an election. This is replication-aware rollout coordination; that document does not establish automatic resizing of the oplog when PVC capacity grows. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongodb-kubernetes-operator/blob/master/docs/architecture.md",
+          "note": null,
+          "claimId": "clm:cb4f6832d7a9ffb35311bb4fc3a17c3846dbc42fca058ce47ad5a14c62bc2098",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8aea6a0cab3e37f419ece1bbb02fdb3d1f2508c00b797be3b0383c9a815e2ec0"
+          ]
+        },
+        {
+          "text": "Minimum oplog retention can allow MongoDB oplog growth beyond its configured maximum and exhaust disk space under high write volume. In a Percona deployment, autoscaling has a configured maximum; inference: retention-based sizing still requires capacity headroom and monitoring even when automatic PVC growth is enabled. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/configuration-options.md",
+          "note": null,
+          "claimId": "clm:9139409324505ca1fd27e6520df93026c09f7dcb4879964c0c77591bd8040c78",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b3493156018fd3876a93e2a3e9c57d731d7c0b815aac0d97d28f68ea269e895a",
+            "ev:c1c605373ef82d92d6fff4716a3d28558743117be9f1b16958ff6adda96f9040"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Amazon DocumentDB retains change events for three hours by default and allows change_stream_log_retention_duration to extend retention up to seven days. Its retention note says logs older than the configured duration are not deleted until log size exceeds 51,200 MB. Enabling change streams adds read/write I/O and storage costs. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://docs.aws.amazon.com/documentdb/latest/devguide/change_streams.html",
+          "note": null,
+          "claimId": "clm:23d4ba921d1847e0778bdc10e2ffd2a5a31325fcc8a0aa65e232dabf9537b18f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:68b8471ed7ec6b0b2bb0ff20c4480dfc722d992066eb6b8680e01af4bf03138a",
+            "ev:b66c3c2dc2481fdc0354993b71df55a3c2d3504ce1c02785c3538af6de881a7a",
+            "ev:f2f0371d9269c1df9ce2b2e0c2a092a65b7a2dd18ad78f6e09f3494546ec0c46"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "AWS's DocumentDB page contains a retention caveat: logs older than change_stream_log_retention_duration are not deleted until log size exceeds 51,200 MB. This qualifies the same page's general statement that events are deleted after the retention window; do not interpret configured retention as a precise physical-storage deletion deadline. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://docs.aws.amazon.com/documentdb/latest/devguide/change_streams.html",
+          "note": null,
+          "claimId": "clm:e62412ee8f07881af51fdc4c44bf71b4c0a37654f59f5364ff7d93c4cd5462bc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2376c10bc6f0e9bfc54ef3459063aa59e1f7453fa6e4effa76303dade49ee0c3",
+            "ev:f2f0371d9269c1df9ce2b2e0c2a092a65b7a2dd18ad78f6e09f3494546ec0c46"
+          ]
+        },
+        {
+          "text": "Azure DocumentDB documents a 400-MB active change log for standard change streams. This is a service-specific change-log limit, so it should not be substituted for a Kubernetes MongoDB oplogSizeMB policy. (low confidence) (verified as of 2026-06-04)",
+          "source": "https://learn.microsoft.com/azure/documentdb/change-streams",
+          "note": null,
+          "claimId": "clm:f121bfd2b293c7dd7c33196f2bdefd81db2ea3284b9a4539f17c4bd8e2533b67",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4bb5bf80d7beb84955247354c6020635f1c1bd67c99802b88c3d5eb2617adca9"
+          ]
+        },
+        {
+          "text": "Azure DocumentDB historical change streams can retrieve archived logs beyond the active change log. With PITR log integration, documented recovery can extend up to 35 days or the cluster initialization point, whichever is earlier; the active 400-MB log therefore is not an absolute limit on all stream recovery. (low confidence) (verified as of 2026-06-04)",
+          "source": "https://learn.microsoft.com/azure/documentdb/change-streams",
+          "note": null,
+          "claimId": "clm:2ccd2a0eee7d749cff95987a4281aa1fcb0c6f41e7c8f936de29b4564547903f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4bb5bf80d7beb84955247354c6020635f1c1bd67c99802b88c3d5eb2617adca9"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "For an existing operator-managed MongoDB oplog, use replSetResizeOplog for the runtime size change rather than relying on a changed replication.oplogSizeMB value or a restart. MongoDB documentation and the Percona troubleshooting answer also direct operators to update oplogSizeMB to persist the intended configuration. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/configuration-options.md",
+          "note": null,
+          "claimId": "clm:3857a7057708de0ca4d9eadf332beefbcd78d8e4d407a296f98b2022e907ddf4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7e2fcc1c550b2c63896a911e3eebb13122ed0290eada4fc8a77d8c83a0b53e50",
+            "ev:c2b065cc7d52e302b55821c0699e93a4558e8f02b3a5d82e3ab9b4429af03d7a"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "PVC expansion and oplog resizing are separate controls. Percona documents storageScaling as PVC growth, while MongoDB requires replSetResizeOplog to change an existing oplog maximum. Therefore, successful PVC autoscaling alone is not evidence that the configured oplog maximum or history window increased. (medium confidence) (verified as of 2026-10-05)",
+          "source": "https://docs.percona.com/percona-operator-for-mongodb/1.23.1/scaling-storage-resize.html",
+          "note": null,
+          "claimId": "clm:15ebe76ec46b1fcdc4703e9b85137fd2260a2d0bb613c067b8cb1cb293dea2a9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c2b065cc7d52e302b55821c0699e93a4558e8f02b3a5d82e3ab9b4429af03d7a",
+            "ev:db2aed56a1bad1dfb22664b9c7dff40aa515baf53997729ed079e5b0a39c34fb",
+            "ev:fe38d544de920df8a8d68cb3629dbbe253e7885fd8c6d9f38ff2ac42e79373c2"
+          ]
+        },
+        {
+          "text": "Percona Operator 1.23.1 documentation identifies usage-triggered PVC autoscaling as added in 1.22.0. It requires enableVolumeScaling and autoscaling.enabled, and exposes triggerThresholdPercent, growthStep, and maxSize. This automation covers replica-set and config-server PVCs, excludes mongos log PVCs, and requires an expansion-capable storage class. (low confidence) (verified as of 2026-10-05)",
+          "source": "https://docs.percona.com/percona-operator-for-mongodb/1.23.1/scaling-storage-resize.html",
+          "note": null,
+          "claimId": "clm:64530e7ce80e6415945daae25e9badb005666f869c4070e2e47b42426b38257f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:db2aed56a1bad1dfb22664b9c7dff40aa515baf53997729ed079e5b0a39c34fb",
+            "ev:fe38d544de920df8a8d68cb3629dbbe253e7885fd8c6d9f38ff2ac42e79373c2"
+          ]
+        },
+        {
+          "text": "Percona's February 2023 engineering article demonstrates external pvc-autoresizer integration, not built-in usage-triggered operator resizing. Current documentation says enabling external autoscaling disables the operator's internal resize logic; using both simultaneously is unsupported. Historical external-resizer recipes therefore need version-specific interpretation. (medium confidence) (verified as of 2026-10-05)",
+          "source": "https://www.percona.com/blog/storage-autoscaling-with-percona-operator-for-mongodb/",
+          "note": null,
+          "claimId": "clm:995b4139092147162a49ce0d84a4b3a128030c31bdfdbf839bb5ab8d563c9767",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9b5bae897c19779d7816eca425d82ac4b54f78abee3ec0c876a774133c101e9f",
+            "ev:b306343133fc0aadbd6e3cb05643350aad222e22389f870bb790ab602e236a2f"
+          ]
+        },
+        {
+          "text": "The MongoDB Ops Manager Kubernetes resource's backup.opLogStores entries reference databases that store backup oplog slices. These backup stores are a separate capacity concern from the live replica-set oplog controlled by replication.oplogSizeMB. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/kubernetes/current/reference/k8s-operator-om-specification.md",
+          "note": null,
+          "claimId": "clm:59c26507456b4dc615fe4025067fe97e71e7f7341aed23214710518ca77bfae8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:484749e5dd611d81b9cb73841fbbeb1691dca8e3076d32d0c53d99475e280170",
+            "ev:9ba97eb6b08318e929df66920e883fa881216360ab6c9b125726b27b14482bf9"
+          ]
+        },
+        {
+          "text": "Amazon DocumentDB documentation explicitly says the service does not support MongoDB's oplog. Its change-stream events have a documented three-hour default retention, configurable from one hour to seven days with change_stream_log_retention_duration. MongoDB oplog-size procedures should therefore not be assumed to apply to DocumentDB storage growth. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://docs.aws.amazon.com/documentdb/latest/devguide/change_streams.html",
+          "note": null,
+          "claimId": "clm:20be6080a144be8f541339d281b4f414158d46c7930a8a18e45b5ad345858c1f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:68b8471ed7ec6b0b2bb0ff20c4480dfc722d992066eb6b8680e01af4bf03138a",
+            "ev:735a00c210b4323daeb667e3f76923648a206f35a716fec570c05a1192496e1f",
+            "ev:b8e1c70e9f9761bba1366f501ed969504e4b693c7bf41cf70a485b0c04045c4e"
+          ]
+        },
+        {
+          "text": "Percona supports MongoDB configuration through replsets.configuration and sharding.configsvrReplSet.configuration. An operator forum example confirms that replication.oplogSizeMB reaches mongod.conf, but that declarative startup setting does not resize an already-created oplog. (medium confidence)",
+          "source": "https://docs.percona.com/percona-operator-for-mongodb/options.html",
+          "note": null,
+          "claimId": "clm:5d074e45279303242a16ccb194c45412087b8fb31f998a531511be068d7c7ba4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7e2fcc1c550b2c63896a911e3eebb13122ed0290eada4fc8a77d8c83a0b53e50",
+            "ev:c2b065cc7d52e302b55821c0699e93a4558e8f02b3a5d82e3ab9b4429af03d7a",
+            "ev:ebbaf896fd13bf4a1b68c642f7745da8eb76e61c15e0bf643b690c0126c6ee38"
+          ]
+        },
+        {
+          "text": "Amazon DocumentDB automatically expands cluster-volume storage as data grows, but its documentation separately specifies a time-based change-stream retention setting. Inference: storage growth does not itself establish a longer change-stream resume window; configure retention independently. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://docs.aws.amazon.com/documentdb/latest/devguide/db-cluster-manage-performance.html",
+          "note": null,
+          "claimId": "clm:cf68b53d409e49a8cc6110c256d67508b41076defcfdd321070cdb0492a025f2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:68b8471ed7ec6b0b2bb0ff20c4480dfc722d992066eb6b8680e01af4bf03138a",
+            "ev:735a00c210b4323daeb667e3f76923648a206f35a716fec570c05a1192496e1f",
+            "ev:c8b90acb1a1dbc8ef284af216c508c8185587d0f0a36f991015df03b23a54ce8"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "3c29d00e75100c7ac2c9b4f8bacec97a63c0b3e53d0483f0c75fc9dd02b3a10c",
+  "canonicalConceptId": "concept:044243fbb7e00a49f14cb5f132472953b0f38064aa2fe074c55e51b8c7be968a"
+}
