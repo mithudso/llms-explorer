@@ -1,0 +1,160 @@
+{
+  "slug": "workload-isolation-with-tagged-secondaries-and-atlas-analytics-nodes",
+  "concept": "Workload isolation with tagged secondaries and Atlas analytics nodes",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Workload isolation with tagged secondaries and Atlas analytics nodes. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Tag selection does not itself bound replication lag. The server-selection specification applies maxStalenessSeconds before tag matching; its default imposes no maximum staleness. A strict analytics target can become ineligible when a configured staleness bound is exceeded. (low confidence)",
+          "source": "https://github.com/mongodb/specifications/blob/master/source/server-selection/server-selection.md",
+          "note": null,
+          "claimId": "clm:babf2c4679b33dddc61ee8c64cc38c971bb0ab8266a55acc482e2d645ce9821a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6a0c2920ebb3d3a8f32b47795fc35f5a58e42bf6e9d6f7ae4d4b4a8a308e6836",
+            "ev:b2d5d99d837575627035a5a17b685cc8c33bf93ec11eb7320ee67f148624fd7f"
+          ]
+        },
+        {
+          "text": "Historical issue SERVER-9984 describes mongos connection churn when clients alternated read-preference tags in MongoDB 2.4.4. The issue was closed as a duplicate with no fix version listed; it is historical operational evidence, not proof that current releases have this behavior. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-9984",
+          "note": null,
+          "claimId": "clm:98ba9958d7868664648f210ae38a8ebc301c2b66950a374d7cd3a056f98df762",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c40b66e6584214e96a8e9761e1659af15be95d093744bd9514a4ea2c25fdd213"
+          ]
+        },
+        {
+          "text": "Appending an empty tag-set fallback weakens strict workload isolation: an empty tag set matches any otherwise eligible server, so secondary mode can fall back from analytics members to operational secondaries when the earlier tag set has no match. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/reference/replica-set-tags.md",
+          "note": null,
+          "claimId": "clm:116795e76ab7f8d684be08c4b24a1673ecfa1ef14fdf51c979345646311bbb80",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:39e53366776b3fef47de311a28c6a9a69c94d0fcb546c49e5bff495d865bf4ea",
+            "ev:6a0c2920ebb3d3a8f32b47795fc35f5a58e42bf6e9d6f7ae4d4b4a8a308e6836"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "For strict analytics-only read placement, use secondary mode with the ANALYTICS member tag and accept a selection failure when no matching secondary is eligible; allowing primary fallback defeats that isolation boundary. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/reference/replica-set-tags.md",
+          "note": null,
+          "claimId": "clm:ef6734d43a1f898434469ffbceed80e45eb9d415650ffed158c43eb21e088660",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "An empty fallback tag set trades isolation for availability: Atlas documents that it permits any available secondary if no analytics member matches. Exclusive analytics targeting can instead fail during initial sync, disk scale-down or NVMe tier changes. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/reference/replica-set-tags.md",
+          "note": null,
+          "claimId": "clm:434f01b35d4102fc5a38ef524e36a4b646f1333bdb3d154daaca1353412d6fd2",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "secondaryPreferred is an isolation antipattern when analytics reads must never reach the primary: if no eligible tagged secondary exists, selection can choose the primary. A firsthand 2022 Atlas incident reports primary degradation from this fallback and recovery after switching the analytics client to secondary. (medium confidence)",
+          "source": "https://github.com/mongodb/specifications/blob/master/source/server-selection/server-selection.md",
+          "note": null,
+          "claimId": "clm:8b2260004cb1b53856bf699064c1ed1ae99c50dfdfd88b94169475c754b1f4d5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:15eb20e5d93bf5fcf3f5b3e30f7985a62a413df5c7f865336a6e1de7d822b8e5",
+            "ev:df1d634e13833a42e3d3b519ae9bf2e7256adba885cb97b0482c327fc0bd2f62"
+          ]
+        },
+        {
+          "text": "A hidden secondary cannot serve reads through mongos. MongoDB warns that directly reading hidden shard members can produce inconsistent data or loss, and recommends tag-based read preferences for sharded workload isolation instead. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-hidden-member.md",
+          "note": null,
+          "claimId": "clm:84c0d298cb2482a935b92de37636039e9d6d365ff0296b29cfa6bdb8b8eb9774",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:76f21da21fe6ec7541d435ff2da8bbbefb7504c390951972d0b545529d384afd"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "For a sharded client, read-preference mode, tags, and maximum staleness do not choose the mongos router; the driver passes these options to mongos. Workload-specific member selection therefore belongs behind the router rather than in direct shard connections. (high confidence)",
+          "source": "https://github.com/mongodb/specifications/blob/master/source/server-selection/server-selection.md",
+          "note": null,
+          "claimId": "clm:671193c818ff719b1efa92c88f38f117dda5ebded3611fa8f5f077ca5ba7499e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c7405f6d529f53a10c7e771be83b07258ee820f14c463337d73eaea32a5f33c",
+            "ev:da58a875ccdbf1efd10ba3b2abc08e2463c0b0fffbf204a7221884809b59e7ff"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Routing expensive reporting, ETL, or connector discovery reads to dedicated analytics secondaries separates their query execution from operational reads and writes; both MongoDB Atlas guidance and OVHcloud documentation describe this pattern, and Airbyte recommends it for discovery workloads. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/reference/replica-set-tags.md",
+          "note": null,
+          "claimId": "clm:b07501efc057f5faf050e35fbbeed9cf61c7084c610fd2ad2a981922e83c0840",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1dd48436cb729108abda0dd5df3a90384e69492cfb614e28e71f8ca08a5b4d99",
+            "ev:1ebcb26185d72213a1cb9b934561f64a5df0ec6066d6fd09803fb5c9e97b3656",
+            "ev:473ff12e01f31c45d7e7700d98811d54cc76d54200810c4ca64c1712de4051cc"
+          ]
+        },
+        {
+          "text": "Airbyte documents a concrete pressure source: schema-enforced discovery runs concurrent aggregation pipelines across collections and can exhaust CPU and memory. Its proposed analytics-node alternative moves that work but does not reduce the discovery workload itself. (low confidence)",
+          "source": "https://github.com/airbytehq/airbyte/blob/master/docs/integrations/sources/mongodb-v2/mongodb-v2-troubleshooting.md",
+          "note": null,
+          "claimId": "clm:16e4362fd74bad15bf00f6a1a2f5aca91680bad2918242cce9f4641a3499347c",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Isolation should work in both directions: Atlas documents workloadType:OPERATIONAL for ordinary secondary readers so they exclude analytics nodes, complementing the separate analytics-only client. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/reference/replica-set-tags.md",
+          "note": null,
+          "claimId": "clm:dbdaa90496240488a786196b6393dbf0433ee55e26e9ba7ab3e944eab505f352",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Do not treat a particular Atlas host name as a permanent analytics endpoint. Atlas warns that the same host name may refer to a different node type after a topology change. (low confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution.md",
+          "note": null,
+          "claimId": "clm:31fbb8dba9647e8cdc7662ecdef80357e718e54e37deee7385c69658f48d831a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:92486e8d1a3ced09becdd16ef8fc1ba5eecc8bcb585d5aaa7267cafd9dceb7e6"
+          ]
+        },
+        {
+          "text": "Dedicated secondary routing does not guarantee fresh data: secondaries replicate asynchronously, and the server-selection specification permits a maximum-staleness eligibility filter. Query-placement isolation and acceptable replication lag require separate decisions. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/read-preference.md",
+          "note": null,
+          "claimId": "clm:19da28231486be7422ae972b740ca7860c28db8e69a2cd0c41e0ddd60315e617",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6043a1149d9bfb61d94ab8f04908610f7c44ff0cbd98876785961336774d4765",
+            "ev:d4869ff20618bbf861849d327d9acee28c68e2ff8a6d3292b106036fe71f9d8b"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "e3326971e15c14a79d0321deb405b63211b4eab4bf6c640dc1da8f3cd2a605ad",
+  "canonicalConceptId": "concept:bb0bdfc3ead9190e32b0a583423df9cdeae698542909e30d9185564c28eb19ed"
+}

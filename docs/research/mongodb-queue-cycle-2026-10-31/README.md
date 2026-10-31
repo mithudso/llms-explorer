@@ -1,10 +1,10 @@
 # MongoDB queue and scout cycle checkpoint
 
-Version: 1.0.4
+Version: 1.0.5
 
 Delta: recover the existing queue, repair exact evidence, and consume new Antigravity leads in repeated source-grounded frontier reviews.
 
-The current qualified snapshot has 73 finalized cohorts and 183 named concepts, including four new frontier cohorts. Its 2,793 canonical claims contain 2,455 SUPPORTED judgments and 338 ordinary NOT-SAMPLED claims. Stronger packets and further exports continue. This checkpoint is active. It does not establish exhaustion or saturation.
+The current qualified snapshot has 94 finalized cohorts and 237 named concepts. Its 3,596 canonical claims contain 3,199 SUPPORTED judgments and 397 ordinary NOT-SAMPLED claims. Stronger packets and further exports continue. This checkpoint is active. It does not establish exhaustion or saturation.
 
 The frozen scope remains 461 identities: 332 direct research targets, five owner-dependent labels and 124 prior-coverage checkpoints. All five owner labels now have exact qualified claim receipts and aliases in both trees. Their literal queue labels and parent contexts remain in the plan and queue history; they do not count as new gates.
 
@@ -29,3 +29,7 @@ https://github.com/mithudso/llms-explorer/pull/250
 https://github.com/mithudso/global-ai-hub/pull/84
 
 Remaining work: complete the current evidence repairs and qualified exports; independently qualify proposed deltas and research them; recheck new scout revisions and source-backed descendants; require two consecutive evidence-grounded empty rounds and an independent saturation review; then verify and merge final delivery. No arbitrary global concept or round cap applies.
+
+The independent source corrections merged in skills PR61, PR62 and PR63. The latest includes a real installed CLI symlink check with six offline regressions. Eight admitted proposals resolve to exact prior coverage with zero new research credit. The public hub checkpoint has 232 qualified concepts, all 1,856 pack members identical to the corresponding repository projection, and zero introduced full-policy privacy findings. Source-limited bridge, checkpoint and planned-procedure questions remain explicit; a successful subset gate does not resolve them.
+
+This 94-cohort snapshot passes the complete build/publication policy and all 296 post-build site tests. The private source-read path error was recovered with exact preimage/hash/mode checks; independent readback confirms restoration. The source record and recovery attempts remain preserved.
