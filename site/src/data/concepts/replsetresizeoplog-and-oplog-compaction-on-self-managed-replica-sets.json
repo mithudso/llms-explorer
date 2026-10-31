@@ -1,0 +1,249 @@
+{
+  "slug": "replsetresizeoplog-and-oplog-compaction-on-self-managed-replica-sets",
+  "concept": "replSetResizeOplog and oplog compaction on self-managed replica sets",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for replSetResizeOplog and oplog compaction on self-managed replica sets. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "replSetResizeOplog changes do not replicate. Connect directly to each intended member and process secondaries before the primary, as the official resizing procedure directs. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog.md",
+          "note": null,
+          "claimId": "clm:39b8492f3b85dc5721e04ce9e8af25afad1935ed6a08ef3d4351e07589cf9bc8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5ebac9b07aaabfff5f47d2be9219179369e432a8cade7e71295a6a9a4045d0ba",
+            "ev:6306fd108c9b7790cbdd9e96a575e0c63ebe5069d332719d3c70bd82883410bd"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Run db.adminCommand({replSetResizeOplog:1,size:Double(16000)}) on the target self-managed member to set a 16000 MB logical oplog maximum without restarting mongod; unscaled local.oplog.rs.stats().maxSize reports bytes. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog.md",
+          "note": null,
+          "claimId": "clm:221d37736bdf37792f885fd7d82f8f23908b8aba3202fc6c675ec570765d2821",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:43a7de573cb6ad719289db73fcf3683f00ad0beb8c7720c077f6b5000ba1fd7d",
+            "ev:a7e1ec9bf01f18a11479e5eccc63e3b3c1b00469b4f8323239f0a8119ada0c7a"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Reducing the oplog limit does not automatically return allocated disk space. MongoDB prescribes db.getSiblingDB('local').runCommand({compact:'oplog.rs'}) to reclaim unused space after a reduction; its tutorial says compaction provides no benefit after increasing the limit. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/change-oplog-size.md",
+          "note": null,
+          "claimId": "clm:f4a3acb6b05b9495b795b946ccb998adfac6f6fe36d3cd892a90f99e6fe0ea0b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:93a9d14c5bba2e39c94cc2f8613723cbc5b8b85254c35f2f63bb43bb24a7a652"
+          ]
+        },
+        {
+          "text": "The configured oplog size is not an absolute disk ceiling: retaining the majority commit point can exceed it, and minRetentionHours can preserve entries beyond the size limit until they age out. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog.md",
+          "note": null,
+          "claimId": "clm:5c0feb278da73ebaebdc2dd8a412ad181dd061acceda5c9218cb14e058f54443",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:27c022f1017e6bbfccaab9fa6709ed902fb1bd8dcd1665c0018603370c3d2458",
+            "ev:569c588772323fdcbcd9c86f06517835c3cbba7475a39f07bf03ed93666376be",
+            "ev:a79bbd3d5d178447a6cee478649501d0a1dc12083987d72f63804cc5d333dfb8"
+          ]
+        },
+        {
+          "text": "Run db.adminCommand({replSetResizeOplog:1,size:Double(16000)}) to set one self-managed member's oplog limit to 16000 MB without restarting mongod. The change does not propagate to other members. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog.md",
+          "note": null,
+          "claimId": "clm:8d6027a45ab2c4fa8cfa562b19602ab960ad80993ebb0b04b27d6c119f163bbf",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:44c57e6bb392b5d21c8c4b43d2bb19fff54bbbf59e2eb5b4d98582c4220b6550",
+            "ev:6306fd108c9b7790cbdd9e96a575e0c63ebe5069d332719d3c70bd82883410bd",
+            "ev:e55754c5a9a9fef35d9ae1423eab3dbaa96ab924d54d7404cc77076a5637c409"
+          ]
+        },
+        {
+          "text": "MongoDB's resizing procedure handles secondaries first and the primary last. Inspect db.getSiblingDB('local').oplog.rs.stats().maxSize to verify the configured limit; unscaled maxSize is in bytes. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/change-oplog-size.md",
+          "note": null,
+          "claimId": "clm:215fa03e210ba31ffd6b93fe16d17398d66c9c1bb57e292f84e53553c769ba13",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:72f9046feff84b7ef20a6e10eb6fa65a82e2403b8e48d45fcbc15c210e7c8138",
+            "ev:823e04db7ce54d965fef2468a2a4f54b1cc4072aad1031ea920662f47458a89d",
+            "ev:ece87079616b79c17d7d83997527b39f9f518af1352e7c583906d0ae4345d3a9"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Perform compaction separately on each required member, preferring secondaries; step down the old primary before compacting it. Compaction is not replicated. Check reclaimed space rather than assuming command success guarantees filesystem reduction. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/compact.md",
+          "note": null,
+          "claimId": "clm:45e9d85091589f608ff8b524e782364af6d22ab709844b5f3cf2f8fe1b112ee1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1a9c61bb648449192c12424284c869ef2afef931212b9e332f7085fb7f4d42ad",
+            "ev:c11e3748f74055c4eb3c273a6c8eac4354e08aef8804953387031db296df11c7"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Shrinking can truncate history needed by lagging secondaries, change streams, or mongodump --oplog; check reader progress before reducing it. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog.md",
+          "note": null,
+          "claimId": "clm:230ec7ecc37f003111f218589b928628296d4929a9aeef5072ccf21ea4b14904",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:74ab58ff054eb7301e66e49a6cd47c9550b267da68c8292af92effdaf77f78f3"
+          ]
+        },
+        {
+          "text": "For self-managed maintenance, compact secondaries sequentially, step down the old primary, and compact it after it becomes a secondary. The compact command itself does not replicate. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/change-oplog-size.md",
+          "note": null,
+          "claimId": "clm:2c5542aae51c1772b01d12a149a9f952cd9da655b5ee0440aa137ab18630705c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c11e3748f74055c4eb3c273a6c8eac4354e08aef8804953387031db296df11c7"
+          ]
+        },
+        {
+          "text": "Compaction attempts to reclaim obsolete blocks; block availability and placement determine effectiveness, and it can need additional free space. Compare storage statistics before and after and monitor mongod logs or db.currentOp(). (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/compact.md",
+          "note": null,
+          "claimId": "clm:218f825b36a8bb711a1a0bab302a1636b78623718bd3a374a62f9e7363d5c36b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8acf05809692b790b228b0544682bcb0c0abd8e9f8da5270a9001f28357aa019"
+          ]
+        },
+        {
+          "text": "An independent operator transcript changes oplog maxSize from 2147483648 to 1073741824 bytes and then reports bytesFreed:49152 from compact. This is an unversioned observation, not evidence that shrinking by 1 GiB returns 1 GiB to the filesystem. (low confidence)",
+          "source": "https://bloodguy.tistory.com/entry/MongoDB-oplog-resize",
+          "note": null,
+          "claimId": "clm:99eabf7433a793e503e61b788b3e37e7294b7ba06d90890f39742dbc94e1b919",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1d9510fb36c5e1a1d818988cb0cd4b2451ecf8a3f02961056b8d4e9f2a1a97f0"
+          ]
+        },
+        {
+          "text": "Percona reports replication and reads while compacting the ordinary collection test.demo on PSMDB 6.0.14-11. Its displayed replication entries fall within the compaction interval, but its displayed read timestamp precedes that interval; the read transcript therefore does not independently demonstrate concurrent reads. This experiment does not directly test local.oplog.rs compaction. (low confidence) (verified as of 2024-07-17)",
+          "source": "https://www.percona.com/blog/using-compact-in-percona-server-for-mongodb-from-version-4-4/",
+          "note": null,
+          "claimId": "clm:9900af14e60a6ef6ef2bf36432e037883e53269fb39e02ab109def599f5f2c8b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2e7ce8cc457c04bf978d4c92dfc78d63c00f347b4a5c4d108036b6b52157d9da"
+          ]
+        },
+        {
+          "text": "The general compact reference permits secondary replication starting in 6.0.2/6.1.0; SERVER-68694 records removal of oplog-application blocking with fixes also listed for 4.4.17 and 5.0.12. These are general command changes, not an oplog-collection-specific availability test. (medium confidence) (verified as of 2024-07-17)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/compact.md",
+          "note": null,
+          "claimId": "clm:04820f29a23872a2f84dd47f1a2c0b00cf9e046004f9e40680ad567cf311591c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c11e3748f74055c4eb3c273a6c8eac4354e08aef8804953387031db296df11c7",
+            "ev:f48378e5b18bb195b9756364d8f1d689967f1b7783e21ce26e8f54612640b8c6"
+          ]
+        },
+        {
+          "text": "The autoCompact reference explicitly excludes an existing oplog from background compaction; enabling background compaction therefore does not establish oplog disk reclamation. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/autoCompact.md",
+          "note": null,
+          "claimId": "clm:b3d6112b26c2422f8d55bdfcb536c3e630e85815c179422b18b2fea8d2b8c3c6",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "For authenticated oplog compaction, verify the compact action on local.oplog.rs. The general compact reference prescribes a custom role for system collections; its ordinary dbAdmin and hostManager guidance is explicitly for non-system collections. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/change-oplog-size.md",
+          "note": null,
+          "claimId": "clm:a8f98089d6b4cad9a7622976cd46f7951a5ea90af2cfc30300bee3ed54bad3be",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ed2c653919e3085657b6e3583aa44243c3d8799af51930f56ff92c3154b61bc2",
+            "ev:ffb6e1b61a585da966b1f3b3fedd8768cc52655fb3a0b9e2c3de591c431653c2"
+          ]
+        },
+        {
+          "text": "Shrinking history can strand lagging secondaries or consumers. MongoDB warns of secondary resynchronization and change-stream invalidation; Stitch documents full collection rereplication after its saved oplog position ages out. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog.md",
+          "note": null,
+          "claimId": "clm:76957fdcabd00c839ed47f57306dbb15faa9e2b1ffe678a69369e29658469f8d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:620e18bb03f670819f9a309a45df289d0cf28836e57aaeea09b5721c1ee9c2d7",
+            "ev:74ab58ff054eb7301e66e49a6cd47c9550b267da68c8292af92effdaf77f78f3"
+          ]
+        },
+        {
+          "text": "MongoDB's general compact reference permits secondary replication and reads starting in 6.0.2 and 6.1.0. SERVER-68694 records fixes in 4.4.17, 5.0.12, 6.0.2 and 6.1.0-rc0. These statements alone do not resolve oplog-specific synchronization behavior. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/compact.md",
+          "note": null,
+          "claimId": "clm:9d36d7442f091bb91d6adba736bc45df2ab38ada2939df0068506ce5c89a3f10",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c11e3748f74055c4eb3c273a6c8eac4354e08aef8804953387031db296df11c7",
+            "ev:f48378e5b18bb195b9756364d8f1d689967f1b7783e21ce26e8f54612640b8c6"
+          ]
+        },
+        {
+          "text": "Percona's July 2024 demonstration used PSMDB 6.0.14-11 and compacted test.demo while replication continued. It did not compact local.oplog.rs, so it is not a direct test of oplog compaction concurrency. (low confidence) (verified as of 2024-07-17)",
+          "source": "https://www.percona.com/blog/using-compact-in-percona-server-for-mongodb-from-version-4-4/",
+          "note": null,
+          "claimId": "clm:630d6a3bf7c61af6488ecd73398f9bc0f7969a235f4e3136db5c07067c3b5cf6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2e7ce8cc457c04bf978d4c92dfc78d63c00f347b4a5c4d108036b6b52157d9da"
+          ]
+        },
+        {
+          "text": "autoCompact, introduced in MongoDB 8.0, explicitly excludes the oplog from background compaction. Enabling it therefore does not replace explicit local.oplog.rs compaction after shrinking an oplog. (low confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/autoCompact.md",
+          "note": null,
+          "claimId": "clm:40d7493901f06c3d2f5953fe4b7ec4cdbdbc859607784b0426c0d8413e4fb344",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1f6a696ac8c2b5d9546a5a95cf530b09f4100e3afe2b9a888f6d0da2d1b9ba6b",
+            "ev:e26674d746ff450e5cc3e1da2516bec8c887f22e7c18d33ccfc8a5a0cdf69101"
+          ]
+        },
+        {
+          "text": "compact attempts block reclamation; effectiveness depends on free-block placement and it may need additional disk space. MongoDB 8.0 adds dryRun for estimating reclaimable bytes before actual compaction. (low confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/compact.md",
+          "note": null,
+          "claimId": "clm:8af9f798a0f5e7e9f93b4ec37b3b151a989c28d31f57daee1d5a6ce5f926cd31",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2f530a97fb7e8b70f3ed7e32726bc2bc7a77aa8077a091029c12b4b35190d37b",
+            "ev:4f3f5466b412a58999b255f8e69311ce8077fe4842e140eb8ef797674f636555"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "3f450b13b9b63ad06c2c10b26bebdb947a52d41a361c5f211e7136b95d5b56c4",
+  "canonicalConceptId": "concept:5a4ec0fcc5ce4104e24cfacf8fc8e692f15d75199de661025b6c85f2c950e2af"
+}

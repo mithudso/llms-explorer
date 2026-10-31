@@ -1,5 +1,15 @@
 # Memory
 
+## v0.22.85 - 2026-10-31
+
+- The qualified checkpoint has 58 finalized cohorts and 138 concepts. Its 2,122 canonical claims contain 1,843 SUPPORTED judgments and 279 ordinary NOT-SAMPLED claims. Current claim IDs, packet/artifact bindings and projection hashes verify. No exhaustion is claimed.
+- Native stronger-packet acceptance passed. Cohort 568 re-exported all 73 current claims through init --refresh. It retained the earlier artifact and made zero new paid research or gate calls. A private exporter now fairly selects from the original and both new frontier plans. Scout polling continues every 120 seconds. New research gates await legacy coverage review before export.
+- The planning corpus missed installed legacy skill references. Added a private local FTS index of 135 MongoDB authored files and 59,692 passages without embeddings. Workers now read actual parent and adjacent skill assertions before discovery and retrocheck started scopes. A mongosync reference already discusses discard/restart versus resume. Distinguish any source-specific delta from HAVE or version-bound REFRESH. The coverage lesson is KNOW-980.
+- Corrected one new DISTINCT_SCAN scope's parent. The audit lost the literal $group token from Covered distinct and $group on sharded collections. The three owned queue rows and pending dispatch now agree. Original audit records and preimages remain intact. The corrected snapshot passes the full site build/publication policy and all 296 site tests in 72.87 seconds.
+- Concurrent site build/tests caused FileNotFoundError for site/dist/404.html and site/dist/about.md because they share generated output. Sequential checks removed 24 race failures and isolated the parent-label issue. Run build first, then tests. KNOW-979 records the trigger.
+- Hub draft PR84 contains 55 qualified cohorts and 126 concepts, with 1,008 identical pack members. All 95 focused hub tests pass. The full 25-term privacy comparison over 1,044 managed paths retains 118 exact baseline findings and introduces zero signatures. Five baseline findings enter the comparison because the queue is newly modified. Pushed 63c2e1ca. Policy commit bd700461 passed 12 remote checks; one check intentionally skipped.
+- Remaining: finish repairs, qualified exports, new research and legacy coverage; consume revised scouts; independently verify frontier saturation; finish CI, merge and checkout synchronization. Delta: memory v0.22.84 to v0.22.85; prompt v78 unchanged.
+
 ## v0.22.84 - 2026-10-31
 
 - Added manifest.required_gate_claim_ids to the native claim gate. Required repaired identities augment the ordinary/risk sample; stale identities or missing current judgments prevent completion. A and C now have explicit current SUPPORTED judgments for all78 and85 required repaired identities, respectively. B continues full-claim repair gates. The55 focused gate/runner tests and Ruff pass; all27 mirrored research assets match their canonical sources.
