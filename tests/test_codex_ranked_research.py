@@ -61,6 +61,41 @@ def test_review_resume_flag_cannot_enable_unbounded_review_retry():
         ranked.main(['run', '--plan', 'plan.json', '--retry-reviewed', '--continue-on-review'])
 
 
+def test_selected_review_does_not_retry_another_withheld_cohort(tmp_path, monkeypatch):
+    monkeypatch.setenv('LLMSX_HOME', str(tmp_path / 'jobs'))
+    plan = tmp_path / 'batch/plan.json'
+    original = {'cohorts': [{'id': name, 'status': 'needs-review', 'concepts': [name]}
+                            for name in ('failed-export', 'selected')], 'rows': []}
+    ranked.atomic(plan, original)
+    visited = []
+    monkeypatch.setattr(ranked, 'load', lambda *args: SimpleNamespace(load_shared=lambda: object()))
+    def not_current(shared, cohort):
+        visited.append(cohort['id'])
+        return False
+    monkeypatch.setattr(ranked, 'reviewed_gate_current', not_current)
+    assert ranked.execute_locked(tmp_path, tmp_path, plan, retry_reviewed=True,
+                                 cohort_ids=['selected']) == 0
+    assert visited == ['selected']
+    assert json.loads(plan.read_text())['cohorts'] == original['cohorts']
+
+
+def test_unknown_cohort_selection_preserves_plan_and_creates_no_reservation(tmp_path, monkeypatch):
+    monkeypatch.setenv('LLMSX_HOME', str(tmp_path / 'jobs'))
+    plan = tmp_path / 'batch/plan.json'
+    ranked.atomic(plan, {'cohorts': [{'id': 'known', 'status': 'pending', 'concepts': ['A']}], 'rows': []})
+    before = plan.read_bytes()
+    with pytest.raises(ValueError, match='Unknown cohort selection: typo'):
+        ranked.execute_locked(tmp_path, tmp_path, plan, cohort_ids=['typo'])
+    assert plan.read_bytes() == before
+    assert not (tmp_path / 'jobs').exists()
+
+
+@pytest.mark.parametrize('flags', [['plan'], ['status'], ['run', '--continue-on-review']])
+def test_cohort_selection_rejects_actions_that_cannot_honor_it(flags):
+    with pytest.raises(SystemExit):
+        ranked.main([*flags, '--plan', 'plan.json', '--cohort', 'one'])
+
+
 def test_ranked_parser_keeps_literal_pipes_and_parent():
     rows = ranked.ranked_rows("| 1 | 4.2 | RESEARCH | A | B | Parent | dr | pending |")
     assert rows[0]["concept"] == "A|B"

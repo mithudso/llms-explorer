@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.82 - 2026-10-31
+
+- Integrated main at 77cbf7ff and pushed the recoverable checkpoint to draft PR250. The full site build/publication policy and all295 site tests pass; the34 combined ranked-runner/full-claim-validation tests passed after integration. The real25-term staged privacy gate is clean. Most final-head CI checks pass; the dedicated site build and Pages check were still running at this record.
+- Closed three exact duplicate labels through the native queue helper and verified owner artifacts: redundant-prefix detection, Atlas drop-index recommendations and resource-limited rolling builds. Plan1.0.3 keeps the same461identities and records alias-covered receipts; these are not new gates. Two owner-dependent labels remain. Both queue grammars, parent contexts and paused reservations remain preserved.
+- Found a monitor selection bug: excluding a failed fingerprint locally did not prevent the native runner from selecting that same first cohort. Added --cohort for exact native selection, with unknown-ID rejection before any reservation mutation and incompatible-action checks. The monitor now exports only the selected current-gated cohort. All30 ranked-runner tests and Ruff pass. Scout polling and serial exports have resumed; read the private monitor-process.json for the current PID.
+- Initial frontier scope review continues alongside evidence repairs. No exhaustion, full-claim validation or production publication is claimed. Further qualified outputs remain uncommitted while native transactions run; preserve them and the existing draft. Delta: memory0.22.81 to0.22.82; promptv78 unchanged.
+
 ## v0.22.81 - 2026-10-31
 
 - Checkpoint only: the frozen plan now records 42 complete cohorts / 83 concepts, 124 prior-coverage checkpoints and 254 review outcomes. One additional finalized four-concept cohort has a verified current gate and canonical artifact; its local-publication plan checkpoint still awaits native resume after an earlier tree compare-and-swap failure. No queue exhaustion is claimed.
