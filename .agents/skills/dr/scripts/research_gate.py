@@ -206,15 +206,15 @@ def reusable_judgments(shared, manifest, packet, root):
             receipt = json.loads((previous / 'validation.json').read_text())
             old = json.loads((previous / 'packet.json').read_text())
             response = json.loads((previous / 'verdicts.json').read_text())
-            if (not receipt.get('validated') or old.get('schema') != STRICT_SCHEMA
+            if (old.get('schema') != STRICT_SCHEMA
                     or receipt.get('packet_sha256') != old.get('packet_sha256')):
                 continue
-            old_report = validate(old, response, previous)
+            old_report = validate(old, response, previous, allow_partial=True)
             if (old_report['all_supported'] and old.get('inputs') == packet.get('inputs')
                     and {u: v.get('snapshot_sha256') for u, v in old['sources'].items()} ==
                         {u: v.get('snapshot_sha256') for u, v in packet['sources'].items()}):
                 packet['reused_conflict_review'] = {k: response[k] for k in ('conflicts', 'conflict_reviewed_claim_ids')}
-            for judgment in response['verdicts']:
+            for judgment in old_report['valid_judgments']:
                 row = current.get(judgment['claim_id'])
                 if (not row or judgment['claim_id'] in reused or judgment['text'] != row['text']
                         or judgment['verdict'] not in ('SUPPORTED', NO_ASSERTION)):
@@ -277,7 +277,51 @@ def evidence_text(packet: dict, root: Path, source: dict) -> str:
     return text
 
 
-def validate(packet: dict, response: dict, root: Path) -> dict:
+def validate_judgment(packet: dict, claim: dict, judgment: dict, root: Path) -> str:
+    """Validate one original judgment; never infer support from a sibling's status."""
+    identity = claim["claim_id"]
+    if judgment.get("claim_sha256") != claim["claim_sha256"] or judgment.get("text") != claim["text"]:
+        raise ValueError("gate judgment changed the canonical claim or its caveats")
+    verdict = judgment.get("verdict")
+    no_assertion = (verdict == NO_ASSERTION and packet['schema'] in (SCHEMA, STRICT_SCHEMA)
+                    and claim.get('assertion_kind') in ('summary', 'disagreement', 'open_question'))
+    if verdict not in VERDICTS and not no_assertion:
+        raise ValueError("gate has an invalid verdict")
+    if not isinstance(judgment.get("rationale"), str) or len(judgment["rationale"].strip()) < 20:
+        raise ValueError("gate judgment needs a substantive rationale")
+    spans = judgment.get("evidence", [])
+    if not isinstance(spans, list) or (verdict == "SUPPORTED" and not spans):
+        raise ValueError("SUPPORTED requires exact source evidence")
+    if no_assertion and spans:
+        raise ValueError('NO-FACTUAL-ASSERTION must have no evidence spans')
+    for span in spans:
+        source = packet["sources"].get(span.get("url")) if isinstance(span, dict) else None
+        if (not source or span["url"] not in claim["sources"] or not source.get("available")
+                or span.get("source_id") != source["source_id"]
+                or span.get("snapshot_sha256") != source["snapshot_sha256"]):
+            url = span.get("url") if isinstance(span, dict) else None
+            raise ValueError(f"gate evidence is not bound to a cited source snapshot (claim {identity}, URL {url})")
+        text = evidence_text(packet, root, source)
+        start, end = span.get("start"), span.get("end")
+        if (type(start) is not int or type(end) is not int or not 0 <= start < end <= len(text)
+                or span.get("quote") != text[start:end] or len(text[start:end].strip()) < min(20, len(text.strip()))):
+            raise ValueError("gate quote does not match the exact source span")
+        expected_evidence_id = "ev:" + digest([source["source_id"], source["snapshot_sha256"], start, end, span["quote"]])
+        if span.get("evidence_id") and span["evidence_id"] != expected_evidence_id:
+            raise ValueError("gate evidence ID does not match its source span")
+        span["evidence_id"] = expected_evidence_id
+    if packet['schema'] == STRICT_SCHEMA and verdict == 'SUPPORTED':
+        check_spans(packet, claim, spans, root)
+    return verdict
+
+
+def validate(packet: dict, response: dict, root: Path, *, allow_partial=False) -> dict:
+    """Full acceptance by default; partial inspection is solely for exact reuse.
+
+    Packet, source preflight, response identity, coverage and conflict checks are
+    mandatory in both modes. Partial inspection returns individually checked rows
+    and cannot report a response containing rejected rows as validated/supported.
+    """
     expected_hash = digest({key: value for key, value in packet.items() if key != "packet_sha256"})
     if packet.get("packet_sha256") != expected_hash:
         raise ValueError("gate packet hash mismatch")
@@ -310,6 +354,7 @@ def validate(packet: dict, response: dict, root: Path) -> dict:
                     expected[i].get('conflict', {}).get('status') != 'attributed' for i in ids):
                 raise ValueError('conflict attribution is absent from canonical statements')
     seen, counts = set(), Counter()
+    valid, rejected = [], []
     for judgment in judgments:
         if not isinstance(judgment, dict):
             raise TypeError("gate verdict must be an object")
@@ -318,43 +363,20 @@ def validate(packet: dict, response: dict, root: Path) -> dict:
             raise ValueError("gate has an unknown or duplicate claim ID")
         seen.add(identity)
         claim = expected[identity]
-        if judgment.get("claim_sha256") != claim["claim_sha256"] or judgment.get("text") != claim["text"]:
-            raise ValueError("gate judgment changed the canonical claim or its caveats")
-        verdict = judgment.get("verdict")
-        no_assertion = (verdict == NO_ASSERTION and packet['schema'] in (SCHEMA, STRICT_SCHEMA)
-                        and claim.get('assertion_kind') in ('summary', 'disagreement', 'open_question'))
-        if verdict not in VERDICTS and not no_assertion:
-            raise ValueError("gate has an invalid verdict")
-        if not isinstance(judgment.get("rationale"), str) or len(judgment["rationale"].strip()) < 20:
-            raise ValueError("gate judgment needs a substantive rationale")
-        spans = judgment.get("evidence", [])
-        if not isinstance(spans, list) or (verdict == "SUPPORTED" and not spans):
-            raise ValueError("SUPPORTED requires exact source evidence")
-        if no_assertion and spans:
-            raise ValueError('NO-FACTUAL-ASSERTION must have no evidence spans')
-        for span in spans:
-            source = packet["sources"].get(span.get("url")) if isinstance(span, dict) else None
-            if (not source or span["url"] not in claim["sources"] or not source.get("available")
-                    or span.get("source_id") != source["source_id"]
-                    or span.get("snapshot_sha256") != source["snapshot_sha256"]):
-                url = span.get("url") if isinstance(span, dict) else None
-                raise ValueError(f"gate evidence is not bound to a cited source snapshot (claim {identity}, URL {url})")
-            text = evidence_text(packet, root, source)
-            start, end = span.get("start"), span.get("end")
-            if (type(start) is not int or type(end) is not int or not 0 <= start < end <= len(text)
-                    or span.get("quote") != text[start:end] or len(text[start:end].strip()) < min(20, len(text.strip()))):
-                raise ValueError("gate quote does not match the exact source span")
-            expected_evidence_id = "ev:" + digest([source["source_id"], source["snapshot_sha256"], start, end, span["quote"]])
-            if span.get("evidence_id") and span["evidence_id"] != expected_evidence_id:
-                raise ValueError("gate evidence ID does not match its source span")
-            span["evidence_id"] = expected_evidence_id
-        if packet['schema'] == STRICT_SCHEMA and verdict == 'SUPPORTED':
-            check_spans(packet, claim, spans, root)
+        try:
+            verdict = validate_judgment(packet, claim, judgment, root)
+        except (OSError, ValueError, KeyError, TypeError):
+            if not allow_partial:
+                raise
+            rejected.append(identity)
+            continue
+        valid.append(judgment)
         counts[verdict] += 1
-    return {"schema": packet['schema'], "packet_sha256": expected_hash, "validated": True,
+    return {"schema": packet['schema'], "packet_sha256": expected_hash, "validated": not rejected,
             "counts": dict(counts), "coverage": packet["coverage"],
             **({"conflicts": conflicts, "conflict_reviewed_claim_ids": response["conflict_reviewed_claim_ids"]} if packet["schema"] == STRICT_SCHEMA else {}),
-            "all_supported": not (set(counts) - {"SUPPORTED", NO_ASSERTION}) and not any(c["resolution"] == "unresolved" for c in conflicts)}
+            "all_supported": not rejected and not (set(counts) - {"SUPPORTED", NO_ASSERTION}) and not any(c["resolution"] == "unresolved" for c in conflicts),
+            **({"valid_judgments": valid, "rejected_judgment_ids": rejected} if allow_partial else {})}
 
 
 def brief(packet: dict, root: Path) -> str:
