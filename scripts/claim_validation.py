@@ -38,6 +38,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlsplit
+from uuid import uuid4
 
 HERE = Path(__file__).resolve().parent
 
@@ -54,8 +56,8 @@ def _load(name: str, path: Path):
 gate = _load("research_gate", HERE / "research_gate.py")
 
 SCHEMA = "claim-validation/v1"
-# Bump when claim extraction changes: older records are then revalidated.
-PARSER_VERSION = 2
+# Older parser records require saved-packet proof that canonical extraction is unchanged.
+PARSER_VERSION = 3
 UNCITED = "The pack unit cites no http source."
 DEFAULT_ROOT = "MongoDB Expert Knowledge"
 PART_SIZE = 25
@@ -156,6 +158,17 @@ def parse_unit(unit: dict) -> dict:
     source_url = str(unit.get("source_url") or "")
     if source_url.startswith(("http://", "https://")):
         sources.append(source_url)
+    secondary = unit.get("also")
+    if isinstance(secondary, list):
+        for url in secondary:
+            if not isinstance(url, str) or any(char.isspace() for char in url):
+                continue
+            try:
+                parsed = urlsplit(url)
+                if parsed.scheme in ("http", "https") and parsed.hostname and parsed.port != 0:
+                    sources.append(url)
+            except ValueError:
+                continue
     return {"unit_id": unit.get("id"), "text": TAG_RE.sub("", body).strip(),
             "sources": sorted(set(sources))}
 
@@ -176,9 +189,60 @@ def pack_claims(path: Path) -> list[dict]:
     return claims
 
 
-def is_current(record: dict | None, sha: str) -> bool:
-    return (bool(record) and record.get("status") == "validated" and record.get("packSha256") == sha
-            and record.get("parser") == PARSER_VERSION)
+def previous_validation(p: dict, record: dict | None, slug: str):
+    """Read a completed local proof; malformed or unbound caches never qualify."""
+    if isinstance(record, dict) and record.get("status") == "in-progress":
+        record = record.get("previous")
+    if not isinstance(record, dict) or record.get("status") != "validated" or record.get("parser") not in (2, PARSER_VERSION):
+        return None
+    try:
+        root = (p["hub"] / record["attempt"]).resolve()
+        if not root.is_relative_to(p["work"].resolve()):
+            return None
+        receipt = json.loads((root / "validation.json").read_text(encoding="utf-8"))
+        packet = json.loads((root / "packet.json").read_text(encoding="utf-8"))
+        response = json.loads((root / "verdicts.json").read_text(encoding="utf-8"))
+        if (receipt.get("schema") != SCHEMA or record.get("schema") != SCHEMA
+                or packet.get("schema") not in (gate.SCHEMA, gate.LEGACY_SCHEMA)
+                or receipt.get("gate") != packet["schema"] or record.get("gate") != packet["schema"]
+                or receipt.get("status") != "validated" or receipt.get("parser") != record["parser"]
+                or receipt.get("attempt") != record["attempt"]
+                or packet.get("run") != f"claim-validation:{slug}"
+                or any(claim.get("concept_slug") != slug for claim in packet["claims"])
+                or packet.get("pack_sha256") != record.get("packSha256")
+                or receipt.get("packSha256") != packet["pack_sha256"]
+                or receipt.get("report", {}).get("validated") is not True
+                or receipt.get("report", {}).get("packet_sha256") != packet.get("packet_sha256")):
+            return None
+        for claim in packet["claims"]:
+            identity = {key: claim[key] for key in ("concept_slug", "unit_id", "text", "sources")}
+            fingerprint = gate.digest(identity)
+            if claim["claim_sha256"] != fingerprint or claim["claim_id"] != "clm:" + fingerprint:
+                return None
+        report = gate.validate(packet, response, root)
+        if (not report["validated"] or report["counts"] != receipt.get("counts")
+                or report["counts"] != record.get("counts")
+                or report["all_supported"] != receipt.get("clean")):
+            return None
+        return packet, response
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+
+def is_current(record: dict | None, sha: str, *, p: dict | None = None, units: Path | None = None) -> bool:
+    if not record or record.get("status") != "validated" or record.get("packSha256") != sha:
+        return False
+    if record.get("parser") == PARSER_VERSION:
+        return True
+    previous = (previous_validation(p, record, units.parent.name.removesuffix(".llms"))
+                if p is not None and units is not None else None)
+    if previous is None:
+        return False
+    keys = ("unit_id", "text", "sources")
+    if any(not all(key in row for key in keys) for row in previous[0]["claims"]):
+        return False
+    old_claims = [{key: row[key] for key in keys} for row in previous[0]["claims"]]
+    return old_claims == pack_claims(units)
 
 
 def lease_live(record: dict | None, at: datetime | None = None) -> bool:
@@ -205,7 +269,7 @@ def inventory(p: dict, root: str) -> list[dict]:
             sha = pack_sha(units)
             record = sidecar.get(slug)
             row.update(sha=sha, mtime=units.stat().st_mtime)
-            row["state"] = ("validated" if is_current(record, sha) else
+            row["state"] = ("validated" if is_current(record, sha, p=p, units=units) else
                             "leased" if lease_live(record) else
                             "stale" if record and record.get("status") == "validated" else "pending")
         rows.append(row)
@@ -237,10 +301,12 @@ def claim_batch(p: dict, root: str, count: int, owner: str) -> list[dict]:
         until = (datetime.now(UTC) + timedelta(minutes=LEASE_MINUTES)).strftime("%Y-%m-%dT%H:%M:%SZ")
         for row in picked:
             previous = sidecar.get(row["slug"]) or {}
+            if previous.get("status") == "in-progress":
+                previous = previous.get("previous") or {}
             sidecar[row["slug"]] = {"schema": SCHEMA, "concept": row["concept"], "status": "in-progress",
                                     "owner": owner, "leasedAt": now(), "leaseUntil": until,
                                     "packSha256": row["sha"],
-                                    **({"previous": {k: previous.get(k) for k in ("status", "packSha256", "validatedAt", "counts")}}
+                                    **({"previous": previous}
                                        if previous.get("status") == "validated" else {})}
         atomic_write(p["sidecar"], json.dumps(sidecar, indent=1, sort_keys=True) + "\n")
     return picked
@@ -309,12 +375,35 @@ def build_packet(concept: str, slug: str, claims: list[dict], sources: dict, sha
     return packet
 
 
+def reusable_judgments(previous, packet: dict) -> list[dict]:
+    if previous is None:
+        return []
+    old, response = previous
+    current = {claim["claim_id"]: claim for claim in packet["claims"]}
+    old_claims = {claim["claim_id"]: claim for claim in old["claims"]}
+    reused = []
+    for judgment in response["verdicts"]:
+        claim = current.get(judgment["claim_id"])
+        if (judgment["verdict"] != "SUPPORTED" or claim is None
+                or judgment["claim_sha256"] != claim["claim_sha256"] or judgment["text"] != claim["text"]
+                or any(old_claims[claim["claim_id"]][key] != claim[key]
+                       for key in ("concept_slug", "unit_id", "text", "sources"))):
+            continue
+        keys = ("source_id", "snapshot_sha256", "available")
+        if all({key: old["sources"].get(url, {}).get(key) for key in keys} ==
+               {key: packet["sources"].get(url, {}).get(key) for key in keys} for url in claim["sources"]):
+            reused.append(judgment)
+    return reused
+
+
 def prepare(p: dict, row: dict, lib=None, refetch_cap: int = 25) -> tuple[Path, dict, list[list[dict]]]:
     lib = lib or _library()
     units = units_path(p, row["slug"])
     sha = pack_sha(units)
     claims = pack_claims(units)
-    root = p["work"] / row["slug"] / (datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + sha[:8])
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
+    root = p["work"] / row["slug"] / f"{stamp}-{uuid4().hex[:8]}-{sha[:8]}"
+    root.mkdir(parents=True, exist_ok=False)
     sources, remaining = {}, refetch_cap
     for url in sorted({u for c in claims for u in c["sources"]}):
         cached = lib.lib_find(url)
@@ -322,8 +411,17 @@ def prepare(p: dict, row: dict, lib=None, refetch_cap: int = 25) -> tuple[Path, 
         remaining -= fetch
         sources[url] = pin_source(lib, url, root, fetch, row["concept"])
     packet = build_packet(row["concept"], row["slug"], claims, sources, sha)
+    previous = previous_validation(p, load_json(p["sidecar"], {}).get(row["slug"]), row["slug"])
+    if previous is not None:
+        packet["schema"] = previous[0]["schema"]  # Resume the accepted contract, not an implicit upgrade.
+    reused = reusable_judgments(previous, packet)
+    if reused:
+        packet["reused_verdicts"] = reused
+    packet["packet_sha256"] = gate.digest({key: value for key, value in packet.items() if key != "packet_sha256"})
     atomic_write(root / "packet.json", json.dumps(packet, indent=1, ensure_ascii=False) + "\n")
-    judgeable = [c for c in packet["claims"] if any(sources[u]["available"] for u in c["sources"])]
+    reused_ids = {judgment["claim_id"] for judgment in reused}
+    judgeable = [c for c in packet["claims"] if c["claim_id"] not in reused_ids
+                 and any(sources[u]["available"] for u in c["sources"])]
     parts = [judgeable[i:i + PART_SIZE] for i in range(0, len(judgeable), PART_SIZE)]
     for index, part in enumerate(parts):
         urls = sorted({u for c in part for u in c["sources"] if sources[u]["available"]})
@@ -383,8 +481,12 @@ def locate(text: str, quote: str) -> tuple[int, int] | None:
 def bind(packet: dict, root: Path, raw: dict[str, dict]) -> tuple[dict, int]:
     """Turn agent verdicts into a research-gate/v2 response bound to exact spans."""
     sources = packet["sources"]
+    reused = {judgment["claim_id"]: judgment for judgment in packet.get("reused_verdicts", [])}
     verdicts, downgraded = [], 0
     for claim in packet["claims"]:
+        if claim["claim_id"] in reused:
+            verdicts.append(reused[claim["claim_id"]])
+            continue
         judged = raw.get(claim["claim_id"])
         available = [u for u in claim["sources"] if sources[u]["available"]]
         if not claim["sources"]:
@@ -417,7 +519,7 @@ def bind(packet: dict, root: Path, raw: dict[str, dict]) -> tuple[dict, int]:
                 rationale = (rationale + " (validator gave no substantive rationale)").strip()
         verdicts.append({"claim_id": claim["claim_id"], "claim_sha256": claim["claim_sha256"],
                          "text": claim["text"], "verdict": verdict, "rationale": rationale, "evidence": spans})
-    return {"schema": gate.SCHEMA, "packet_sha256": packet["packet_sha256"], "verdicts": verdicts}, downgraded
+    return {"schema": packet["schema"], "packet_sha256": packet["packet_sha256"], "verdicts": verdicts}, downgraded
 
 
 def record_result(p: dict, row: dict, root: Path, packet: dict, response: dict, report: dict,
@@ -425,12 +527,13 @@ def record_result(p: dict, row: dict, root: Path, packet: dict, response: dict, 
     failing = [{"unit_id": c["unit_id"], "claim_id": c["claim_id"], "verdict": v["verdict"], "text": c["text"][:300]}
                for c, v in zip(packet["claims"], response["verdicts"]) if v["verdict"] != "SUPPORTED"]
     counts = report["counts"]
-    record = {"schema": SCHEMA, "gate": gate.SCHEMA, "concept": row["concept"], "status": "validated",
+    record = {"schema": SCHEMA, "gate": packet["schema"], "concept": row["concept"], "status": "validated",
               "clean": report["all_supported"], "packSha256": packet["pack_sha256"],
               "claims": len(packet["claims"]), "counts": counts, "failing": failing,
               "pack": str(units_path(p, row["slug"])),
               "downgraded": downgraded, "validatedAt": now(), "parser": PARSER_VERSION,
               "uncited": sum(not c["sources"] for c in packet["claims"]),
+              "reused_supported": len(packet.get("reused_verdicts", [])),
               "attempt": str(root.relative_to(p["hub"])),
               "cost_usd": round(sum(a.get("cost_usd") or 0 for a in agents), 4),
               "models": sorted({str(a["model"]) for a in agents if a.get("model")})}
@@ -536,7 +639,8 @@ def mirror(p: dict) -> int:
                 continue
             marker = tree_marker(record)
             units = units_path(p, node["slug"])
-            if marker["status"] == "validated" and (not units.is_file() or pack_sha(units) != marker["packSha256"]):
+            if marker["status"] == "validated" and (not units.is_file() or
+                    not is_current(record, pack_sha(units), p=p, units=units)):
                 marker["status"] = "stale"
             if marker["status"] == "in-progress" and not lease_live(record):
                 continue
