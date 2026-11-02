@@ -35,10 +35,11 @@ error (H7), and a redirect to an HTML app shell — as docs.cursor.com once did 
 ## 2. Markdown twins
 
 Every page in the content sections — reference, examples, blog — has a clean-markdown
-twin at the same route with `.md` appended: `/reference/usage/` → `/reference/usage.md`. The three
+twin at the same route with `.md` appended: `/reference/usage/` → `/reference/usage.md`. The four
 generated sections carry one twin each for the section, not per row: `/tree.md`,
-`/demo.md` and `/context.md` hold the prose that explains the section plus an inventory of what it
-contains. The per-row pages under them — `/tree/<slug>/`, `/tree/3d/` — are
+`/demo.md`, `/context.md` and `/research.md` hold the prose that explains the section plus an
+inventory of what it contains. `/research.md` lists each common AI task with its facts files,
+articles and skills. The per-row pages under them — `/tree/<slug>/`, `/tree/3d/` — are
 HTML only, because a twin apiece would be hundreds of files repeating what the section twin's
 inventory already carries; every page advertises the twin it actually has, and none advertises
 one it does not.

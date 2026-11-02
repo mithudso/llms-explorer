@@ -64,9 +64,9 @@ Steps 3, 4, and 5 (analysis, triage, writes) are wrapped in the loop. Exit condi
 - **Exits.** The loop stops on the seven canonical exits named there: clean, no-progress, content-cycling, stable-rewrite, loop-instability, iteration cap, and budget (the last only when `--budget-minutes` was passed). Evaluate them per the contract's definitions rather than re-deriving them.
 - **Per-iteration snapshot.** Before each iteration's writes, copy the current file state to the run's Step 2 backup dir as `<filename>.iter<N>`.
 - **Measure, never estimate.** At each iteration boundary run `~/.claude/skill-consolidation/convergence_check.py` with that copy as the N-1 input. Never estimate edit distance or count deltas yourself.
-- **Cap, precisely.** Default 3, raised to 5 only if Medium+ findings dropped by at least 50% in the prior iteration. An explicit `--max-iter` value is a hard ceiling the conditional raise never exceeds; 5 is the absolute maximum.
+- **Cap, precisely.** Default 3, raised to 5 only if Medium+ findings dropped by at least 50% in the prior iteration. An explicit `--max-iter` value is a hard ceiling the conditional raise never exceeds; 5 is the absolute maximum. `--read-only` runs exactly one iteration: findings cannot change between iterations when nothing is written.
 - **Fresh findings.** Each iteration's findings are computed against the current file state.
-- **Ordering.** Step 6 runs after the loop exits and may re-enter it on residual High findings, each re-entry counting against `--max-iter`. Step 7 runs at most once, only after the final exit.
+- **Ordering.** Step 6 runs after the loop exits and may re-enter it on residual High findings, each re-entry counting against `--max-iter`. Step 7 is one phase after the final exit; its one stale retry and any indexed-description refresh after compression are bounded sub-steps.
 - Per-iteration severity counts must be reported in Step 8.
 
 ## Guardrails
