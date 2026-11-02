@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v80 - 2026-11-02
+
+> Implement all of the suggestions
+
+Scope: TASK-1003. Implement the seven evidence reliability suggestions from the preceding response: all-claim exact evidence, deterministic checks before semantic review, explicit contradictions, end-to-end citation preservation, bounded claim repairs, regression failures and active skill parity. Preserve accepted research and paused services. Delta: prompt79 to80; memory0.22.93 to0.22.94.
+
 ## Prompt v79 - 2026-11-02
 
 > All of the pull requests in https://github.com/mithudso/llms-explorer/pulls merge, commit, and pull all of them. Resolve all conflicts and get the repo current. Then get the local current.

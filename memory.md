@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.94 - 2026-11-02
+
+- TASK-1003 implementation active. New v4 runs require all-claim source-bound evidence before paid review. Unchanged supported judgments may be reused only with unchanged exact claim and source snapshots. Existing v2/v3 runs remain historical contracts.
+- Runtime and projection changes implemented. Focused suite: 187 passed and six subtests; real 25-term privacy gate clean. Canonical skill guidance merged through skills PR65; selected global command, migrated wrapper and Claude/Codex CFE/rabbithole bodies match. Loaded harness revision remains unobservable. Remaining: final regression/audit, project adapter parity, CI and delivery.
+- Delta: memory0.22.93 to0.22.94; prompt80.
+
+
 ## v0.22.93 - 2026-11-02
 
 - TASK-997 merged all ten original PRs (219, 235-242, 250). Resolved code, tree/search projections, npm lockfile and Python requirements conflicts. All final PR heads passed GitHub Actions; optional Cloudflare previews remain externally queued. No production deployment is claimed.
