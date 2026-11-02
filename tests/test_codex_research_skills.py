@@ -377,12 +377,25 @@ class ResearchFlowTests(unittest.TestCase):
         text.write_text(body)
         for url in {u for d in documents.values() for c in d["claims"] for u in c["sources"]}:
             self.shared.lib_snapshot(url, "docs", "Synthetic test evidence", text_file=str(text))
+        for slug, document in documents.items():
+            for claim in document['claims']:
+                url = claim['sources'][0]
+                source = self.shared.lib_find(url)
+                start = body.index(claim['text'])
+                claim['evidence'] = [{'url': url, 'source_id': source['id'],
+                    'snapshot_sha256': source['sha256'], 'start': start,
+                    'end': start + len(claim['text']), 'quote': claim['text'],
+                    'extraction_status': 'complete'}]
+            self.shared.atomic_write(self.shared.run_dir('publication') / 'claims' / (slug + '.json'),
+                                     json.dumps(document))
 
         def judge(manifest, name, brief, *args, **kwargs):
             root = max((self.shared.run_dir("publication") / "gate/attempts").iterdir())
             packet = json.loads((root / "packet.json").read_text())
             verdicts = []
             for claim in packet["claims"]:
+                if claim['claim_id'] in {v['claim_id'] for v in packet.get('reused_verdicts', [])}:
+                    continue
                 url = claim["sources"][0]
                 src = packet["sources"][url]
                 start = body.index(claim["text"])
@@ -391,7 +404,8 @@ class ResearchFlowTests(unittest.TestCase):
                     "evidence": [{"url": url, "source_id": src["source_id"], "snapshot_sha256": src["snapshot_sha256"],
                                   "start": start, "end": start + len(claim["text"]), "quote": claim["text"]}]})
             (root / "verdicts.json").write_text(json.dumps({"schema": packet["schema"],
-                "packet_sha256": packet["packet_sha256"], "verdicts": verdicts}))
+                "packet_sha256": packet["packet_sha256"], "verdicts": verdicts,
+                "conflict_reviewed_claim_ids": [c['claim_id'] for c in packet['claims']], 'conflicts': []}))
             return {"is_error": False}
 
         with patch.object(self.shared, "run_agent", side_effect=judge), redirect_stdout(io.StringIO()):

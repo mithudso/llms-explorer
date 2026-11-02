@@ -608,7 +608,7 @@ def load_shared(path: Path | None = None):
             claims = shared.load_claims(args.slug, errors)
             if errors:
                 raise ValueError("cannot export invalid claims: " + "; ".join(errors))
-            if claims and args.status in ("COMPLETED", "BUDGET_EXHAUSTED") and manifest.get("gate_contract_version") in (2, 3):
+            if claims and args.status in ("COMPLETED", "BUDGET_EXHAUSTED") and manifest.get("gate_contract_version") in (2, 3, 4):
                 bound_gate.verify_current(shared, manifest)
                 manifest["research_telemetry"] = research_telemetry(shared, args.slug)
             if args.status in ("COMPLETED", "BUDGET_EXHAUSTED"):
@@ -631,6 +631,11 @@ def load_shared(path: Path | None = None):
     def codex_parser():
         parser = build_parser()
         subcommands = next(action.choices for action in parser._actions if action.dest == "cmd")
+        subcommands['gate'].add_argument('--upgrade-evidence-contract', action='store_true',
+            help='explicitly checkpoint and upgrade a resumed legacy run to v4 evidence requirements')
+        for action in subcommands['gate']._actions:
+            if action.dest == 'sample':
+                action.help = 'legacy v2/v3 ordinary sample; v4 reviews all new assertions and reuses validated unchanged judgments'
         for action in subcommands["research"]._actions:
             if action.dest == "model":
                 action.help = "research and scout model (default: gpt-6.1-sol)"
@@ -670,7 +675,14 @@ def load_shared(path: Path | None = None):
                 policy = policy.replace("`source_library.py", "`python3 ~/.global-ai-hub/scripts/source_library.py")
                 policy = policy.replace("~/.global-ai-hub/scripts/source_library.py", str(Path(__file__).with_name("research_library.py").resolve()))
                 brief = policy + "\n" + brief + (
-                    "\nOptional claim temporal metadata: temporal={valid_from, valid_to, "
+                    "\nFor new v4 runs, every claim must include evidence=[{url, source_id, snapshot_sha256, "
+                    "start, end, quote, extraction_status:'complete'}]. Read original source text before "
+                    "attesting complete extraction. Use exact Python Unicode offsets and actual source hashes. "
+                    "Backtick identifiers and numeric literals must appear in supporting spans. Reacquire "
+                    "rendered/RST/repository text if the derivative omits fields. Record conflicting positions "
+                    "as an explicitly attributed claim with conflict={status:'attributed', positions:[{text,evidence},...]}. "
+                    "Unresolved unconditional claims cannot publish. Repair only failed claim/source pairs.\n"
+                    "Optional claim temporal metadata: temporal={valid_from, valid_to, "
                     "applicability_version, recorded_at}. valid_to is exclusive. Use ISO dates "
                     "or timezone-aware timestamps; recorded_at needs a timezone. Omit unknown "
                     "fields or use null. Never infer applicability from fetch/verification dates. "

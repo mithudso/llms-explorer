@@ -74,6 +74,11 @@ def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_a
     assert public['claims'] == facts
     assert all(fact['validationStatus'] == 'SUPPORTED' for fact in public['claims'])
     assert all(fact['temporal'] == {'applicability_version': 'v4'} for fact in public['claims'])
+    for fact, original in zip(public['claims'], claims):
+        assert fact['source'] == original['sources'][0]
+        assert fact['also'] == original['sources'][1:]
+    text_download = downloads.render_facts(public['claims'])
+    assert all(source in text_download for claim in claims for source in claim['sources'])
     units = [json.loads(line) for line in (pack_dir / 'units.jsonl').read_text().splitlines()]
     for unit, source in zip(units, claims):
         assert unit['id'] == source['canonical_claim_id']
@@ -218,3 +223,48 @@ def test_canonical_prose_cannot_retain_a_corrected_inference():
     value['artifact_sha256'] = artifact.digest({k: v for k, v in value.items() if k != 'artifact_sha256'})
     with pytest.raises(ValueError, match='auxiliary prose'):
         artifact.verify(value)
+
+
+def test_supported_claim_cannot_substitute_evidence_ids_even_with_a_fresh_artifact_hash():
+    claim = {'text': 'An exactly supported claim.', 'sources': ['https://example.test'], 'confidence': 'high'}
+    claim.update(canonical_claim_id='clm:' + artifact.digest(artifact.claim_identity('c', claim)),
+                 validation_status='SUPPORTED', evidence_ids=['ev:substituted'])
+    value = {'schema': 'research-artifact/v1', 'documents': {'c': {'claims': [claim]}},
+             'gate_verdicts': [{'claim_id': claim['canonical_claim_id'], 'text': claim['text'],
+                                'verdict': 'SUPPORTED', 'evidence': [{'evidence_id': 'ev:original'}]}]}
+    value['artifact_sha256'] = artifact.digest(value)
+    with pytest.raises(ValueError, match='evidence IDs'):
+        artifact.verify(value)
+
+
+def test_v4_cannot_export_an_unsampled_claim():
+    claim = {'text': 'A claim that escaped semantic review.', 'sources': ['https://example.test'], 'confidence': 'high'}
+    claim.update(canonical_claim_id='clm:' + artifact.digest(artifact.claim_identity('c', claim)),
+                 validation_status='NOT-SAMPLED', evidence_ids=[])
+    doc = {'claims': [claim], 'auxiliary_assertions': []}
+    value = {'schema': 'research-artifact/v1', 'assertion_contract_version': 4,
+             'documents': {'c': doc}, 'gate_verdicts': []}
+    value['artifact_sha256'] = artifact.digest(value)
+    with pytest.raises(ValueError, match='supported judgment'):
+        artifact.verify(value)
+
+
+def test_compiler_cannot_drop_secondary_citations(tmp_path, monkeypatch):
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location('citation_compiler', root / 'scripts/codex_dr_artifacts.py')
+    compiler = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(compiler)
+    lca = compiler.load_module('citation_lca', root / '.claude/skills/llms-concept-abstractor/scripts/concept_abstract.py')
+    original_compile = lca.main
+    out = tmp_path / 'c.llms'
+    def drop_secondary(args):
+        original_compile(args)
+        path = out / 'units.jsonl'
+        rows = [json.loads(line) for line in path.read_text().splitlines()]
+        rows[0]['also'] = []
+        path.write_text(''.join(json.dumps(row) + '\n' for row in rows))
+    monkeypatch.setattr(lca, 'main', drop_secondary)
+    with pytest.raises(ValueError, match='canonical text or citations'):
+        compiler.compile_claims(lca, out, 'C', 'c', [{'concept': 'C', 'claims': [
+            {'text': 'An original sourced statement.', 'confidence': 'high',
+             'sources': ['https://primary.test', 'https://secondary.test']}]}], 'COMPLETED')

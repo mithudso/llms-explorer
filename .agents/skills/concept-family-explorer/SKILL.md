@@ -2,8 +2,8 @@
 description: >-
   Gap-discovery layer ABOVE /dr: map a subject's full conceptual family (parent domain, siblings, sub-concepts, adjacent/cross-over fields, frontier), surface useful/novel concepts you're MISSING, score each via the da-* skills, then loop /dr on every viable gap until the concept tree saturates; finishes with skill-optimizer + prompt-deep-optimizer, a skill-tree-architect rebalance, and a sync to the site + ~/.global-ai-hub concept trees. TRIGGER: 'what am I missing about X', 'map the concept space/family of X', 'find adjacent/sibling concepts to X', 'what skills should I build around X', 'saturate/complete my coverage of X', 'expand my concept tree for X'. SKIP: researching a topic you ALREADY named → /dr; cited web report with no skill-building → deep-research; create ONE skill interactively → skill-creator; audit/improve one existing skill → skill-optimizer; optimize one prompt → phe / prompt-deep-optimizer; reorganize the EXISTING skill tree, no new research → skill-tree-architect.
 name: concept-family-explorer
-version: "1.12.0"
-updated: "2026-10-29"
+version: "1.13.1"
+updated: "2026-11-02"
 model: gpt-6.1-sol
 effort: medium
 category: meta
@@ -29,6 +29,7 @@ related_skills:
   - da-applied-and-communication
   - prompt-helper-optimizer
 metadata:
+  delta: "1.13.0 to 1.13.1: preserve the concept purpose summary by placing evidence instructions after the overview and routing."
   changelog: |
     2026-10-29 v1.12.0 — consume candidate-only research-scout handoffs with exact parent matching, bounded seeds and retained provenance; evidence and saturation contracts remain unchanged.
     2026-10-20 v1.11.0 — research lane is two Sonnet 5.5 `max` passes per concept merged by `dr_run.py research` (frontmatter model/effort moved from Opus xhigh to Sonnet max); Step 6 says not to override it; basis: llms-explorer docs/research/dr-model-repeats-2026-10-20 (one Sonnet max run ≈ one Fable max run in both judge directions at 55 % of the price)
@@ -60,6 +61,7 @@ whenNotToUse:
 
 Read `references/codex-runtime.md` and `references/research-library.md` before executing this workflow. They define
 Codex model selection, shared-source reuse, website completion, and resource paths.
+
 
 # Concept Family Explorer
 
@@ -113,6 +115,51 @@ Also run `scout.py find --parent "<exact subject>"` and review matching
 checks, parent placement and CVS. Keep candidates provisional until those
 checks pass, then hand relevant seeds to each /dr cohort through its research
 bridge. Scout readiness never establishes GAP, novelty or researched status.
+
+## Evidence required before publication
+
+Apply this contract to every factual assertion, including summaries, inherited parent
+facts, disagreements, open-question premises and final dossiers. Discovery leads and
+coverage labels do not establish support.
+
+- Keep each atomic claim's exact statement, immutable claim ID, source URL, source
+  snapshot hash, exact quoted passage and locator together. For v4, author an `evidence`
+  list of spans with `url`, `source_id`, `snapshot_sha256`, `start`, `end`, `quote` and
+  `extraction_status: complete`. Mark complete only after reading a usable source;
+  the attestation never overrides a missing identifier or invalid span. Read the snapshot;
+  a URL, reference list, cache hash or model recollection supplies no evidence credit.
+- Run deterministic integrity checks over **all** claims before paid semantic review.
+  Require each quote to exist in the pinned body and belong to the cited source.
+  Check exact technical identifiers, values, units and applicability against the
+  passage. Missing identifiers or an incomplete Markdown derivative require readable
+  rendered HTML, original RST/source or another complete primary source; withhold the
+  assertion until reacquisition succeeds. A keyword match alone does not prove support.
+- A semantic judge decides whether the passage supports the complete assertion,
+  including negation, version, scope and caveats. It cannot override a failed integrity
+  check. In research-gate/v4, review every new or changed factual assertion once.
+  Reuse a prior validated SUPPORTED verdict only when the exact assertion and bound
+  source snapshots are unchanged. Structural binding alone cannot qualify publication.
+  Do not turn structural failures into expensive blanket multi-model reruns.
+- Preserve contradictory claims with both source passages and their applicability.
+  Record the conflict explicitly and block an unconditional conclusion. Resolve it
+  with source evidence or publish only an accurately scoped, qualified conflict.
+  Never average opposing claims, silently choose the preferred source, lower confidence
+  to bypass a failure, or treat absence from an incomplete extract as proof of absence.
+- Build prose and every persisted projection from canonical claim records. Validate
+  citation and evidence bindings through concept packs, reader JSON, context and facts
+  downloads before completion. Missing bindings or changed assertions stop publication;
+  a dossier or tree update alone cannot bypass the shared /dr completion gate.
+- Repair only failed claim/source pairs. Keep successful claims, snapshots and paid
+  attempts. Allow one bounded evidence repair followed by a fresh bound gate; residual
+  substantive dissent stops that claim. An unchanged failed evidence packet must not
+  incur another paid judgment; one malformed-JSON repair is allowed. Retry recognized
+  transport failures at most twice within the original deadline. Do not repeat discovery, whole-family research
+  or successful website generation to repair a citation.
+- Before shipping changes to this workflow, exercise real failure regressions:
+  uncited claims, wrong-source quotes, incomplete derivatives, missing field names,
+  negation or version conflicts, stale snapshot hashes and dropped output citations.
+  Verify canonical, installed and runtime-specific skill copies with their sync check;
+  equal version numbers alone do not establish parity. Report loaded state separately.
 
 ## Inputs
 

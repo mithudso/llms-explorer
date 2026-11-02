@@ -46,4 +46,7 @@ def claim_identity(slug, claim):
     if 'temporal' in claim:
         validate_temporal(claim['temporal'])
         identity['temporal'] = claim['temporal']
+    for key in ('evidence', 'conflict'):
+        if key in claim:
+            identity[key] = claim[key]
     return identity
