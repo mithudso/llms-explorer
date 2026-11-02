@@ -1,5 +1,9 @@
 # Memory
 
+## v0.22.107 - 2026-11-02
+
+- Correct the legacy coverage unit in the R9 report1.8.1:135 retained reference rows cover132 unique files; three paths occur twice. Every original row and source hash remains unchanged. The32 qualified R9 facts,36 current v4 assertions and all public pack/reader/download bytes are unchanged. This is a metadata clarification inside the active R9 draft delivery. Delta:0.22.106 to0.22.107; prompt93.
+
 ## v0.22.106 - 2026-11-02
 
 - R8 site PR265 and hub PR91 are merged with full reviewed-content equality. Site merge c5fd30e3de56705a2baec2b010781372dab1ee27 and hub merge1720bc9a227426477e0b6bd2a1a36b10d757a18f preserve their reviewed heads. Independent actual production verification passes all39 R7/R8 research routes,160 full facts and ordered citations,26 exact downloads,13 canonical identity pairs and all39 target security policies. Four canonical baseline routes remain available. The separate automatic Pages private-library authentication still fails; the verified CI artifact was published with existing Pages authentication and unchanged project configuration. No globally served SHA marker is asserted. The ancillary cached robots script-hash difference remains recorded.

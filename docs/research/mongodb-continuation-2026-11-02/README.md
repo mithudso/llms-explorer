@@ -1,8 +1,8 @@
 # MongoDB research continuation
 
-Version:1.8.0
+Version:1.8.1
 Date:2026-11-02
-Delta:1.7.0 to1.8.0; verified R8 production publication and two complete R9 source questions.
+Delta:1.8.0 to1.8.1; clarify135 legacy reference rows across132 unique files; retain verified R8 production and two complete R9 questions.
 
 R8 site PR265 and hub PR91 are merged with full reviewed-content equality. Independent actual production verification passes all39 R7/R8 research routes,160 full fact texts and ordered citations,26 exact downloads,13 canonical identities and all target security policies. Four canonical baseline routes remain available. The automatic Pages build still rejects its private-library credential. Existing-project manual publication of the verified CI artifact preserves source middleware, project settings and all target asset bytes. No automatic credential repair or globally served build-SHA marker is claimed. The ancillary cached robots script-hash difference remains explicit.
 
@@ -14,4 +14,4 @@ Pre-first-gate curation preserves every original row while correcting literal id
 
 The approved site and hub packs contain16 identical members. Only two selected nodes, required ancestor links and exact owned queue identities change. All prior qualified identities and unowned bytes survive. The named qualified continuation checkpoint grows from271 to273 concepts. Build/publication policy,303 site tests,95 hub tests and independent source/publication review pass. The independent review binds103 exact native quotes to13 run/source URL and SHA snapshots, preserves all three conflicts and verifies every rendered citation and download. The actual25-term privacy scan finds zero site findings and zero introduced hub findings. Exact-head Git delivery and separate actual production acceptance remain required.
 
-Frontier round10 checks fresh primary sources, newly revealed descendants and scout revisions against current packs and135 legacy bodies. Zero evidence-grounded empty rounds exist. All14 broad gaps, six hard limits and four saved unqualified procedures remain explicit. Research continues until two grounded empty rounds plus independent saturation review, or a genuine external blocker prevents useful progress. Preserve619 holds,694 distinct literal historical reservations, paid evidence, paused services, disabled Delta, the sole scout monitor and concurrent primary work.
+Frontier round10 checks fresh primary sources, newly revealed descendants and scout revisions against current packs and135 legacy reference rows across132 unique files. Zero evidence-grounded empty rounds exist. All14 broad gaps, six hard limits and four saved unqualified procedures remain explicit. Research continues until two grounded empty rounds plus independent saturation review, or a genuine external blocker prevents useful progress. Preserve619 holds,694 distinct literal historical reservations, paid evidence, paused services, disabled Delta, the sole scout monitor and concurrent primary work.
