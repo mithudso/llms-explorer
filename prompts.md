@@ -1,5 +1,17 @@
 # Prompts Log
 
+## Prompt v81 - 2026-11-02
+
+> retry
+
+Scope: continue TASK-1003 and PR256 from accepted checks. Correct CodeQL-safe full identifier tokens and restore the CFE product overview. Preserve 234 concurrent output paths; finish in an isolated delivery worktree. Delta: prompt80 to81; memory0.22.94 to0.22.95.
+
+## Prompt v80 - 2026-11-02
+
+> Implement all of the suggestions
+
+Scope: TASK-1003. Implement the seven evidence reliability suggestions from the preceding response: all-claim exact evidence, deterministic checks before semantic review, explicit contradictions, end-to-end citation preservation, bounded claim repairs, regression failures and active skill parity. Preserve accepted research and paused services. Delta: prompt79 to80; memory0.22.93 to0.22.94.
+
 ## Prompt v79 - 2026-11-02
 
 > All of the pull requests in https://github.com/mithudso/llms-explorer/pulls merge, commit, and pull all of them. Resolve all conflicts and get the repo current. Then get the local current.

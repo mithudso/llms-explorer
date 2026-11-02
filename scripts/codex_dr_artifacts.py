@@ -146,6 +146,8 @@ def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadat
         raise ValueError(f"{name}: llms compilation changed canonical identities")
     for unit in compiled_units:
         source = by_id[unit["id"]]
+        if any(unit.get(key) != source.get(key) for key in ("text", "source_url", "also", "anchor")):
+            raise ValueError(f"{name}: llms compilation changed canonical text or citations for {unit['id']}")
         unit.update({key: source[key] for key in ("canonical_concept_id", "validation_status", "origin_validation_status", "evidence_ids", "temporal") if key in source})
     (out / "units.jsonl").write_text("".join(json.dumps(unit, ensure_ascii=False) + "\n" for unit in compiled_units))
     # The compiler lists undefined terms twice: as unsourced bold entries and
@@ -457,7 +459,7 @@ def _transactional_finalize(shared, manifest: dict, claims: dict[str, dict], sta
         stored = canonical.verify(json.loads(path.read_text()))
         if stored != artifact:
             raise ValueError("canonical artifact changed during projection")
-        if manifest.get("gate_contract_version") in (2, 3):
+        if manifest.get("gate_contract_version") in (2, 3, 4):
             shared.verify_current_gate(shared.load_manifest(manifest["slug"]))
         receipt["canonical_artifact"] = {"sha256": artifact["artifact_sha256"], "path": str(path),
                                          "validation": artifact["validation"]}

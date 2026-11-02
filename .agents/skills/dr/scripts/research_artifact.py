@@ -25,7 +25,7 @@ def build(shared, manifest, documents, status):
     spec = importlib.util.spec_from_file_location('artifact_gate_contract', path)
     gate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gate)
-    strict = manifest.get('gate_contract_version') in (2, 3)
+    strict = manifest.get('gate_contract_version') in (2, 3, 4)
     if strict:
         report, judgments = gate.verify_current(shared, manifest, with_verdicts=True)
     else:
@@ -81,10 +81,13 @@ def build(shared, manifest, documents, status):
         for claim in doc['claims']:
             bound = identities['clm:' + digest(claim_identity(slug, claim))]
             judgment = verdicts.get(bound['claim_id'])
+            if manifest.get('gate_contract_version', 0) >= 4 and (
+                    not judgment or judgment.get('verdict') != 'SUPPORTED'):
+                raise ValueError('every v4 canonical claim requires a supported judgment')
             claim['canonical_claim_id'] = bound['claim_id']
             claim['validation_status'] = 'SUPPORTED' if judgment else 'NOT-SAMPLED' if strict else 'LEGACY-UNBOUND'
             claim['evidence_ids'] = sorted({e['evidence_id'] for e in (judgment or {}).get('evidence', []) if e.get('evidence_id')})
-        if manifest.get('gate_contract_version') == 3:
+        if manifest.get('gate_contract_version', 0) >= 3:
             doc['auxiliary_assertions'] = []
             for row in gate.auxiliary_rows(slug, doc):
                 judgment = verdicts.get(row['claim_id'])
@@ -96,8 +99,8 @@ def build(shared, manifest, documents, status):
                 'input_hashes': {slug: digest(doc) for slug, doc in sorted(documents.items())},
                 'validation': report, 'gate_verdicts': judgments, 'concept_ids': concept_ids,
                 'concept_slugs': concept_slugs, 'documents': enriched}
-    if manifest.get('gate_contract_version') == 3:
-        artifact['assertion_contract_version'] = 3
+    if manifest.get('gate_contract_version', 0) >= 3:
+        artifact['assertion_contract_version'] = manifest['gate_contract_version']
     if topic != manifest['topic']:
         artifact['requested_topic'] = manifest['topic']
     artifact['artifact_sha256'] = digest(artifact)
@@ -117,7 +120,7 @@ def verify(artifact):
     identities = set()
     verdicts = {row['claim_id']: row for row in artifact.get('gate_verdicts', [])}
     gate = None
-    if artifact.get('assertion_contract_version') == 3:
+    if artifact.get('assertion_contract_version', 0) >= 3:
         spec = importlib.util.spec_from_file_location('artifact_prose_contract', Path(__file__).with_name('research_gate.py'))
         gate = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(gate)
@@ -144,12 +147,16 @@ def verify(artifact):
             if claim['canonical_claim_id'] in identities:
                 raise ValueError('duplicate immutable claim identity')
             identities.add(claim['canonical_claim_id'])
+            if artifact.get('assertion_contract_version', 0) >= 4 and claim['validation_status'] != 'SUPPORTED':
+                raise ValueError('every v4 canonical claim requires a supported judgment')
             if claim['validation_status'] == 'SUPPORTED' and not claim['evidence_ids']:
                 raise ValueError('supported canonical claim lacks exact evidence identity')
             if claim['validation_status'] == 'SUPPORTED':
                 judgment = verdicts.get(claim['canonical_claim_id'])
                 if not judgment or judgment['text'] != claim['text'] or judgment['verdict'] != 'SUPPORTED':
                     raise ValueError('canonical support judgment does not match its statement')
+                if claim['evidence_ids'] != sorted({span['evidence_id'] for span in judgment.get('evidence', [])}):
+                    raise ValueError('canonical claim evidence IDs do not match its support judgment')
     return artifact
 
 

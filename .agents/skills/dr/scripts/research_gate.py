@@ -19,6 +19,7 @@ _claims_spec.loader.exec_module(_claims)
 
 
 SCHEMA = "research-gate/v3"
+STRICT_SCHEMA = "research-gate/v4"
 LEGACY_SCHEMA = "research-gate/v2"
 VERDICTS = {"SUPPORTED", "NOT-IN-SOURCE", "CONTRADICTED", "UNVERIFIED"}
 NO_ASSERTION = "NO-FACTUAL-ASSERTION"
@@ -137,6 +138,96 @@ def _source(shared, url: str, out: Path, fetch: bool) -> dict:
             "file": str(destination.relative_to(out)), "chars": len(text)}
 
 
+def check_spans(packet, claim, spans, root, *, authored=False):
+    if not isinstance(spans, list) or not spans:
+        raise ValueError("every factual claim requires exact source evidence")
+    quotes = []
+    for span in spans:
+        source = packet['sources'].get(span.get('url')) if isinstance(span, dict) else None
+        if (not source or span['url'] not in claim['sources'] or not source.get('available')
+                or span.get('source_id') != source['source_id']
+                or span.get('snapshot_sha256') != source['snapshot_sha256']):
+            raise ValueError("evidence is not bound to a cited source snapshot")
+        text = evidence_text(packet, root, source)
+        start, end = span.get('start'), span.get('end')
+        if (type(start) is not int or type(end) is not int or not 0 <= start < end <= len(text)
+                or span.get('quote') != text[start:end]
+                or len(text[start:end].strip()) < min(20, len(text.strip()))):
+            raise ValueError("gate quote does not match the exact source span")
+        if authored and span.get('extraction_status') != 'complete':
+            raise ValueError("source extraction is unverified or incomplete; reacquire and read the original")
+        if re.search(r'(?i)\[(?:truncated|content omitted)\]|\.\. (?:include|literalinclude)::', text):
+            raise ValueError("source extraction contains unresolved omissions")
+        quotes.append(span['quote'])
+    # Literal coverage is a necessary condition, never a proof of entailment.
+    literals = re.findall(r'`([^`]+)`', claim['text'])
+    literals += re.findall(r'\b[a-zA-Z_]\w*(?:[.$][a-zA-Z_]\w*)+\b', claim['text'])
+    literals += [token for token in re.findall(r'\b[a-z][A-Za-z0-9_.$]*\b', claim['text'])
+                 if any(char.isupper() for char in token)]
+    numbers = re.findall(r'(?<![\w])\d+(?:[.,]\d+)*(?:%|[a-zA-Z]+)?', claim['text'])
+    combined = '\n'.join(quotes)
+    missing = [term for term in literals if not re.search(r'(?<![\w.$])' + re.escape(term) + r'(?![\w.$])', combined)]
+    missing += [term for term in numbers if not re.search(r'(?<!\w)(?<!\d[.,])' + re.escape(term) + r'(?!\w|[.,]\d)', combined)]
+    if missing:
+        raise ValueError("evidence omits claim identifiers or numbers: " + ', '.join(missing))
+
+
+def preflight(packet, root):
+    failures = []
+    for row in packet['claims']:
+        if row.get('assertion_kind'):
+            continue
+        try:
+            conflict = row.get('conflict')
+            if conflict is not None:
+                if (not isinstance(conflict, dict) or conflict.get('status') != 'attributed'
+                        or not isinstance(conflict.get('positions'), list) or len(conflict['positions']) < 2):
+                    raise ValueError("unresolved conflict requires an attributed statement with both positions")
+                for position in conflict['positions']:
+                    if (not isinstance(position, dict) or not isinstance(position.get('text'), str)
+                            or not position['text'].strip()):
+                        raise ValueError("conflict position needs its exact attributed text")
+                    check_spans(packet, {**row, 'text': position['text']}, position.get('evidence'), root, authored=True)
+            check_spans(packet, row, row.get('evidence'), root, authored=True)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            failures.append({'claim_id': row['claim_id'], 'error': str(error)})
+    return failures
+
+
+def reusable_judgments(shared, manifest, packet, root):
+    """Reuse only independently validated, exact current identities and source bodies."""
+    current = {row['claim_id']: row for row in packet['claims']}
+    reused = {}
+    attempts = shared.run_dir(manifest['slug']) / 'gate/attempts'
+    for previous in sorted(attempts.glob('*'), reverse=True)[:128]:
+        if not previous.resolve().is_relative_to(attempts.resolve()):
+            continue
+        try:
+            receipt = json.loads((previous / 'validation.json').read_text())
+            old = json.loads((previous / 'packet.json').read_text())
+            response = json.loads((previous / 'verdicts.json').read_text())
+            if (not receipt.get('validated') or old.get('schema') != STRICT_SCHEMA
+                    or receipt.get('packet_sha256') != old.get('packet_sha256')):
+                continue
+            old_report = validate(old, response, previous)
+            if (old_report['all_supported'] and old.get('inputs') == packet.get('inputs')
+                    and {u: v.get('snapshot_sha256') for u, v in old['sources'].items()} ==
+                        {u: v.get('snapshot_sha256') for u, v in packet['sources'].items()}):
+                packet['reused_conflict_review'] = {k: response[k] for k in ('conflicts', 'conflict_reviewed_claim_ids')}
+            for judgment in response['verdicts']:
+                row = current.get(judgment['claim_id'])
+                if (not row or judgment['claim_id'] in reused or judgment['text'] != row['text']
+                        or judgment['verdict'] not in ('SUPPORTED', NO_ASSERTION)):
+                    continue
+                keys = ('source_id', 'snapshot_sha256', 'available')
+                if all({k: old['sources'].get(url, {}).get(k) for k in keys} ==
+                       {k: packet['sources'].get(url, {}).get(k) for k in keys} for url in row['sources']):
+                    reused[judgment['claim_id']] = judgment
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    return list(reused.values())
+
+
 def prepare(shared, manifest: dict, out: Path, sample=10, refetch_cap: int = 15) -> dict:
     if refetch_cap < 0:
         raise ValueError("gate refetch cap must be non-negative")
@@ -146,7 +237,7 @@ def prepare(shared, manifest: dict, out: Path, sample=10, refetch_cap: int = 15)
         raise ValueError("invalid canonical gate inputs: " + "; ".join(errors))
     rows = claim_rows(manifest, documents)
     inputs = {slug: digest(document) for slug, document in sorted(documents.items())}
-    selected = select_claims(rows, sample, digest(inputs), manifest.get("required_gate_claim_ids", []))
+    selected = select_claims(rows, "all" if manifest.get("gate_contract_version", 2) >= 4 else sample, digest(inputs), manifest.get("required_gate_claim_ids", []))
     sources = {}
     remaining = refetch_cap
     for url in sorted({url for row in selected for url in row["sources"]}):
@@ -155,7 +246,7 @@ def prepare(shared, manifest: dict, out: Path, sample=10, refetch_cap: int = 15)
         if fetch:
             remaining -= 1
         sources[url] = _source(shared, url, out, fetch)
-    schema = SCHEMA if manifest.get('gate_contract_version', 2) >= 3 else LEGACY_SCHEMA
+    schema = STRICT_SCHEMA if manifest.get("gate_contract_version", 2) >= 4 else SCHEMA if manifest.get('gate_contract_version', 2) >= 3 else LEGACY_SCHEMA
     packet = {"schema": schema, "run": manifest["slug"], "inputs": inputs,
               "manifest_binding": manifest_binding(manifest),
               "claims": selected, "sources": sources,
@@ -164,6 +255,13 @@ def prepare(shared, manifest: dict, out: Path, sample=10, refetch_cap: int = 15)
                            "auxiliary_assertions": sum(bool(row.get('assertion_kind')) for row in rows),
                            "risky_claims": sum(bool(row["risk"]) for row in rows),
                            "sampled_ordinary_claims": sum(not row["risk"] for row in selected)}}
+    if schema == STRICT_SCHEMA:
+        failures = preflight(packet, out)
+        shared.atomic_write(out / 'preflight.json', json.dumps({'failures': failures}, indent=2) + '\n')
+        if failures:
+            raise ValueError("claim preflight failed; repair only listed claims: " + json.dumps(failures))
+        packet['reused_verdicts'] = reusable_judgments(shared, manifest, packet, out)
+        packet['review_binding'] = digest([inputs, {url: source.get('snapshot_sha256') for url, source in sources.items()}])
     packet["packet_sha256"] = digest(packet)
     shared.atomic_write(out / "packet.json", json.dumps(packet, indent=2, ensure_ascii=False) + "\n")
     return packet
@@ -183,13 +281,34 @@ def validate(packet: dict, response: dict, root: Path) -> dict:
     expected_hash = digest({key: value for key, value in packet.items() if key != "packet_sha256"})
     if packet.get("packet_sha256") != expected_hash:
         raise ValueError("gate packet hash mismatch")
-    if (packet.get('schema') not in (SCHEMA, LEGACY_SCHEMA) or not isinstance(response, dict)
+    if (packet.get('schema') not in (STRICT_SCHEMA, SCHEMA, LEGACY_SCHEMA) or not isinstance(response, dict)
             or response.get("schema") != packet['schema'] or response.get("packet_sha256") != expected_hash):
         raise ValueError("gate verdicts belong to another packet or schema")
+    if packet['schema'] == STRICT_SCHEMA:
+        failures = preflight(packet, root)
+        if failures:
+            raise ValueError("claim preflight failed: " + json.dumps(failures))
     expected = {row["claim_id"]: row for row in packet["claims"]}
     judgments = response.get("verdicts")
     if not isinstance(judgments, list) or len(judgments) != len(expected):
         raise ValueError("gate has missing or extra verdicts")
+    conflicts = []
+    if packet['schema'] == STRICT_SCHEMA:
+        reviewed = response.get('conflict_reviewed_claim_ids')
+        conflicts = response.get('conflicts')
+        if not isinstance(reviewed, list) or len(reviewed) != len(expected) or set(reviewed) != set(expected):
+            raise ValueError('v4 requires a cross-claim conflict review of every assertion')
+        if not isinstance(conflicts, list):
+            raise ValueError('v4 requires an explicit conflict ledger')
+        for conflict in conflicts:
+            ids = conflict.get('claim_ids') if isinstance(conflict, dict) else None
+            if (not isinstance(ids, list) or not ids or not set(ids) <= set(expected)
+                    or conflict.get('resolution') not in ('attributed', 'unresolved')
+                    or not isinstance(conflict.get('rationale'), str) or len(conflict['rationale'].strip()) < 20):
+                raise ValueError('invalid cross-claim conflict ledger entry')
+            if conflict['resolution'] == 'attributed' and any(
+                    expected[i].get('conflict', {}).get('status') != 'attributed' for i in ids):
+                raise ValueError('conflict attribution is absent from canonical statements')
     seen, counts = set(), Counter()
     for judgment in judgments:
         if not isinstance(judgment, dict):
@@ -202,7 +321,7 @@ def validate(packet: dict, response: dict, root: Path) -> dict:
         if judgment.get("claim_sha256") != claim["claim_sha256"] or judgment.get("text") != claim["text"]:
             raise ValueError("gate judgment changed the canonical claim or its caveats")
         verdict = judgment.get("verdict")
-        no_assertion = (verdict == NO_ASSERTION and packet['schema'] == SCHEMA
+        no_assertion = (verdict == NO_ASSERTION and packet['schema'] in (SCHEMA, STRICT_SCHEMA)
                         and claim.get('assertion_kind') in ('summary', 'disagreement', 'open_question'))
         if verdict not in VERDICTS and not no_assertion:
             raise ValueError("gate has an invalid verdict")
@@ -229,10 +348,13 @@ def validate(packet: dict, response: dict, root: Path) -> dict:
             if span.get("evidence_id") and span["evidence_id"] != expected_evidence_id:
                 raise ValueError("gate evidence ID does not match its source span")
             span["evidence_id"] = expected_evidence_id
+        if packet['schema'] == STRICT_SCHEMA and verdict == 'SUPPORTED':
+            check_spans(packet, claim, spans, root)
         counts[verdict] += 1
     return {"schema": packet['schema'], "packet_sha256": expected_hash, "validated": True,
             "counts": dict(counts), "coverage": packet["coverage"],
-            "all_supported": not (set(counts) - {"SUPPORTED", NO_ASSERTION})}
+            **({"conflicts": conflicts, "conflict_reviewed_claim_ids": response["conflict_reviewed_claim_ids"]} if packet["schema"] == STRICT_SCHEMA else {}),
+            "all_supported": not (set(counts) - {"SUPPORTED", NO_ASSERTION}) and not any(c["resolution"] == "unresolved" for c in conflicts)}
 
 
 def brief(packet: dict, root: Path) -> str:
@@ -255,8 +377,19 @@ in the packet or another claim. Copy source_id and snapshot_sha256 from that URL
 This also applies to non-supported verdicts. Explain uncited context in the rationale without
 attaching an uncited span. If no available cited source provides evidence, use an empty evidence
 list with a non-supported verdict. Check these bindings before writing the response.
+For v4, compare ALL claims (including reused claims) for contradictory statements, version/edition
+mismatches and negation. Add top-level conflict_reviewed_claim_ids containing every packet claim ID
+and conflicts=[{{"claim_ids":["IDs"],"rationale":"Explain the incompatible positions and scope",
+"resolution":"unresolved|attributed"}}]. Use an empty conflicts list only after this comparison.
+Attributed entries require explicitly attributed canonical claims, with evidence for both positions.
+Unresolved conflicts block publication even when each individual claim has a supporting source.
+For v4, return only claims whose IDs are absent from reused_verdicts. The parent combines validated
+reused judgments with your new judgments. Never change a reused judgment. Check identifiers and behavior,
+negation, modality, edition and version separately. A quote merely naming the subject is insufficient.
+If any source derivative lacks fields or context, return UNVERIFIED. An attributed conflict requires
+both positions and their scope in the statement and in the supporting spans; never choose a winner.
 Write ONLY the response object to {root / 'verdicts.json'}. Preserve the packet and evidence files.
-Return exactly one verdict per claim, with this JSON shape:
+Return exactly one verdict per review claim (all claims except reused IDs), with this JSON shape:
 {{"schema": "{packet.get('schema', SCHEMA)}", "packet_sha256": "{packet['packet_sha256']}", "verdicts": [
  {{"claim_id": "copy exact ID", "claim_sha256": "copy exact hash", "text": "copy FULL exact text",
    "verdict": "SUPPORTED|NOT-IN-SOURCE|CONTRADICTED|UNVERIFIED|NO-FACTUAL-ASSERTION",
@@ -275,14 +408,14 @@ Offsets are zero-based Python Unicode character offsets. No omissions, duplicate
 
 def verify_current(shared, manifest: dict, *, with_verdicts=False):
     receipt = manifest.get("gate", {})
-    if receipt.get("schema") not in (SCHEMA, LEGACY_SCHEMA) or not receipt.get("validated") or receipt.get("is_error"):
+    if receipt.get("schema") not in (STRICT_SCHEMA, SCHEMA, LEGACY_SCHEMA) or not receipt.get("validated") or receipt.get("is_error"):
         raise ValueError("completion requires a validated claim-bound gate")
     run = shared.run_dir(manifest["slug"])
     root = (run / receipt["attempt"]).resolve()
     if not root.is_relative_to((run / "gate/attempts").resolve()):
         raise ValueError("gate attempt path escapes the run")
     packet = json.loads((root / "packet.json").read_text())
-    if manifest.get('gate_contract_version', 2) >= 3 and packet.get('schema') != SCHEMA:
+    if manifest.get('gate_contract_version', 2) >= 3 and packet.get('schema') != (STRICT_SCHEMA if manifest['gate_contract_version'] >= 4 else SCHEMA):
         raise ValueError('new runs require the full-prose assertion gate')
     errors = []
     documents = shared.load_claims(manifest["slug"], errors)
@@ -320,12 +453,23 @@ def install(shared):
 
     def create(*args, **kwargs):
         manifest = original_create(*args, **kwargs)
-        manifest["gate_contract_version"] = 3
+        manifest["gate_contract_version"] = 4
         shared.save_manifest(manifest)
         return manifest
 
-    def gate_once(args):
+    def gate_once(args, *, format_retry=False):
         manifest = shared.load_manifest(args.slug)
+        if getattr(args, 'upgrade_evidence_contract', False) and manifest.get('gate_contract_version', 2) < 4:
+            if args.dry_run:
+                manifest = {**manifest, 'gate_contract_version': 4}
+            else:
+                with shared.run_lock(args.slug):
+                    manifest = shared.load_manifest(args.slug)
+                    manifest.setdefault('evidence_contract_history', []).append({
+                        'version': manifest.get('gate_contract_version', 2),
+                        'gate': manifest.get('gate'), 'upgraded_at': shared._now()})
+                    manifest['gate_contract_version'] = 4
+                    shared.save_manifest(manifest)
         sample = args.sample or ("all" if manifest["depth"] == "saturate" else 0 if manifest["depth"] == "quick" else 10)
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ") + "-" + uuid4().hex[:8]
         root = shared.run_dir(args.slug) / "gate/attempts" / stamp
@@ -349,13 +493,20 @@ def install(shared):
                 shared.save_manifest(current)
             shared._print({"ok": False, **receipt})
             return 1
-        if packet["claims"]:
+        prior = manifest.get('gate', {})
+        if (packet['schema'] == STRICT_SCHEMA and not format_retry and prior.get('is_error')
+                and prior.get('review_binding') == packet.get('review_binding')):
+            shared._print({'ok': False, 'error': 'unchanged failed packet; repair listed claims before another paid review'})
+            return 1
+        review = [row for row in packet['claims'] if row['claim_id'] not in
+                  {v['claim_id'] for v in packet.get('reused_verdicts', [])}]
+        if review or (packet['schema'] == STRICT_SCHEMA and not packet.get('reused_conflict_review')):
             summary = shared.run_agent(manifest, "gate", brief(packet, root), args.model or "sonnet",
                                        args.effort or "medium", args.max_turns, args.agent_timeout)
         else:
             summary = {"is_error": False, "tokens": 0, "seconds": 0, "cost_usd": None}
             shared.atomic_write(root / "verdicts.json", json.dumps(
-                {"schema": packet['schema'], "packet_sha256": packet["packet_sha256"], "verdicts": []}))
+                {"schema": packet['schema'], "packet_sha256": packet["packet_sha256"], "verdicts": [], **packet.get("reused_conflict_review", {})}))
         report, error = {}, None
         try:
             if summary.get("is_error"):
@@ -364,8 +515,15 @@ def install(shared):
             if json.loads((root / "packet.json").read_text()) != packet:
                 raise ValueError("gate worker changed its input packet")
             response = json.loads((root / "verdicts.json").read_text())
+            if packet.get('reused_verdicts'):
+                response['verdicts'] = response.get('verdicts', []) + packet['reused_verdicts']
+                shared.atomic_write(root / 'verdicts.json', json.dumps(response, indent=2) + '\n')
             report = validate(packet, response, root)
             if not report["all_supported"]:
+                failed = sorted({v['claim_id'] for v in response['verdicts'] if v['verdict'] not in ('SUPPORTED', NO_ASSERTION)} |
+                    {identity for conflict in response.get('conflicts', []) if conflict['resolution'] == 'unresolved' for identity in conflict['claim_ids']})
+                shared.atomic_write(root / 'repair.json', json.dumps({'failed_claim_ids': failed,
+                    'instruction': 'Repair only failed assertion/source pairs. Preserve supported assertions.'}, indent=2) + '\n')
                 raise ValueError("claim gate has unresolved non-supported verdicts")
             provenance = getattr(shared, "evidence_provenance", None)
             if provenance:
@@ -377,7 +535,7 @@ def install(shared):
             error = str(failure)
         receipt = {**report, "schema": packet['schema'], "validated": bool(report), "is_error": error is not None,
                    "attempt": str(root.relative_to(shared.run_dir(args.slug))),
-                   "packet_sha256": packet["packet_sha256"], "finished": shared._now(),
+                   "packet_sha256": packet["packet_sha256"], "review_binding": packet.get("review_binding"), "finished": shared._now(),
                    "error": error, "model": summary.get("model"), "effort": summary.get("effort"),
                    **{key: summary.get(key) for key in ("cost_usd", "tokens", "seconds")}}
         shared.atomic_write(root / "validation.json", json.dumps(receipt, indent=2) + "\n")
@@ -403,13 +561,15 @@ def install(shared):
         return 0 if error is None else 1
 
     def gate(args):
+        previous_attempt = shared.load_manifest(args.slug).get('gate', {}).get('attempt')
         result = gate_once(args)
-        if result and not args.dry_run:
+        if (result and not args.dry_run and
+                shared.load_manifest(args.slug).get('gate', {}).get('attempt') != previous_attempt):
             message = shared.load_manifest(args.slug).get("gate", {}).get("error", "")
             # One fresh format-only attempt. Evidence mismatches and dissent stop.
             if message.startswith(("Expecting value:", "Expecting property name", "Unterminated string")) or (
                     "No such file" in message and "verdicts.json" in message):
-                result = gate_once(args)
+                result = gate_once(args, format_retry=True)
         return result
 
     shared._create_run = create
