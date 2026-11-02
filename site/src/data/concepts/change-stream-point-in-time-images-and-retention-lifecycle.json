@@ -1,0 +1,208 @@
+{
+  "slug": "change-stream-point-in-time-images-and-retention-lifecycle",
+  "concept": "Change-stream point-in-time images and retention lifecycle",
+  "generated": "2026-10-27",
+  "summary": "Source-anchored research for Change-stream point-in-time images and retention lifecycle. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "A background process removes expired pre-images from config.system.preimages asynchronously. Expiration makes images eligible for cleanup; it is not a promise that physical deletion happens at the exact expiry second. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/changeStreams.md",
+          "note": null,
+          "claimId": "clm:4d6e99675e3ee911350d9e0e0749dbafd0cc5aec367bc17c9d790604b821251c",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Pre-images occupy config.system.preimages, and a background process removes them asynchronously. Enabling image capture consumes additional storage and processing time. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/changeStreams.md",
+          "note": null,
+          "claimId": "clm:73f3b5db02ac0b8ac9f2d3c4109973b403209a361ec05e4d5f944e55748ec346",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2c51a4fd46f9c236a29bc779f36665aaaccde4efced32f772438e9f65c888a51"
+          ]
+        },
+        {
+          "text": "Treat lookup-derived before/after comparisons cautiously: rapid updates can make an event delta and its looked-up full document represent different operations. Prefer point-in-time post-images when exact per-update document states are required. (medium confidence)",
+          "source": "https://debezium.io/documentation/reference/stable/connectors/mongodb.html",
+          "note": null,
+          "claimId": "clm:b785fc13637c40dd56782dbe8590620cff29d016ccb49574e261f2b51f0df32e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0f3d68bb48de08bac628eb61accccbccfe5299d0b3ef2345d207504ae818d9fc",
+            "ev:5f28c674984c40b377ff3459432fc2d6c0ec51bd06a08472158984da72f27b85"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Image recording must be enabled on each collection with changeStreamPreAndPostImages before the operation occurs. create, db.createCollection(), and collMod support enabling it; enabling it later cannot supply images for earlier operations. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/changeStreams.md",
+          "note": null,
+          "claimId": "clm:e137a8a6415e5a9ca9d96781d8815bb62243e89b347fe52c73eb0066f5d22dab",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Request pre-images with fullDocumentBeforeChange and post-images with fullDocument. For each option, whenAvailable permits null for an unavailable image, whereas required terminates the stream with an error if the required image is missing. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/docs/change_streams.md",
+          "note": null,
+          "claimId": "clm:c87b3ae34dfeafaeac88b7d0ebc195b2c4e82560033bbbd433e46e0176ea78aa",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:db97eaf62d7678f7c75cd9b0cbde366b69ce6500102dde7e0b35756885d60b5b"
+          ]
+        },
+        {
+          "text": "Enabling images adds storage and processing work. Including full images also enlarges change events; Airbyte and Debezium warn that large events can exceed the 16 MiB BSON limit and fail. Image capture therefore requires both retention and event-size planning. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/changeStreams.md",
+          "note": null,
+          "claimId": "clm:bafef5b25a438e155819e396732f6e2ad05ebde5d3e09217a05e70c0d2f09bc9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1e55be803c07f9d894da27b5892c4135b4d9342f7070ba580e5ed16564bbe8f9",
+            "ev:5f28c674984c40b377ff3459432fc2d6c0ec51bd06a08472158984da72f27b85",
+            "ev:b11d4b88646ab3f3436f5fa801b5f656eb531d60fa968c820941cd392da43cf5"
+          ]
+        },
+        {
+          "text": "Request pre-images with fullDocumentBeforeChange. For both image options, \"required\" raises an error when the requested image is unavailable, whereas \"whenAvailable\" returns the image only if available; fullDocumentBeforeChange defaults to \"off\". (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.watch.md",
+          "note": null,
+          "claimId": "clm:3b688ff5cac861f05f936a422bb6a41a9c82e76f85c5bd7bad770449dfda2776",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1a793378f2751a6a70b6aa2629ff933591de7730a85715aac78dbae92a86b05b"
+          ]
+        },
+        {
+          "text": "Removing an event from the oplog also makes its corresponding images subject to deletion regardless of a longer expireAfterSeconds setting. An image retention setting cannot extend image history beyond the associated oplog history. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/cluster-parameters/changeStreamOptions.md",
+          "note": null,
+          "claimId": "clm:66920ef51c62a703a5832448804662cceae0d25b3192d5933242a0a668979b1c",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Returning full images increases event size. Large documents combined with image fields and event metadata can exceed the 16 MiB BSON event limit, including when a lookup returns the full document. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/changeStreams.md",
+          "note": null,
+          "claimId": "clm:1611383bd36ca37a04061aecee6e9a62e82545e2a1f36a38f49cf80b3aa27493",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5f28c674984c40b377ff3459432fc2d6c0ec51bd06a08472158984da72f27b85"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "fullDocument: updateLookup reads the current majority-committed document rather than guaranteeing the event-time document. Intervening updates can change its contents; a later deletion can make the lookup return null. Airbyte documents that multiple events can consequently contain the same final state. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/changeStreams.md",
+          "note": null,
+          "claimId": "clm:1e1d5d056b6e7992238df04c0038e094a3ec34795115bae957c9bbc0646b83d2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5f28c674984c40b377ff3459432fc2d6c0ec51bd06a08472158984da72f27b85",
+            "ev:cea0d249d24f6e46e9e7d0a77c13cefd381282892670f22adaf8b85cc810fe58"
+          ]
+        },
+        {
+          "text": "For update events, fullDocument: \"whenAvailable\" or \"required\" requests the point-in-time post-image. This supports consumers that need intermediate document states instead of the latest document version returned by lookup. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.watch.md",
+          "note": null,
+          "claimId": "clm:0a2141f1ab5599c286eb9ceafd61e114d36dbea4ceedadc74e650376b32eaff4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5f28c674984c40b377ff3459432fc2d6c0ec51bd06a08472158984da72f27b85",
+            "ev:aff694be7be94f9c4140d0f065f005b07cc0bc38a2f0e8cb714225a16802117b"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Pre-images represent documents before update, replacement, or deletion; inserts have no pre-image. Post-images represent documents after insert, replacement, or update; deletes have no post-image. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/changeStreams.md",
+          "note": null,
+          "claimId": "clm:50ad3fa5b1865b7978e0113086b41fd459561d0029100437e180f4af231a2ccf",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8df5245de40f087563f111ec3b5864f39153d5f46d0094e326ca090f36161e77"
+          ]
+        },
+        {
+          "text": "For update events, MongoDB's implementation reconstructs point-in-time post-images from the stored pre-image and the event's update delta. It does not need to store a second full post-image for each update. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/docs/change_streams.md",
+          "note": null,
+          "claimId": "clm:263a376869cc8ba40c35bbde9e55815337dd4d882521316aa5e51d99d40cbc52",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:cea0d249d24f6e46e9e7d0a77c13cefd381282892670f22adaf8b85cc810fe58"
+          ]
+        },
+        {
+          "text": "changeStreamOptions.preAndPostImages.expireAfterSeconds controls image retention cluster-wide. Its default off ties retention to the corresponding oplog events; off does not mean indefinite retention. Oplog eviction expires associated images regardless of a longer configured image-retention interval. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/cluster-parameters/changeStreamOptions.md",
+          "note": null,
+          "claimId": "clm:f501c574f4ce08e3ba487c366d0b1c3d8b8cbdf74e02c1cace173cfdfc277029",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:425646237ab04e07db34afda0fe3f5acd58765ce87d9ed9c81f874ced3e19c6c"
+          ]
+        },
+        {
+          "text": "Budget image retention for consumer lag and recovery time, and monitor oplog history separately. An event can remain readable after its required image expires, so event availability alone does not guarantee image availability. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/cluster-parameters/changeStreamOptions.md",
+          "note": null,
+          "claimId": "clm:97f61d1b6dc062924a19f9ed9ee9415f7a2654c6497aa92cf71f7905d9709696",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "The historical C# driver issue CSHARP-4801 reproduced an expired pre-image causing FullDocumentBeforeChange access to cast BsonNull to BsonDocument and throw. The issue records fix version 2.22.0; it is evidence of a historical driver null-handling bug, not a current server retention defect. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/CSHARP-4801",
+          "note": null,
+          "claimId": "clm:2b4994026751e47fabe4aa34f345c398546418684ae5f78d57eb3f8a77cb8e55",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c0668060f37fa1a16a5fff0e8d43ad1050e8c2bcf0a7fbf14181509ad63c9e9d"
+          ]
+        },
+        {
+          "text": "MongoDB 6.0 introduced configurable change-stream pre- and post-images. A pre-image describes the document before an update, replacement, or deletion; a post-image describes it after insertion, replacement, or update. Inserts have no pre-image and deletes have no post-image. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/changeStreams.md",
+          "note": null,
+          "claimId": "clm:db4c67ebc5e4938db3ca10f7b06ad257efb30da0708c3826e469c7644a16eb68",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8df5245de40f087563f111ec3b5864f39153d5f46d0094e326ca090f36161e77"
+          ]
+        },
+        {
+          "text": "changeStreamOptions.preAndPostImages.expireAfterSeconds controls image retention cluster-wide. Its default \"off\" ties retention to the corresponding oplog events; it does not mean indefinite archival retention. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/cluster-parameters/changeStreamOptions.md",
+          "note": null,
+          "claimId": "clm:f7846915a725cc24bcc485adad0775cf773ee93943979cff104f9454878005d0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:425646237ab04e07db34afda0fe3f5acd58765ce87d9ed9c81f874ced3e19c6c"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "e730c445823a39ecad638cf48789eaf134e4b15eced440d043f745b66eb095bb",
+  "canonicalConceptId": "concept:245b0f699cb6a5fc0051fac894278dc4abd1b3c783989f40ea02fb9a77e75804"
+}

@@ -77,10 +77,18 @@ SKILLS_DIRS = (Path.home() / ".claude" / "skills", HUB_DIR / "skills",
 
 # "- [ ] Concept: `X` | Parent: `Y` | Mode: `Z` | CVS: `3.45`"  — all tags optional
 _QUEUE_RE = re.compile(
-    r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*`(?P<concept>[^`]+)`"
-    r"(?:\s*\|\s*Parent:\s*`(?P<parent>[^`]+)`)?"
-    r"(?:\s*\|\s*Mode:\s*`(?P<mode>[^`]+)`)?"
-    r"(?:\s*\|\s*CVS:\s*`(?P<cvs>[0-9]+(?:\.[0-9]+)?)`)?", re.M)
+    r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*"
+    r"(?P<ticks>`+)(?!`)(?P<concept>.+?)(?<!`)(?P=ticks)(?!`)(?=\s*(?:\||$))(?P<tags>.*)$")
+_QUEUE_TAG_RE = re.compile(
+    r"\|\s*(?P<tag>[^:|]+):\s*(?P<ticks>`+)(?!`)"
+    r"(?P<value>.*?)(?<!`)(?P=ticks)(?!`)(?=\s*(?:\||$))")
+
+
+def _queue_unquote(value: str, ticks: str) -> str:
+    # Longer Markdown delimiters pad labels that themselves end in a backtick.
+    if len(ticks) > 1 and value.startswith(" ") and value.endswith(" "):
+        return value[1:-1]
+    return value.strip()
 
 RESEARCHED = "researched"
 FRONTIER = "frontier"
@@ -438,12 +446,18 @@ def load_queue(path: Path | None = None) -> list[dict]:
     if not p.exists():
         return []
     out = []
-    for m in _QUEUE_RE.finditer(p.read_text(errors="ignore")):
+    for line in p.read_text(errors="ignore").splitlines():
+        m = _QUEUE_RE.match(line)
+        if not m:
+            continue
+        tags = {tag["tag"].strip().casefold(): _queue_unquote(tag["value"], tag["ticks"])
+                for tag in _QUEUE_TAG_RE.finditer(m["tags"])}
+        score = tags.get("cvs", "")
         out.append({
-            "concept": m.group("concept").strip(),
-            "parentConcept": (m.group("parent") or "").strip() or None,
-            "mode": (m.group("mode") or "").strip() or None,
-            "cvs": float(m.group("cvs")) if m.group("cvs") else None,
+            "concept": _queue_unquote(m["concept"], m["ticks"]),
+            "parentConcept": tags.get("parent") or None,
+            "mode": tags.get("mode") or None,
+            "cvs": float(score) if re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", score) else None,
             "done": m.group("done").lower() == "x",
         })
     return out

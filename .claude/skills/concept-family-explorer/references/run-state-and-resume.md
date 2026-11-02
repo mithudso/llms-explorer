@@ -18,9 +18,9 @@ telemetry ledgers are the immutable audit. Plain file writes, no scripts.
 | End of Step 4 | initial `scored` table |
 | End of Step 5 | `queue` (above-threshold selection) |
 | After each `/dr` return + its Step 6b persistence | move the concept `queue` → `researched`; set `persisted: true` only after persistence succeeds (honors the budget rule: never stop mid-persist) |
-| On a `/dr` failure (Step 6) | move the concept `queue` → `failed` with the reason — keeps resume from re-researching it and keeps the remaining-budget counter (`maxConcepts` − researched − failed) honest |
+| On a `/dr` failure (Step 6) | move each affected concept `queue` → `failed` with the reason — resume will not repeat it; subtract failures from remaining concepts only when an explicit `maxConcepts` budget exists |
 | End of each Step 7 round | `round`++, merge new `scored` rows |
-| Step 8 verdict (entering Steps 9–9c) | `status: "optimizing"` — queue drained, optimization phase begun; on the `BUDGET_EXHAUSTED` path write `"optimizing:budget"` instead (9/9b already skipped as owed work; only 9c+10 remain) |
+| Step 8 verdict (entering Steps 9–9d) | `status: "optimizing"` — queue drained, optimization phase begun; on the `BUDGET_EXHAUSTED` path write `"optimizing:budget"` instead (9/9b already skipped as owed work; only 9c+9d+10 remain) |
 | Step 10 | `status: "complete:<verdict>"` — the file is then evidence, not a lock |
 
 **dryRun exception:** a plan-only `dryRun` (stops at Step 5; SKILL.md Inputs)
@@ -69,16 +69,20 @@ On invocation, check the lock first (above), then check for
      closes the silent-wipe window where a researched-but-unpinned skill
      vanishes on the next sync yet reads as HAVE.
    - Enter Step 6 at the queue head.
-   - Remaining budget = counts only: `maxConcepts` − (researched + failed),
-     `maxRounds` − `round`. If the stored budget carries a time cap
+   - Remaining concept budget = `maxConcepts` − (researched + failed) only
+     when the stored run has an explicit `maxConcepts`; otherwise process the
+     complete remaining queue. Remaining re-expansion budget = `maxRounds` −
+     `round`. If the stored budget carries a time cap
      (`budgetMinutes`), surface it to the user — do not reconcile elapsed
      wall-clock across sessions.
-4. **`status: "optimizing"`** (queue drained; interrupted during Steps 9–9c) →
+4. **`status: "optimizing"`** (queue drained; interrupted during Steps 9–9d) →
    on resume skip Steps 1–8 entirely; rebuild the changed-skill set from the
    `researched[]` rows (skillId + hub per entry) and re-enter at Step 9.
    `/sko` re-runs are convergence loops and `persist-spoke`/sync are
-   idempotent, so repeating a partially-done optimization phase is safe.
-   **`"optimizing:budget"`** → re-enter at Step 9c only — the budget verdict
+   idempotent, so repeating a partially-done optimization phase is safe — Step
+   9d's `scripts/sync_trees.py` is merge-only and a re-run is a byte-identical
+   no-op, so it needs no checkpoint of its own.
+   **`"optimizing:budget"`** → re-enter at Step 9c (then 9d) only — the budget verdict
    already skipped 9/9b as owed work; resuming must not un-skip them.
 5. **On fresh (user chose fresh):** overwrite the checkpoint at the first
    Step 4 write.
