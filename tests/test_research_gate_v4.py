@@ -254,6 +254,131 @@ def test_literal_boundaries_preserve_sentence_punctuation(case, statement, sourc
             gate.prepare(shared, manifest, root / 'attempt', 0, 0)
 
 
+
+@pytest.mark.parametrize('statement,source,allowed', [
+    ('The dependency v3.18.1 is required.', 'The dependency v3.18.1 is required.', True),
+    ('The dependency v3.18.1 is required.', 'The dependency v3.18.2 is required.', False),
+    ('The dependency v3.18.1 is required.', 'The dependency suffix 18.1 is required.', False),
+    ('The dependency v3.18.1 is required.', 'The dependency 3.18.1 is required.', False),
+    ('The dependency v3.18.1 is required.', 'The dependency v3.18.1.4 is required.', False),
+    ('The dependency v3.18.1 is required.', 'The dependency v3.18.10 is required.', False),
+    ('The dependency v3.18.1 is required.', 'The dependency xv3.18.1 is required.', False),
+    ('The dependency v3.18.1 is required.', 'The dependency v3.18.1Extra is required.', False),
+    ('The dependency v3.18.1 is required.', 'The dependency x.v3.18.1 is required.', False),
+    ('The dependency v3.18.1 is required.', 'The dependency v3.18.1-rc.1 is required.', False),
+    ('The dependency v3.18.1 is required.', 'The dependency v3.18.1+build.1 is required.', False),
+    ('The dependency v3.18.1-rc.1 is required.', 'The dependency v3.18.1-rc.1 is required.', True),
+    ('The dependency v3.18.1-rc.1 is required.', 'The dependency v3.18.1-rc.2 is required.', False),
+    ('The dependency v3.18.1-rc.1+build.1 is required.', 'The dependency v3.18.1-rc.1+build.1 is required.', True),
+    ('The dependency v3.18.1-rc.1+build.1 is required.', 'The dependency v3.18.1-rc.1+build.2 is required.', False),
+    ('The dependency V3.18.1 is required.', 'The dependency V3.18.1 is required.', True),
+    ('The dependency v3.18.1 is required.', 'The dependency V3.18.1 is required.', False),
+    ('Use v3.18.1 with V4.2 and standalone 18.1.', 'Use v3.18.1 with V4.2 and standalone 18.1.', True),
+    ('Use v3.18.1 with V4.2 and standalone 18.1.', 'Use v3.18.1 with V4.3 and standalone 18.1.', False),
+    ('Use v3.18.1 with V4.2 and standalone 18.1.', 'Use v3.18.1 with V4.2 and standalone 18.2.', False),
+    ('The limit is 18.1.', 'The limit is 18.1.', True),
+    ('The limit is 18.1.', 'The dependency v3.18.1 is required.', False),
+    ('The limit is 18.1.', 'The limit is 118.1.', False),
+    ('Use v3.18.1 with 2.5ms and 25%.', 'Use v3.18.1 with 2.5ms and 25%.', True),
+    ('Use v3.18.1 with 2.5ms and 25%.', 'Use v3.18.1 with 2.5s and 25%.', False),
+    ('Use v3.18.1 with 2.5ms and 25%.', 'Use v3.18.1 with 2.5ms and 125%.', False),
+    ('Use v3.18.1 with numIdleCursors.', 'Use v3.18.1 with numIdleCursorsExtra.', False),
+])
+def test_prefixed_version_literals_and_ordinary_numbers(case, statement, source, allowed):
+    shared, manifest, doc, root = case
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = statement
+    doc['claims'][0]['evidence'][0].update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    if allowed:
+        packet = gate.prepare(shared, manifest, root / 'attempt', 0, 0)
+        assert gate.validate(packet, response(packet), root / 'attempt')['all_supported']
+    else:
+        with pytest.raises(ValueError, match='identifiers or numbers'):
+            gate.prepare(shared, manifest, root / 'attempt', 0, 0)
+
+
+
+@pytest.mark.parametrize('reviewer', [False, True], ids=['authored', 'reviewer'])
+@pytest.mark.parametrize('source,start,end', [
+    ('The dependency v3.18.10 is required.', 0, 22),
+    ('The dependency v3.18.1.4 is required.', 0, 22),
+    ('The dependency v3.18.1-rc.1 is required.', 0, 22),
+    ('The dependency v3.18.1+build.1 is required.', 0, 22),
+    ('The dependency v3.18.1Extra is required.', 0, 22),
+    ('xv3.18.1 is required with advanced support.', 1, None),
+    ('x.v3.18.1 is required with advanced support.', 2, None),
+])
+def test_quote_edges_cannot_fabricate_complete_version_tokens(case, source, start, end, reviewer):
+    shared, manifest, doc, root = case
+    end = len(source) if end is None else end
+    # The real version elsewhere must not rescue the selected, cropped span.
+    source += ' A supported dependency v3.18.1 is required.'
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = 'The dependency v3.18.1 is required.'
+    evidence = doc['claims'][0]['evidence'][0]
+    evidence.update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    cropped = {**evidence, 'quote': source[start:end], 'start': start, 'end': end}
+    if reviewer:
+        packet = gate.prepare(shared, manifest, root / 'attempt', 0, 0)
+        verdicts = response(packet)
+        verdicts['verdicts'][0]['evidence'] = [cropped]
+        with pytest.raises(ValueError, match='identifiers or numbers'):
+            gate.validate(packet, verdicts, root / 'attempt')
+    else:
+        doc['claims'][0]['evidence'] = [cropped]
+        with pytest.raises(ValueError, match='identifiers or numbers'):
+            gate.prepare(shared, manifest, root / 'attempt', 0, 0)
+
+
+def test_complete_version_inside_a_partial_source_quote_still_passes(case):
+    shared, manifest, doc, root = case
+    sentence = 'The dependency v3.18.1 is required.'
+    source = 'Other context. ' + sentence + ' More context.'
+    start = source.index(sentence)
+    end = start + len(sentence)
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = sentence
+    doc['claims'][0]['evidence'][0].update(quote=source[start:end], start=start, end=end,
+                                         snapshot_sha256=gate.digest(body.read_bytes()))
+    packet = gate.prepare(shared, manifest, root / 'attempt', 0, 0)
+    assert gate.validate(packet, response(packet), root / 'attempt')['all_supported']
+
+
+def test_supported_judgment_cannot_substitute_a_version_suffix(case):
+    shared, manifest, doc, root = case
+    source = 'The dependency v3.18.1 is required. The standalone suffix 18.1 is unrelated.'
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = 'The dependency v3.18.1 is required.'
+    doc['claims'][0]['evidence'][0].update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    packet = gate.prepare(shared, manifest, root / 'attempt', 0, 0)
+    verdicts = response(packet)
+    start = source.index('The standalone')
+    verdicts['verdicts'][0]['evidence'][0].update(start=start, quote=source[start:])
+    with pytest.raises(ValueError, match='identifiers or numbers'):
+        gate.validate(packet, verdicts, root / 'attempt')
+
+
+
+@pytest.mark.parametrize('verdict', ['CONTRADICTED', 'NOT-IN-SOURCE', 'UNVERIFIED'])
+def test_version_literal_coverage_does_not_override_negation_dissent(case, verdict):
+    shared, manifest, doc, root = case
+    source = 'The dependency v3.18.1 never retries writes.'
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = 'The dependency v3.18.1 retries writes.'
+    doc['claims'][0]['evidence'][0].update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    packet = gate.prepare(shared, manifest, root / 'attempt', 0, 0)
+    verdicts = response(packet)
+    verdicts['verdicts'][0].update(verdict=verdict, rationale='The source negates the claimed retry behavior.')
+    report = gate.validate(packet, verdicts, root / 'attempt')
+    assert not report['all_supported']
+    assert report['counts'] == {verdict: 1}
+
+
 def test_format_retry_budget_cannot_be_reset_by_repeating_the_command(case):
     shared, manifest, _doc, root = case
     shared._create_run = lambda *args, **kwargs: manifest
