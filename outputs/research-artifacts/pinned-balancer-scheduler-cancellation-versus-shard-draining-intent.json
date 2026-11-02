@@ -1,0 +1,139 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Pinned balancer scheduler cancellation versus shard draining intent",
+  "slug": "pinned-balancer-scheduler-cancellation-versus-shard-draining-intent",
+  "canonical_concept_id": "concept:8ff0e20c01a543e1586d157eb0be185f31e81719d7072de3c5bc70287a87c0a5",
+  "canonical_artifact_sha256": "b7383d659dbf3902273e026afaeab1f762278d4ba479bc3add1c2146f165f0d7",
+  "claims": [
+    {
+      "id": "clm:4644d61454cbd391488d9cc885e8edd1f0aea7bf7a7d12f599079abdb983a1ad",
+      "text": "When the worker processes _unsubmittedRequestIds in Stopping, it resolves each request with ErrorCodes::BalancerInterrupted and \"Request cancelled - balancer scheduler is stopping\", erases it from _requests, and clears the unsubmitted list. CommandCanceledIfUnsubmittedBeforeBalancerStops enables pauseSubmissionsFailPoint, queues requestMoveRange, calls stop(), and asserts that exact cancellation result. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler_impl.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler_test.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4c9549361dbdefc874303509b814c0f904fb83129ecf7514a38a3666524c65f0",
+        "ev:845b8097966a5ee19408a4b6062c5a814a8c0c500f299dbbda042ca5fdc402f1",
+        "ev:c700251ab7098f8293a7cfc80722e98057a0efd3551758bf5275d479b41e533b"
+      ],
+      "temporal": {
+        "applicability_version": "603d1d985b3e38b968a9c71753af223440a3565f",
+        "recorded_at": "2026-11-02T14:11:16.392889+00:00"
+      }
+    },
+    {
+      "id": "clm:c14fe4b11733014e23e53637efb0fbc8a0c3b38eae560a6b4be31d00152f461a",
+      "text": "Source-level control-flow inference: The worker can finish submitting the commands it already selected for the current iteration before it observes Stopping on the next iteration. After its loop, it calls executor shutdown() and join(), then clears request bookkeeping and resets the executor. Its block-exit handler sets Stopped and notifies waiters. These are local scheduler and executor lifecycle observations; they do not establish the remote migration outcome. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler_impl.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:142460af48eaaffec2e90f488f8a5fe9ed4e94e961b7eacf7382a397eac75fb2"
+      ],
+      "temporal": {
+        "applicability_version": "603d1d985b3e38b968a9c71753af223440a3565f",
+        "recorded_at": "2026-11-02T14:11:16.392889+00:00"
+      }
+    },
+    {
+      "id": "clm:bb0d86774ff48dbd7cd42c6dd8bfebb31d780fa26857fdf9e219baf627ccdc4a",
+      "text": "requestMoveRange routes through _buildAndEnqueueNewRequest. That helper creates RequestData with a new request UUID, waits under _mutex until _state differs from SchedulerState::Recovering, obtains its outcome future, calls _enqueueRequest, and returns the future. This describes the local incoming-request future path. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler_impl.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:07efb5868d6e2057f85d2570735f52da709e040b72c9e1e271e8cd22074e303d",
+        "ev:4c9549361dbdefc874303509b814c0f904fb83129ecf7514a38a3666524c65f0"
+      ],
+      "temporal": {
+        "applicability_version": "603d1d985b3e38b968a9c71753af223440a3565f",
+        "recorded_at": "2026-11-02T14:11:16.392889+00:00"
+      }
+    },
+    {
+      "id": "clm:8534c9851a8ee600309870912e61278ee972c1eadced5c184465327e3918156e",
+      "text": "CommandFailsWhenNetworkReturnsError supplies a mocked ErrorCodes::NetworkTimeout response and asserts that requestMoveRange returns that same status. The implementation returns a non-OK remoteResponse.status through processRemoteResponse. This fixture asserts error propagation rather than migration cancellation. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler_test.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler_impl.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4c48c048a7ec41dfbc1e80d48e1c3d6c5d8a8bdddcb60fd7843e53788c42c5fd",
+        "ev:4c9549361dbdefc874303509b814c0f904fb83129ecf7514a38a3666524c65f0",
+        "ev:e1201b75171454f81ae1b31dbc51547d9edadcf4e516ec4c41dd63f6cb50a907"
+      ],
+      "temporal": {
+        "applicability_version": "603d1d985b3e38b968a9c71753af223440a3565f",
+        "recorded_at": "2026-11-02T14:11:16.392889+00:00"
+      }
+    },
+    {
+      "id": "clm:df10b5d685583d44bcf970f1c0411963ed42e0298fdb2436a061c41d4aa2cde5",
+      "text": "The scheduler interface describes asynchronous submission of chunk-related commands and documents stop() as stopping processing of outstanding and incoming requests, resolving them as cancelled. This is a scheduler request contract. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler.h",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1a2bc6d30625ab714eafdb4b70b98d3ce85df07688afa30db2ad3ff3988ff046"
+      ],
+      "temporal": {
+        "applicability_version": "603d1d985b3e38b968a9c71753af223440a3565f",
+        "recorded_at": "2026-11-02T14:11:16.392889+00:00"
+      }
+    },
+    {
+      "id": "clm:fb78d739132837f8746608d8b35b55bce6ff11a6e0531397bda899c9deba523d",
+      "text": "In _enqueueRequest, only Recovering and Running accept requests; the other states reject them with ErrorCodes::BalancerInterrupted and the message \"Request rejected - balancer scheduler is stopped\". The CommandFailsWhenSchedulerIsStopped fixture asserts this result for requestMoveRange without starting the scheduler. Thus the rejection branch also covers Stopping even though its message says stopped. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler_impl.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler_test.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:30c099a3b8469138eb496957378420a2bcffef86a2f879d90470f4e997cf42a7",
+        "ev:37ddd87686e73334edac716932915cf816ea6d724fa94f638394a4c5eba679e1",
+        "ev:4c9549361dbdefc874303509b814c0f904fb83129ecf7514a38a3666524c65f0"
+      ],
+      "temporal": {
+        "applicability_version": "603d1d985b3e38b968a9c71753af223440a3565f",
+        "recorded_at": "2026-11-02T14:11:16.392889+00:00"
+      }
+    },
+    {
+      "id": "clm:9a6d77e818b7980013189357d1b865e98906a322acc37259ccac9d9263d968ec",
+      "text": "The cancellation fixture deliberately pauses submissions before issuing its move request and stops the scheduler before checking the returned future. Its helper defines mocked remote command responses. The stopShardDraining command reference describes telling the balancer to retain the shard and include it again in rebalancing. Scope inference: this fixture asserts cancellation of an unsubmitted request; that assertion does not establish that stopShardDraining interrupts an already-running shard migration before returning. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler_test.cpp",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/command/stopShardDraining.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2356981b2a9bc273c03a5d76cdc297d25710975b0e969d13e3e7d495ec318ab3",
+        "ev:c700251ab7098f8293a7cfc80722e98057a0efd3551758bf5275d479b41e533b",
+        "ev:f04c7c230f2f2976d00b1ecf3cfa7ef7bf27376cdbc3b46199b66f8dc3f68ff4"
+      ],
+      "temporal": {
+        "applicability_version": "Scheduler source commit 603d1d985b3e38b968a9c71753af223440a3565f; stopShardDraining documentation snapshot 88cf349573921e7c88a8ed5c6ef977abb9340e6d639e9a5420e9c1db2c22a236 retrieved 2026-11-02",
+        "recorded_at": "2026-11-02T14:23:53.359263+00:00"
+      }
+    },
+    {
+      "id": "clm:2d30a1405f475c35aeae3310157ade715786cf2882b57af5cb80e877247d012c",
+      "text": "stop() returns immediately if the scheduler is already Stopped. Otherwise it requires a joinable worker, sets Stopping under _mutex, notifies _stateUpdatedCV, releases the lock, and joins _workerThreadHandle. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/603d1d985b3e38b968a9c71753af223440a3565f/src/mongo/db/s/balancer/balancer_commands_scheduler_impl.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:52ad71325d129d02d1b49c91df34123dc0b1498a69282ceda66c901a67b2cdf8"
+      ],
+      "temporal": {
+        "applicability_version": "603d1d985b3e38b968a9c71753af223440a3565f",
+        "recorded_at": "2026-11-02T14:11:16.392889+00:00"
+      }
+    }
+  ],
+  "projection_sha256": "ce3672a4f7e0df745bf0447cb23878f1d0cf10165b403d9d87fd26f832835b56"
+}
