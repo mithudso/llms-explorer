@@ -58,7 +58,13 @@ def claim_rows(manifest: dict, documents: dict) -> list[dict]:
     return rows
 
 
-def select_claims(rows: list[dict], sample: str | int, seed: str) -> list[dict]:
+def select_claims(rows: list[dict], sample: str | int, seed: str, required_ids=()) -> list[dict]:
+    if not isinstance(required_ids, (list, tuple)) or any(not isinstance(item, str) for item in required_ids):
+        raise ValueError("required gate claim IDs must be a list of strings")
+    mandatory = set(required_ids)
+    unknown = mandatory - {row["claim_id"] for row in rows}
+    if unknown:
+        raise ValueError("required gate claims are no longer canonical: " + ", ".join(sorted(unknown)))
     if sample == "all":
         return rows
     try:
@@ -70,7 +76,7 @@ def select_claims(rows: list[dict], sample: str | int, seed: str) -> list[dict]:
     required = [row for row in rows if row["risk"]]
     remainder = sorted((row for row in rows if not row["risk"]), key=lambda row: digest([seed, row["claim_id"]]))
     # Risky claims are additional to the sample, never crowded out by it.
-    selected = {row["claim_id"] for row in required + remainder[:count]}
+    selected = {row["claim_id"] for row in required + remainder[:count]} | mandatory
     return [row for row in rows if row["claim_id"] in selected]
 
 
@@ -104,7 +110,7 @@ def prepare(shared, manifest: dict, out: Path, sample=10, refetch_cap: int = 15)
         raise ValueError("invalid canonical gate inputs: " + "; ".join(errors))
     rows = claim_rows(manifest, documents)
     inputs = {slug: digest(document) for slug, document in sorted(documents.items())}
-    selected = select_claims(rows, sample, digest(inputs))
+    selected = select_claims(rows, sample, digest(inputs), manifest.get("required_gate_claim_ids", []))
     sources = {}
     remaining = refetch_cap
     for url in sorted({url for row in selected for url in row["sources"]}):
@@ -234,7 +240,25 @@ def verify_current(shared, manifest: dict) -> dict:
     report = validate(packet, json.loads((root / "verdicts.json").read_text()), root)
     if report["packet_sha256"] != receipt["packet_sha256"] or not report["all_supported"]:
         raise ValueError("claim gate contains unresolved dissent")
+    required_ids = manifest.get("required_gate_claim_ids", [])
+    # A changed assertion may no longer land in the ordinary sample. Repaired
+    # versions need their own judgments even when the sampled gate is green.
+    current_rows = claim_rows(manifest, documents)
+    select_claims(current_rows, "all", "", required_ids)
+    missing = set(required_ids) - {row["claim_id"] for row in packet["claims"]}
+    if missing:
+        raise ValueError("required repaired claims lack current judgments: " + ", ".join(sorted(missing)))
+    if required_ids:
+        report["required_claim_ids"] = sorted(set(required_ids))
     return report
+
+
+def verify_completion_scope(manifest: dict) -> None:
+    """A supported subset does not answer an explicitly incomplete scope."""
+    assessment = manifest.get("cohort_completion_assessment")
+    if assessment is not None and (
+            not isinstance(assessment, dict) or assessment.get("ready_for_full_scope_export") is not True):
+        raise ValueError("completion requires the full commissioned scope; its assessment is not ready")
 
 
 def install(shared):
@@ -337,3 +361,4 @@ def install(shared):
     shared._create_run = create
     shared.cmd_gate = gate
     shared.verify_current_gate = lambda manifest: verify_current(shared, manifest)
+    shared.verify_completion_scope = verify_completion_scope
