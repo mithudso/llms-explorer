@@ -1,0 +1,152 @@
+{
+  "slug": "mongodb-rolling-index-builds",
+  "concept": "MongoDB rolling index builds",
+  "generated": "2026-10-30",
+  "summary": "Source-anchored research for MongoDB rolling index builds. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "MongoDB warns against running rolling and replicated index build processes concurrently because this can cause broken builds and crash loops. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds.md",
+          "note": null,
+          "claimId": "clm:64ba2738828ef13691083b6ec1755c661ed14b83bf12b44a786f4e75a057afb1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:89c82dec02badafac457c90e10760aa0037447ea1702b8f0d0c3906296cc5b7b"
+          ]
+        },
+        {
+          "text": "SERVER-71769 records historical Atlas cases where secondaries already had an index absent from the primary, suspected to follow interrupted rolling builds; retrying on the primary could stall when those secondaries skipped commit-quorum voting. This issue report is historical evidence, not proof that every current release has the same behavior. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-71769",
+          "note": null,
+          "claimId": "clm:444bf52ccf54cf4f5fedfdc89fecf76b47f2bd261a3e8101fab18140a03c2b22",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9e57cd0b15492b11b08b702860fce4efc71bfe899a5b5176f4bc01ebeb6e728f",
+            "ev:db209096b158105c2c664891c01aac12b33b33e4c595f12e46ba59630721f3d6"
+          ]
+        },
+        {
+          "text": "Percona demonstrated an Operator-specific maintenance workflow using /data/db/sleep-forever to prevent normal mongod restart, followed by a manual standalone build; removing the marker after shutdown restores normal pod behavior. This is a published implementation example, not a universal Kubernetes mechanism. (low confidence) (verified as of 2025-07-28)",
+          "source": "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "note": null,
+          "claimId": "clm:153f3202cf93692668ea9daef7f7cbc0d82dd96bbc1d2c53a4a2c5f392897ccc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:266a41cc359e431505d24543ca3b27eb63653862d13eb74db46d48d9ca6fb8f5",
+            "ev:28c91868d9f4dac37c6607a748c3a30aa0fced81f96263853a52a76b8fbf5887"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Creating a unique index with the manual rolling procedure requires stopping all writes to that collection throughout the procedure; if writes cannot stop, MongoDB instructs users to use the ordinary createIndex route instead. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
+          "note": null,
+          "claimId": "clm:e821dd000a8d2854f1fe9f7816bd72c7569444c76b25cdb684303a0226117491",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3b4e249335fe8901b29e1e711c8f733d49e4c76d93d6d8724a61299cb4a35c88"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "A rolling index build builds on one member at a time as a standalone, starting with secondaries; after replication catches up, repeat for other members and step down the original primary before building there. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds.md",
+          "note": null,
+          "claimId": "clm:c390953e00a17f3309a17165e61a6ea084ee6865ada7123a2accf0fcf446f55c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ced7852529d35b6b68aa85a5875c662bb1d350a0eb28ed9390894f80644849ec"
+          ]
+        },
+        {
+          "text": "Rolling builds can reduce index-construction resource contention on serving members, but require at least one election, lower cluster resilience, and increase total build duration; they do not guarantee zero disruption. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds.md",
+          "note": null,
+          "claimId": "clm:a658f661dfb443ceba18da3c0b284008c9e9c57c94edb00a091933cdeb5eaacf",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2b3120cf6eff48ddbfc5243bd4c6c2e627296d449f5aafb3ff4a98d48d0011e6",
+            "ev:55628548866bff6bc1158924409e109f857c468a69e614ac8c7729e3b9e1d966",
+            "ev:ab49cb26918a6c4d4d09440043a186b0185b74097ba9a4b19b8459b4552a0cbf"
+          ]
+        },
+        {
+          "text": "The replica-set rolling procedure requires an oplog window long enough to cover the offline index build and allow catch-up; wait for the member to catch up before taking another member through the procedure. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
+          "note": null,
+          "claimId": "clm:763a23179f435f8631c590ba85c7e24ee7e4c3ea131936aa2a6b9a99e5d0b6c1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:14b21b251074d906c40d0928b4fa25b2497c08cc7cd4ea61b17f3e148db80772",
+            "ev:25889c72c6e3af0ca519ac7c6a2c919ccf6438ef0417d3ce096f6c8fefc5b4e0"
+          ]
+        },
+        {
+          "text": "If a standalone mongod shuts down during an index build, the build job and its progress are lost. Restarting mongod does not restart that build; createIndex must be issued again. Applied to rolling construction, this means an interrupted local build is not checkpoint-resumable. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-creation.md",
+          "note": null,
+          "claimId": "clm:23e8fbd679203a8e04294713a7394010d3f64431c6aaccf356b4e3fb699e2f3a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c459f1d1f57638f3ec7d11b0e4f9b786d790392e6ab129d1063bc9aca9078df3",
+            "ev:e0a70bf5fc1502dd81181fd2b9864e26788707d0cd3d76079815e307e53d0945"
+          ]
+        },
+        {
+          "text": "Restarting a replica-set member as standalone does not resume its previously interrupted replicated index build: MongoDB documents that the build remains paused until manually dropped. Switching to standalone is therefore not a recovery procedure for that in-flight build. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-creation.md",
+          "note": null,
+          "claimId": "clm:5256499e00c04ab7a05459c72980d5c3accaadec02bfeeaa1b2a530b1cc005a7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e886b04f2bd172bb111f93581d7eafc57a672ec7f1e479f8620876fc663a9e3a"
+          ]
+        },
+        {
+          "text": "JAVA-6023 explains that the Java driver's 'Expecting replica set member, but found a STANDALONE' log during a rolling build can reflect the expected temporary topology change; that message itself does not throw an exception. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/JAVA-6023",
+          "note": null,
+          "claimId": "clm:21a56e053f16bcfe66175d30a06d07e9349b65b50792d2cb4eb2db40b59f924c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9977a14644461858b74be1e90836e30ee97d38ec89649a4b56bb1c2f83cbb41d"
+          ]
+        },
+        {
+          "text": "The official replica-set procedure hides the selected secondary with priority zero, starts it without replSetName on a different port, builds the index, restores its replica-set configuration, then restores visibility and its original priority after catch-up. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
+          "note": null,
+          "claimId": "clm:bb4ca52eb5117bd29ba5b43de4eea204069eec5946cb474417639f44c4a6db49",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:cbb7356323545b5e2a38064f62807e1b4e890e2f4421a52f3ec3ca86dbd130ce"
+          ]
+        },
+        {
+          "text": "After processing every member, checking getIndexes on each member verifies that the rolling procedure installed the intended index everywhere. (low confidence)",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-rolling-index-builds/view",
+          "note": null,
+          "claimId": "clm:c4dba13b50095d8aa1387f7834cf4c737d52d1d4bcab3114fb6bcf5e8f813496",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b44c120f0cd27cb3de9c17c39630bd489d865c82b0990fe308ebca321e015a56"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "9ac7987561380af617e2ec5de087c1199b2d514079d7da7d62a1d4e552c440fc",
+  "canonicalConceptId": "concept:f0cc60d8b3513e03f5ae28bb2796df842c45c3e0b57185150cc1c6f435265858"
+}

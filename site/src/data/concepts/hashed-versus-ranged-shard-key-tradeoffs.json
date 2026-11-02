@@ -1,0 +1,144 @@
+{
+  "slug": "hashed-versus-ranged-shard-key-tradeoffs",
+  "concept": "Hashed versus ranged shard-key tradeoffs",
+  "generated": "2026-10-30",
+  "summary": "Source-anchored research for Hashed versus ranged shard-key tradeoffs. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A range predicate on the hashed field cannot use the hashed index for an ordered range scan. Such predicates remain executable, but hashing alone cannot use original-value ordering to isolate them to a small shard subset. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-hashed/create.md",
+          "note": null,
+          "claimId": "clm:7a876ca33933df9cb477cb4e5697e2345dea329c26abd4cf79b0e30fe9a94ccf",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "A hashed index cannot itself carry a unique constraint. This index restriction must be considered separately from whether queries target one shard or broadcast. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-hashed.md",
+          "note": null,
+          "claimId": "clm:c86d6afb76a93e558f8d97cbd6ddd242c4a548edb816d5415934bc21c633b21d",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Yorkie’s sharding design issue, last updated January 31, 2024, records choosing ranged project_id and doc_id keys after examining its query patterns, key properties, and uniqueness requirements. This is application-specific design evidence rather than a controlled hashed-versus-ranged benchmark. (low confidence)",
+          "source": "https://github.com/yorkie-team/yorkie/issues/673",
+          "note": null,
+          "claimId": "clm:c5393e08d7dd331e7eeb3908228cdb055c453cc604601d5660af4200a12205d8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6903b254c6c17088190fca341a7da4bd82d79731d3b334bcf7a51efb4f75e946",
+            "ev:921bc154f00c01d6a253db31eaf2b9abd204d2a3ef3dcf25582ee4ff1fc4b9f7",
+            "ev:b046077555b56d6dfc8a4bd5cc7086a195d43b3c31869253b7269fcb92372914"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Ranged sharding partitions contiguous original shard-key values, so nearby values tend to share chunks or shards; hashed sharding partitions hash values, sacrificing that locality and making original-value range reads more likely to broadcast. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:080e7b2870db6cf2e54dd59b12183058e34e42dcfa0cf9bc4002074328c87045",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "With a monotonically increasing single-field ranged shard key, the chunk ending at MaxKey receives most new inserts, concentrating writes on its shard; hashing a sufficiently diverse key spreads those inserts more evenly across the cluster. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:fd7e68dfede198114da2ed3aec985bbf99cd12cf44fe0de40764638beeee3fc4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5e30d923940ebb560a624fdef09953168ddf68bc6dc19a79fe74fed5818a45fe"
+          ]
+        },
+        {
+          "text": "With a single-field hashed shard key, mongos can target an equality match on that key to one shard; MongoDB computes the hash automatically, so the application supplies the original value. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:1dd465595a5364b61840f96f1c11126334e8b433fc9c74e4c682b9f62737791a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0193468c34ce97ae1dcfb83c0a390e5b142289cbd4e1807cd9e5135305330aeb",
+            "ev:0b80a5899de6a63301c2c1a8c5d1c58f3fea13a3607113a30ee445c9ef534c97",
+            "ev:aba90b95657395b6c4a4fcf96183ebcebb137f409041708baefff93b4f96e2c7"
+          ]
+        },
+        {
+          "text": "Hashing still requires a high-cardinality key. It does not create additional distinct original values or split documents sharing one complete shard-key value across shards; low cardinality and frequently repeated hot values remain distribution risks. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:2eba246a6a1c79af9d31ddf9803ccbac3b4f400b83705db1e56e871b093db782",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Ranged sharding enables targeted bounded-range reads but does not promise that every range query reaches exactly one shard: a range spanning chunks on multiple shards still requires those shards. Ranged keys also need suitable cardinality, frequency, and insert patterns. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/ranged-sharding.md",
+          "note": null,
+          "claimId": "clm:8a8d7d13fc895e712fdc9bab7b9d3e3ca60916032443d2207add4d03eb64560c",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "MongoDB truncates floating-point values to 64-bit integers before hashing, so values such as 2.2, 2.3, and 2.9 share a hash. Fine-grained numeric distinctions therefore do not necessarily produce distinct hashed placement values. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-hashed.md",
+          "note": null,
+          "claimId": "clm:0874b54065b2f04992c595ac8bb42873848fc9f091a5871ab35fc9b4eb5196b5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f2d6c98e35282a79ab3b0aea29363d5c3e632f86458b13df114b0fbbf6725fe9"
+          ]
+        },
+        {
+          "text": "Ranged sharding partitions contiguous shard-key value ranges; nearby values are likely to share a chunk or shard. This supports targeted reads over contiguous key ranges, but does not guarantee that every range fits on one shard. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/ranged-sharding.md",
+          "note": null,
+          "claimId": "clm:54ed1c27eee2c44e9398ca1a831b1f9f8b4ba35d7121e2fdec97a038d8d878c0",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Hashing disperses nearby original key values across chunks and shards. Range predicates on a single-field hashed shard key therefore lose range locality and generally require broadcast operations, trading query isolation for more even data distribution. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:81bfa20675addfc1c8e1a0ee43276072cea5023015437865d3134a8d3cbe9d85",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "A monotonically increasing ranged shard key concentrates incoming inserts in the chunk bounded above by MaxKey and its owning shard. Hashing that field spreads inserts across the cluster, making monotonically increasing ObjectId or timestamp values candidates for hashed sharding. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:aa0f845de4bcfc80ad3274b8bb0ddbe37507996cbdb997640b40de309f69c0c6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5e30d923940ebb560a624fdef09953168ddf68bc6dc19a79fe74fed5818a45fe"
+          ]
+        },
+        {
+          "text": "For workloads dominated by ranges on the shard-key value, prefer evaluating ranged sharding for locality. For high-volume inserts on a high-cardinality monotonic field, evaluate hashing while explicitly accepting the range-query fanout cost. This is workload guidance, not a universal latency or throughput guarantee. (medium confidence)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/use-cases/configure-sharding-to-maximize-the-performance-of-shards",
+          "note": null,
+          "claimId": "clm:1eb2d252e010e396c0d51f5e2fb4e2bedcace1dfa01f4dbb0850e9198fe5e2e5",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "927d0babb40d8806ff09696d470d3990353ce432c63ad3bfb0565e41663b9206",
+  "canonicalConceptId": "concept:dbfec2c303a48df81042428a9c4fbd9900dbebebe9f20677d2184b5d4c820a1e"
+}

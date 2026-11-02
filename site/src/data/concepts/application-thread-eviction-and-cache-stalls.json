@@ -1,0 +1,195 @@
+{
+  "slug": "application-thread-eviction-and-cache-stalls",
+  "concept": "Application-thread eviction and cache stalls",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Application-thread eviction and cache stalls. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The eviction target and trigger serve different roles: background workers operate above the target, whereas reaching the trigger recruits application threads. Dirty-content limits can also throttle application threads, so total cache occupancy below its overall trigger does not rule out foreground eviction. (high confidence)",
+          "source": "https://source.wiredtiger.com/mongodb-4.4/arch-eviction.html",
+          "note": null,
+          "claimId": "clm:5d09302f395ceff0610db12f4d247f6e0e8f8b8ba927781ee0de0b69050ae3d8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4f360331bb57edfeed1d707ad69cd113f98d6e58f593c007e4be225b10c33fad"
+          ]
+        },
+        {
+          "text": "The inspected MongoDB master README describes cache-pressure detection that combines exceeded triggers, lack of commit progress, and application eviction time; it describes aborting oldest transactions as remediation. These development-branch details do not establish availability or defaults in a released version. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/README.md",
+          "note": null,
+          "claimId": "clm:feaa8ef54cf682a6873287a79d99d63dc95d1dd63dd49863fa1e1714d384bb21",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d813c01d3c4a402b9ebc936dee4283f201ff34497b191a4a0d9230f626f47046"
+          ]
+        },
+        {
+          "text": "The UBC researchers' 2018 study of WiredTiger performance diagnosis found that aggregate profiling was poorly suited to rare latency spikes. Their analysis supports examining per-thread timelines and time-correlated events when investigating foreground eviction stalls. (low confidence)",
+          "source": "https://www.cs.ubc.ca/~bestchai/papers/fse18-wiredtiger.pdf",
+          "note": null,
+          "claimId": "clm:e8f5a37014e8a72eb4c39a175b8e8f48def04951dad93d6e1fe015ffbf8ce95a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2c12de0f99ee3e4ed117e0b28f4c9bf4dce2671d54cdc9778e4b7aaa0010420c",
+            "ev:df25cd59d00edbe92ba14c49584c29bffe43398ac19f75c72e32b92e05f14603",
+            "ev:fdb2b33fe08525c5a71fa823e26a1b0052ae9fc0c06c52a57a5546a56c9bacaa"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "When background eviction cannot keep pace and a configured eviction trigger is reached, WiredTiger can require application threads to perform eviction before they continue reading or writing, adding work to the request path and increasing latency. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/README.md",
+          "note": null,
+          "claimId": "clm:768cb7e46a345a5811d7216fb4934cfc97a9f1b390cf823055f2b66ecdda0590",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4f360331bb57edfeed1d707ad69cd113f98d6e58f593c007e4be225b10c33fad",
+            "ev:68799fcc025b9049ca0c40d414dbb09689d94d721b57429ff120830792006fca"
+          ]
+        },
+        {
+          "text": "A 2018 University of British Columbia study of WiredTiger performance investigations recorded cases where application latency rose when eviction was needed but no work was available. Eviction stalls need not correspond to a slow individual disk operation. (low confidence)",
+          "source": "https://www.cs.ubc.ca/~bestchai/papers/fse18-wiredtiger.pdf",
+          "note": null,
+          "claimId": "clm:1036c007d35563dde6bf945daf0598471402b3d33b4d613b752ca7c38a1ae13b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c7021b7e8520a5cc5bf713b5988cf286fe750c194662e9a5726981cff8e13817",
+            "ev:f9b1d2c9dde31d62f475030424aa345131e82c25efb6464013b67eb137d38b8c",
+            "ev:fdb2b33fe08525c5a71fa823e26a1b0052ae9fc0c06c52a57a5546a56c9bacaa"
+          ]
+        },
+        {
+          "text": "A MongoDB 5.0.10 user reported application-thread eviction and simultaneous read/write latency spikes at approximately 80% cache usage and 1.4% dirty content. The thread did not establish the cause, so those snapshots cannot establish a universal threshold rule or a fix. (low confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/why-is-mongodb-using-application-threads/234620",
+          "note": null,
+          "claimId": "clm:ef6e11bf592afe8bc640e3672c83d598db5f9305ca7cd9e9147e775265b1071f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:263aae6e33bad4cc13aa3c6bba7e45a95b50101ac74be0c8365727ab185e43fe"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Keep a gap between the dirty eviction target and trigger: a historical WiredTiger maintainer explanation says making them equal delays background relief until operations face the hard limit. Treat the specific 2017 and 2020 tuning recipes as workload-era examples rather than general current settings. (medium confidence)",
+          "source": "https://groups.google.com/g/wiredtiger-users/c/zNVzB6ZrYt4/m/YHjzWb2ECQAJ",
+          "note": null,
+          "claimId": "clm:1f63e576117680f9900982f3ca87e0273d03026ecb9d00b99f8ff73ba10611bd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:16d959e14a135a4dde4c454f90536454b87ee6dbfb5054b2618d92a128ecd650",
+            "ev:da4e58c8c45515e9d70c8f9e2341ef6157f6b34171307357f5cbffe86a546e79",
+            "ev:e24589d175e2161551f2ac705168fa351394ead82f6f1ecdbd963379215188a4",
+            "ev:f5138945d93f61a8522e2e1e95b65bf152d378918dfff576d00086c5cf377b0a"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Clean eviction can discard an unchanged page directly, whereas dirty eviction reconciles modified content and writes it out. Dirty eviction can consequently add more work and I/O to an application operation. (high confidence)",
+          "source": "https://source.wiredtiger.com/mongodb-4.4/arch-eviction.html",
+          "note": null,
+          "claimId": "clm:0fa6200680aba0bb4292d2cad14d1a54417d36c87e6c07ed195888131607ad01",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4f360331bb57edfeed1d707ad69cd113f98d6e58f593c007e4be225b10c33fad",
+            "ev:5362a2669c6d29a51c524a9100109da2a09cd88f458dbc463ddea0deeba92267"
+          ]
+        },
+        {
+          "text": "For diagnosis, sample db.serverStatus().wiredTiger.cache['pages evicted by application threads'] repeatedly and correlate increases with latency and cache pressure over the same interval. This is a diagnostic inference from MongoDB monitoring guidance and the research emphasis on time-series evidence. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/troubleshooting/replication-lag.md",
+          "note": null,
+          "claimId": "clm:89016d42a37a46cd9ac5e59e0850b8850693fdd77f6c1e1c6f48fd4872b2ca33",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:66c7b6b003134ef7ed6f9c022161c842431dec448b8d7c3f7da95290e2e17df8",
+            "ev:df25cd59d00edbe92ba14c49584c29bffe43398ac19f75c72e32b92e05f14603"
+          ]
+        },
+        {
+          "text": "Adding eviction workers requires measurement: Percona reported insufficient workers in one bulk-load workload, while the UBC study documented a case where creating fewer additional workers reduced contention and improved throughput. More workers are not a universal cure. (medium confidence)",
+          "source": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+          "note": null,
+          "claimId": "clm:2a92179992e61f789c21c232b492f97d409dd9c950cb92ad69654bb776801ba1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c7021b7e8520a5cc5bf713b5988cf286fe750c194662e9a5726981cff8e13817",
+            "ev:da4e58c8c45515e9d70c8f9e2341ef6157f6b34171307357f5cbffe86a546e79"
+          ]
+        },
+        {
+          "text": "AceMQ describes an anonymous payments incident in which application-thread eviction coincided with multi-second write stalls and upstream pool saturation. The provider reports recovery after cache sizing and working-set changes, but supplies no dated incident timeline, MongoDB version, or raw measurements. (low confidence)",
+          "source": "https://acemq.com/use-cases/mongodb-wiredtiger-eviction-remediation/",
+          "note": null,
+          "claimId": "clm:0e216aa77146300193c55f6a51a4ed1f98745d8e06b4247a044cd1509d420b34",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d518aa78436e9920f2b6e68f7bad1139b2e2c435a98d5e3a2b663cdd0d602dd6"
+          ]
+        },
+        {
+          "text": "WT-16790 reports a disaggregated-storage test hanging while a transaction operation waited in application-assisted eviction, with stack frames in __wti_evict_app_assist_worker and __wt_txn_commit. This is evidence for that test configuration, not proof that all production MongoDB releases share the fault. (low confidence) (verified as of 2026-09-30)",
+          "source": "https://jira.mongodb.org/browse/WT-16790?attachmentSortBy=dateTime",
+          "note": null,
+          "claimId": "clm:9e093bb11f203c29dae3a4687b1a9e98f37787f2c164fe3733af345fd516a4a5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:452c82f3a6e2a1beb5be163c14dacac14e899c71282d1d4c1866c1bcee511976",
+            "ev:941ce32d7287f671e01a7f8bd6849d1535badce9402c6d46bfa5703a9dd5e110"
+          ]
+        },
+        {
+          "text": "Clean-page eviction can discard an unchanged in-memory page; dirty-page eviction requires reconciliation. Consequently, page-eviction counts alone do not express the cost of eviction or how much storage work it entails. (medium confidence)",
+          "source": "https://source.wiredtiger.com/mongodb-4.4/arch-eviction.html",
+          "note": null,
+          "claimId": "clm:ea532ffdcaf77e9ea1a36d72239cbf1f8a77573852983119aad7ef0c82dae2dd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4f360331bb57edfeed1d707ad69cd113f98d6e58f593c007e4be225b10c33fad"
+          ]
+        },
+        {
+          "text": "Eviction needs eligible pages and exclusive access to them. Application threads assisting eviction therefore do not guarantee that space will be freed promptly; blocked progress must be distinguished from merely doing more eviction work. (medium confidence)",
+          "source": "https://source.wiredtiger.com/mongodb-4.4/arch-eviction.html",
+          "note": null,
+          "claimId": "clm:ff1427699b66169abc6b0ef51fc31932e8810400b5b0e594e7c680c353478091",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d813c01d3c4a402b9ebc936dee4283f201ff34497b191a4a0d9230f626f47046",
+            "ev:f82deb5e69086abbdf912deba6cf5855e2a012712d0546e476d551309d5cbc5f"
+          ]
+        },
+        {
+          "text": "Percona's bulk-load investigation demonstrated a workload-specific tuning experiment involving more eviction workers and a smaller cache with lower dirty thresholds. Treating those settings as a universal prescription is unwarranted: worker counts affect CPU and I/O demand, and the architecture guide describes dynamically balancing eviction performance against worker overhead. (medium confidence)",
+          "source": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+          "note": null,
+          "claimId": "clm:14deb026dd143863ef82d215c2fba0dbb322b9db38f147b12daeff7983165d94",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a8c6bb3c151a06e6f4d91357165940a5fd58a6e373a289d404eaa038664f23ed",
+            "ev:da4e58c8c45515e9d70c8f9e2341ef6157f6b34171307357f5cbffe86a546e79"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "0eec6ba5d1253b7e892295aa0cfa4d73e82083082d1144431db28f15689b167c",
+  "canonicalConceptId": "concept:7eeb7236b5bd869cd9c24ee5364a302f36456d488d5a66ef5f3efd1c4d7d2569"
+}

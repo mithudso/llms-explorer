@@ -1,0 +1,208 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Time-series bucket closure under cache pressure",
+  "slug": "time-series-bucket-closure-under-cache-pressure",
+  "canonical_concept_id": "concept:d498d8ea2908f84b1946cfb5cd96dff64efc13ab591211992c19bfb179f6bb10",
+  "canonical_artifact_sha256": "af8f9c46f5273337ee30f583301eb0f42e100be2986a28c6f573866fd51b2a15",
+  "claims": [
+    {
+      "id": "clm:e1664344d107d105eec85f47aae323889217c71df96f1fba87fe607b7f70f759",
+      "text": "BucketCatalog memory reclamation archives idle buckets when timeseriesIdleBucketExpiryMemoryUsageThreshold is exceeded. Archiving keeps a small record for reopening; if pressure remains after idle buckets are archived, archived entries are removed. Buckets removed this way remain eligible for query-based reopening. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:961185ff1c8ee3b672992f6f2b39d43399ead6b691c9dfac3ce35296fe658f34"
+      ]
+    },
+    {
+      "id": "clm:d975527f895c1c8b9990858ac5d9e597fb4b2342fe9a77e3d8be6561b1f1336e",
+      "text": "One independent user experiment reported that a workload producing 25,000 buckets before other collections were loaded later produced about 420,000 buckets and 415,000 cache-pressure closures. This is a workload observation, not a universal threshold or proof of a dirty-ratio trigger. (low confidence) (verified as of 2023-10-19)",
+      "source_url": "https://www.mongodb.com/community/forums/t/suboptimal-bucket-creation-in-timeseries-collection-due-to-cache-pressure/249863",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3091318140733407e599a3549fe27acf865b1f21a9978e04f09aa99f89e52be7"
+      ]
+    },
+    {
+      "id": "clm:519c81383866639c7527a8d6ba3dde580ba3d795a7a7e7b0cccc2c44fdd50f81",
+      "text": "Bucket-catalog memory reclamation is a separate path. Its memory threshold causes idle buckets to be archived or their retained entries removed, and serverStatus exposes numBucketsClosedDueToMemoryThreshold and numBucketsArchivedDueToMemoryThreshold separately from numBucketsClosedDueToCachePressure. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:84e657e8d4fdb8681fb6292991baef9db8940c2dc4d4a5b54816c925add6995c",
+        "ev:961185ff1c8ee3b672992f6f2b39d43399ead6b691c9dfac3ce35296fe658f34"
+      ]
+    },
+    {
+      "id": "clm:e745f906de489d63db7f9a6ad00a89c4b0f3cb3e43520031bb26de4383c7dbbb",
+      "text": "The inspected rollover code includes a large-measurement exception: below the configured minimum measurement count, a bucket can exceed its effective ordinary size ceiling, but a separate absolute ceiling bounded by the cache-derived maximum can still trigger cache-pressure rollover. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:148dcc67104782a22efdd40fb00be88078ca77595a9bf69b3c91ee54048251d9"
+      ]
+    },
+    {
+      "id": "clm:c9be58ebb0a44aba24cca0f30dc9ce0120cba4371a878cb447fc999d906d3c7a",
+      "text": "MongoDB 8.0 documents the BucketCatalog memory allocation as 2.5% of available system memory and lists exceeding this allocation separately from active buckets not fitting the storage-engine cache. These are distinct conditions, so changing the catalog threshold is not established as a remedy for every dynamic cache-pressure closure. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/core/timeseries/timeseries-bucketing/",
+      "also": [
+        "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2bdb4b44db2513a244b91f5f2dd809d57ffeed969463ed63de3dc615cb601c2f",
+        "ev:84e657e8d4fdb8681fb6292991baef9db8940c2dc4d4a5b54816c925add6995c"
+      ]
+    },
+    {
+      "id": "clm:3930d9048fb571dbed2ba638e6bd50434bfae8f47228bc6a5b43625c411cc431",
+      "text": "MongoDB 8.0 defines numBucketsClosedDueToCachePressure as closures caused by exceeding a dynamic size limit derived from storage-engine cache size and numBuckets. It defines numBucketsClosedDueToMemoryThreshold separately for active buckets exceeding the BucketCatalog memory allowance. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/",
+      "also": [
+        "https://www.mongodb.com/docs/v8.0/core/timeseries/timeseries-bucketing/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:84e657e8d4fdb8681fb6292991baef9db8940c2dc4d4a5b54816c925add6995c"
+      ]
+    },
+    {
+      "id": "clm:41a13fa9e9ae08655ef86bdff909c7de03f0f1af4b580219936055b95b08fee2",
+      "text": "MongoDB 8.0 defines numBucketsClosedDueToCachePressure as closures caused by a dynamic bucket-size limit derived from storage-engine cache size and numBuckets. The implementation classifies an insertion exceeding the effective cache-derived size ceiling as kCachePressure when that ceiling is tighter than the ordinary size ceiling. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:148dcc67104782a22efdd40fb00be88078ca77595a9bf69b3c91ee54048251d9",
+        "ev:84e657e8d4fdb8681fb6292991baef9db8940c2dc4d4a5b54816c925add6995c"
+      ]
+    },
+    {
+      "id": "clm:af79f9ac4bbbc200c641e40df8392fde572f38f3305b7a9a1039e83a3b6853ca",
+      "text": "A cache-pressure bucket-closure counter is not a direct dirty-ratio measurement. The documented counter and inspected rollover branch use a cache-derived bucket-size limit, while PMM separately charts modified/unmodified page evictions and cache page states. Correlating these metrics is a diagnostic inference; one cannot infer a specific dirty-cache threshold crossing from the bucket counter alone. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+        "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:148dcc67104782a22efdd40fb00be88078ca77595a9bf69b3c91ee54048251d9",
+        "ev:77d956c99c579d10153584ae983cd6239626335013f53e4e850a3edc6cd920ac",
+        "ev:84e657e8d4fdb8681fb6292991baef9db8940c2dc4d4a5b54816c925add6995c"
+      ]
+    },
+    {
+      "id": "clm:07b31ad3eae66dbcf074fc766a47988a37a9953e44acb598dc2e4940588874cc",
+      "text": "Cache-sizing remedies depend on the hosting service. IBM Cloud Databases for MongoDB Gen 2 states that customers cannot configure its internal/file-system cache ratio directly; customers can scale total memory, and its performance guide suggests memory scaling when disk I/O utilization warrants additional caching. This service-specific option does not establish that extra memory resolves every bucket-closure incident. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://cloud.ibm.com/docs/databases-for-mongodb-gen2?topic=databases-for-mongodb-gen2-performance",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:342a8d902ecfe20309ae27a6bb03f3ec6cbaf34e8a7f3fa3fc86e0f2631115f2"
+      ]
+    },
+    {
+      "id": "clm:d81e589e25d5dd4ad83e85b65bece09d32b5f536f9461623927347b9666359b9",
+      "text": "In the implementation snapshot, the cache-derived size calculation takes cache capacity and active-bucket cardinality, rather than a measured WiredTiger dirty percentage. Consequently, a cache-pressure bucket closure alone does not prove that a dirty-ratio eviction trigger fired. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+      "also": [
+        "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:148dcc67104782a22efdd40fb00be88078ca77595a9bf69b3c91ee54048251d9",
+        "ev:57334879cbe47292e2373742b0566e57491c2a0741a0f39f57292074b391d32b"
+      ]
+    },
+    {
+      "id": "clm:0a52ea421e2edc9b55f42776ef5ed125bf22d614cc7f1e0121c22b629fcf5221",
+      "text": "SERVER-69899 explains the design tradeoff: many open or archived buckets growing to the normal 125 KiB limit can cause repeated disk writes. Dynamically reducing bucket sizes targets roughly half the WiredTiger cache, at the cost of worse disk usage and query performance. The implementation applies a minimum-size floor, so the half-cache target is a heuristic rather than an unconditional memory bound. (medium confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-69899",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+        "https://jira.mongodb.org/browse/SERVER-105187"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:57334879cbe47292e2373742b0566e57491c2a0741a0f39f57292074b391d32b",
+        "ev:a0463b6d0f3dcb3445022195681f0397f3b75fd0697047ca4d73872384f3d77d"
+      ]
+    },
+    {
+      "id": "clm:1c14323f4e46f10ff887f3b51742039d7cf9ac58a0a7e87456a10a0cb21e509b",
+      "text": "For diagnosis, inspect the distinct bucket closure counters and correlate them with storage-engine measurements. Percona PMM provides cache Used versus Max and separate rates for modified and unmodified page evictions; those measurements add context to the bucket counters rather than making the counters interchangeable. (medium confidence) (verified as of 2026-10-29)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/",
+      "also": [
+        "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:77d956c99c579d10153584ae983cd6239626335013f53e4e850a3edc6cd920ac",
+        "ev:84e657e8d4fdb8681fb6292991baef9db8940c2dc4d4a5b54816c925add6995c"
+      ]
+    },
+    {
+      "id": "clm:00e6551e76d8d417841a9e81a23b735eb9742f23c9cc8ca830e152c13a11483c",
+      "text": "SERVER-105187 scopes the dynamic-sizing heuristic: its calculation combines global bucket cardinality across collections and a fixed relationship to WiredTiger cache size, which may not suit every workload. The ticket describes raising timeseriesBucketMinSize to timeseriesBucketMaxSize as effectively disabling dynamic bucketing, but presents this as internal behavior rather than a generally validated tuning recommendation. (low confidence) (verified as of 2025-07-14)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-105187",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:ff776c8ab3bb895413923bddceef3856aa5f00c6c8f54b927ea400a9350e5ce1"
+      ]
+    },
+    {
+      "id": "clm:50b233521e4732a0ccafce8cae1a167ca7a0b33688067add7e45e9c93004ecbc",
+      "text": "For operational investigation, PMM's WiredTiger Details dashboard separates cache usage, configured maximum, cache reads and writes, and modified versus unmodified eviction rates. These panels provide storage-engine context for a time-series closure-counter increase; they do not measure bucket closure itself. (low confidence) (verified as of 2026-10-29)",
+      "source_url": "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1b1729cba2fcd2a33d7b567e87e6e7ae51d7b711e70c53a84cedb295a00c9d56",
+        "ev:77d956c99c579d10153584ae983cd6239626335013f53e4e850a3edc6cd920ac"
+      ]
+    },
+    {
+      "id": "clm:96906f497670ad6a1185400fea17149bf96d974a20657d7ab6cfa0baaeff2ad9",
+      "text": "The master implementation snapshot computes a dynamic size as storageCacheSizeBytes divided by twice workloadCardinality, floors it at gTimeseriesBucketMinSize, and caps the ordinary effective maximum at gTimeseriesBucketMaxSize. Zero cardinality returns the ordinary maximum. The call site supplies global numActiveBuckets, so pressure can reflect activity beyond one collection. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:57334879cbe47292e2373742b0566e57491c2a0741a0f39f57292074b391d32b",
+        "ev:8d0e8e79466c9495644818bde2df05a3da4b397608fd8738e048ada437d813f2"
+      ]
+    },
+    {
+      "id": "clm:9104c0ec5e06bf21e2ebc5d6f55aa7580b55fd945939dedb1898235b7d13903b",
+      "text": "SERVER-89233 records a historical sharded-cluster symptom where bucket counts approached document counts and numBucketsClosedDueToCachePressure increased. Its ticket lists affected versions 7.0.4 and 7.0.5 and fix versions 8.1.0-rc0 and 8.0.5. These ticket fields do not establish every affected or fixed release. (low confidence) (verified as of 2025-04-25)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-89233",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:47490b35533fd13122c260f5e3e3f1b33cc9be5e3381fe5c382a3d197df25d43"
+      ]
+    },
+    {
+      "id": "clm:9e77abf6de068931d7c95f472ee0f119813f056e482ceacd427ee3fbf1a52807",
+      "text": "A July 30, 2021 +N Consulting walkthrough independently demonstrated a timeseries section in collection statistics containing size, time, count, and memory-threshold closure counters. It is historical evidence that bucket closure reasons were observable; it does not validate the later dynamic cache-pressure formula. (low confidence)",
+      "source_url": "https://plusnconsulting.com/index.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:516490176d6f29f7d88206837b9519a394529744aacccabb97161604944b71ad"
+      ]
+    }
+  ],
+  "projection_sha256": "b302f456105470dcea67bc9ef324262585cdb76e2a53b58e5bd925592293f32e"
+}

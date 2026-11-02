@@ -258,3 +258,14 @@ def test_parse_facets_scrubs_operator_home_paths_from_fact_text_too():
     )
     facets = gen_concepts.parse_facets(text)
     assert facets[0]["facts"][0]["text"] == "See `~/.global-ai-hub/notes.md` for detail."
+
+
+def test_canonical_secondary_citation_home_paths_are_scrubbed_and_labeled():
+    unit = {"id": "clm:test", "text": "Supported statement.",
+            "source_url": "https://example.test/primary",
+            "also": ["file:///Users/someone/notes.md"],
+            "validation_status": "SUPPORTED", "evidence_ids": ["ev:test"]}
+    fact = gen_concepts.canonical_facets([unit])[0]["facts"][0]
+    assert fact["also"] == ["~/notes.md"]
+    assert fact["originValidationStatus"] == "SUPPORTED"
+    assert fact["validationStatus"] == "REDACTED-PROJECTION"
