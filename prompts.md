@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v81 - 2026-11-02
+
+> retry
+
+Scope: continue TASK-1003 and PR256 from accepted checks. Correct CodeQL-safe full identifier tokens and restore the CFE product overview. Preserve 234 concurrent output paths; finish in an isolated delivery worktree. Delta: prompt80 to81; memory0.22.94 to0.22.95.
+
 ## Prompt v80 - 2026-11-02
 
 > Implement all of the suggestions

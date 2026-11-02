@@ -1,7 +1,7 @@
 # Continuation
 
-Version: 1.0.1
-Delta: 1.0.0 to 1.0.1; independent audit and repeat-command format retry regression pass.
+Version: 1.0.2
+Delta: 1.0.1 to 1.0.2; retry fixes CodeQL-safe identifier scanning and restores the CFE overview.
 
 TASK-1003 implements research-gate/v4, claim-bound authored spans, literal checks,
 mandatory conflict review, validated unchanged judgment reuse and bounded repairs.
@@ -18,5 +18,8 @@ All regression sources are synthetic fixtures. No historical semantic acceptance
 research saturation or production model evaluation is claimed. Read attestations and
 model entailment judgments remain fallible. No paid research or paused services ran.
 
-Remaining: final focused checks, exact generated parity, push draft PR, required CI,
-merge and synchronize primary checkout. Preserve unrelated worktrees.
+Implementation is complete and independently reviewed. Runtime delivery is PR256.
+Consult its exact-head Actions and merge receipt before resuming delivery. The isolated
+retry checkout passes 188 tests and six subtests; generated tree matches committed bytes.
+Preserve 234 concurrent concept-pack output changes in the primary checkout.
+A source hash or model verdict remains insufficient to claim historical corpus-wide accuracy.

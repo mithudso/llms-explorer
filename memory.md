@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.95 - 2026-11-02
+
+- TASK-1003 retry preserves PR256 and canonical PR65. CodeQL-safe identifier scanning now keeps complete dotted tokens; all 188 focused tests and six subtests pass. CFE evidence guidance follows its overview, so generated tree matches committed bytes again.
+- Preserve 234 concurrent research output paths. Delivery proceeds from an isolated worktree; remaining: final exact-head CI, merge, selected installed parity and synchronize primary source files while preserving concurrent output work.
+- Delta: memory0.22.94 to0.22.95; prompt81.
+
+
 ## v0.22.94 - 2026-11-02
 
 - TASK-1003 implementation active. New v4 runs require all-claim source-bound evidence before paid review. Unchanged supported judgments may be reused only with unchanged exact claim and source snapshots. Existing v2/v3 runs remain historical contracts.

@@ -162,7 +162,7 @@ def check_spans(packet, claim, spans, root, *, authored=False):
     # Literal coverage is a necessary condition, never a proof of entailment.
     literals = re.findall(r'`([^`]+)`', claim['text'])
     literals += re.findall(r'\b[a-zA-Z_]\w*(?:[.$][a-zA-Z_]\w*)+\b', claim['text'])
-    literals += [token for token in re.findall(r'\b[a-z][A-Za-z0-9_]*\b', claim['text'])
+    literals += [token for token in re.findall(r'\b[a-z][A-Za-z0-9_.$]*\b', claim['text'])
                  if any(char.isupper() for char in token)]
     numbers = re.findall(r'(?<![\w])\d+(?:[.,]\d+)*(?:%|[a-zA-Z]+)?', claim['text'])
     combined = '\n'.join(quotes)
