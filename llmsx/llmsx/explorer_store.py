@@ -94,12 +94,18 @@ HTTPS_URL_RE = re.compile(r"^https://[A-Za-z0-9.-]+(?::\d+)?(?:/[A-Za-z0-9._~%+-
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_\-]{8,255}\Z")
 
 _QUEUE_RE = re.compile(
-    r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*`(?P<concept>[^`]+)`"
-    r"(?:\s*\|\s*Parent:\s*`(?P<parent>[^`]+)`)?"
-    r"(?:\s*\|\s*Mode:\s*`(?P<mode>[^`]+)`)?"
-    r"(?:\s*\|\s*CVS:\s*`(?P<cvs>[0-9]+(?:\.[0-9]+)?)`)?"
-    r"(?:\s*\|\s*Cluster:\s*`(?P<cluster>[^`]+)`)?", re.M)
+    r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*"
+    r"(?P<ticks>`+)(?!`)(?P<concept>.+?)(?<!`)(?P=ticks)(?!`)(?=\s*(?:\||$))(?P<tags>.*)$")
+_QUEUE_TAG_RE = re.compile(
+    r"\|\s*(?P<tag>[^:|]+):\s*(?P<ticks>`+)(?!`)"
+    r"(?P<value>.*?)(?<!`)(?P=ticks)(?!`)(?=\s*(?:\||$))")
 _CREDENTIAL_IN_URL = re.compile(r"(https?://)[^/@\s]+@")
+
+
+def _queue_unquote(value: str, ticks: str) -> str:
+    if len(ticks) > 1 and value.startswith(" ") and value.endswith(" "):
+        return value[1:-1]
+    return value.strip()
 
 
 def guide_text() -> str:
@@ -564,14 +570,20 @@ def load_queue(repo: Path) -> list[dict]:
     if not p.is_file():
         return []
     rows = []
-    for m in _QUEUE_RE.finditer(p.read_text(encoding="utf-8", errors="ignore")):
-        row = {"concept": m.group("concept").strip(),
-               "parent": (m.group("parent") or "").strip() or None,
-               "mode": (m.group("mode") or "").strip() or None,
-               "cluster": (m.group("cluster") or "").strip() or None,
+    for line in p.read_text(encoding="utf-8", errors="ignore").splitlines():
+        m = _QUEUE_RE.match(line)
+        if not m:
+            continue
+        tags = {tag["tag"].strip().casefold(): _queue_unquote(tag["value"], tag["ticks"])
+                for tag in _QUEUE_TAG_RE.finditer(m["tags"])}
+        row = {"concept": _queue_unquote(m["concept"], m["ticks"]),
+               "parent": tags.get("parent") or None,
+               "mode": tags.get("mode") or None,
+               "cluster": tags.get("cluster") or None,
                "done": m.group("done").lower() == "x"}
-        if m.group("cvs"):                      # only a scored line grows the key: the row shape is pinned
-            row["cvs"] = float(m.group("cvs"))
+        score = tags.get("cvs", "")
+        if re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", score):
+            row["cvs"] = float(score)
         rows.append(row)
     return rows
 
@@ -837,7 +849,7 @@ def mark_queue_done(repo: Path, concepts: list[str]) -> int:
     ticked = 0
     for i, line in enumerate(lines):
         m = _QUEUE_RE.match(line)
-        if m and m.group("done") == " " and m.group("concept").strip() in want:
+        if m and m.group("done") == " " and _queue_unquote(m["concept"], m["ticks"]) in want:
             lines[i] = line.replace("[ ]", "[x]", 1)
             ticked += 1
     if ticked:
