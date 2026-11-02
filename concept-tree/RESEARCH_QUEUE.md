@@ -4733,3 +4733,5 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Historical WiredTiger raw-compression block-sizing callback` | Parent: `Block Compression (snappy/zlib/zstd)` | Mode: `dr` | CVS: `2.95`
 - [x] Concept: `Pinned LangChain MongoDB self-query filter translation and typed metadata values` | Parent: `RAG Patterns` | Mode: `dr` | CVS: `3.65`
 - [ ] Concept: `Pinned AKO expired AtlasDatabaseUser reconciliation and unmanage lifecycle` | Parent: `Atlas RBAC` | Mode: `dr` | CVS: `3.90`
+- [ ] Concept: `Pinned Compass stage-preview cancellation before aggregate dispatch` | Parent: `MongoDB Compass` | Mode: `dr` | CVS: `3.60`
+- [ ] Concept: `Pinned Compass preview cap injection and collection-count guard` | Parent: `Compass aggregation preview sampling versus full pipeline execution` | Mode: `dr` | CVS: `3.15`
