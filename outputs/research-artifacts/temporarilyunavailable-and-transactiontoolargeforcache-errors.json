@@ -1,0 +1,202 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "TemporarilyUnavailable and TransactionTooLargeForCache errors",
+  "slug": "temporarilyunavailable-and-transactiontoolargeforcache-errors",
+  "canonical_concept_id": "concept:8750f2155e1f79c66f1ca1ec6226ac6ba8d1df9955115bdf74197ab5330ee2bf",
+  "canonical_artifact_sha256": "b2d3efda40545b734146d4c3194312853660978df53c41fe6c5d1833742bc7d6",
+  "claims": [
+    {
+      "id": "clm:f207885f5d3cb997b04b3cce1c70acadfa4a6ba7f28d1c01863a4f8d7081abe6",
+      "text": "A single insert that generates many index entries can create enough dirty transaction state to enter repeated eviction rollbacks. SERVER-61909 reproduces this with a text index and a 256 MB cache; the problem is not restricted to explicit multi-document transactions. (high confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-61909",
+      "also": [
+        "https://jira.mongodb.org/browse/TOOLS-3223"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:36cc217cf12092733ce71075679cf9034ca2f641074c39e8996c068bfa831a47"
+      ]
+    },
+    {
+      "id": "clm:267b7c4a841bcc57822d94daefd81283cb516568df5e9d000c08e73aa5561daa",
+      "text": "transactionTooLargeForCacheThreshold defaults to 0.75 of dirty cache. With the documented 20% dirty-cache budget, the illustrative retry boundary is 15% of total cache. It applies after a cache-pressure rollback, not as an unconditional transaction-size cap. (high confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+      "also": [
+        "https://jira.mongodb.org/browse/TOOLS-3223"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7e282823ab03a6c0efc010fbe7e1bf007936fd555d5ff28fe612fcbb2f438285"
+      ]
+    },
+    {
+      "id": "clm:0ef735f59d30c92c6ac635c7e24dbbaa628fefaf33193fd420948c872aba9e52",
+      "text": "TemporarilyUnavailable can signal repeated storage-engine rollbacks under cache pressure. The failed operation may have caused the pressure or merely suffered from it; the error does not identify which. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/parameters.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b260b81d23643d26172c50158561cb3af7aa1efd7d033dc9f938743af05d2e78"
+      ]
+    },
+    {
+      "id": "clm:ce136961572f1f1339ca46d753c1bd851ec1cebeacf5ef1433f22e7c2cdf30ff",
+      "text": "Outside multi-document transactions, MongoDB bounds internal TemporarilyUnavailable retries with temporarilyUnavailableMaxRetries and increases delay using temporarilyUnavailableBackoffBaseMs. Exhausted retries expose the error to the client. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:32651c12d09485232790933026c861cb1914592173471660ecede605cceaf427",
+      "text": "With the parameter reference's documented 20% dirty-cache limit, multiplying by the 0.75 retry threshold gives 15% of total cache. That conditional calculation does not mean transactions always fail upon occupying 15% of cache. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+      "also": [
+        "https://jira.mongodb.org/browse/TOOLS-3223"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7e282823ab03a6c0efc010fbe7e1bf007936fd555d5ff28fe612fcbb2f438285"
+      ]
+    },
+    {
+      "id": "clm:d18cda00d4ff9782651169010186ab917567e9fdd0b01474a3b7bea7f5eeb1bf",
+      "text": "SERVER-84007 describes a heuristic blind spot: rollback at the update-bytes limit may miss the dirty-pages test and yield WriteConflict or TemporarilyUnavailable, allowing futile retries. The issue was unresolved in its June 12, 2026 update. (low confidence) (verified as of 2026-06-12)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-84007",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:5cd0e053d2c573269cfa67772ffbb09d6092bfb41e264e6b0f91d0f22946f877",
+        "ev:b191c59cacb1e157973de93ceaa6cc5b434a8f892438e92d4af0c5c9cbfcfe4a",
+        "ev:d3cfa6fa8a15850eb39a4dc59850998550d40de6cd7a8ddd68bcd7c37d9327dc"
+      ]
+    },
+    {
+      "id": "clm:43c3a6826db30c6a0fad8f882a066d752c50426dde208a56a1c443e185f29e83",
+      "text": "temporarilyUnavailableErrors appears in slow-query logging and FTDC, providing evidence of internally encountered cache-pressure errors even when retries eventually succeed. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:b8d3119c3d95c9ab86a58e3a758e2b973c3eb255bd46cb4c1bfd1379b4790e86",
+      "text": "MongoDB assigns error code 365 to TemporarilyUnavailable and 388 to TransactionTooLargeForCache. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/base/error_codes.yml",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:717d5f35ada24345dc9ce9b8c7a327e241d0e15caeaad48b200c09c80f23da83",
+        "ev:97a0e0d3620a8ae2f66cacf0c40839740710b4afde7d04f4390cc6736aa3d8ed"
+      ]
+    },
+    {
+      "id": "clm:420b9074a8930b7d5b95d6d0874b208006fafcecc85ef937541823526553aa2a",
+      "text": "In the ordinary write-conflict retry path, operations inside multi-document transactions return WriteConflict rather than exposing TemporarilyUnavailable; this describes that handler, not every possible transaction-abort mechanism. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/parameters.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6d9bd906305ec3a0bf4d781283cc56cd06294f23f83f27a4cca511823eed8ba8"
+      ]
+    },
+    {
+      "id": "clm:3a33401c8cd6e2fe55fb5fd86eb6107ebbe9da25fb9169ff38c50ec8efe52922",
+      "text": "The parameter reference lists temporarilyUnavailableMaxRetries with default 10; the storage guide describes bounded retries rather than the indefinite WriteConflict retry loop. (high confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:c57f02ea384842f870af9c8d51a0afb890eba880c4083aa7fc3116b8d3e87343",
+        "ev:f41fdec93c97c6bcb556342fa53158b2cded62b7bceede43b804ca4a11397136"
+      ]
+    },
+    {
+      "id": "clm:89862dd0a3b051613a0c4ec52f454bd62ab27cfdaf824567b1d4096a9a45892a",
+      "text": "For cache-error diagnosis, correlate the temporarilyUnavailableErrors counter in slow logs and FTDC with cache usage, dirty pages and eviction activity. Percona PMM exposes these cache metrics; this correlation is diagnostic context rather than proof of the failing transaction's size. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md",
+        "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:98796dca36028b7bbd2952ea929b68074be487a56a044f4d0739a2e6189fbb47",
+      "text": "TransactionTooLargeForCache identifies a cache-pressure rollback that a heuristic judges unlikely to succeed even without concurrent operations; repeating the unchanged transaction is therefore unlikely to help. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/transactions-in-applications.md",
+        "https://jira.mongodb.org/browse/TOOLS-3223"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:609883aed79198eac2ed1ff3b8fa10dc27c406b53e984ff277a96d1de12b11a5",
+        "ev:bfecc6845aab5c9f0b58af391554064879401417b9a55c38bed5997fe9f39f4e"
+      ]
+    },
+    {
+      "id": "clm:b55775dfbc2a0ed78385051c2fc36729fd9ad402dab0d8a77ffff6827a4ede8f",
+      "text": "The documented default transactionTooLargeForCacheThreshold is 0.75 of dirty cache, evaluated after a cache-pressure rollback. This is a retry heuristic, not an unconditional hard cap on transaction size; setting it to 1.0 disables the check. (high confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+      "also": [
+        "https://jira.mongodb.org/browse/TOOLS-3223"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7e282823ab03a6c0efc010fbe7e1bf007936fd555d5ff28fe612fcbb2f438285"
+      ]
+    },
+    {
+      "id": "clm:f184df3f8f257ec18035dea3772e0c22b672cc045faabd15405c571575684e1c",
+      "text": "The application guide documents TransactionTooLargeForCache as new in MongoDB 6.2 and says the server does not retry it. The storage README instead says prior to 6.3; use release-specific evidence before asserting the exact first version. (medium confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/transactions-in-applications.md",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md",
+        "https://www.mongodb.com/docs/manual/reference/parameters.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:bfecc6845aab5c9f0b58af391554064879401417b9a55c38bed5997fe9f39f4e",
+        "ev:d626f1c0065b9d1aa6189d938ef9577fb0df171dba8be732a8891cb037d9eb3d"
+      ]
+    },
+    {
+      "id": "clm:efa5024bfb6f3df448b91351120b06939221efc694a36f5e591f2588df9e12e8",
+      "text": "Setting transactionTooLargeForCacheThreshold to 1.0 disables this heuristic; it does not create more cache capacity or guarantee that an oversized transaction will complete. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/parameters.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:a5c5a94205f6f64712c37fc03b1dbd58efc410c5c12784bde37e3e69a952af55"
+      ]
+    },
+    {
+      "id": "clm:6b0c335750b420113990d58957ee1fa714728aeeae2c34ae31bfb23be8a5f9ea",
+      "text": "Uncommitted changes consume WiredTiger cache. Abort abandoned or errored transactions promptly; splitting oversized work into smaller transactions can reduce cache pressure, provided the application accepts the smaller atomic units. (medium confidence)",
+      "source_url": "https://www.alibabacloud.com/help/en/mongodb/use-cases/transactions-and-read-write-concern",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:39b9e39bf3255f3784d9c27bcccee9abf890502086d1f278109b69cceaeea8a6",
+        "ev:faad7e9d9dfa804a43413198980940dd9c753a76a6d68519413c7cde6be07b21"
+      ]
+    }
+  ],
+  "projection_sha256": "a32ad5d9e96a7d55591ba21cc82a19a6876ee61ff11099cf1498ac71d6670250"
+}

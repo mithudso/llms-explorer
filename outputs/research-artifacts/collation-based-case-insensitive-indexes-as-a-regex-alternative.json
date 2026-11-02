@@ -1,0 +1,157 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Collation-based case-insensitive indexes as a $regex alternative",
+  "slug": "collation-based-case-insensitive-indexes-as-a-regex-alternative",
+  "canonical_concept_id": "concept:46a122af098546dc0854fffdeeb843d1abf41ebfdce49051a30958aa8c5cd6a2",
+  "canonical_artifact_sha256": "4fcc319aa16ba347ba1fbed890be7f87bef41043362699256043e20a78f3d8b6",
+  "claims": [
+    {
+      "id": "clm:b9e024b9ac29bed4b82d62ffb6eaac700fd241fdaab8cd7ae4676717d5cdd5d8",
+      "text": "The $regex query predicate is not collation-aware, so a case-insensitive index does not accelerate it through case-insensitive collation keys; adding collation to a regex query does not turn it into an indexed collated-equality lookup. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-case-insensitive.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/operator/query/regex.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:c5a75ccde3bf8c510171620af0e879bfc5ebffa738cd63e647ce011847ed4a5b",
+      "text": "Collated equality is a scoped alternative for whole-value matching, not a general replacement for prefix, substring, or arbitrary regex patterns. Separately, case-sensitive regex patterns beginning with a simple literal prefix can support index range optimization; that documented optimization should not be assumed for /prefix/i. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-case-insensitive.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/operator/query/regex.md",
+        "https://www.codevra.org/mongodb/mongodb-collation-indexes"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:299fecff7c6117f74c6f698d5ecff555ec07059d7d11f8b5ec053cdcd45bff8f",
+        "ev:74f5033c5f53f76b20ba24d56a59faccfd77dee8ab338f790a64812b36cdbd03"
+      ]
+    },
+    {
+      "id": "clm:a46537382b3fd57513df2a444f6dd85bcb03f8251f375c6b1f65fe46bf817368",
+      "text": "Case insensitivity is a comparison policy, not a blanket equivalence rule for every script or accent. In Codevra's English strength-two example, Ada and ada compare equally while \u00c1da remains distinct; test the application's locale and representative values before replacing regex. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-case-insensitive.md",
+      "also": [
+        "https://www.codevra.org/mongodb/mongodb-collation-indexes"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:dbf81f9c057fffc93b72096de41fb613857669082db95cc6bd72b1c21253ef85",
+      "text": "For whole-value case-insensitive equality, create an index such as {name:1} with collation {locale:'en',strength:2}, and run find({name:'ada'}).collation({locale:'en',strength:2}); this is an alternative when regex was being used only to express case-insensitive equality. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-case-insensitive.md",
+      "also": [
+        "https://www.codevra.org/mongodb/mongodb-collation-indexes"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:299fecff7c6117f74c6f698d5ecff555ec07059d7d11f8b5ec053cdcd45bff8f",
+        "ev:518cf00b1fbb0386a2ff4f5de0e57883e79f92bbe1f29a3ffa4d729496e60b90"
+      ]
+    },
+    {
+      "id": "clm:d979b25861c8e157dae6131244f72b9a8c8d041a9c772a5ef6b2d4526b0183eb",
+      "text": "The incident's published explain results show why IXSCAN alone is insufficient: the collation-index plan examined 1,902,678 documents for one result, while the hinted ordinary-index plan examined the same number of keys but fetched one document. Inspect indexName, bounds, totalKeysExamined, totalDocsExamined and nReturned when evaluating the rewrite. (medium confidence)",
+      "source_url": "https://www.mongodb.com/community/forums/t/collation-index-best-practice/2189",
+      "also": [
+        "https://github.com/parse-community/parse-server/issues/6559"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:5cc8732b9e2cc33ee0240d9cbacbff2013cdf69c22018726eb4b43ba42ac07af"
+      ]
+    },
+    {
+      "id": "clm:6d6e54337c9535d2b4d3289d076f1d1b6cb35abb09d3eea18f2be0c1e14ec0ed",
+      "text": "When collated and binary indexes coexist and a regex query performs poorly, inspect explain('allPlansExecution'), index bounds, keys examined, documents examined, and returned results. A measured hint to the binary index helped the historical Parse incident, but that workaround does not establish a universal rule for current query planners. (medium confidence)",
+      "source_url": "https://github.com/parse-community/parse-server/issues/6559",
+      "also": [
+        "https://www.mongodb.com/community/forums/t/collation-index-best-practice/2189"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:5cc8732b9e2cc33ee0240d9cbacbff2013cdf69c22018726eb4b43ba42ac07af",
+        "ev:8a3087d55b6d98f21e864488bee02813cee107c8293f13d7307f2f141535aea4"
+      ]
+    },
+    {
+      "id": "clm:c26db3a6d355f35c6094309cc5fc4d7f9adfd96d5f2da4e5af3d9de8b1691b7e",
+      "text": "For a whole-value lookup whose required equivalence agrees with the chosen locale, use equality with a matching case-insensitive collation instead of encoding equality as a case-insensitive regex. MongoDB documents createIndex({type:1},{collation:{locale:'en',strength:2}}) and find({type:'apple'}).collation({locale:'en',strength:2}) matching apple, Apple, and APPLE through that index. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-case-insensitive.md",
+      "also": [
+        "https://www.mongodb.com/community/forums/t/collation-index-best-practice/2189"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:518cf00b1fbb0386a2ff4f5de0e57883e79f92bbe1f29a3ffa4d729496e60b90",
+        "ev:d79bb82d7501ab48aabb384c63388f8abdd74ff95e6cd2820a1f8220f0445e7c"
+      ]
+    },
+    {
+      "id": "clm:7dc6be0012aa16504fcd2f0445883d4ba32723b8cf051dc5b3a7317cb683a74a",
+      "text": "String comparisons must use the index's matching collation to benefit from that index. An index's collation alone does not change query comparison rules; collection defaults can supply the collation to both queries and indexes. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-case-insensitive.md",
+      "also": [
+        "https://www.codevra.org/mongodb/mongodb-collation-indexes"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:518cf00b1fbb0386a2ff4f5de0e57883e79f92bbe1f29a3ffa4d729496e60b90",
+        "ev:c96251b72d8c6331ad52f0d22955bb8b7aad4c8e5d8aa8f95f879963ac24752f"
+      ]
+    },
+    {
+      "id": "clm:b04658c2123bba765a6cdad0ee278b56676592aeaebd72e56b07f08e6fb36f3b",
+      "text": "In an April 2020 Parse Server 4.1.0 / MongoDB 3.6.12 incident, operators reported a regex performance regression after adding case-insensitive indexes; hinting the ordinary index restored their prior behavior. This is historical workload evidence, not a claim that current MongoDB releases always select the wrong index. (medium confidence)",
+      "source_url": "https://github.com/parse-community/parse-server/issues/6559",
+      "also": [
+        "https://www.mongodb.com/community/forums/t/collation-index-best-practice/2189"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8a3087d55b6d98f21e864488bee02813cee107c8293f13d7307f2f141535aea4"
+      ]
+    },
+    {
+      "id": "clm:b38990ea6d53991b73e06b9ff2810c42b4dc2b4f2a1b39a7b92dff381c203eb5",
+      "text": "An operation must use the same collation as the index to use that index for the relevant string comparison. Merely creating a case-insensitive index does not make an otherwise binary equality query case-insensitive. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-case-insensitive.md",
+      "also": [
+        "https://docs.spring.io/spring-data/mongodb/reference/mongodb/collation.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:518cf00b1fbb0386a2ff4f5de0e57883e79f92bbe1f29a3ffa4d729496e60b90"
+      ]
+    },
+    {
+      "id": "clm:1c8b8eb63a0a0e1c8f0f786cb7d44f00c3bbf7645214ec76df32adcb3ee2a6b6",
+      "text": "Queries and subsequently created indexes inherit a collection's default collation unless they explicitly specify a different collation. With no applicable collection default, a query must explicitly supply the matching non-simple collation to benefit from that index's string comparison rules. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-case-insensitive.md",
+      "also": [
+        "https://docs.spring.io/spring-data/mongodb/reference/mongodb/collation.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:c96251b72d8c6331ad52f0d22955bb8b7aad4c8e5d8aa8f95f879963ac24752f"
+      ]
+    },
+    {
+      "id": "clm:db4e29a70eb1759342abce6baba7f89a78001e96f599fd8f6f7bd985d0fc485e",
+      "text": "A historical Parse Server 4.1.0 incident on MongoDB 3.6.12 reported a regex query selecting a collated index and slowing down. The accompanying MongoDB forum explain shows IXSCAN plus FETCH with 1,902,678 keys and documents examined for one returned document. This demonstrates that seeing IXSCAN does not itself establish an efficient selective lookup; these are historical observations, not a claim about current server versions. (medium confidence)",
+      "source_url": "https://github.com/parse-community/parse-server/issues/6559",
+      "also": [
+        "https://www.mongodb.com/community/forums/t/collation-index-best-practice/2189"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:5cc8732b9e2cc33ee0240d9cbacbff2013cdf69c22018726eb4b43ba42ac07af",
+        "ev:8a3087d55b6d98f21e864488bee02813cee107c8293f13d7307f2f141535aea4"
+      ]
+    }
+  ],
+  "projection_sha256": "df4c4e86768f21703524c81b86ad59c0a7eaed3810965ded5ef9d1d741725d59"
+}

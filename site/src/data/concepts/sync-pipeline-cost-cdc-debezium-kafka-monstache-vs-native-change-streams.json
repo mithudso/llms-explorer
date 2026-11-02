@@ -1,0 +1,196 @@
+{
+  "slug": "sync-pipeline-cost-cdc-debezium-kafka-monstache-vs-native-change-streams",
+  "concept": "Sync pipeline cost: CDC (Debezium, Kafka, Monstache) vs native change streams",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Sync pipeline cost: CDC (Debezium, Kafka, Monstache) vs native change streams. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "In Kafka Connect deployment, Debezium publishes events to Kafka topics that multiple clients can consume independently, and distributed Kafka Connect provides connector fault tolerance. A direct native consumer must be compared against those required capabilities when estimating infrastructure and maintenance cost; removing components alone does not establish equivalent service. (medium confidence)",
+          "source": "https://github.com/debezium/debezium/blob/main/debezium-connector-mongodb/README.md",
+          "note": null,
+          "claimId": "clm:cbe891ae1a4f48c09967d052a6b5764569336ef96db83c178443f9436117b5a1",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "A change stream opened through mongos creates streams on every shard, even when it targets a particular shard-key range; mongos sorts and filters results. Inference: a shard key that targets ordinary application queries does not automatically eliminate cluster-wide CDC fan-out. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/changestreams/",
+          "note": null,
+          "claimId": "clm:7c499d91ea302e0821871ba059281e3128c4dd20e474c440f6b3c04cd8741992",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Full-document lookup is a distinct work and correctness choice: updateLookup reads the document from the collection, and rapid subsequent updates can make the returned document newer than the triggering event. Debezium likewise warns that updateDescription and after can disagree. Prefer delta capture when the downstream consumer can correctly apply deltas; benchmark the extra work when full documents are required. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/changestreams/",
+          "note": null,
+          "claimId": "clm:42e79342f07070bc58ffbe15c17d984e5c5e30933410b66648fd4e43cd409f1d",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Monstache direct-read concurrency can stress MongoDB; increasing collection splitting increases connections and process memory. Its stateful direct-read option records completed collections and skips them on subsequent restarts, avoiding repeated full copies unless that state is cleared. (low confidence)",
+          "source": "https://rwynn.github.io/monstache-site/config/",
+          "note": null,
+          "claimId": "clm:1ab284b6344853efb021b74f96977c3eac6ef30b38577fdfde22ab8b72b3c7a1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7aa6bd3d2f4c5829b25ff5b304c0c4ed530d0c4aa16709b6c0574639441c0f9d",
+            "ev:b36099d1a14c7ea414ab5991a9dad4af45a5a8e6c6450ba8c14e1da9b1d2c87e",
+            "ev:b9814cb9ed32d284f9849f84304077de35ea6b79c923771cca26348fa00bcd7a"
+          ]
+        },
+        {
+          "text": "Resume requires retained oplog history. Debezium documents ChangeStreamHistoryLost when the saved position expires and describes recovery paths including a new snapshot. Inference: budget outage tolerance, retention and possible recopy work for both connector and native designs. (high confidence)",
+          "source": "https://debezium.io/documentation/reference/stable/connectors/mongodb.html",
+          "note": null,
+          "claimId": "clm:7a25be3753ab0108c6826c2febc8b0058995d0e5376863e2bf3b4d7405b9d289",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:597f1cec0142e1cc45108f1c551ea73eee609ef26349f29bd6a2d05e652e310f",
+            "ev:609d805c46fe9346230f967f9a7efc331c0294f7557e7f52558c2e891823115f",
+            "ev:e9de9d78d2d1d00246e85e8b49be5de437bc502b9fa01c6de9b812e2ec412566"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Debezium documents loss of resumability if the required oplog position expires: recovery depends on snapshot.mode, and initial mode can fail when an old offset remains. Cost planning should include oplog retention and potential re-snapshot reads, network transfer, and downstream writes; durable Kafka history does not restore events that never reached Kafka. (medium confidence)",
+          "source": "https://debezium.io/documentation/reference/stable/connectors/mongodb.html",
+          "note": null,
+          "claimId": "clm:fc1622d72e863716533629be0341f4daa76bb11a4d72c8c9a409ebe5bd121c86",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7e4afaf815579cbf8259dd64c781f7e51c0320984c4a1d7929ee93e510b57b75",
+            "ev:8797580e8185138ad9b0c7722c047d25bd828866346665e80978934d10e0f4cb",
+            "ev:cf4562401f71e2a1322fc9aaa5ec4563c6fa805e45e3e3fda47d6306e9dc60a3"
+          ]
+        },
+        {
+          "text": "MongoDB warns that change streams cannot use indexes and that many specifically targeted streams can affect server performance. Each stream also holds a getMore connection; exceeding the connection-pool capacity can increase notification latency. A native-consumer design should therefore measure watcher count and pool capacity as cost and latency inputs. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/administration/change-streams-production-recommendations.md",
+          "note": null,
+          "claimId": "clm:fba0e76d1b17491acebdf723324dc694473a68194bed0b9c4da1b700d28d9654",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Monstache issue 374 records a 2020 report on Monstache 5.0.11 and MongoDB 4.0 of tailing stopping, BSONObjectTooLarge in mongos logs, and later 'Resume point not in the oplog'. The thread discusses batch sizing and subsequent clustered-worker problems. Treat it as historical failure evidence for recovery tests, not proof that a current Monstache version has the same defect. (low confidence) (verified as of 2020-05-22)",
+          "source": "https://github.com/rwynn/monstache/issues/374",
+          "note": null,
+          "claimId": "clm:f8989d64ddffa9c4c3d3106fb843816a3fce10278e5197ee697b4608a555dc37",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1a52eeb3b5f9de197e17a3c9e2b3b1e55b2ac0ae83d74981049e7663876323fe",
+            "ev:3f5d51cada3a33cfd2e276961888ac1ff01c5c6365380ba4318cf4aff8b5688a",
+            "ev:be6131a9fcb13b8f03f776afd5668be1b5bf9df8e19df01be1350fcf403ce33c"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Kafka is optional for Debezium: its MongoDB connector can be embedded without Kafka or Kafka Connect, with progress persistence owned by the application. Kafka infrastructure cost must therefore be attributed to the chosen deployment, rather than assumed inherent to Debezium. (high confidence)",
+          "source": "https://github.com/debezium/debezium/blob/main/debezium-connector-mongodb/README.md",
+          "note": null,
+          "claimId": "clm:6398ba71a33aeba874d12ad6fa74c6d8bef1a2ddaa12e90748fc0f0fdd984a09",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:33aa6d9608102373cc1f3d858a460619d276beae5567f02d1fdfbfbc37d91e82"
+          ]
+        },
+        {
+          "text": "Estuary's June 4, 2026 engineering write-up reports that batch prefetching and faster BSON-to-JSON processing increased its connector throughput from 34 to 57 MB/s with approximately 20 KB documents, and from approximately 6 to 17.5 MB/s with 250-byte documents. These are vendor-reported before/after results for its connector, not Debezium-versus-native or dollar-cost benchmarks. (low confidence) (verified as of 2026-06-04)",
+          "source": "https://estuary.dev/blog/mongodb-capture-optimization/",
+          "note": null,
+          "claimId": "clm:8d777d08306b3c46eaf85020a85d5391d0c6804505778568531a5d3b9e5b1c76",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:482d908d7aeaa8bf14894549dab4d1fdcdf1dbe1c697f20bd62a0e52675ccf03",
+            "ev:51757ce7e6ae4d13c56d0b9fdc4cb1f354c0c092c2acb454b9d4f13d14343e1f",
+            "ev:5f7c23ae13cb945bbd382bb2e3634c03efaed6e438f65d7eef57ac94229c7738",
+            "ev:68124705377884e7b1f3bbd5b6289fd5858faaebd77a2cc6b6ad3ebcf3fe41ae"
+          ]
+        },
+        {
+          "text": "A full-document lookup need not represent the document at the triggering update: later updates can intervene. A deletion or shard-key change can also leave the lookup without a document. Consumers must accommodate these semantics when choosing cheaper delta events versus full-document synchronization. (high confidence)",
+          "source": "https://debezium.io/documentation/reference/stable/connectors/mongodb.html",
+          "note": null,
+          "claimId": "clm:1d149f6eedb2f0de4e1211dea7017d8a733256dfd97a97befa4fb995ed3ebcd5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:41afb000b678ba171724303d28724bd241bca241c081b6b39a173c79e855d523",
+            "ev:71df467fdfd7ddcf7dca977f951bc874f0406d832f784cd06562b183c7078244",
+            "ev:815d3c7806938c4b15e9ec5a4c769f91cdc8b7aa03712a1310f3824aad240753"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Debezium's MongoDB connector delegates oplog capture and decoding to MongoDB change streams; Monstache's version-6 README also describes change streams as its default. Comparing these tools with a native consumer therefore compares additional pipeline machinery around a shared capture API. (high confidence)",
+          "source": "https://debezium.io/documentation/reference/stable/connectors/mongodb.html",
+          "note": null,
+          "claimId": "clm:5feb04f1219446a107fb29d1a44bcada83c502dd7051547cfbe9c70509a63974",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9decf3f694632b2feb4e97c07c2ff2e185e7367d47849f48aa2e70b2969862a9",
+            "ev:d33a7075e22dc0793c546164d46bcc10ed5e9aa91251a9754b5433e9f8037062"
+          ]
+        },
+        {
+          "text": "Debezium's March 8, 2023 release post explains that moving MongoDB include/exclude filtering to the server avoids sending discarded events across the network and reduces connector CPU work. This is historical evidence for measuring filter placement, not a guarantee of a particular saving on a current deployment. (low confidence)",
+          "source": "https://debezium.io/blog/2023/03/08/debezium-2-2-alpha3-released/",
+          "note": null,
+          "claimId": "clm:59fd458bbfe6f808e1f0a650a2fb3c718b47756954e0f0a2d8ccd7e224416815",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:76107322ba313ed9ae433288f554beb9496b6a372d63fe10e8e64124cab58aa5",
+            "ev:d6af37a167996ba890a045a6a220012d9057beb1a6237b8a33364f2051b649b5"
+          ]
+        },
+        {
+          "text": "A Kafka Connect deployment adds a separate Connect service beside Kafka brokers and can route events through sink connectors. Debezium Engine instead embeds connectors in a Java application without requiring Kafka or Kafka Connect clusters; broker deployment is therefore optional for Debezium. (low confidence)",
+          "source": "https://debezium.io/documentation/reference/stable/architecture.html",
+          "note": null,
+          "claimId": "clm:b3cafc2fd5feeb7cd268a6dfdca8b5b54eb59384e597f3cf8d62867bed51139e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:18aa146e777f5b010437b7147a3fbf3270c957761eb79e431bbc70edd50cf8a0",
+            "ev:e1f675d0ffa4eba92b01fbd8005870b604312e2b7ab5d58636f852d9a20ed395"
+          ]
+        },
+        {
+          "text": "Full-document capture can require an additional document lookup. Debezium supports update events without full documents, while MongoDB advises limiting lookup work. Inference: compare delta events with full-document events before attributing source CPU or network cost solely to the connector. (high confidence)",
+          "source": "https://debezium.io/documentation/reference/stable/connectors/mongodb.html",
+          "note": null,
+          "claimId": "clm:1e5837d954c429fc0606ab70d4e6eb3c2ef3335f65cbe0d614c8a12a91156902",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1d8014cbcd246ac88034fcad2bc63b35d4b8e1679a095290e39fa74164c1576a",
+            "ev:34217e43c76f53749caf427a625b8de98bafb5b59e3f36cb98978d5721482e0d",
+            "ev:95f0e4757b6fc1d562a742fbcf93c2989778ea63d3f305c6be2613198a6892f4"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "5b21f44fc671b1448d7f97646baa6cb1d255a6299cc15c462e5009bab2be7063",
+  "canonicalConceptId": "concept:db07c55d2c0eb9ab28511bd76c6f98fb4b5908e3ba9edca88a70996b0f0e0455"
+}

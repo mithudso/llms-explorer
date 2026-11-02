@@ -1,0 +1,132 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Count consistency under concurrent writes",
+  "slug": "count-consistency-under-concurrent-writes",
+  "canonical_concept_id": "concept:8dc6c8cda06e368690dd10f5b49602f38905c864502f5186f8d48e54859d6739",
+  "canonical_artifact_sha256": "ee2c2ab79c180dfefaff0e200fe6c75d83041f05a17aae4dd35e70dda012b4f7",
+  "claims": [
+    {
+      "id": "clm:00522a18de546b055b36c93f7eaf3eec70ac3bc11c8764da99b899c8ce7e5fd3",
+      "text": "MongoDB silently ignores configured read concern for collections in the local database. Consequently adding readConcern: snapshot to a count or aggregate over local.oplog.rs does not provide the application-collection snapshot guarantee; this exception matters directly when interpreting oplog document counts during writes. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/read-concern/",
+      "also": [
+        "https://www.alibabacloud.com/help/en/mongodb/use-cases/transactions-and-read-write-concern"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8d331efd884c496ea23626247de405d3a64fd378d2e209eccd966ea3d526c64c",
+        "ev:a0798a6777e86aea42f67af4923f7c3c56f6064a98ac3bdf3cd044f3ecee4181"
+      ]
+    },
+    {
+      "id": "clm:55b45c95dcc61949b6462f5dbb133d87e27787d8aa88d30f83f1826649492f25",
+      "text": "Counts taken from two actively changing copies at different applied timestamps can differ temporarily without proving data loss. Tencent's consistency-verification documentation explicitly describes this effect during ongoing writes; the methodological implication is to align the comparison point before interpreting a count mismatch as a correctness failure. (medium confidence)",
+      "source_url": "https://indonesia.tencentcloud.com/ind/document/product/571/61537",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:19218b6c612be3a124ea18453924bcd4466ff347f5f3b7664a9d99289161fa09",
+      "text": "Snapshot-based counting can fail if the needed history is no longer available. MongoDB bounds snapshot reads by minSnapshotHistoryWindowInSeconds, rejects atClusterTime values older than retained history, and warns that long snapshot reads may terminate. (low confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot/",
+      "also": [],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:594f4ad95ad2045af9823d17f2f591297ae13436135a5408995909a6e4f405bb",
+      "text": "MongoDB countDocuments counts matching documents through a $match/$group aggregation rather than collection metadata. Its documented accuracy after an unclean shutdown or with orphaned sharded documents must be distinguished from a guarantee of a point-in-time read under concurrent writes. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/read-isolation-consistency-recency.md",
+        "https://indonesia.tencentcloud.com/ind/document/product/571/61537"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:2bf1ce0fe831d5ae5bcbca11a968c4dc8b1b507690194b3f0aa7181888225c6b",
+      "text": "An accurate document-counting method and a fixed point-in-time read are separate properties. MongoDB's replication README states that a non-snapshot read can continue on a newer snapshot after yielding, potentially skipping updated documents or observing some later updates. Therefore countDocuments() alone does not establish a fixed point-in-time count under concurrent writes. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments/",
+        "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot/",
+        "https://www.mongodb.com/docs/manual/core/read-isolation-consistency-recency.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:e87cb714bb68ac239e9ef4faffe3c177d628bf9d899d126e494c399d9dcd6051",
+      "text": "For ordinary application collections, a count and a related read that must describe the same state should share a snapshot transaction, or explicitly use the same eligible snapshot timestamp. This is a methodological inference from snapshot semantics: independent reads without a shared timestamp can describe different database states. Set read concern at transaction level; snapshot transactions require majority write concern at commit for the documented majority-committed guarantees. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot/",
+      "also": [
+        "https://www.alibabacloud.com/help/en/mongodb/use-cases/transactions-and-read-write-concern",
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments/",
+        "https://www.mongodb.com/docs/manual/core/read-isolation-consistency-recency.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:c24755c2087e9bf2acb07e72672f535867bcc5f08bb81f9de54eebf66caa64d7",
+      "text": "MongoDB documents snapshot read concern for aggregate and find outside multi-document transactions starting in version 5.0. An explicit aggregate count can therefore use snapshot read concern on an eligible application collection without requiring a multi-statement transaction; this does not mean the legacy count command supports snapshot read concern. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot/",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:17dbac058bc2d089f611d5ac58fecef86200cde8098a2bbb2cbce8b3e4b173e3",
+        "ev:33cb912d1db4824233aa4735c7e5f3b8cc30b67d70657e700ae5806ad403ddd2"
+      ]
+    },
+    {
+      "id": "clm:3afd0d2fe141e72e0f81c799433395e526eff33663dfb53988dcfdfaf3820710",
+      "text": "Replacing metadata counts with document counts has an execution cost. An empty-filter countDocuments() performs a collection scan unless an appropriate index strategy is supplied; MongoDB illustrates hinting the _id index. Tencent likewise warns that document-count comparison can affect performance. An index improves the scan strategy but does not itself supply snapshot isolation. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments/",
+      "also": [
+        "https://indonesia.tencentcloud.com/ind/document/product/571/61537",
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1d26dffcd377cfabf0d5f2b0129891d3c718da8208f801e5a1faeca2f9ae8695",
+        "ev:7fd4e030740e8b1ea5b945adab1d6122cd0cad51cb9fab182c57e1494ba80903",
+        "ev:af904f1c2824864956f134005ca43f2b2baad5c2c29f523ba64a8cbdd7d0f105"
+      ]
+    },
+    {
+      "id": "clm:06cc11fc94a4e1612344161b01624539487d2811c2dd70c788214d085131b796",
+      "text": "For a count that represents one point in time, use a supported aggregation with snapshot read concern, or countDocuments inside a transaction configured with snapshot read concern and committed with majority write concern. MongoDB documents countDocuments as transaction-capable; snapshot supplies the isolation guarantee. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:644e2d3a6255fbb3bc9b3a318fa7ef395c5d13510a46d892ffe87ecebf370b71",
+        "ev:c489428594ab73d5d5806f00c8767407144bef6bde891db2a6401adb3cfe22d9"
+      ]
+    },
+    {
+      "id": "clm:919aedc886d2f1eaf8c82ae8366a337380c35cde1d41055c17d7eb2fdc74dd6a",
+      "text": "Majority read concern addresses majority-committed visibility; it should not be treated as synonymous with a shared snapshot for several count operations. Alibaba Cloud distinguishes majority-acknowledged reads from snapshot reads associated with a point in time, consistent with MongoDB documentation. (high confidence)",
+      "source_url": "https://www.alibabacloud.com/help/en/mongodb/use-cases/transactions-and-read-write-concern",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/read-concern-snapshot/",
+        "https://www.mongodb.com/docs/manual/core/read-isolation-consistency-recency.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2e7b1952483417580d5bb32d5bb8da6e1c27c713f2a733e5fca2afe25a076e75",
+        "ev:ed90bb7ac6254b14ae6207b424d309fd475456b430e364fe48e01de26d8b60e7"
+      ]
+    }
+  ],
+  "projection_sha256": "0856d3ab8093ffb7ff382b1d58794d6e66e8636ae37a39058708e80c5dd1aa0f"
+}
