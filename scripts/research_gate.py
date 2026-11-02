@@ -404,6 +404,10 @@ mismatches and negation. Add top-level conflict_reviewed_claim_ids containing ev
 and conflicts=[{{"claim_ids":["IDs"],"rationale":"Explain the incompatible positions and scope",
 "resolution":"unresolved|attributed"}}]. Use an empty conflicts list only after this comparison.
 Attributed entries require explicitly attributed canonical claims, with evidence for both positions.
+For resolution='attributed', EVERY listed ID must have literal conflict.status='attributed' in its
+packet row. One canonical claim containing both positions can be the sole ID in that entry. Do not
+add compatible context merely because it discusses the same topic. If incompatible claims lack
+that metadata, use resolution='unresolved'; never omit a real conflict to satisfy this format rule.
 Unresolved conflicts block publication even when each individual claim has a supporting source.
 For v4, return only claims whose IDs are absent from reused_verdicts. The parent combines validated
 reused judgments with your new judgments. Never change a reused judgment. Check identifiers and behavior,

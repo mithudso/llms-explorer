@@ -1,5 +1,14 @@
 # Memory
 
+## v0.22.97 - 2026-11-02
+
+- The secondary-citation parser now includes valid HTTP(S) `unit.also` entries, deduplicates citations and ignores malformed or local entries. Previously omitted secondary sources caused three apparent Compass NOT-IN-SOURCE results despite native bound evidence. The actual seven-row replay now requires four changed source-binding reviews and permits three exact unchanged supported judgments to be reused. This replay is not a canonical acceptance result.
+- Reuse requires an intact validated saved packet, exact current claim text and complete source/snapshot identities. Parser2 compatibility is selective. Failed, changed or corrupt judgments do not qualify. Immutable attempt paths preserve paid proof through lease, release and expiration; bind rejects worker overrides of reused judgments. Tree freshness uses the same extraction identity and saved proof context. Existing legacy gate schemas remain unchanged.
+- The native v4 reviewer brief now states the existing attributed-conflict ledger rule explicitly: every attributed entry ID needs canonical attributed metadata; a single claim containing both positions is valid. Validator and evidence requirements are unchanged.
+- Combined source verification passed196 tests and12 subtests. The independent advisor concern about tree freshness was repaired and reverified. No paid rerun was used to test the parser.
+- The existing forever checker still loads a frozen parser2 runtime and is actively completing paid work. It ignores SIGINT. It has not been stopped, replaced or duplicated. A canonical parser3 rerun and selected tree reconciliation remain pending safe writer coordination. Preserve other remediation workers, the MongoDB monitor, paid work and paused services.
+- Site PR257 and hub PR84 are merged. Five additional qualified scopes and two newly authored pinned Compass scopes remain in the continuing research workflow. No evidence-grounded empty round or saturation has been established. TASK-971 remains open for research; its historical scouting receipt remains valid for scouting only. Delta:0.22.96 to0.22.97; prompt83.
+
 ## v0.22.96 - 2026-11-02
 
 - Reopened TASK-971 because its historical completion establishes scouting only. Research saturation remains unassessed. TASK-963 remains active; TASK-1010/1011/1012 track saved R3, delivery and frontier.
