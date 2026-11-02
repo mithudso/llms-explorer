@@ -8,6 +8,7 @@ source must not kill the query.
 from __future__ import annotations
 
 import os
+import json
 import re
 import subprocess
 import collections
@@ -15,6 +16,7 @@ import threading
 from typing import Protocol
 
 import embed_core
+import embedding_contract
 import hub_lib
 from search import cosine_similarity
 
@@ -48,19 +50,26 @@ _query_vec_cache: collections.OrderedDict[str, tuple[float, ...]] = collections.
 _query_vec_inflight: dict[str, tuple[threading.Event, list]] = {}
 
 
-def _query_vec(query: str) -> tuple[float, ...] | None:
-    """Embed `query` once per concurrent burst. Only successes are cached
-    (bounded LRU): a transient pool outage must not pin None for the life of a
-    long-lived MCP process."""
+def _query_vec(query: str, model: str | None = None,
+               contract: dict | None = None) -> tuple[float, ...] | None:
+    """Coalesce matching encoder requests. Cache successes only for pinned
+    revisions; unversioned aliases can change weights during a long-lived process.
+    A transient pool outage never pins None in the cache."""
+    model = model or embed_core.embed_model()
+    revision = embed_core.embed_revision(model)
+    embedding_contract.check_query(contract, model, revision)
+    key = embedding_contract.digest([query, model, revision, contract,
+                                     embed_core.pool_mode(),
+                                     os.environ.get('HUB_EMBED_CACHE_REVISION')])
     with _query_vec_lock:
-        if query in _query_vec_cache:
-            _query_vec_cache.move_to_end(query)
-            return _query_vec_cache[query]
-        flight = _query_vec_inflight.get(query)
+        if key in _query_vec_cache:
+            _query_vec_cache.move_to_end(key)
+            return _query_vec_cache[key]
+        flight = _query_vec_inflight.get(key)
         owner = flight is None
         if owner:
             flight = (threading.Event(), [None])
-            _query_vec_inflight[query] = flight
+            _query_vec_inflight[key] = flight
     event, holder = flight
     if not owner:
         event.wait()
@@ -68,21 +77,23 @@ def _query_vec(query: str) -> tuple[float, ...] | None:
     try:
         result: tuple[float, ...] | None
         try:
-            result = tuple(embed_core.embed_texts([query])[0])
+            encoded = (contract or {}).get('query_prefix', '') + query
+            result = tuple(embed_core.embed_texts([encoded], model=model)[0])
+            embedding_contract.check_query(contract, model, revision, len(result))
         except embed_core.EmbeddingUnavailable as e:
             _log.warning("semantic query degraded (embed pool down): %s", e)
             result = None
         holder[0] = result
-        if result is not None:
+        if result is not None and revision is not None:
             with _query_vec_lock:
-                _query_vec_cache[query] = result
+                _query_vec_cache[key] = result
                 while len(_query_vec_cache) > _QUERY_VEC_CACHE_MAX:
                     _query_vec_cache.popitem(last=False)
         return result
     finally:
         event.set()
         with _query_vec_lock:
-            _query_vec_inflight.pop(query, None)
+            _query_vec_inflight.pop(key, None)
 
 
 class HubCorpus:
@@ -125,19 +136,55 @@ class DocsetCorpus:
         self.name = f"docset:{key}"
 
     def search(self, query: str, top_k: int = 10) -> list[Hit]:
-        qvec = _query_vec(query)
-        if qvec is None:
-            return []
         try:
+            model = self.store.docset_model(self.key) or embed_core.embed_model()
+            contract = self.store.docset_contract(self.key)
+            qvec = _query_vec(query, model=model, contract=contract)
+            if qvec is None:
+                return []
             rows = self.store.query(self.key, list(qvec), top_k)
         except Exception as e:  # model mismatch, backend skew, missing collection
             _log.warning("docset '%s' query degraded: %s", self.key, e)
             return []
-        return [
-            Hit(self.name, r["url"], float(r["score"]),
-                (r.get("text") or "")[:SNIPPET_CHARS], {"seq": r.get("seq")})
-            for r in rows
-        ]
+        return [_docset_hit(self.key, row, "dense") for row in rows]
+
+
+def _docset_hit(key: str, row: dict, retriever: str) -> Hit:
+    return Hit(f"docset:{key}", row["url"], float(row["score"]),
+               (row.get("snippet") or row.get("text") or "")[:SNIPPET_CHARS],
+               {"seq": row.get("seq"), "unit_id": json.dumps([row["url"], row.get("seq"),
+                                      embedding_contract.digest(row.get("text", "").encode())]),
+                "retriever": retriever})
+
+
+class DocsetKeywordCorpus:
+    """The existing FTS5 chunks share identity with their dense counterparts."""
+
+    def __init__(self, key: str, store):
+        self.key, self.store = key, store
+        self.name = f"docset:{key}:keyword"
+
+    def search(self, query: str, top_k: int = 10) -> list[Hit]:
+        try:
+            return [_docset_hit(self.key, row, "bm25")
+                    for row in self.store.keyword_query(self.key, query, top=top_k)]
+        except Exception as error:  # missing keyword layer must not break other corpora
+            _log.warning("docset '%s' keyword query degraded: %s", self.key, error)
+            return []
+
+
+class HubKeywordCorpus:
+    name = "codebase:keyword"
+
+    def search(self, query: str, top_k: int = 10) -> list[Hit]:
+        try:
+            import keyword_index
+            return [Hit("codebase", row["path"], float(row["score"]),
+                        row.get("snippet", ""), {"retriever": "bm25"})
+                    for row in keyword_index.query(query, top=top_k)]
+        except Exception as error:  # absent FTS remains an empty lexical result
+            _log.warning("codebase keyword query degraded: %s", error)
+            return []
 
 
 _NAPMEM_SCORE = re.compile(r"\b(0\.\d{1,4}|1\.0{1,4})\b")
@@ -200,15 +247,20 @@ def default_corpora(include_docsets: bool = True,
                     include_napmem: bool = True,
                     include_logs: bool = True,
                     include_git: bool = True,
-                    include_symbols: bool = True) -> list[Corpus]:
+                    include_symbols: bool = True,
+                    include_keyword: bool = True) -> list[Corpus]:
     """Every currently-available corpus; broken sources are skipped, never fatal."""
     corpora: list[Corpus] = [HubCorpus()]
+    if include_keyword:
+        corpora.append(HubKeywordCorpus())
     if include_docsets:
         try:
             import docset_indexer
             store = docset_indexer.get_store()
             for row in store.list_docsets():
                 corpora.append(DocsetCorpus(row["docset"], store))
+                if include_keyword:
+                    corpora.append(DocsetKeywordCorpus(row["docset"], store))
         except Exception as e:  # chroma missing, db locked, registry corrupt
             _log.warning("docsets unavailable: %s", e)
     if include_logs:

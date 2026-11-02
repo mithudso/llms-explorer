@@ -34,6 +34,8 @@ import json
 import os
 import pathlib
 import random
+import re
+import urllib.request
 import sys
 
 from ollama_client import OllamaClient, OllamaPool, OllamaUnavailable, parse_urls
@@ -176,6 +178,39 @@ def embed_model() -> str:
     return os.environ.get("HUB_EMBED_MODEL", DEFAULT_MODEL)
 
 
+def embed_revision(model: str) -> str | None:
+    """Operator-pinned revisions; an unversioned model alias remains unknown."""
+    revisions = json.loads(os.environ.get('HUB_EMBED_MODEL_REVISIONS', '{}'))
+    if not isinstance(revisions, dict):
+        raise ValueError('HUB_EMBED_MODEL_REVISIONS must be a model-to-digest object')
+    revision = revisions.get(model) or (os.environ.get('HUB_EMBED_MODEL_REVISION')
+                                       if model == embed_model() else None)
+    if revision is not None and (not isinstance(revision, str) or not revision.strip()):
+        raise ValueError('Embedding model revision must be a nonempty digest string')
+    return revision
+
+
+def revision_hosts(model: str, revision: str) -> list[tuple[str, int]]:
+    """Select only hosts reporting the pinned Ollama model digest."""
+    expected = revision.removeprefix('sha256:')
+    if not re.fullmatch(r'[a-f0-9]{64}', expected):
+        raise EmbeddingUnavailable('HUB_EMBED_MODEL_REVISION requires a full Ollama digest')
+    hosts = []
+    aliases = {model, model + ':latest'} if ':' not in model else {model}
+    for url, weight in _parse_hosts():
+        try:
+            with urllib.request.urlopen(url.rstrip('/') + '/api/tags', timeout=5) as response:
+                models = json.load(response).get('models', [])
+            if any(isinstance(row, dict) and row.get('name') in aliases
+                   and row.get('digest') == expected for row in models):
+                hosts.append((url, weight))
+        except (OSError, ValueError, TypeError):
+            continue
+    if not hosts:
+        raise EmbeddingUnavailable('No embedding host reports the pinned model digest')
+    return hosts
+
+
 def embed_texts(texts: list[str], model: str | None = None, timeout: int = 120) -> list[list[float]]:
     """Embed texts across the configured host pool, in sub-batches of MAX_BATCH.
     Raises EmbeddingUnavailable when no host can serve a batch; host-down knowledge
@@ -185,7 +220,11 @@ def embed_texts(texts: list[str], model: str | None = None, timeout: int = 120) 
     if not all(isinstance(t, str) for t in texts):
         raise EmbeddingUnavailable("embed_texts requires a list of str")
     model = model or embed_model()
-    client = OllamaClient(make_pool(), embed_model=model, batch_size=MAX_BATCH)
+    revision = embed_revision(model)
+    pool = make_pool() if revision is None else OllamaPool(
+        revision_hosts(model, revision), retries=RETRY_ROUNDS,
+        backoff=RETRY_BACKOFF, rng=_PriorityRng())
+    client = OllamaClient(pool, embed_model=model, batch_size=MAX_BATCH)
     try:
         # the client scales the timeout with batch size (floor: the given timeout)
         return client.embed(texts, model=model, timeout=timeout)

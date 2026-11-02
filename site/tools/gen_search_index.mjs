@@ -20,26 +20,17 @@
 // concept packs reproduces the same meta file and (up to float noise from
 // the WASM/CPU backend) the same vectors — nothing here reads the wall
 // clock. Hand-run, like gen_concepts.py, not part of `npm run generate`:
-// re-run it whenever data/concepts/*.json changes.
+// Explicitly opt in with a pinned model revision after the embedding pause is lifted.
 //
-// Usage: node tools/gen_search_index.mjs [--concepts DIR] [--out-bin FILE] [--out-meta FILE]
+// Usage: node tools/gen_search_index.mjs --allow-embeddings --model-revision <commit> [--concepts DIR] [--out-bin FILE] [--out-meta FILE]
 
-import { pipeline } from "@huggingface/transformers";
+import { MODEL, DIM, embeddableText, encoderContract, bind, digest } from './search_representation.mjs';
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
-const MODEL = "Xenova/all-MiniLM-L6-v2";
-const DIM = 384;
-// The model's own max sequence length; longer input is truncated by the
-// tokenizer regardless, but capping the string first keeps tokenization fast
-// and keeps the embedded text weighted toward the concept's own summary and
-// earliest, most load-bearing facts rather than whatever facet happened to
-// sort last.
-const MAX_CHARS = 2000;
-
 function parseArgs(argv) {
   const out = {
     concepts: join(ROOT, "src", "data", "concepts"),
@@ -47,21 +38,20 @@ function parseArgs(argv) {
     outMeta: join(ROOT, "src", "data", "search-meta.json"),
   };
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--concepts") out.concepts = argv[++i];
+    if (argv[i] === '--allow-embeddings') out.allowEmbeddings = true;
+    else if (argv[i] === '--model-revision') out.modelRevision = argv[++i];
+    else if (argv[i] === "--concepts") out.concepts = argv[++i];
     else if (argv[i] === "--out-bin") out.outBin = argv[++i];
     else if (argv[i] === "--out-meta") out.outMeta = argv[++i];
   }
   return out;
 }
 
-function embeddableText(pack) {
-  const facts = (pack.facets ?? []).flatMap((f) => (f.facts ?? []).map((u) => u.text));
-  const text = [pack.concept, pack.summary, ...facts].filter(Boolean).join(". ");
-  return text.slice(0, MAX_CHARS);
-}
-
 async function main() {
-  const { concepts, outBin, outMeta } = parseArgs(process.argv.slice(2));
+  const { concepts, outBin, outMeta, allowEmbeddings, modelRevision } = parseArgs(process.argv.slice(2));
+  if (!allowEmbeddings) throw new Error('Embeddings are paused; explicit --allow-embeddings is required');
+  const encoder = encoderContract(modelRevision);
+  const { pipeline } = await import('@huggingface/transformers');
 
   const files = (await readdir(concepts)).filter((f) => f.endsWith(".json")).sort();
   if (files.length === 0) {
@@ -71,7 +61,7 @@ async function main() {
   }
 
   console.log(`loading ${MODEL} …`);
-  const embed = await pipeline("feature-extraction", MODEL);
+  const embed = await pipeline("feature-extraction", MODEL, { revision: modelRevision });
 
   const meta = [];
   const vectors = new Float32Array(files.length * DIM);
@@ -86,7 +76,8 @@ async function main() {
       throw new Error(`${file}: model returned ${vec.length}-dim vector, expected ${DIM}`);
     }
     vectors.set(vec, i * DIM);
-    meta.push({ slug: pack.slug, concept: pack.concept, summary: pack.summary ?? "" });
+    meta.push({ slug: pack.slug, concept: pack.concept, summary: pack.summary ?? "",
+      embedding: bind(pack, text, encoder, Buffer.from(vec.buffer, vec.byteOffset, vec.byteLength)) });
     i++;
     if (i % 50 === 0) console.log(`  ${i}/${files.length}`);
   }
@@ -98,7 +89,8 @@ async function main() {
   await writeFile(outBin, Buffer.from(trimmed.buffer, trimmed.byteOffset, trimmed.byteLength));
   await writeFile(
     outMeta,
-    JSON.stringify({ model: MODEL, dim: DIM, count: meta.length, items: meta }, null, 1) + "\n"
+    JSON.stringify({ model: MODEL, dim: DIM, count: meta.length, items: meta, encoder,
+      index_sha256: digest(Buffer.from(trimmed.buffer, trimmed.byteOffset, trimmed.byteLength)) }, null, 1) + "\n"
   );
 
   console.log(`${outBin}: ${meta.length} vectors (${DIM}-dim, ${trimmed.byteLength.toLocaleString()} bytes)`);
