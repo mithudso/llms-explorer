@@ -1,5 +1,22 @@
 # Prompts Log
 
+## Prompt v89 - 2026-11-02
+
+Continue researching the MongoDB queue in /Users/mitch/dev/llms-explorer.
+
+Read and execute the complete continuation prompt at:
+/Users/mitch/.global-ai-hub/research/.ranked/mongodb-unheld-20261030/continuation-20261031/next-session-prompt-20261102.md
+
+Verify current state before acting. Resume accepted checkpoints and saved R3 work; attach to existing processes without launching duplicate writers. Preserve paid research, held reservations, concurrent edits and paused services.
+
+Use the current /dr, concept-family-explorer and rabbithole skills with the merged research-gate/v4 evidence requirements. Repair failed claim/source pairs, reuse validated unchanged judgments, and avoid repeating completed discovery or unchanged failed paid calls.
+
+Reconcile TASK-971: its completion record establishes scouting coverage, while research saturation remains unassessed. Continue checking new scout leads, primary sources and viable concepts at cohort boundaries.
+
+Continue autonomously until two evidence-grounded empty frontier rounds and an independent saturation review establish completion, or a genuine external blocker prevents useful progress. Verify and deliver qualified site/hub changes. Record exact remaining work without claiming exhaustion prematurely.
+
+Checkpoint: repair exact same-contract judgment reuse, persistent dissent/conflicts and full-source literal boundaries before real legacy/R7 reviews. Preserve accepted contracts and all paid evidence; keep nine R7 questions and the three actual Compass failures explicit. Delta: prompt88 to89; memory0.22.102 to0.22.103.
+
 ## Prompt v88 - 2026-11-02
 
 Continue researching the MongoDB queue in /Users/mitch/dev/llms-explorer.

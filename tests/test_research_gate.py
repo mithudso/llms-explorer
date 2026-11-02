@@ -28,7 +28,7 @@ def pinned():
             path.write_text(content)
         shared = SimpleNamespace(load_claims=lambda slug, errors: {'durability': doc},
             lib_find=lambda url: {'id': 'src:abc', 'url': url, 'text_path': str(body), 'sha256': gate.digest(text.encode())},
-            source_id=lambda url: 'src:abc', atomic_write=write)
+            source_id=lambda url: 'src:abc', atomic_write=write, run_dir=lambda slug: root)
         packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
         row = packet['claims'][0]
         response = {'schema': gate.SCHEMA, 'packet_sha256': packet['packet_sha256'], 'verdicts': [
@@ -231,3 +231,12 @@ def test_canonical_judgments_come_from_the_verified_attempt_not_the_run_copy(pin
     assert report['all_supported']
     assert judgments[0]['evidence'][0]['evidence_id'] != 'ev:forged-projection'
     assert judgments[0]['evidence'][0]['quote'] == packet['claims'][0]['text']
+
+
+def test_brief_requires_collective_whole_claim_support_without_invented_relationships():
+    text = gate.brief({'schema': gate.STRICT_SCHEMA, 'packet_sha256': 'fixture'}, Path('/tmp/gate-fixture'))
+    assert 'collectively establish the entire claim' in text
+    assert 'every factual\nclause, asserted relationship' in text
+    assert 'Separate keyword\nmatches do not establish a relationship' in text
+    assert 'Do not invent causal links, temporal joins or guarantees' in text
+    assert 'For every schema, return only claims whose IDs are absent from reused_verdicts' in text

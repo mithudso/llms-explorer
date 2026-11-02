@@ -145,8 +145,12 @@ def check_spans(packet, claim, spans, root, *, authored=False):
                        r'(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?'
                        r'(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?'
                        r'(?![\w$]|\.\w|,\d|[-+]\w)')
-    quotes = []
+    prefixed_pattern = r'(?<![\w.$])\$+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?![\w$]|\.[\w$])'
+    hex_pattern = r'(?<![\w.$])0[xX][0-9A-Fa-f]+(?![\w$]|\.[\w$])'
+    source_spans = []
     source_versions = set()
+    source_prefixed = set()
+    source_hex = set()
     for span in spans:
         source = packet['sources'].get(span.get('url')) if isinstance(span, dict) else None
         if (not source or span['url'] not in claim['sources'] or not source.get('available')
@@ -166,20 +170,33 @@ def check_spans(packet, claim, spans, root, *, authored=False):
         # Quote edges cannot create lexical boundaries in the pinned source.
         source_versions.update(match.group() for match in re.finditer(version_pattern, text)
                                if start <= match.start() and match.end() <= end)
-        quotes.append(span['quote'])
+        source_prefixed.update(match.group() for match in re.finditer(prefixed_pattern, text)
+                               if start <= match.start() and match.end() <= end)
+        source_hex.update(match.group() for match in re.finditer(hex_pattern, text)
+                          if start <= match.start() and match.end() <= end)
+        source_spans.append((text, start, end))
     # Literal coverage is a necessary condition, never a proof of entailment.
-    literals = re.findall(r'`([^`]+)`', claim['text'])
-    literals += re.findall(r'\b[a-zA-Z_]\w*(?:[.$][a-zA-Z_]\w*)+\b', claim['text'])
-    literals += [token for token in re.findall(r'\b[a-z][A-Za-z0-9_.$]*\b', claim['text'])
+    prefixed = re.findall(prefixed_pattern, claim['text'])
+    literal_text = re.sub(prefixed_pattern, ' ', claim['text'])
+    literals = [term for term in re.findall(r'`([^`]+)`', claim['text']) if term not in prefixed]
+    literals += re.findall(r'\b[a-zA-Z_]\w*(?:[.$][a-zA-Z_]\w*)+\b', literal_text)
+    literals += [token for token in re.findall(r'\b[a-z][A-Za-z0-9_.$]*\b', literal_text)
                  if any(char.isupper() for char in token)]
-    # Keep complete versions literal; their interior numbers are not separate claims.
+    # Complete versions and hexadecimal values have no separate interior numbers.
     versions = re.findall(version_pattern, claim['text'])
+    hex_values = re.findall(hex_pattern, claim['text'])
     numeric_text = re.sub(version_pattern, ' ', claim['text'])
+    numeric_text = re.sub(hex_pattern, ' ', numeric_text)
     numbers = re.findall(r'(?<![\w])\d+(?:[.,]\d+)*(?:%|[a-zA-Z]+)?', numeric_text)
-    combined = '\n'.join(quotes)
-    missing = [term for term in literals if not re.search(r'(?<![\w.$])' + re.escape(term) + r'(?![\w.$])', combined)]
+    def covered(pattern):
+        return any(start <= match.start() and match.end() <= end
+                   for text, start, end in source_spans for match in re.finditer(pattern, text))
+
+    missing = [term for term in literals if not covered(r'(?<![\w.$])' + re.escape(term) + r'(?![\w.$])')]
     missing += [term for term in versions if term not in source_versions]
-    missing += [term for term in numbers if not re.search(r'(?<!\w)(?<!\d[.,])' + re.escape(term) + r'(?!\w|[.,]\d)', combined)]
+    missing += [term for term in prefixed if term not in source_prefixed]
+    missing += [term for term in hex_values if term not in source_hex]
+    missing += [term for term in numbers if not covered(r'(?<!\w)(?<!\d[.,])' + re.escape(term) + r'(?!\w|[.,]\d)')]
     if missing:
         raise ValueError("evidence omits claim identifiers or numbers: " + ', '.join(missing))
 
@@ -206,37 +223,109 @@ def preflight(packet, root):
     return failures
 
 
+def assertion_binding(packet: dict, claim: dict) -> str:
+    """An exact assertion/source key; document bookkeeping cannot authorize a retry."""
+    return digest([packet['schema'], claim['claim_id'], claim['claim_sha256'], claim['text'],
+                   [[url, {key: packet['sources'].get(url, {}).get(key)
+                           for key in ('source_id', 'snapshot_sha256', 'available')}]
+                    for url in sorted(claim['sources'])]])
+
+
+def assertion_review_binding(packet: dict, claim: dict) -> str:
+    """Failure identity excludes confidence and observation bookkeeping, never applicability."""
+    temporal = {key: value for key, value in (claim.get('temporal') or {}).items()
+                if key in ('valid_from', 'valid_to', 'applicability_version') and value is not None}
+    spans = sorted({digest({key: span.get(key) for key in
+                    ('url', 'source_id', 'snapshot_sha256', 'start', 'end', 'quote', 'extraction_status')})
+                    for span in (claim.get('evidence') or [])})
+    return digest([packet['schema'], claim['text'], temporal, claim.get('conflict'), spans,
+                   [[url, {key: packet['sources'].get(url, {}).get(key)
+                           for key in ('source_id', 'snapshot_sha256', 'available')}]
+                    for url in sorted(set(claim['sources']))]])
+
+
 def reusable_judgments(shared, manifest, packet, root):
-    """Reuse only independently validated, exact current identities and source bodies."""
+    """Use the newest valid exact support; retain semantic dissent across metadata changes."""
     current = {row['claim_id']: row for row in packet['claims']}
-    reused = {}
+    bindings = {identity: assertion_binding(packet, row) for identity, row in current.items()}
+    review_bindings = {identity: assertion_review_binding(packet, row) for identity, row in current.items()}
+    current_bindings = set(review_bindings.values())
+    targets = {}
+    for identity, binding in review_bindings.items():
+        targets.setdefault(binding, []).append(identity)
+    reused, dissent, conflicts, seen = {}, {}, [], set()
+    newer_global_reviews = []
+    for key in ('reused_conflict_review', 'blocked_prior_dissent', 'blocked_prior_conflicts'):
+        packet.pop(key, None)
     attempts = shared.run_dir(manifest['slug']) / 'gate/attempts'
-    for previous in sorted(attempts.glob('*'), reverse=True)[:128]:
+    # Refused/preflight-only attempts must not age the last paid dissent out of a cache cap.
+    for previous in sorted(attempts.glob('*'), reverse=True):
         if not previous.resolve().is_relative_to(attempts.resolve()):
             continue
         try:
             receipt = json.loads((previous / 'validation.json').read_text())
             old = json.loads((previous / 'packet.json').read_text())
             response = json.loads((previous / 'verdicts.json').read_text())
-            if (old.get('schema') != STRICT_SCHEMA
+            if (old.get('schema') != packet.get('schema')
+                    or old.get('schema') not in (STRICT_SCHEMA, SCHEMA, LEGACY_SCHEMA)
                     or receipt.get('packet_sha256') != old.get('packet_sha256')):
                 continue
             old_report = validate(old, response, previous, allow_partial=True)
-            if (old_report['all_supported'] and old.get('inputs') == packet.get('inputs')
-                    and {u: v.get('snapshot_sha256') for u, v in old['sources'].items()} ==
-                        {u: v.get('snapshot_sha256') for u, v in packet['sources'].items()}):
-                packet['reused_conflict_review'] = {k: response[k] for k in ('conflicts', 'conflict_reviewed_claim_ids')}
+            old_rows = {row['claim_id']: row for row in old['claims']}
+            row_bindings = {identity: assertion_review_binding(old, row) for identity, row in old_rows.items()}
+            matching = {}
             for judgment in old_report['valid_judgments']:
-                row = current.get(judgment['claim_id'])
-                if (not row or judgment['claim_id'] in reused or judgment['text'] != row['text']
-                        or judgment['verdict'] not in ('SUPPORTED', NO_ASSERTION)):
+                old_identity = judgment['claim_id']
+                old_row = old_rows[old_identity]
+                binding = row_bindings[old_identity]
+                if binding not in targets:
                     continue
-                keys = ('source_id', 'snapshot_sha256', 'available')
-                if all({k: old['sources'].get(url, {}).get(k) for k in keys} ==
-                       {k: packet['sources'].get(url, {}).get(k) for k in keys} for url in row['sources']):
-                    reused[judgment['claim_id']] = judgment
+                matching[old_identity] = binding
+                for identity in targets[binding]:
+                    if identity in seen:
+                        continue
+                    if judgment['verdict'] in ('SUPPORTED', NO_ASSERTION):
+                        if assertion_binding(old, old_row) != bindings[identity]:
+                            continue  # Never migrate positive judgments between different exact IDs.
+                        seen.add(identity)
+                        reused[identity] = judgment
+                    else:
+                        seen.add(identity)
+                        dissent[identity] = {'claim_id': identity, 'previous_claim_id': old_identity,
+                            'verdict': judgment['verdict'], 'assertion_binding': binding,
+                            'attempt': str(previous.relative_to(attempts)),
+                            'packet_sha256': old['packet_sha256']}
+            if packet['schema'] == STRICT_SCHEMA:
+                covered = set(matching.values())
+                if (old_report['all_supported'] and covered == current_bindings
+                        and set(old_rows) == set(current)
+                        and all(assertion_binding(old, old_rows[i]) == bindings[i] for i in current)
+                        and not any(current_bindings <= review for review in newer_global_reviews)):
+                    packet['reused_conflict_review'] = {key: response[key]
+                        for key in ('conflicts', 'conflict_reviewed_claim_ids')}
+                for conflict in old_report['conflicts']:
+                    ids = conflict['claim_ids']
+                    # A validated conflict ledger survives an invalid individual supporting quote.
+                    if conflict['resolution'] != 'unresolved' or not all(row_bindings[i] in targets for i in ids):
+                        continue
+                    participants = {row_bindings[i] for i in ids}
+                    if not any(participants <= review for review in newer_global_reviews):
+                        conflicts.append({**conflict, 'previous_claim_ids': ids,
+                            'claim_ids': sorted({i for key in participants for i in targets[key]}),
+                            'assertion_bindings': sorted(participants),
+                            'attempt': str(previous.relative_to(attempts)),
+                            'packet_sha256': old['packet_sha256']})
+                if covered:
+                    newer_global_reviews.append(covered)
+            if seen == set(current) and (packet['schema'] != STRICT_SCHEMA
+                    or any(current_bindings <= review for review in newer_global_reviews)):
+                break
         except (OSError, ValueError, KeyError, TypeError):
             continue
+    if dissent:
+        packet['blocked_prior_dissent'] = list(dissent.values())
+    if conflicts:
+        packet['blocked_prior_conflicts'] = conflicts
     return list(reused.values())
 
 
@@ -272,8 +361,8 @@ def prepare(shared, manifest: dict, out: Path, sample=10, refetch_cap: int = 15)
         shared.atomic_write(out / 'preflight.json', json.dumps({'failures': failures}, indent=2) + '\n')
         if failures:
             raise ValueError("claim preflight failed; repair only listed claims: " + json.dumps(failures))
-        packet['reused_verdicts'] = reusable_judgments(shared, manifest, packet, out)
-        packet['review_binding'] = digest([inputs, {url: source.get('snapshot_sha256') for url, source in sources.items()}])
+    packet['reused_verdicts'] = reusable_judgments(shared, manifest, packet, out)
+    packet['review_binding'] = digest(sorted(assertion_review_binding(packet, row) for row in selected))
     packet["packet_sha256"] = digest(packet)
     shared.atomic_write(out / "packet.json", json.dumps(packet, indent=2, ensure_ascii=False) + "\n")
     return packet
@@ -337,6 +426,8 @@ def validate(packet: dict, response: dict, root: Path, *, allow_partial=False) -
     expected_hash = digest({key: value for key, value in packet.items() if key != "packet_sha256"})
     if packet.get("packet_sha256") != expected_hash:
         raise ValueError("gate packet hash mismatch")
+    if packet.get('blocked_prior_dissent') or packet.get('blocked_prior_conflicts'):
+        raise ValueError('unchanged prior dissent/conflict requires an assertion/source repair')
     if (packet.get('schema') not in (STRICT_SCHEMA, SCHEMA, LEGACY_SCHEMA) or not isinstance(response, dict)
             or response.get("schema") != packet['schema'] or response.get("packet_sha256") != expected_hash):
         raise ValueError("gate verdicts belong to another packet or schema")
@@ -421,7 +512,7 @@ packet row. One canonical claim containing both positions can be the sole ID in 
 add compatible context merely because it discusses the same topic. If incompatible claims lack
 that metadata, use resolution='unresolved'; never omit a real conflict to satisfy this format rule.
 Unresolved conflicts block publication even when each individual claim has a supporting source.
-For v4, return only claims whose IDs are absent from reused_verdicts. The parent combines validated
+For every schema, return only claims whose IDs are absent from reused_verdicts. The parent combines validated
 reused judgments with your new judgments. Never change a reused judgment. Check identifiers and behavior,
 negation, modality, edition and version separately. A quote merely naming the subject is insufficient.
 If any source derivative lacks fields or context, return UNVERIFIED. An attributed conflict requires
@@ -435,11 +526,15 @@ Return exactly one verdict per review claim (all claims except reused IDs), with
    "evidence": [{{"url": "cited URL", "source_id": "copy ID", "snapshot_sha256": "copy hash",
                  "start": 0, "end": 30, "quote": "exact Python character slice"}}]}}
 ]}}
-SUPPORTED requires at least one exact evidence span establishing the entire claim.
+SUPPORTED requires one or more exact evidence spans that collectively establish the entire claim.
+Spans may come from different sources cited by that claim. The evidence must establish every factual
+clause, asserted relationship and compatible version, edition and time scope. Separate keyword
+matches do not establish a relationship. Do not invent causal links, temporal joins or guarantees.
 Every evidence quote must contain at least 20 characters after stripping leading and trailing
 whitespace, or the complete stripped source text if that source is shorter than 20 characters.
 Choose a larger exact slice when needed; never pad or change source text to meet this minimum.
-If no span establishes the full statement, use the appropriate non-supported verdict.
+If the cited spans, considered together, do not establish the full statement, use the appropriate
+non-supported verdict.
 Offsets are zero-based Python Unicode character offsets. No omissions, duplicates or extra claims.
 """
 
@@ -531,13 +626,34 @@ def install(shared):
                 shared.save_manifest(current)
             shared._print({"ok": False, **receipt})
             return 1
-        prior = manifest.get('gate', {})
-        if (packet['schema'] == STRICT_SCHEMA and not format_retry and prior.get('is_error')
-                and prior.get('review_binding') == packet.get('review_binding')):
-            shared._print({'ok': False, 'error': 'unchanged failed packet; repair listed claims before another paid review'})
+        blocked = packet.get('blocked_prior_dissent', [])
+        blocked_conflicts = packet.get('blocked_prior_conflicts', [])
+        if blocked or blocked_conflicts:
+            receipt = {'schema': packet['schema'], 'validated': False, 'is_error': True,
+                'attempt': str(root.relative_to(shared.run_dir(args.slug))),
+                'finished': shared._now(), 'review_binding': packet['review_binding'],
+                'error': 'unchanged failed assertion/source bindings; repair listed claims before paid review',
+                'blocked_prior_dissent': blocked, 'blocked_prior_conflicts': blocked_conflicts}
+            shared.atomic_write(root / 'validation.json', json.dumps(receipt, indent=2) + '\n')
+            shared.atomic_write(root / 'repair.json', json.dumps({'failed_claim_ids': sorted(
+                {row['claim_id'] for row in blocked} | {identity for item in blocked_conflicts
+                                                       for identity in item['claim_ids']}),
+                'instruction': 'Repair exact failed assertion/source pairs. Other row or document changes cannot retry them.'}, indent=2) + '\n')
+            with shared.run_lock(args.slug):
+                current = shared.load_manifest(args.slug)
+                current['gate'] = receipt
+                shared.save_manifest(current)
+            shared._print({'ok': False, **receipt})
             return 1
         review = [row for row in packet['claims'] if row['claim_id'] not in
                   {v['claim_id'] for v in packet.get('reused_verdicts', [])}]
+        needs_model = bool(review or (packet['schema'] == STRICT_SCHEMA
+                                     and not packet.get('reused_conflict_review')))
+        prior = manifest.get('gate', {})
+        if (needs_model and not format_retry and prior.get('is_error')
+                and prior.get('review_binding') == packet.get('review_binding')):
+            shared._print({'ok': False, 'error': 'unchanged failed packet; repair listed claims before another paid review'})
+            return 1
         if review or (packet['schema'] == STRICT_SCHEMA and not packet.get('reused_conflict_review')):
             summary = shared.run_agent(manifest, "gate", brief(packet, root), args.model or "sonnet",
                                        args.effort or "medium", args.max_turns, args.agent_timeout)
