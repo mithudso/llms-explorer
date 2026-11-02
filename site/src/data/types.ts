@@ -60,6 +60,7 @@ export interface Tree {
 export interface PackFact {
   text: string;
   source: string;
+  also?: string[];
   note: string | null;
   /** Nesting depth from the source markdown's list indentation; absent on
       packs from gen_concepts.py, which renders them flat. */
