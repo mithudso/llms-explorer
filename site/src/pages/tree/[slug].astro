@@ -89,11 +89,18 @@ const esc = (s: unknown) =>
 // they always have.
 function renderFacts(facts: PackFact[]): string {
   const factHtml = (fact: PackFact) => {
-    const archived = /^https?:\/\/(?:llms-explorer\.com|llmsx\.org)\/sources\//.test(fact.source ?? "");
-    const citation = archived
-      ? `<span class="fact-source">[archived source: ${esc(fact.source)}]</span>`
-      : `<a href="${esc(fact.source)}" class="fact-source" rel="noopener">[source]</a>`;
-    return `${esc(fact.text)} ${citation}` + (fact.note ? ` <em>— ${esc(fact.note)}</em>` : "");
+    const sources = [...new Set([fact.source, ...(fact.also ?? [])]
+      .filter((source) => typeof source === "string")
+      .map((source) => source.trim())
+      .filter(Boolean))];
+    const citations = sources.map((source, index) => {
+      const archived = /^https?:\/\/(?:llms-explorer\.com|llmsx\.org)\/sources\//.test(source);
+      const label = sources.length > 1 ? `[source ${index + 1}]` : "[source]";
+      return archived
+        ? `<span class="fact-source">[archived source: ${esc(source)}]</span>`
+        : `<a href="${esc(source)}" class="fact-source" rel="noopener">${label}</a>`;
+    }).join(" ");
+    return `${esc(fact.text)} ${citations}` + (fact.note ? ` <em>— ${esc(fact.note)}</em>` : "");
   };
   let html = "<ul>";
   let level = 0;
