@@ -1,10 +1,17 @@
 # Prompts Log
 
+## Prompt v78 - 2026-10-31
+
+> Antigravity scouted new concepts and sources to research, research the mongodb queue list, and check the list periodically for new sources and leads and concepts. Continue this cycle until the mongodb concept tree is exhausted.
+
+Scope: resume TASK960/963 from paid checkpoints, repair exact dissent with fresh native gates, and continue scout/frontier rounds under TASK971 until independently verified saturation. Preserve frozen queue identities, qualified outcomes, paused held work, indexing and embeddings. Delta: prompt77 to78; memory0.22.78 to0.22.79.
+
 ## Prompt v77 - 2026-10-30
 
 > UI implementation task: a research summary/distillation page for llms to use as reference files, skills, blogs, and how-to articles for AI/LLM work, for people with moderate AI experience who want to find a concept file or family for their task, reference it in a prompt, read a blog post and download skills; inspect first, implement with loading/empty/error/success states, render and verify at mobile and desktop widths.
 
 Scope: TASK-966. Build /research/ on the existing Astro conventions, verify it in a real browser under the production CSP, and deliver through a PR. Delta: prompt v76 to v77; memory 0.22.75 to 0.22.76.
+
 
 ## Prompt v76 - 2026-10-29
 
@@ -996,8 +1003,11 @@ main. Reconcile existing draft PR #234, preserve local scratch and blocked vendo
 mirrors, run the required checks, merge the reviewed result, and synchronize the
 shared checkout. Preserve newer main fixes and unique checkpoint research.
 
-# MongoDB full claim validation — 2026-10-31
 
-User asked to start validating every MongoDB concept, fanning out agents,
-marking each concept in the tree as it is validated so no effort repeats, and to
-keep cycling until all MongoDB concepts are validated.
+## Prompt v77 - 2026-10-30 MongoDB unheld repository queue
+
+```text
+All unheld repository mongodb queue entries
+```
+
+Continuation of Prompt v76: Antigravity scouted new concepts and sources to research, research the mongodb queue list. Scope is the exact run-start unheld repository queue. Preserve held suites and accepted results.

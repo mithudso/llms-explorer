@@ -2,6 +2,7 @@
 import copy
 import importlib.util
 import json
+import shutil
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -48,6 +49,57 @@ def test_exact_unicode_span_and_deterministic_risk_coverage(pinned):
     assert len(gate.select_claims(rows, 0, 'fixed')) == 8
     for text in ('The default is enabled.', 'The limit is 64.', 'Use GET /v1/jobs.', 'Authentication requires a role.'):
         assert gate.risks({'text': text})
+
+
+def test_supported_subset_does_not_establish_full_commissioned_scope(pinned):
+    _, manifest, _, root, packet, response = pinned
+    manifest['cohort_completion_assessment'] = {'ready_for_full_scope_export': False,
+                                                'remaining_gap': 'A required method is not sourced.'}
+    assert gate.validate(packet, response, root)['all_supported']
+    with pytest.raises(ValueError, match='full commissioned scope'):
+        gate.verify_completion_scope(manifest)
+    manifest['cohort_completion_assessment']['ready_for_full_scope_export'] = True
+    gate.verify_completion_scope(manifest)
+    del manifest['cohort_completion_assessment']
+    gate.verify_completion_scope(manifest)
+
+
+def test_repaired_ordinary_claims_are_additional_to_existing_sample_and_risk_floor():
+    rows = [{'claim_id': str(i), 'risk': ['numeric'] if i < 3 else []} for i in range(24)]
+    before = gate.select_claims(rows, 4, 'fixed')
+    required = next(row['claim_id'] for row in rows if row not in before)
+    after = gate.select_claims(rows, 4, 'fixed', [required])
+    assert {row['claim_id'] for row in before} < {row['claim_id'] for row in after}
+    assert required in {row['claim_id'] for row in after}
+    assert len(after) == 8
+    with pytest.raises(ValueError, match='no longer canonical'):
+        gate.select_claims(rows, 'all', 'fixed', ['retired-version'])
+    with pytest.raises(ValueError, match='list of strings'):
+        gate.select_claims(rows, 'all', 'fixed', 'wrong-type')
+
+
+def test_current_green_sample_cannot_clear_an_unjudged_repaired_version(pinned):
+    shared, manifest, doc, original, _packet, response = pinned
+    doc['claims'].append({'text':'The directory entry remains after a failure.',
+                          'confidence':'high', 'sources':['https://example.org/docs']})
+    run = original.parent / 'run'
+    root = run / 'gate/attempts/current'
+    shutil.copytree(original, root)
+    packet = gate.prepare(shared, manifest, root, 1, 0)
+    assert packet['coverage']['selected_claims'] == 1
+    selected = packet['claims'][0]
+    response['packet_sha256'] = packet['packet_sha256']
+    response['verdicts'][0].update({key:selected[key] for key in ('claim_id','claim_sha256','text')})
+    (root / 'verdicts.json').write_text(json.dumps(response))
+    shared.run_dir = lambda slug: run
+    manifest['gate'] = {'schema':gate.SCHEMA, 'validated':True,
+                        'attempt':'gate/attempts/current', 'packet_sha256':packet['packet_sha256']}
+    all_ids = {row['claim_id'] for row in gate.claim_rows(manifest, {'durability':doc})}
+    manifest['required_gate_claim_ids'] = list(all_ids - {selected['claim_id']})
+    with pytest.raises(ValueError, match='lack current judgments'):
+        gate.verify_current(shared, manifest)
+    manifest['required_gate_claim_ids'] = [selected['claim_id']]
+    assert gate.verify_current(shared, manifest)['required_claim_ids'] == [selected['claim_id']]
 
 
 @pytest.mark.parametrize('mutation', ['missing', 'extra', 'duplicate', 'identity', 'hash', 'text', 'packet', 'quote', 'offset', 'source', 'snapshot', 'empty', 'rationale'])

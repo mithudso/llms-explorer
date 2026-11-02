@@ -1,0 +1,286 @@
+{
+  "slug": "balancer-chunk-migration-and-jumbo-chunk-remediation",
+  "concept": "Balancer, chunk migration and jumbo chunk remediation",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Balancer, chunk migration and jumbo chunk remediation. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Manually clearing a jumbo flag does not repair an oversized indivisible range. MongoDB can mark it jumbo again on a subsequent move attempt; use clearJumboFlag only when the preferred split remedy is inapplicable. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/clear-jumbo-flag.md",
+          "note": null,
+          "claimId": "clm:6fd61eb741d5f350a249a93ef748a23d0a277af25cc21736b1cd14887d0b048a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:01168feb135ffba32b9df98dc7ffe5cfcd52ee52049a0f6da13e12ff76e37ff1",
+            "ev:03690b767dda5810501d5c69ab40981f8d26143ebf40860759ae833c4c51f2ec"
+          ]
+        },
+        {
+          "text": "MongoDB master balancer_policy.cpp skips jumbo-flagged chunks when draining a shard and during normal selection. A shard-removal plan can therefore stall until those chunks receive manual remediation. Master is implementation evidence, not a guarantee for every released version. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/balancer/balancer_policy.cpp",
+          "note": null,
+          "claimId": "clm:1615a10dac6d2edaff94611997bdd57104b2c0fc44a7ef384658b3cebfb66bec",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:267548f24599ab4286b9abc7cac0a3b3e80434eb86b40a5a451cbd3154b5560d",
+            "ev:ee230c36cf8ecf9e80a8622ac1b8596278e77df2e7e2b3df57b46dcddd0464e7"
+          ]
+        },
+        {
+          "text": "Choose a balancing window with enough time to finish the required movement. Off-peak windows reduce contention, but short windows prolong shard addition or removal because migration resumes in later windows. (high confidence) (verified as of 2026-08-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:0979e803cdd0bf2b670d30fa33cf810d562d72bfb4d7b9662700bbf6b930630c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3bc6ef65ef4084dca069fda7a617d0fda80076450ae8a0fd43f1b4b1b59dc643",
+            "ev:ee1b211e82f35d64c83a5a08c890b50c8e4d83796152b409411e186b85b421f7"
+          ]
+        },
+        {
+          "text": "Alibaba warns that leaving attemptToBalanceJumboChunks enabled after moving an indivisible oversized chunk can cause repeated back-and-forth migrations under data-size balancing, adding transfer and orphan-cleanup overhead. Its remediation procedure restores the setting after the required move. (low confidence) (verified as of 2026-08-20)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/use-cases/confirm-the-progress-of-adding-or-removing-shard-nodes",
+          "note": null,
+          "claimId": "clm:9d782a38f67a5fc7bc66fc06991912da367ba6d50837a3a233a3c30d1145396a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ff14902077d7c74079a9832b20ebdc000967a10d5167f59f960d5c1fc6a84fb3"
+          ]
+        },
+        {
+          "text": "Source-side range deletion is asynchronous and can create cache and I/O stress after migration commits. Upstream documentation suggests evaluating resharding for bulk redistribution because it avoids this range-cleanup phase; this is not a guarantee that every resharding operation is cheaper. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:015dd92e5f3f53cf8221ce77f7f43407aa0b62058cc8bd3e26d3861fffb4c8cc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:26a491b01fe6bd1d47bb30e6f2f4021510a6fd813fb842cac5a303eae1c07002"
+          ]
+        },
+        {
+          "text": "SERVER-132762 reports that automatic force-jumbo migration with attemptToBalanceJumboChunks:true can hit a duplicate-_id race when concurrent shard-key updates cause an index scan to clone a document twice. The ticket last updated August 24, 2026 lists no affected or fixed versions; verify the deployed release before selecting this workaround. (low confidence) (verified as of 2026-08-24)",
+          "source": "https://jira.mongodb.org/browse/SERVER-132762",
+          "note": null,
+          "claimId": "clm:3dee79256cf5db3dd5bdcd2fee8ad817566d4d04261efa09852dcfd0dc6ed656",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:10670fc299ba671dccf694591251c69ee44b4ca806cdde96e34e03f7f6a62804",
+            "ev:4843e483c8c2b5d95c24dd9de4f6aef0caac68ca1d28c93463c48670cb5923de"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "The modern balancer compares collection data sizes across shards. Its documented trigger is a difference of at least three configured range sizes: 384 MB with a 128 MB range size. Unequal chunk counts alone do not establish imbalance. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:fd95f1924a502b96d63657a702c1c547994dc1d978344dad7441d217e63efca2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5b6d786d96c64643e6374babb600787be23cd7fb6b31aec7035dee53410f6ec8",
+            "ev:a7fcae6bdf61cbbd6af38e3864dd3cde360a32f51bac81012e219e235e79ef72"
+          ]
+        },
+        {
+          "text": "Percona documented oversized chunks without expected jumbo detection in a MongoDB 3.6 incident. Its 2021 script uses historical config.chunks namespace fields and a 64 MB threshold; treat it as historical diagnostic evidence, not a current-version runbook. (low confidence)",
+          "source": "https://www.percona.com/blog/finding-undetected-jumbo-chunks-in-mongodb/",
+          "note": null,
+          "claimId": "clm:6f8b7255191db43494124e794570a5c432746861b0634b9e48eed79818a1e345",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:52d8b282cb1c063f35536b944fcfc1553ba4023b4c55a8285478e7af7001310a",
+            "ev:a2cbd7d298f82e408887b0505f99842ceb066eb09f17432879c5591b7e91268b"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A high-frequency shard-key value can produce an oversized indivisible chunk. The balancer cannot split documents sharing that complete key value across chunks, which can preserve a resource hotspot despite spare capacity elsewhere. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/troubleshooting/chunk-migrations-stuck.md",
+          "note": null,
+          "claimId": "clm:cbffec131fbc8f245d1350fcd983997bd5f8529cb2a20bc0e463ab3e939ed514",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Percona reported a MongoDB 3.6 production case with slow moves of oversized chunks that had escaped detection. Multiple mongos routers and router restarts could undermine the old router-local splitter statistics. This is historical evidence, not current autosplitter behavior. (low confidence)",
+          "source": "https://www.percona.com/blog/finding-undetected-jumbo-chunks-in-mongodb/",
+          "note": null,
+          "claimId": "clm:aeb06a5dea477d43509b652cbf79019bb9493ee670cf2683df2c9db8cac6614f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e82d5fdcb88a18ce84207e0f6626bbb55bdf2533f2caccc89a4d8b219a62460b"
+          ]
+        },
+        {
+          "text": "Cost implication (inference): repairing indivisible hot ranges and reducing recurring migrations can recover useful capacity before adding infrastructure. Data balance alone cannot establish balanced query or write load, and these sources provide no general percentage cost saving. (medium confidence)",
+          "source": "https://www.percona.com/blog/mongodb-new-balancer-policy-and-automerger/",
+          "note": null,
+          "claimId": "clm:b6855df0fc2437260709d7fe63e963b9436714926bcccb28d3e1d5285eb65424",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1a4fadef6898cbcf3f45b0cc2a05d8c4bd795b6726b23ae9f04fb743669c2e45",
+            "ev:44418f731648049b661ea8535e76e9ab33621f6f4a6db87a7f6ac27ec56e5f96",
+            "ev:559bcde9d18d17638e74b39529648d8f6198eebcf8eacb84d3da6fa8c2f0a9f7"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Schedule balancing during quieter hours to reduce competition with application traffic; disabling it indefinitely can allow skew to persist. This shifts migration work in time rather than eliminating it. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:d9ddcb3bd211410554a73d68ba7bbeaefdc734d04894f80c7d7d5bd203e4eb4a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:16ceadfa94071aa74c7bc2966d0ca46b29d75f142d3968555d0bcf3ac612208b",
+            "ev:e37df670f51c0d94883dbba28406ce6cff3b3d8d22c4a7b468b51403c7941b20",
+            "ev:ee1b211e82f35d64c83a5a08c890b50c8e4d83796152b409411e186b85b421f7"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "For ordinary upstream range migrations, each shard participates in at most one migration at a time, limiting an n-shard cluster to floor(n/2) concurrent migrations. This bounds how quickly newly added capacity can receive data. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:8a731bb67a97013532d65ee68fc59cd2d5f45deac06d1b826e9706e92b87adfb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:498d461ac2bfc521daeb5e7714ed209bcfbee28dbc44559ac6005f49f8e755d9",
+            "ev:e9a732ae8fbda42937d6c1ddee271e2ae3c7584e2bb50b9df3fc166dbe066afe"
+          ]
+        },
+        {
+          "text": "For a divisible jumbo chunk, the preferred manual remedy is sh.splitAt() or sh.splitFind(); a successful split clears the jumbo flag. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/clear-jumbo-flag.md",
+          "note": null,
+          "claimId": "clm:0b012dd2f8db630bf680710f299eba63600cb4fcf55466093af09e7f4abfe803",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:624850736a3516ff74f208e2ddcef6780eb7336552e56f87ae98ecd79a3102c7"
+          ]
+        },
+        {
+          "text": "Appending sufficiently discriminating suffix fields with refineCollectionShardKey can make an indivisible jumbo range divisible. Refinement itself does not immediately redistribute chunks; splitting and migration must still follow. Resharding with a better-distributed key is another remedy. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/clear-jumbo-flag.md",
+          "note": null,
+          "claimId": "clm:0cd3f7059250b79d80c851e66c0f776c599c7690e3943d3ae0bffac7032e62fc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:696925f14621118e6be06c00c6ecbed4655d592404c41ab0bbc3d97a1f89cf5c",
+            "ev:d99a3914f2e4e8e7efb95b52b8d50989fff2fb7cf1bc7b7a89d4b291a29567f0"
+          ]
+        },
+        {
+          "text": "The documented default migration document-count ceiling is twice configured range size divided by collection avgObjSize; a movable sub-range can be migrated instead. The collection average makes the check sensitive to document-size distribution. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:acda968cc5a8ead4747963ed76d35f566bdea26fd4ab83c69011bb22db1bba25",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0529d0f3773fe92d9a4e726b8667a4d4bdcc6db0be87d759429414bda8609bd2"
+          ]
+        },
+        {
+          "text": "attemptToBalanceJumboChunks permits oversized moves only for chunks without the jumbo label. Manual moveRange or moveChunk with forceJumbo can override the size restriction for labeled or unlabeled ranges. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:3e78c943c682afe926ab03ad2f9502e02cea2ed4049f9fa9530648611d1ebaf5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:84b06b56a5aa734cd7dece8508d368b044c14795a7884713480c5f748de2b693"
+          ]
+        },
+        {
+          "text": "Diagnose stalled balancing using balancer state, balancerStatus, sh.status(true), and config-server/shard logs. Check migration errors, long-running operations, replication lag and disk capacity before attributing all skew to shard-key design. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/troubleshooting/chunk-migrations-stuck.md",
+          "note": null,
+          "claimId": "clm:b8703e84fb4e57330b9e12482c75ad0df3ae5a22ba814eb6a5cc8eaa60e0cf85",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b5ee3742bd8bcfe83cb47c187677825216c26bd9e3b5a7c9bb3ad46c45c42892",
+            "ev:e7e9787baad75d3c9e9ab7b088ef34d17fdb5dc66a26ef1944dcdb19c61b8167"
+          ]
+        },
+        {
+          "text": "Balancer migrations consume source reads, destination writes and network bandwidth. Inference for cost planning: frequent redistribution competes with application work, so evaluate migration load alongside steady-state capacity; these sources do not establish a universal monetary saving. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:cb1bb55e724406a21ab15c7b324ca008f0a18210da95cef7c6b1fd69a8138c4d",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Diagnose stalled balancing by checking sh.getBalancerState(), balancerStatus, sh.status(true), and config-server and shard logs. Look for migration failures, replication lag, lock contention and disk pressure before assuming a shard-key defect. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/troubleshooting/chunk-migrations-stuck.md",
+          "note": null,
+          "claimId": "clm:1e56938231b99bc488e459ba436298377d1f3752ad07cddd61766637c4394498",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b5ee3742bd8bcfe83cb47c187677825216c26bd9e3b5a7c9bb3ad46c45c42892",
+            "ev:e7e9787baad75d3c9e9ab7b088ef34d17fdb5dc66a26ef1944dcdb19c61b8167"
+          ]
+        },
+        {
+          "text": "A jumbo chunk can prevent balancing and shard draining. Distinguish a divisible oversized range from an indivisible range containing a single shard-key value; the latter needs a remedy that changes divisibility or deliberately moves the oversized unit. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/troubleshooting/chunk-migrations-stuck.md",
+          "note": null,
+          "claimId": "clm:20d9bd870a922417b501c3df6d712d62cd0e9d3e20e025f5f4ddbb96971d49ed",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Clearing the jumbo flag does not shrink the data or fix a repeated shard-key value. The official procedure warns that an oversized chunk can be marked jumbo again on a later migration attempt; Alibaba likewise says shrinking data does not automatically clear the flag. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/clear-jumbo-flag.md",
+          "note": null,
+          "claimId": "clm:af144c21de4bc2123ee0a2ec5d431d0ed6f21075edfb84236ee834a225a3525c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:01168feb135ffba32b9df98dc7ffe5cfcd52ee52049a0f6da13e12ff76e37ff1",
+            "ev:03690b767dda5810501d5c69ab40981f8d26143ebf40860759ae833c4c51f2ec",
+            "ev:8377ec50e387791fbfca920bf8e6fe97c35f7ac561239d75ebb15b32ff5e63ee"
+          ]
+        },
+        {
+          "text": "The upstream document-count migration guard uses twice the configured range size divided by collection average document size. attemptToBalanceJumboChunks can permit oversized chunks that are not labeled jumbo; manual forceJumbo can also move labeled chunks. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "note": null,
+          "claimId": "clm:835535cd01a1baf74241d7a0d9237b7ac1ee6a39ee1da502ba52f52f17c6e076",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:dfa03507acab4e6ebf1120da8c293f94975e83cca50bc51419c154e304d489a2"
+          ]
+        },
+        {
+          "text": "Alibaba distinguishes automatic oversized migration after clearing the flag from manual moveChunk with forceJumbo:true. Its guidance warns that the manual option can block source-shard collection writes throughout copying, potentially for hours, and recommends off-peak operation with support assistance. This is provider guidance, not a measured duration guarantee. (low confidence) (verified as of 2026-08-20)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/use-cases/confirm-the-progress-of-adding-or-removing-shard-nodes",
+          "note": null,
+          "claimId": "clm:e22274a462dc56c3d84f3c7f376336620d09d3901d80732e95dfa95aa0c407fb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:72ebd666cb3157adb61ba1b3b6d3c9e255a3c9d3934b8e4253b74f35e3e06a8f"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "8ee6d2c136439d8dfb31b243b6dab42d17940edca883056de3573d9f74410294",
+  "canonicalConceptId": "concept:087bbe397753aeeec7cde39c6e97e37871cd17dad239893dc20e65d370cd1dd7"
+}
