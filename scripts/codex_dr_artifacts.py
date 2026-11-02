@@ -435,8 +435,13 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
                    "excluded_repository_concepts": sorted(private_names & set(documents)),
                    "backup": str(backup) if backup.exists() else None}
     website = load_module("codex_dr_website", repo / "scripts/research_site_sync.py")
+    # Each tree can retain its own curated slug. Only repository targets are
+    # readers; private-only completion retains the existing privacy sweep.
+    reader_slugs = sorted({node["slug"] for node in planned["repository"][1]
+                           if node["concept"] in documents and node["concept"] not in private_names})
     receipt["website"] = website.sync(repo, shared.HUB_DIR, apply=True, merge_tree=False,
-                                      authoritative_slugs=list(jobs), transaction=transaction)
+                                      authoritative_slugs=list(jobs), transaction=transaction,
+                                      only_slugs=reader_slugs)
     shared.atomic_write(run / "artifacts/receipt.json", json.dumps(receipt, indent=2) + "\n")
     return receipt
 
