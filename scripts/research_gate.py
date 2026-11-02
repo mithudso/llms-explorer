@@ -141,7 +141,12 @@ def _source(shared, url: str, out: Path, fetch: bool) -> dict:
 def check_spans(packet, claim, spans, root, *, authored=False):
     if not isinstance(spans, list) or not spans:
         raise ValueError("every factual claim requires exact source evidence")
+    version_pattern = (r'(?<![\w.$])[vV]\d+(?:\.\d+)+'
+                       r'(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?'
+                       r'(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?'
+                       r'(?![\w$]|\.\w|,\d|[-+]\w)')
     quotes = []
+    source_versions = set()
     for span in spans:
         source = packet['sources'].get(span.get('url')) if isinstance(span, dict) else None
         if (not source or span['url'] not in claim['sources'] or not source.get('available')
@@ -158,15 +163,22 @@ def check_spans(packet, claim, spans, root, *, authored=False):
             raise ValueError("source extraction is unverified or incomplete; reacquire and read the original")
         if re.search(r'(?i)\[(?:truncated|content omitted)\]|\.\. (?:include|literalinclude)::', text):
             raise ValueError("source extraction contains unresolved omissions")
+        # Quote edges cannot create lexical boundaries in the pinned source.
+        source_versions.update(match.group() for match in re.finditer(version_pattern, text)
+                               if start <= match.start() and match.end() <= end)
         quotes.append(span['quote'])
     # Literal coverage is a necessary condition, never a proof of entailment.
     literals = re.findall(r'`([^`]+)`', claim['text'])
     literals += re.findall(r'\b[a-zA-Z_]\w*(?:[.$][a-zA-Z_]\w*)+\b', claim['text'])
     literals += [token for token in re.findall(r'\b[a-z][A-Za-z0-9_.$]*\b', claim['text'])
                  if any(char.isupper() for char in token)]
-    numbers = re.findall(r'(?<![\w])\d+(?:[.,]\d+)*(?:%|[a-zA-Z]+)?', claim['text'])
+    # Keep complete versions literal; their interior numbers are not separate claims.
+    versions = re.findall(version_pattern, claim['text'])
+    numeric_text = re.sub(version_pattern, ' ', claim['text'])
+    numbers = re.findall(r'(?<![\w])\d+(?:[.,]\d+)*(?:%|[a-zA-Z]+)?', numeric_text)
     combined = '\n'.join(quotes)
     missing = [term for term in literals if not re.search(r'(?<![\w.$])' + re.escape(term) + r'(?![\w.$])', combined)]
+    missing += [term for term in versions if term not in source_versions]
     missing += [term for term in numbers if not re.search(r'(?<!\w)(?<!\d[.,])' + re.escape(term) + r'(?!\w|[.,]\d)', combined)]
     if missing:
         raise ValueError("evidence omits claim identifiers or numbers: " + ', '.join(missing))
