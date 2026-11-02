@@ -1,0 +1,218 @@
+{
+  "slug": "wiredtiger-checkpoints-and-dirty-page-write-cost",
+  "concept": "WiredTiger checkpoints and dirty-page write cost",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for WiredTiger checkpoints and dirty-page write cost. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Dirty pages contain modified cached data that requires reconciliation. Both checkpointing and dirty-page eviction can cause writes; checkpoint cadence alone therefore does not describe all background data-file write activity. (medium confidence)",
+          "source": "https://source.wiredtiger.com/develop/arch-checkpoint.html",
+          "note": null,
+          "claimId": "clm:bdebd0f198aed89b229e5fcbf757d8d0004c937a1c4d5f6cf080f981b9060b9a",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "WT-18765 reports that update-heavy test workloads accumulated dirty history-store content during the history-store checkpoint pass, when eviction skipped dirty pages in the syncing tree. The issue reports dirty-cache overshoot above its configured trigger. This is evidence for a specific mechanism, not a universal overshoot rate or an established fix. (low confidence) (verified as of 2026-10-26)",
+          "source": "https://jira.mongodb.org/browse/WT-18765",
+          "note": null,
+          "claimId": "clm:d24452d87f518b8cdce919b61c635c7d2364868d96eede31e6029c5872cec552",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9d8b926c5e6b21b60459a4e30c77bb1dd1bbc8ae23d6f453e0908a9fd7eadd80",
+            "ev:b8274be958290fa0bca3282290cc4cd8abf300efbf2e9ebbd4f07a190128639e",
+            "ev:fce1ed34235a156f323b96c05fa821089678888567e7a59f63035a2fa253504c"
+          ]
+        },
+        {
+          "text": "Inference for shard-key evaluation: compare per-shard dirty-cache pressure, physical write activity, checkpoint duration, and latency at the same logical workload. Because reconciliation and eviction consume resources, reduced concentration may improve headroom, but these sources do not demonstrate that a better-balanced shard key reduces aggregate checkpoint bytes or infrastructure cost by a fixed amount. (medium confidence)",
+          "source": "https://source.wiredtiger.com/develop/arch-checkpoint.html",
+          "note": null,
+          "claimId": "clm:031acaf69a6eb3bd981d50dd68700e4c11492ef9f4a3eaa01f73b7a0e42ec82d",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Keep each eviction target below its corresponding trigger. The architecture guide requires that ordering; a WiredTiger developer's historical forum explanation warns that equal dirty target and trigger values can stall operations without leaving useful room for background eviction. (medium confidence)",
+          "source": "https://source.wiredtiger.com/develop/arch-eviction.html",
+          "note": null,
+          "claimId": "clm:2fae120edcdb5b90cf2ba3e9f465318230ec09f5f070df0c2916f64826306c6c",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "The dirty target and dirty trigger serve different roles: the target activates background eviction, whereas reaching the dirty trigger can throttle application threads and require them to perform eviction work. Treating both thresholds as checkpoint triggers confuses separate mechanisms. (medium confidence)",
+          "source": "https://source.wiredtiger.com/develop/arch-eviction.html",
+          "note": null,
+          "claimId": "clm:941a6cef6d593440d8b11da98bc90c6860a843bfe2ef1908d8f823f08be512c2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8ed9ebe2b60f3c8c5a061c41b215b1065ffcf41217789ae6623c06ba18643e86"
+          ]
+        },
+        {
+          "text": "Cost-analysis inference: compare candidate shard layouts using sustained per-node dirty-page pressure, physical writes, and latency under representative update locality. Eviction pressure and buffering effectiveness provide a mechanism for different costs even at similar logical operation rates; these sources do not quantify savings from any particular shard key. (medium confidence)",
+          "source": "https://source.wiredtiger.com/develop/arch-eviction.html",
+          "note": null,
+          "claimId": "clm:44602cd7afb0626ec45aa8eb9953f8440d8d933c009cb0680408c1b0d136602d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:31b02ef80201b66877166f6d5d39137744ef4412e42bcd70a177639a78010398",
+            "ev:5e04869ed445f094ab63cd9ec8782af625852747827ab5919f20ac08a77ad082",
+            "ev:6a1eef6c8ae6d2d7a00600ba1728ad4750c3d6ce4b30ee50cbeab0f5f1660d48",
+            "ev:8ebdd8d2d9584cb5d4b5a1ad19afe8a685cec9744a8e6526a02878dfa626bb37"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "In the TurtleKV paper dated 2025-12-08, the WiredTiger random-insert experiment found little write-amplification improvement across approximately 16–500 MB of dirty-buffer allocation, with stronger reductions above that range. These are workload-specific experimental results, not production MongoDB sizing thresholds. (low confidence)",
+          "source": "https://docclab.cs.tufts.edu/assets/pdf/astolfi2025v2_paper.pdf",
+          "note": null,
+          "claimId": "clm:180cae7f571ac17212eede421d4084eaee7ca316602046bce77efb086bc9b484",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:07a82a535777b1b46dab131ce3f75c1e0a47d39cde1798d54a86a944ead53dcb",
+            "ev:34aea3206beed62118f3e03c27af5ad7e07bf89cfbf328e2bd842848ed480f8b"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "If background eviction cannot keep up, application threads can perform eviction before continuing reads or writes. Dirty-cache pressure can therefore increase request latency through foreground work as well as through checkpoint activity. (medium confidence)",
+          "source": "https://source.wiredtiger.com/develop/arch-eviction.html",
+          "note": null,
+          "claimId": "clm:373a835f35842b59de278941721f614e820cecb169832761a00b920549a6ff4c",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "In Percona's June 2020 benchmark, identified by the author as MongoDB 4.2.7, throughput fell from approximately 7,500 to 40 operations/second around checkpoints. After changing eviction settings it fell from approximately 6,700 to 1,250 instead. This is a historical workload-specific tradeoff: tuning reduced stalls but also lowered peak throughput, and does not establish a modern-version default recommendation. (low confidence)",
+          "source": "https://www.percona.com/blog/mongodb-checkpointing-woes/",
+          "note": null,
+          "claimId": "clm:57988e29c44f35a7eb9d395b00e37de21c90311998aba71fe6d2747441b8e5cc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0b37badfd7b5bc4fed1ebd8f8488386b547f3e27bf075f1372ebbddabfb864b3",
+            "ev:18fb85b9f6ff369fb522f3ea0939de02a2b70d9b784c11aecc6b3825846522a3",
+            "ev:1e14699d4dea3292a64f457fa3c048898f8dd2a735c609427f5a80f97bd4869e"
+          ]
+        },
+        {
+          "text": "Use time series rather than overall averages to assess checkpoint impact. The UBC researchers' WiredTiger performance-diagnosis study explains how averages conceal outliers; Percona demonstrates this with one-second checkpoint/throughput traces and separately recommends tracking dirty-cache and block-write activity. (medium confidence)",
+          "source": "https://people.ece.ubc.ca/sasha/papers/fse-2018.pdf",
+          "note": null,
+          "claimId": "clm:663a0f63814d88470076fe55f8ac33108837b8134b46ce41e5399476269bbd34",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:289ebe5256005ce4e26429b734f36b4c91c9c8cc3e89880acb86fc81002d79b7",
+            "ev:897f5625bc0204898158c5a877f78d6e7986f4849bb43eef58772a96af0d5037",
+            "ev:8cf87742fc1508ce6acd1999893fa36888ca5cfc3925edece95c31ed50a9f447",
+            "ev:e57ba0db8c6fa0c9c7323542ab0a773a364201ad14f6b1560c590d70f7a8c4aa",
+            "ev:f9a9d778e4ab09be33daf817c71a77488cbda2f45de6fe3e5890e6a6a9adac85"
+          ]
+        },
+        {
+          "text": "WiredTiger can trade dirty-buffer memory for write efficiency by retaining updates before flushing. Lower dirty occupancy is therefore not by itself proof of lower total write cost; the trade-off must include write amplification and application latency. (medium confidence)",
+          "source": "https://docclab.cs.tufts.edu/assets/pdf/astolfi2025v2_paper.pdf",
+          "note": null,
+          "claimId": "clm:d80d675743050c9c98e957eb7a1ab01594b0b3dbbdfe9bc7330d11cf460f70a1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5e04869ed445f094ab63cd9ec8782af625852747827ab5919f20ac08a77ad082",
+            "ev:b0bde117ba8efe92675c97d258be9819eb3515a6bbbd1056e88d005338a94633"
+          ]
+        },
+        {
+          "text": "The WiredTiger develop Page Deltas documentation retrieved on 2026-10-30 describes writing changed entries instead of full page images only for disaggregated layered row-store trees. It does not justify assuming that all MongoDB deployments support delta-only checkpoint writes; the architecture guide explicitly disclaims release-specific completeness. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://source.wiredtiger.com/develop/arch-page-delta.html",
+          "note": null,
+          "claimId": "clm:957b51cb6fd9bf93b67c6aa859cf6b5fe4624874ad4a987a0755cc1f222f7dd5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:38e455f3b9406fffe7ef9b511b22e1d0eee35e7930e3a7891804e17262a344c4"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Checkpoints provide a consistent recovery point in the data files; the journal preserves intervening modifications for recovery. The previous checkpoint remains usable until the new checkpoint is published through metadata. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null,
+          "claimId": "clm:e55259b542ec51eed02cdb61c561fedcf98010afb5f2a0468444922bfebdda3c",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "The MongoDB manual retrieved on 2026-10-30 describes a 60-second checkpoint interval. This is a configured cadence, not a guarantee that a checkpoint completes within 60 seconds. Percona also describes checkpoint backlogs under I/O bottlenecks. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null,
+          "claimId": "clm:c7d38a22769a47f942a592857e35c3724c077f015eeb9d633c85a97d6d446031",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:17ca37410b5f44705e2673d615ce911d5eb90167ac390262afe1a8f970886431",
+            "ev:4d165ccbf78ae645e4c3fb1a89f31604fd86511ca12d4cfdbe8061ba95e46dff"
+          ]
+        },
+        {
+          "text": "Checkpoint reconciliation processes dirty pages and skips clean pages, including pages cleaned earlier by eviction. Dirty eviction itself reconciles modified pages, whereas clean eviction can discard the cached page without rewriting its data. (medium confidence)",
+          "source": "https://source.wiredtiger.com/develop/arch-checkpoint.html",
+          "note": null,
+          "claimId": "clm:c44b00bc64422577904b199ff31a8321098258dd4252de2059d467f91b978d8c",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "Dirty-page write cost includes more than journal appends: the developer explanation describes copy-on-write data-file placement and per-table metadata synchronization; Percona also identifies CPU demand from compression during eviction. Both storage bandwidth and CPU capacity belong in checkpoint-cost diagnosis. (medium confidence)",
+          "source": "https://groups.google.com/g/wiredtiger-users/c/zNVzB6ZrYt4/m/YHjzWb2ECQAJ",
+          "note": null,
+          "claimId": "clm:dca873208ddfd61ea9824266584e683ca6cf736474313ebd4dcd8b229d480e29",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:152c6aa871544f98ef46dd2392e11395ed5bd2fc408fded941946d3599660cac",
+            "ev:63753cf07fee529e3e2c60ac36f2513e1753d5db046d34b090b7aa0743679805",
+            "ev:843bd14b67c66437fe7c0698897ed1d45226c47de5aa980ba30431baa6a0cb5e"
+          ]
+        },
+        {
+          "text": "The 2020 IBM Research study of WiredTiger and RocksDB distinguishes database-generated write amplification from SSD-internal write amplification. It shows that short tests, drive state, dataset size, and device technology can distort cost and throughput comparisons; its standalone-engine results do not establish a MongoDB deployment cost multiplier. (low confidence)",
+          "source": "https://arxiv.org/pdf/2006.04658",
+          "note": null,
+          "claimId": "clm:4bfd71eca5dcc92a042551e0de0674dc57ae2daa15352774c66ef009a26d9107",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:662d5fa3307d7f8c721ab6783de05452c8594f1506b410977402557cc7e37fc6",
+            "ev:94e250f2a2419a4b38dac2e6fdf9ecddaa4266a1d62da1c05aff2d7caaa59312",
+            "ev:9c38503e3b1273666692b70122acb645f3e5562141f9685ff09482a88619a620",
+            "ev:d504f2bc07ae060d721942de976147df64c08cde40d364f85289c8fe3deed81a"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "5b21f44fc671b1448d7f97646baa6cb1d255a6299cc15c462e5009bab2be7063",
+  "canonicalConceptId": "concept:18aa3acd08098ea1ec16f4147a48f077d2667e4d821b9481c3774355630a96ee"
+}

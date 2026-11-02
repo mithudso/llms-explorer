@@ -46,3 +46,20 @@ def test_output_is_deterministic_with_scores(tmp_path):
     repo = _repo(tmp_path)
     a, b = gen_tree.build(repo), gen_tree.build(repo)
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+def test_frontier_reads_one_queue_snapshot_and_preserves_duplicate_precedence(tmp_path, monkeypatch):
+    repo = _repo(tmp_path)
+    reads = []
+    rows = [{'concept': 'Queued', 'parentConcept': 'Root', 'cvs': 3.25},
+            {'concept': 'Queued', 'parentConcept': 'Kid', 'cvs': 4.5},
+            {'concept': 'Other', 'parentConcept': 'Root'}]
+    def read_queue(path):
+        reads.append(path)
+        return rows
+    monkeypatch.setattr(gen_tree, 'queue_frontier', read_queue)
+    frontier = {row['concept']: row for row in gen_tree.build(repo)['frontier']}
+    assert reads == [repo], 'a large frontier must not repeatedly parse the complete queue'
+    assert frontier['Queued']['parent'] == 'Kid'
+    assert frontier['Queued']['cvs'] == 3.25
+    assert frontier['Other']['parent'] == 'Root'

@@ -32,9 +32,11 @@ def test_atomic_updates_stale_rows_from_cohort_checkpoints(tmp_path):
         'complete', 'needs-review', 'complete']
 
 
-def test_review_resume_requires_current_supported_gate_and_completed_claims():
+def test_review_resume_requires_current_supported_gate_and_completed_claims(tmp_path):
     manifest = {'concepts': [{'status': 'done'}]}
-    shared = SimpleNamespace(load_manifest=lambda slug: manifest,
+    (tmp_path / 'manifest.json').write_text('{}')
+    shared = SimpleNamespace(run_dir=lambda slug: tmp_path,
+                             load_manifest=lambda slug: manifest,
                              verify_current_gate=lambda value: None)
     assert ranked.reviewed_gate_current(shared, {'id': 'reviewed'})
     def stale(value):
@@ -46,9 +48,80 @@ def test_review_resume_requires_current_supported_gate_and_completed_claims():
     assert not ranked.reviewed_gate_current(shared, {'id': 'reviewed'})
 
 
+def test_review_resume_skips_unstarted_owner_review_without_initializing(tmp_path):
+    def missing(slug):
+        raise AssertionError('an owner review must not load or create a research run')
+    shared = SimpleNamespace(run_dir=lambda slug: tmp_path / slug, load_manifest=missing)
+    assert not ranked.reviewed_gate_current(shared, {'id': 'scope-review'})
+    assert not (tmp_path / 'scope-review').exists()
+
+
+def test_green_subset_is_not_eligible_for_full_scope_export(tmp_path):
+    (tmp_path / 'manifest.json').write_text('{}')
+    manifest = {'concepts': [{'status': 'done'}]}
+    checked = []
+    def incomplete(value):
+        checked.append(value)
+        raise ValueError('completion requires the full commissioned scope')
+    shared = SimpleNamespace(run_dir=lambda slug: tmp_path, load_manifest=lambda slug: manifest,
+                             verify_completion_scope=incomplete,
+                             verify_current_gate=lambda value: pytest.fail('scope must be checked first'))
+    assert not ranked.reviewed_gate_current(shared, {'id': 'subset'})
+    assert checked == [manifest]
+
+
+def test_finalized_artifact_must_match_the_current_gate_packet(tmp_path):
+    path = tmp_path / 'canonical.json'
+    path.write_text(json.dumps({'artifact_sha256':'artifact', 'validation':{'packet_sha256':'previous'}}))
+    manifest = {'gate_contract_version':2, 'gate':{'packet_sha256':'current'},
+                'codex_artifacts':{'canonical_artifact':{'path':str(path),'sha256':'artifact'}}}
+    assert not ranked.artifact_gate_current(manifest)
+    path.write_text(json.dumps({'artifact_sha256':'artifact', 'validation':{'packet_sha256':'current'}}))
+    assert ranked.artifact_gate_current(manifest)
+    manifest['codex_artifacts']['canonical_artifact']['sha256'] = 'other'
+    assert not ranked.artifact_gate_current(manifest)
+    path.unlink()
+    assert not ranked.artifact_gate_current(manifest)
+
+
 def test_review_resume_flag_cannot_enable_unbounded_review_retry():
     with pytest.raises(SystemExit):
         ranked.main(['run', '--plan', 'plan.json', '--retry-reviewed', '--continue-on-review'])
+
+
+def test_selected_review_does_not_retry_another_withheld_cohort(tmp_path, monkeypatch):
+    monkeypatch.setenv('LLMSX_HOME', str(tmp_path / 'jobs'))
+    plan = tmp_path / 'batch/plan.json'
+    original = {'cohorts': [{'id': name, 'status': 'needs-review', 'concepts': [name]}
+                            for name in ('failed-export', 'selected')], 'rows': []}
+    ranked.atomic(plan, original)
+    visited = []
+    monkeypatch.setattr(ranked, 'load', lambda *args: SimpleNamespace(load_shared=lambda: object()))
+    def not_current(shared, cohort):
+        visited.append(cohort['id'])
+        return False
+    monkeypatch.setattr(ranked, 'reviewed_gate_current', not_current)
+    assert ranked.execute_locked(tmp_path, tmp_path, plan, retry_reviewed=True,
+                                 cohort_ids=['selected']) == 0
+    assert visited == ['selected']
+    assert json.loads(plan.read_text())['cohorts'] == original['cohorts']
+
+
+def test_unknown_cohort_selection_preserves_plan_and_creates_no_reservation(tmp_path, monkeypatch):
+    monkeypatch.setenv('LLMSX_HOME', str(tmp_path / 'jobs'))
+    plan = tmp_path / 'batch/plan.json'
+    ranked.atomic(plan, {'cohorts': [{'id': 'known', 'status': 'pending', 'concepts': ['A']}], 'rows': []})
+    before = plan.read_bytes()
+    with pytest.raises(ValueError, match='Unknown cohort selection: typo'):
+        ranked.execute_locked(tmp_path, tmp_path, plan, cohort_ids=['typo'])
+    assert plan.read_bytes() == before
+    assert not (tmp_path / 'jobs').exists()
+
+
+@pytest.mark.parametrize('flags', [['plan'], ['status'], ['run', '--continue-on-review']])
+def test_cohort_selection_rejects_actions_that_cannot_honor_it(flags):
+    with pytest.raises(SystemExit):
+        ranked.main([*flags, '--plan', 'plan.json', '--cohort', 'one'])
 
 
 def test_ranked_parser_keeps_literal_pipes_and_parent():

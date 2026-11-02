@@ -1,0 +1,158 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Two-phase write protocol and writes without the shard key",
+  "slug": "two-phase-write-protocol-and-writes-without-the-shard-key",
+  "canonical_concept_id": "concept:c0e0aea2e4d73522dcb618a3f7496edecfa4ad529b9efab0465db933966edc70",
+  "canonical_artifact_sha256": "e31e8fae6b3f743945a0ebc090cea850b0c3795d1a8df298958019b23d433c37",
+  "claims": [
+    {
+      "id": "clm:9639e8c161e0e7dca4978948909eae403ea377afa884d23864260887e075de04",
+      "text": "The resharding guide documents this updateOne/replaceOne selection matrix: a full shard key avoids the two-phase write protocol; without the full key, an _id filter avoids it when upsert is false but uses it when upsert is true; with neither the full key nor _id, the guide says the protocol is used. (low confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0b5d15755e3cd7a6231b3680e7af8cb4aa54b9d4cc63c58dbd79c80bfcbc11a7"
+      ]
+    },
+    {
+      "id": "clm:2788ab7da524ac8d2e59f94cb4ec22ab3159bc2a7346022a62de435121dd922f",
+      "text": "The resharding guide says deleteOne uses the two-phase protocol when its filter has neither the full shard key nor _id. It lists findAndModify, findOneAndDelete, findOneAndReplace, and findOneAndUpdate as requiring the protocol when their filters lack the full shard key. (low confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0b5d15755e3cd7a6231b3680e7af8cb4aa54b9d4cc63c58dbd79c80bfcbc11a7"
+      ]
+    },
+    {
+      "id": "clm:2062f0f2763877576c12098f1344aea322c1ba5e461f0e142a4f648a88c567a9",
+      "text": "Two-phase writing is distinct from two-phase commit: SERVER-78407 explains that the single-write-shard commit optimization lets these writes skip two-phase commit because they write to at most one shard. (high confidence) (verified as of 2026-10-30)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-78407",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/s/write_ops/write_without_shard_key_util.h"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:f4e61253d5193d1e1f53d89e8980a7a0edf9ae0ace3598581c74ff7f13d609c5"
+      ]
+    },
+    {
+      "id": "clm:f8ef5ec75e5c35427f096c2e564f2950308be0195473ef18083a21abaaa48a70",
+      "text": "SERVER-88153 records incorrect bulk-write targeting when the single-shard optimization ignored atClusterTime under snapshot transactions; its recorded fix version is 8.0.0-rc0. The ticket does not identify a complete affected-version range. (low confidence) (verified as of 2024-03-25)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-88153",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3245510ef59d72260a757c547e6eff3acc2ebd96d3badfc1308cde7c994224c9"
+      ]
+    },
+    {
+      "id": "clm:914cbab2f6b57275c909480171d560af155d7a1d24779335d3142660ab674989",
+      "text": "Missing shard-key targeting can add a broadcast read before the targeted write. MongoDB warns that the two-phase write protocol can significantly reduce performance; the evidence supports a qualitative cost warning, not a universal latency multiplier. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection.md",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/s/write_ops/write_without_shard_key_util.h",
+        "https://jira.mongodb.org/browse/SERVER-78407"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:49c398f304e3ecdf0297ae09702c03558f03fc0355420a7bd0b2d4793cc4f248",
+      "text": "Cost evaluation should include whether application filters remain targeted after a shard-key change. MongoDB explicitly recommends changing filters to use the new key; Alibaba Cloud's own ApsaraDB guidance describes query-routing tradeoffs, including hashed-key range queries that broadcast to shard nodes. This is a workload-specific design tradeoff, not proof that extra shards automatically lower write cost. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection.md",
+      "also": [
+        "https://www.alibabacloud.com/help/en/mongodb/use-cases/configure-sharding-to-maximize-the-performance-of-shards"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:667a5250fd223eb87fe6f14adb5a57e60e64f0151236b22ed87e1f6edb9a2e31",
+      "text": "The two-phase write protocol reads across candidate shards to choose one with a matching document, then sends the write directly to that shard. The implementation interface says both phases execute using an internal transaction. (high confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/s/write_ops/write_without_shard_key_util.h",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-78407"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:78737cf5f5f2dbd2394f99e4e052b1ac60a1607c126ae537416e7b0d9e1690dd"
+      ]
+    },
+    {
+      "id": "clm:05e2a06a68aebd3be512b8a424bac696e35b09bd9c285f7454f492b5ed9e0fbe",
+      "text": "A partial shard key can narrow the read phase to a subset of shards; therefore, 'without the full shard key' does not invariably mean broadcasting to every shard. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/s/write_ops/write_without_shard_key_util.h",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:78737cf5f5f2dbd2394f99e4e052b1ac60a1607c126ae537416e7b0d9e1690dd"
+      ]
+    },
+    {
+      "id": "clm:afb26bcc0173428580a628a6bd647c2643ce8e8a6cabaffbf8b2b93bae3d092e",
+      "text": "After resharding changes a collection's shard key, filters that provide only the old key may incur the two-phase write protocol. MongoDB recommends updating the application to filter on the new shard key for optimal performance. (low confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0b5d15755e3cd7a6231b3680e7af8cb4aa54b9d4cc63c58dbd79c80bfcbc11a7"
+      ]
+    },
+    {
+      "id": "clm:58e67231dd425489a705b3340b7095679e25efadfb4b82d9e1f6f78f1fbb44cb",
+      "text": "An updateOne upsert can omit the full shard key in MongoDB 8.0 according to both the updateOne reference and Alibaba Cloud's MongoDB 8.0 overview. This establishes support in 8.0, not its first introduction version. (medium confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.updateOne.md",
+      "also": [
+        "https://www.alibabacloud.com/help/en/mongodb/product-overview/features-of-mongodb-8-0"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:43500a8d582620935199fdbad7dd33bb124ae57747248b8ef9219156835170f6",
+        "ev:da370f79d8489d51e2c1f45ca6608b0a226368e5e26d54175123df473c9424b1"
+      ]
+    },
+    {
+      "id": "clm:c2b8f897cc05b12b59364d3b07ef0e75efbb6b788f4566984be337ce51691ddd",
+      "text": "Percona documented non-targeted updateOne and deleteOne support in its own 7.0.2-1 release-candidate notes. This is historical support evidence, not a guarantee that all write variants have identical requirements. (low confidence) (verified as of 2023-10-05)",
+      "source_url": "https://docs.percona.com/percona-server-for-mongodb/7.0/release_notes/7.0.2-1.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2c30ff2d0fd96ac825f515137bd680fa13c7f5eb4ffbeed542b486803a0e05ab"
+      ]
+    },
+    {
+      "id": "clm:3b626b5cbda236ff1434c3358e6a9be36a9d42eca3e9bec0a583e123b0015502",
+      "text": "SERVER-113344 reproduces unwanted bulkWrite success items with errorsOnly:true on a no-shard-key upsert in 8.0.15, potentially causing driver exceptions despite successful writes. The ticket lists fixes in 8.3.0-rc0 and 8.0.37. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-113344",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:eaa4045755312c2d18677a6b54d673e19601f4dd02d4169a9489a2cc22e724c9"
+      ]
+    },
+    {
+      "id": "clm:8a6430489f3cf193261467b084b870f8a269f585b1804f8d5e205c890fcc71f8",
+      "text": "Validate the new key against actual workload patterns and monitor application query performance after resharding. Genex gives this operational advice; MongoDB additionally calls for updating affected write filters. (medium confidence)",
+      "source_url": "https://genexdbs.com/mongodb-resharding-a-production-perspective/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:586b53fb46beff5b9c23edd3d6e90794b137c773285749a71e08b50f8cb0623a",
+      "text": "Cost implication, inferred from the protocol: broadcast discovery plus transactional coordination creates work beyond a directly targeted write. These sources provide no universal slowdown or dollar-saving factor. (medium confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/s/write_ops/write_without_shard_key_util.h",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    }
+  ],
+  "projection_sha256": "6cd8e00a852a8d9d9f2d85bbdcd9849ed7f32a998716b4e6a46b32b619ad8640"
+}

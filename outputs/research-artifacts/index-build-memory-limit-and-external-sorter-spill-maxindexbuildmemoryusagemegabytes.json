@@ -1,0 +1,181 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Index build memory limit and external sorter spill (maxIndexBuildMemoryUsageMegabytes)",
+  "slug": "index-build-memory-limit-and-external-sorter-spill-maxindexbuildmemoryusagemegabytes",
+  "canonical_concept_id": "concept:2ceec029fb7ccdcf3dc311f81775b2837ff0e54b8bf88a4c4365a0c03935c42c",
+  "canonical_artifact_sha256": "ab7b2bf03a3db2c1d6936eb0da40ad9a29c9ff1b05751e0c9ba1958fdb873783",
+  "claims": [
+    {
+      "id": "clm:9f561dfa28f4d4cac19e4aacc0ddda03b7107b3226f953e9dd3bb046443416e0",
+      "text": "Setting maxIndexBuildMemoryUsageMegabytes is an index-construction control. Its documented key-generation and external-sort budget should not be treated as a query-execution sort budget or as a control for SORT_MERGE planning and $in expansion. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/reference/parameters/",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:6154c76b4c250f444e9bb513c18c616c83afbd31185598953a291c71e0b4ffd8",
+      "text": "During conventional two-phase index builds, MongoDB generates keys during a collection scan, sorts them externally, and bulk-loads sorted keys into the index. When the sorter reaches its memory budget it writes sorted runs to temporary files under dbpath/_tmp; spilling permits builds larger than RAM. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/command/createIndexes.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:6e0afdeb9f98f4d5920c6a8903c55beb5011df6dfdca3851a8273cd54d4eb682",
+      "text": "Small per-index budgets can cause frequent spills and intermediate merges. MongoDB issue SERVER-114768 also reports cases where increasing index-build memory increased initial-sync build time when spilling remained necessary; more memory is not an unconditional performance improvement. Benchmark the actual workload. (medium confidence) (verified as of 2025-12-09)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-114768",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1e7d71853898d874a12fb23f6558cd275315ce7231ae94a248b7281b637c298d",
+        "ev:45d45469bbecb3a37dff772bad5a85312d988ef182e47f3256bcfeeeb7df0283"
+      ]
+    },
+    {
+      "id": "clm:2a4003c5450ae3f5c4ba78b875adbb24e4a42a03c93e213d7ee98d632de23ebe",
+      "text": "For self-hosted createIndexes, the documented default is 200 MB per command, shared equally among the indexes in that command. Ten indexes in one command therefore receive 20 MB each under that default; spill files are placed under dbpath/_tmp. (high confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/createIndexes.md",
+      "also": [
+        "https://www.mongodb.com/docs/v8.0/reference/parameters/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:cab80fae98044defedf684bb96879e8fcb07617419b5612e53e770a197b12e57"
+      ]
+    },
+    {
+      "id": "clm:f9cca3d04f66ce105534fd2d067972d871688f337c72208d02bb583fd4e9b08e",
+      "text": "The index-build memory budget is separate from the WiredTiger cache. Concurrent createIndexes commands multiply the build budgets: with maxNumActiveUserIndexBuilds=3 and a 200 MB command budget, their documented aggregate allowance can reach 600 MB. This calculation is not a cap on total mongod or container memory. (high confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/reference/parameters/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/command/createIndexes.md",
+        "https://forums.percona.com/t/the-operator-is-not-updating-the-config-until-the-pvc-removed-and-recreated/23614"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2c9f37c1aa93a28c1bd78b88cc95591ee7ce367a72c50fccb5465903c358fc1c",
+        "ev:c6f00e2ea840008328a9ab08619f1c56aa031600e8125fae5ae6ab2a6407ff7f"
+      ]
+    },
+    {
+      "id": "clm:ba88cc7276605ce65140eaef866170d6bb67a2c4a41ae7d05474daeb4fc273fc",
+      "text": "SERVER-106589 records separate initial-sync index-build memory tuning: 10% of available RAM by default, at least 200 MB and at most 16 GB, controlled by initialSyncIndexBuildMemoryPercentage, initialSyncIndexBuildMemoryMinMB, and initialSyncIndexBuildMemoryMaxMB. Listed fix versions are 8.2.0-rc0, 8.0.13, and 7.0.26; do not generalize the older universal-budget wording across patched initial sync. (low confidence) (verified as of 2026-05-24)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-106589",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b2388f1f7a83c964517eb8f3feb20f14ba9887f5f4f767e4989182870129103b"
+      ]
+    },
+    {
+      "id": "clm:c9ae632ed175aaff0fbd1a45f242bf61962b2631f3aaebd6809edf8407c3cfac",
+      "text": "Alibaba Cloud Apsara Stack V3.20.0 documentation dated 2026-04-23 lists setParameter.maxIndexBuildMemoryUsageMegabytes with default 200 MB and an allowed 50\u2013200 MB range for its MongoDB 5.0\u20137.0 service entries. These are service-specific bounds, not upstream MongoDB bounds. (low confidence) (verified as of 2026-10-31)",
+      "source_url": "https://apsarastackdocument.oss-cn-hangzhou.aliyuncs.com/%E5%9B%BD%E9%99%85%E7%89%88%E6%96%87%E6%A1%A3/v3.20.0%E7%89%88%E6%9C%AC%E6%96%87%E6%A1%A3/%E4%BA%91%E6%95%B0%E6%8D%AE%E5%BA%93MongoDB/%E9%98%BF%E9%87%8C%E4%BA%91%20%E4%B8%93%E6%9C%89%E4%BA%91%20V3.20.0%20%E4%BA%91%E6%95%B0%E6%8D%AE%E5%BA%93%20MongoDB%20%E7%89%88%20%E7%94%A8%E6%88%B7%E6%8C%87%E5%8D%97%2020260423.pdf",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:71f5c0f805b19da2f9e45703cc76fb08526aa18c561439bc7fb98741959d8941",
+        "ev:88668187e147698cabb9a2c5e401a313006560a8ebd9852dadb0d9ff1043eaeb"
+      ]
+    },
+    {
+      "id": "clm:57c488cdec22766fe9e3ba7d4989339962498c280a4d944eb90d5b60ef9d6e54",
+      "text": "The MongoDB design README says spill-run iterator memory is deducted from the sorter budget and controlled by maxIteratorsMemoryUsagePercentage, with a minimum sufficient for one iterator and a maximum of 1 MB. This is implementation documentation for the inspected master snapshot, not a guarantee for every released patch. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1e7d71853898d874a12fb23f6558cd275315ce7231ae94a248b7281b637c298d"
+      ]
+    },
+    {
+      "id": "clm:2f67e4850ef37314855c853017b242fa0c60690351169b2e6dba6d7f1a6d936f",
+      "text": "A Percona Operator user running percona-server-mongodb:4.4.16-16 reported resolving a slow index build by increasing maxIndexBuildMemoryUsageMegabytes and pod memory; replies cautioned that a 250 GB build budget on a 256 GB host leaves little RAM for other consumers. This is a historical operational anecdote, not a recommended production budget. (low confidence) (verified as of 2023-08-03)",
+      "source_url": "https://forums.percona.com/t/the-operator-is-not-updating-the-config-until-the-pvc-removed-and-recreated/23614",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:17d98d6c04a04326a84c800310cdd10003e91cd79d5c2922f2699b062b11fa12",
+        "ev:9b181dc3f2e2ded090c5a792af280e0b9e0b402c08b07f2ba6077ce09b119161"
+      ]
+    },
+    {
+      "id": "clm:55035f64e4c17fd278ef7c97ba5e161fdbb950615805cbab7c251a55d838934e",
+      "text": "The current createIndexes documentation says Atlas index-build memory and concurrency defaults vary by cluster tier and that users cannot modify maxIndexBuildMemoryUsageMegabytes on Atlas; self-hosted tuning recipes therefore require a deployment check. (high confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/createIndexes.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/parameters.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:dc2bf85c385c6d836e1b67f60bd3f9c8a0a514a35733f7e50d871689d94dd46a"
+      ]
+    },
+    {
+      "id": "clm:b962e6dddf27097e11fae1d6dd6c65b624ba1416a5fd479a04b90968b60269a2",
+      "text": "A Percona operator incident records OOM kills during large index builds and warns that allocating nearly all host memory to index construction leaves too little for other consumers. An independent author describes overlapping index-build, cache, connection, and aggregation memory pressure. Together these support budgeting container headroom rather than sizing only the sorter allowance; neither anecdote establishes a portable extra-memory constant. (medium confidence)",
+      "source_url": "https://forums.percona.com/t/the-operator-is-not-updating-the-config-until-the-pvc-removed-and-recreated/23614",
+      "also": [
+        "https://blog.earezki.com/books/unbound-mongodb-at-scale/ch22-s1/",
+        "https://www.mongodb.com/docs/v8.0/reference/parameters/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:59e2e260bc7167bec8e979aa14bd827a0eb3a2caf732622184fed0519d63b6f1",
+        "ev:babeea9de656333172bddd35a7ec197fcff197f73beb42940a8f4564042646f7",
+        "ev:e4821d491bb02a0dac141c1cafb0fe22f700e774e1e19e6ac1d5e1390cb6ce25"
+      ]
+    },
+    {
+      "id": "clm:44fde94138012b0a929ea1f182637c88d18634d53a6cee38d373a9361d6335a3",
+      "text": "In the MongoDB 8.0 parameter documentation, changing maxIndexBuildMemoryUsageMegabytes does not affect a build that has already started its collection scan. SERVER-130149 proposes adoption of increases at spill boundaries; its source snapshot still shows an unresolved improvement, not a released fix. (high confidence) (verified as of 2026-10-26)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/reference/parameters/",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-130149"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:a3b8b840a62ce33bc042eb39a36c252773f7dda015d52f8ad16eb1c1679cee20",
+        "ev:b4a5f256a4d852ed03899a2e8a99a6335d4c93069a01e8fb48ab6ba293c7c6f7"
+      ]
+    },
+    {
+      "id": "clm:e83dec74d8e54d7d5b55918d26dfaa7903a757f950f723f546fe034dcf56871c",
+      "text": "SERVER-102428 records an initial-sync bug in which secondary indexes split one memory budget while the _id index received another full budget. The issue lists fixes in 8.2.0-rc0, 8.1.2, 8.0.13, and 7.0.26; apparent memory overruns need patch-version context. (low confidence) (verified as of 2025-09-29)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-102428",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7345e12ec719fb4d1fe99ddfb4eb0387380a9418dc8f3141c4d64aa12d909dac"
+      ]
+    },
+    {
+      "id": "clm:5f8c54b64eb5ab937128b4592e9a46238bf43a4a7eca33e148016ccd8e5eb172",
+      "text": "serverStatus.indexBulkBuilder exposes spilledRanges, bytesSpilled, bytesSpilledUncompressed, and external-sort file-handle counters for diagnosing index-build spills. The spill-count and byte metrics were added in 6.0.4; memUsage, bytesSorted, and numSorted were added in 6.3. (low confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6f2a27c89330ed493895ba8197950c0b34cf1f6a0dbcb86831631092bec3b10e"
+      ]
+    },
+    {
+      "id": "clm:52d8fdadb8dde1e47b423b3f98803f6e9ff81cfe188d2f6f46fe9bf8559c7462",
+      "text": "serverStatus.indexBulkBuilder exposes spilledRanges, bytesSpilled, bytesSpilledUncompressed, and memUsage for diagnosing index-build sorter activity. spilledRanges counts spills; bytesSpilled measures disk bytes, while memUsage measures current memory allocated for building indexes. (low confidence)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:aa1486d5393302caf3a9f620189eb80a622a7ec7815cf7dff571559e2848125a"
+      ]
+    }
+  ],
+  "projection_sha256": "e979b588e1eebe69b4163687de51829d01c1807381738d0b991b2f9125329ce3"
+}
