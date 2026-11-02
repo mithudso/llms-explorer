@@ -1,0 +1,194 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Unique, TTL and shard-key indexes that read as unused",
+  "slug": "unique-ttl-and-shard-key-indexes-that-read-as-unused",
+  "canonical_concept_id": "concept:90f5a59b85738f02b6d380f7fdf67361d7ace7c26ceb82cd7af2f27fd61401e5",
+  "canonical_artifact_sha256": "73c989801711f263bbe23ad8d57188e0a298b243596faadcdb50ed55f1479f1c",
+  "claims": [
+    {
+      "id": "clm:134669532f69545fc69bf790f7f56c88a0fff922c85ff9ef29a40862cf6d0a01",
+      "text": "A unique index can enforce uniqueness while accesses.ops remains zero: checking uniqueness during INSERT does not increment this counter. Removing an index solely because of zero accesses can remove a required integrity constraint. (high confidence)",
+      "source_url": "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
+      "also": [
+        "https://github-wiki-see.page/m/FullmetalBober/Indexterity/wiki/Architecture",
+        "https://www.mongodb.com/docs/manual/core/index-unique.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1c1060b9c5f718228dcffe2ecdf259ff365d21b5dfae4d6fdbb44afec1e2aca1",
+        "ev:a5c6b947481db380acad89ebbace34eacecd0a944c3c97e9e87fb6d7d1d3f576"
+      ]
+    },
+    {
+      "id": "clm:e68c2dd010a285029f1c4e5fc4cacedb56c99a543712ece4f3aa39cc7f0a07e0",
+      "text": "$indexStats accesses.ops measures index access driven by user requests; it excludes internal TTL deletion and chunk split or migration activity. A zero counter therefore cannot establish that an index has no operational purpose. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:38c429a81b344041ddda05b5b5e58a38eb18efa00e90119ba6090f4b9f712734"
+      ]
+    },
+    {
+      "id": "clm:639cf7c80db674c40da5de5ae1facc842f8c176148e4b0a9be49c2932b7e17e3",
+      "text": "Hiding preserves uniqueness enforcement, TTL expiration, and index maintenance. Inference: a successful hidden-index trial tests query dependence but cannot establish that removing a unique or TTL index preserves application semantics. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/index-unique.md",
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:db321bb350f82b5b395ec90732c4cd95e4030e8c3ba293f8a8cc5fd5af476353"
+      ]
+    },
+    {
+      "id": "clm:e0712bca10314c14e0c514a5b695f4856b2f140609764b85e266ea3c4664c273",
+      "text": "For ordinary shard-key index protection, the supporting index may be the shard-key index itself or a compound index with the shard key as its prefix. MongoDB documents that the only non-hidden supporting index cannot be hidden or dropped; the hashed-key exception requires separate handling. (high confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/sharding-shard-key-indexes/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/tutorial/drop-a-hashed-shard-key-index/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:bf51245850dd54b6b9ead8607af34785d3137463c5a4dd5f6d00a82f71fefc56"
+      ]
+    },
+    {
+      "id": "clm:f4020267b31c6edd43ffe6e009a1d854421e11a81dfade69e3b5a4b7dd63134b",
+      "text": "The blanket assertion that every shard-key index must always remain is too broad. MongoDB introduced dropping hashed shard-key indexes in 7.0.3, 6.0.12 and 5.0.22; its documented procedure warns that balancing for the collection stops and orphan cleanup cannot proceed without that index. It recommends a supporting non-hashed index and checking for orphans before removal. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/tutorial/drop-a-hashed-shard-key-index/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/sharding-shard-key-indexes/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:91aed614457104514add60285def4794169a443d03b59c85e106c93ec9ccba2e"
+      ]
+    },
+    {
+      "id": "clm:27fc75d1ef7e06e174db12b80001f5f1ddbb6ab53803539ed062f5d959a2d5d8",
+      "text": "An audit must preserve index properties alongside usage counts. The My DBA World script projects only name, since, and accesses, while $indexStats supplies a full spec. Inference: that script output alone cannot identify unique or TTL constraints. (medium confidence)",
+      "source_url": "https://www.mydbaworld.com/indexes-usage-all-collections-all-databases-mongodb/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:35bb87b7badcca119c6c64481efae44af92d73da5fa7cfb4935c8fca96e48504",
+        "ev:5432982a0c251fbc8d16643534dde2278f52d3ce3072dc73eaa614234a26818f"
+      ]
+    },
+    {
+      "id": "clm:b1215d0b8915233a8701fce6dbde9cf94f5525a2a7debd34674283990f9a0735",
+      "text": "On ranged sharded collections, unique indexes generally require the shard key as a prefix, with the default _id index as an exception. If _id is not the shard key, its index enforces uniqueness per shard rather than across the cluster; index review must preserve the actual constraint scope. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-unique.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/sharding-shard-key-indexes/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9cc61458c5f61dfc9df91cfafe4a946abdfc04cd878ae3dd2f4b6c8c3bd29d12"
+      ]
+    },
+    {
+      "id": "clm:8760f068a72225c512a824fbac32a9b89ce22c3b7674fc2edfb05a5c427cb7d4",
+      "text": "An automated audit should inspect the index specification and shard-key support before acting on zero accesses. The full spec is included in $indexStats; identify TTL indexes by the presence of expireAfterSeconds, rather than a truthiness check that would miss expireAfterSeconds: 0. Excluding unique and required shard-key indexes is a conservative policy supported by the tool examples. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://github.com/saqibameen86/mdbkit",
+        "https://github-wiki-see.page/m/FullmetalBober/Indexterity/wiki/Architecture",
+        "https://www.mongodb.com/docs/manual/core/index-ttl.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:201c685d4d4821e0b29338dc860d416f55fb259825a47652c5b477cdbab65071",
+        "ev:5432982a0c251fbc8d16643534dde2278f52d3ce3072dc73eaa614234a26818f",
+        "ev:c161ae6b5237eed5e6160995ef18519b9a0e689f91a07ce8d1a572b796ddd7c0"
+      ]
+    },
+    {
+      "id": "clm:8ec6383e6d2bbd049d6038db2462d5702fae165fe645c1e26449c7cf3b87efa9",
+      "text": "A TTL index may expire documents while its recorded accesses remain zero. Treat expireAfterSeconds as evidence of a retention function that must be reviewed separately from query usage. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://github.com/saqibameen86/mdbkit",
+        "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+        "https://www.mongodb.com/docs/manual/core/index-ttl.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:201c685d4d4821e0b29338dc860d416f55fb259825a47652c5b477cdbab65071",
+        "ev:38c429a81b344041ddda05b5b5e58a38eb18efa00e90119ba6090f4b9f712734"
+      ]
+    },
+    {
+      "id": "clm:62a5e2e327bdd3cca9dd0c252a234e26e0ce55aa19234326c5273d7570b09aef",
+      "text": "A historical MongoDB production incident on 4.4.18 involved dropping a shard-key index on one shard, followed by queued deletion tasks and degraded performance. The ticket reports rebuilding the index and scaling up to let deletions catch up; it does not establish that an unused-index tool caused the drop. (low confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-76973",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:eb16edd269ba50d72347ecf81a65505fe3411f7898b242338ef0d4d659cf5816"
+      ]
+    },
+    {
+      "id": "clm:f0c9f515aa7f3ad4bfef0f3d5c7b72a6777ccadd42536649fd53060bafe75753",
+      "text": "The mdbkit author excludes unique, TTL and required shard-key indexes from unused-index candidates. Indexterity describes removing zero-usage advisories for these protected types after a test where a unique index rejected a duplicate while remaining at ops zero. These are independent tool-author implementations of conservative classification, not independent proofs of MongoDB semantics. (medium confidence) (verified as of 2026-10-24)",
+      "source_url": "https://github.com/saqibameen86/mdbkit",
+      "also": [
+        "https://github-wiki-see.page/m/FullmetalBober/Indexterity/wiki/Architecture"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1a86af34ef8f1667cb1fd57bfde449a887b9f1b7369d2800eb54091160ce738a",
+        "ev:784d2058a5e3cf848c1aac0840b6bf99b07889a0b07bbf798cae325bcbfa10ec",
+        "ev:c161ae6b5237eed5e6160995ef18519b9a0e689f91a07ce8d1a572b796ddd7c0"
+      ]
+    },
+    {
+      "id": "clm:0b5f8f01ece4802d55c4f392a6f47146bde4d120bf1a10137c3afe1145e5c540",
+      "text": "The blanket rule that shard-key indexes can never be dropped is too broad: MongoDB permits dropping hashed shard-key indexes starting in 7.0.3, 6.0.12, and 5.0.22. This exception requires a separate operational review. (high confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/sharding-shard-key-indexes/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/tutorial/drop-a-hashed-shard-key-index/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:91aed614457104514add60285def4794169a443d03b59c85e106c93ec9ccba2e",
+        "ev:bf51245850dd54b6b9ead8607af34785d3137463c5a4dd5f6d00a82f71fefc56"
+      ]
+    },
+    {
+      "id": "clm:22606e587ad9599761eb1a61c269cb148e440abd038a135ab9ed7c06d9076848",
+      "text": "The hashed-index drop procedure warns that removal disables balancing for that collection and prevents remaining orphan cleanup. It recommends a supporting non-hashed index to avoid shard-key-filter collection scans; recreate the hashed index to restore balancing eligibility. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/tutorial/drop-a-hashed-shard-key-index/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:91aed614457104514add60285def4794169a443d03b59c85e106c93ec9ccba2e"
+      ]
+    },
+    {
+      "id": "clm:3c8f1e49b0e8a4b589c4ee85f4df068ae20c3e87effb220985b03e0f6af864ac",
+      "text": "Treat zero-access indexes as review candidates: inspect unique and TTL properties in spec, identify shard-key support from collection metadata, and approve any semantic or sharding change explicitly before removal. This is a synthesis of the documented exceptions. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+        "https://www.mongodb.com/docs/manual/core/sharding-shard-key-indexes/",
+        "https://www.mongodb.com/docs/manual/core/index-unique.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:38c429a81b344041ddda05b5b5e58a38eb18efa00e90119ba6090f4b9f712734",
+        "ev:5432982a0c251fbc8d16643534dde2278f52d3ce3072dc73eaa614234a26818f",
+        "ev:a5c6b947481db380acad89ebbace34eacecd0a944c3c97e9e87fb6d7d1d3f576",
+        "ev:bf51245850dd54b6b9ead8607af34785d3137463c5a4dd5f6d00a82f71fefc56",
+        "ev:db321bb350f82b5b395ec90732c4cd95e4030e8c3ba293f8a8cc5fd5af476353"
+      ]
+    }
+  ],
+  "projection_sha256": "b6dc98ea2524bd29108335770f13b3558e53c7a437d709c26956617830155595"
+}

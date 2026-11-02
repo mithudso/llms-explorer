@@ -1,0 +1,133 @@
+{
+  "slug": "prepared-transaction-conflicts-by-read-concern-and-write-access",
+  "concept": "Prepared-transaction conflicts by read concern and write access",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Prepared-transaction conflicts by read concern and write access. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "At the WiredTiger 11.0.0 API layer, ignore_prepare=true reads as though the prepared transaction did not exist and forces the reader's transaction to be read-only. ignore_prepare=force also permits updates, but the documentation warns that these updates can cause inconsistency or overwrite a prepared update. This internal API setting is not a MongoDB client read-concern option. (medium confidence)",
+          "source": "https://source.wiredtiger.com/11.0.0/timestamp_prepare.html",
+          "note": null,
+          "claimId": "clm:c35a404d1e66ea8f448af60961a83f5e8d98ee2862803985e0c5f5a5fa9f4b54",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b22e68652f0560dff38d4dbef4d3a11ae6a3f08c6d0baf3d6ed611ee0e7668f2",
+            "ev:c7a42bc77d80ecdfa0110814d74861cc9bae950124587cdd07f15edb81f3c223"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "In MongoDB r8.0.0, canIgnorePrepareConflicts returns false whenever the operation is in a multi-document transaction, before checking the read-concern level. Thus the outside-transaction shortcut for local or majority must not be applied to transactional reads; these reads enforce prepare conflicts when encountered. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.0.0/src/mongo/db/read_concern_mongod.cpp",
+          "note": null,
+          "claimId": "clm:6d7c122294caac33bb9f0d0472646efe4c3d51dd76a37304d3e94d87a966fc5a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8853901ab3419f1a9882fe4d2525f59a04213716dcc2158fd0639d26df009f78"
+          ]
+        },
+        {
+          "text": "MongoDB r8.0.0 handles WT_PREPARE_CONFLICT by retrying the storage operation, incrementing prepare-read-conflict metrics, and waiting for a prepared unit of work to commit or abort when the conflict persists. The historical WT-4366 discussion distinguishes this no-answer-yet read condition from WT_ROLLBACK, which normally requires transaction rollback. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.0.0/src/mongo/db/storage/wiredtiger/wiredtiger_prepare_conflict.cpp",
+          "note": null,
+          "claimId": "clm:fd00270ec2d22c48296d982aaff6aa3a0ac321703151b0dcf4a3d1bca5cf79df",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4909e51e082d6caa68669ce91117fbea5ab1fca1c1cb95857df20fd26f6c34f1",
+            "ev:7ae9a77c36a4695eb7d73c310b995f18cdbe6fdd86e5275d9226ef770ec85bd8"
+          ]
+        },
+        {
+          "text": "MongoDB r8.0.0's wiredTigerPrepareConflictRetrySlow normally retries WT_PREPARE_CONFLICT and waits for a prepared unit of work to commit or abort. If the operation's recovery unit is already timestamped and holds an oplog slot, the function instead throws a write-conflict exception to abort and retry, because blocking could prevent replication needed to resolve the prepared update. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.0.0/src/mongo/db/storage/wiredtiger/wiredtiger_prepare_conflict.cpp",
+          "note": null,
+          "claimId": "clm:8c2afabd55fb82e044cf5e68e430220076bf24f37163a5a968d19b89c20c11ac",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7ae9a77c36a4695eb7d73c310b995f18cdbe6fdd86e5275d9226ef770ec85bd8"
+          ]
+        },
+        {
+          "text": "Prepared conflicts can arise through unique-index access even when the incoming document has another _id. SERVER-40380 specifies a test that inserts {_id:1,a:1} in a transaction, unsets a, prepares, then inserts {_id:2,a:1} outside the transaction; that insert must encounter a prepare conflict. This is a historical test specification, not evidence of a current incident. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-40380",
+          "note": null,
+          "claimId": "clm:7f778a3a056da96452fea1103b1da2b0effbb6ba10a3b4db092db0088d664cd8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4d692fe427b091fe33ab45af357f02402f543dd388eeff89fb0dddcfc3045eed",
+            "ev:8eb721b757c85b0f0034cbea7fc282c57b2c2ddc909f069b3749d23fbb022247"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A write targeting a document modified by an unresolved prepared transaction waits before proceeding. The Nanjing University/Tencent model, evaluated on MongoDB 4.4.5, describes delaying an update through a read of the same key; Huawei DDS source analysis independently describes waiting for prepared-state resolution. Resolution permits retry, not guaranteed write success: a subsequent write-conflict check can still fail. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
+          "note": null,
+          "claimId": "clm:7dba6231e80f75fa1ab02b9ebba4049c537a785ebc8bbb3a1e6057157101d03b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1ce87e4aafa08b5d2c79fab7c87cfe7ba427af13145aa23e2f5c3592d54706a8",
+            "ev:3600dabffdf97dbd1ef828d15cc0b933ca8e3f4d9bae9ab042f9aafbfa691bae",
+            "ev:53b712f9d63b51eaf19f5cdd6ace99c470b7a7694248ac8bef860554aa62ee61",
+            "ev:8a8c084c984b892554ebbccdfa7bee296239d0d5ab1907baf5ae8e81ebf74e51",
+            "ev:b5e4e01a801f876cc5ee946fb204ce4a01a8f76a5a0c115a7db6b6803699df5c",
+            "ev:c65a59e67f79a57b5193892db4c35c35a837a819d4f9f4b4e233e1756d625b9e",
+            "ev:fe6b4e9ae144bafe5ec434aab4ee87ded97e79dadc791f0c92839f7444225a68"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "For eligible reads outside multi-document transactions in MongoDB r8.0.0, local, available, and majority read concerns can ignore prepared updates and return the earlier data state. canIgnorePrepareConflicts requires one of those three concerns and rejects both afterClusterTime and atClusterTime; the command's requested conflict policy must also permit ignoring conflicts. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/b41cda4fe697dce6fd9b83b3805362ccc02fbeb3/src/mongo/db/repl/README.md",
+          "note": null,
+          "claimId": "clm:42a078a16486cf8298516dbacbc5a33a60ccf1b3869efbbeb898fd8b3c69692b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5c3a7f489409d2dbc44428542d79a5e206d7d217118a6b539ebfa4d24b24b7df",
+            "ev:fe6b4e9ae144bafe5ec434aab4ee87ded97e79dadc791f0c92839f7444225a68"
+          ]
+        },
+        {
+          "text": "Snapshot, linearizable, and afterClusterTime reads do not receive that bypass. On encountering a relevant prepared update they wait for commit or abort. For timestamped reads, MongoDB explains the blocking condition as read timestamp greater than or equal to the prepare timestamp; the mere existence of a prepared transaction does not imply every snapshot read must wait. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
+          "note": null,
+          "claimId": "clm:2555f8ef82069a2c81d12430c354e13c0dc4307a70ac1bfe094a9d9d445fecfb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3a69e9f9a424d765457314c349370ad9b689ca01c04d2bd4f08e4b65257162aa",
+            "ev:5c3a7f489409d2dbc44428542d79a5e206d7d217118a6b539ebfa4d24b24b7df",
+            "ev:fe6b4e9ae144bafe5ec434aab4ee87ded97e79dadc791f0c92839f7444225a68"
+          ]
+        },
+        {
+          "text": "WiredTiger 11.0.0 documents that ignoring prepared updates does not provide repeatable reads: repeating a read after the prepared transaction resolves can produce a different value. Returning a pre-prepare value must therefore not be treated as proof of snapshot isolation. (low confidence)",
+          "source": "https://source.wiredtiger.com/11.0.0/timestamp_prepare.html",
+          "note": null,
+          "claimId": "clm:377aa8361c38842fd9cf396f82427ae83b7231effbd028c26cedd5396f30538e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:17432cdb67557b3a49881c588ee6e5f2622736ab08c1801110e5a080c030a8d8"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "a8a015f8429649de3919e2d68451405c4f8a80e395b08ad995bf65e2f235bd15",
+  "canonicalConceptId": "concept:24c2551c7bd5468bba2ad5d51ad96cbec3bde0d1a20a7462f1373aa482eadfc0"
+}

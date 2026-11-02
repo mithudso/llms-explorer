@@ -1,0 +1,194 @@
+{
+  "slug": "loose-versus-tight-bucket-predicates",
+  "concept": "Loose versus tight bucket predicates",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Loose versus tight bucket predicates. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Apache Iceberg's inclusive projection retains partitions that may contain matching rows, while its strict projection proves all rows match and supports residual-filter calculation. This is a logical analogue of loose/tight predicates, not evidence that MongoDB uses Iceberg's implementation. (medium confidence)",
+          "source": "https://iceberg.apache.org/spec/",
+          "note": null,
+          "claimId": "clm:226b7ac47d5ee5322e16ad38ce54d572f78d292d1bef02cc3ff07cc925126939",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:029498576b2d357c9d5fd344eb5b4ba2242720836943d74a58ece4564b064427",
+            "ev:7e703f7a7bef14e704aab0224afa92c605e7accb3f31707929ef2e60ee79f3ff",
+            "ev:ffad8b35c84dd7b9cb5f8a9d469694341cadd4ae66f2542fc092d2b0c626b2e8"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A tight predicate supplies the opposite useful implication: T(B)=true guarantees every event satisfies P. Failure of T does not prove every event fails. Apache Iceberg's strict projection documents this same direction; its inclusive projection documents the loose direction. This is a conceptual analogy across different storage units. (high confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/timeseries/bucket_spec.h",
+          "note": null,
+          "claimId": "clm:742f12018ec9980f3317d9d507a1a702a07cc729721bb2483d5af5cf59b79130",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5be22ebc54bf9bba17acdfccaa6afbaa4ca55aec01455a280517fd770c3b760a",
+            "ev:6b9ab083d8eae33f93a585c1a9b3bcc0cbbc48bdf2e7c2e686d21f33519906c1",
+            "ev:7e703f7a7bef14e704aab0224afa92c605e7accb3f31707929ef2e60ee79f3ff"
+          ]
+        },
+        {
+          "text": "When a predicate cannot be rewritten, BucketSpec's kIgnore policy leaves it for evaluation after unpacking; kError reports an error. The documented motivation for kError is partial-index construction, where silently ignoring a requested filter would misrepresent index selectivity. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/timeseries/bucket_spec.h",
+          "note": null,
+          "claimId": "clm:0d5eb136d76ad0dc931f388958be96670b334705c47d6b42df7d30c36c56da8a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4a83f999018a14faa8b2a074f1ea70e4fa9a8cadb4278dc19677c66d317fe0bb",
+            "ev:7c1f304798fecb30902b9469f4b935b1c68e903a37e78375294b29efccecdde4"
+          ]
+        },
+        {
+          "text": "SERVER-59505 records a historical counterexample: mixing x arrays with x:10 could make control.min.x equal 10, incorrectly excluding the bucket for x < 5 despite matching array elements. Nested object/scalar mixtures can likewise make control.max.x.y fail to represent the maximum of x.y. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-59505",
+          "note": null,
+          "claimId": "clm:6e232af0f4a5e4d49cfda074db52fe786109db7cc19bfdbdb01f955afa72d2f4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:38933c329408d4e81c3b671ba575f47178d006fe3fc47c2de7eaf88d1bf12e79"
+          ]
+        },
+        {
+          "text": "MongoDB's measurement equality candidate test brackets the operand between control.min and control.max, with mixed-schema safeguards. Inference: extrema 1 and 9 cannot establish that a measurement equal to 5 exists. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/timeseries/bucket_level_comparison_predicate_generator.cpp",
+          "note": null,
+          "claimId": "clm:aa96fef7d5349d2032321592877722ec7f3f5cdbb013f871d4046eb999c7dfab",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3a385ecba454dc382f1cfd8146a3d8bdf2b0c7332580658f2d1d8c9ea828b2e3"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "For eligible measurement comparisons, MongoDB's loose scalar bounds use max.x > c for x > c and min.x < c for x < c, preserving inclusive variants; equality requires min.x <= c and max.x >= c. Mixed-schema handling can add an OR branch rather than relying on these inequalities alone. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/timeseries/bucket_level_comparison_predicate_generator.cpp",
+          "note": null,
+          "claimId": "clm:292c5dc630cb58adbf6d1f210af5436a9b357085f91870e265a12e2ad49ca82d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3a385ecba454dc382f1cfd8146a3d8bdf2b0c7332580658f2d1d8c9ea828b2e3"
+          ]
+        },
+        {
+          "text": "SERVER-126494 reports measurements v=1, NaN, 100 with match v<50 followed by an inclusion projection returning no measurements rather than v=1. This is a concrete warning against treating numeric bucket extrema as a complete correctness argument; this claim does not assert that a particular released version remains affected. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-126494",
+          "note": null,
+          "claimId": "clm:3c0bc7062adb0fbcf2d97824853fd8d4a6070376b499b824fd7f8f0f4167afe3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f59859a0d65ffed62a0f50bc34d5e9be75bb884184789eb54e1ff16de00854e2"
+          ]
+        },
+        {
+          "text": "When summary statistics cannot prove a part irrelevant, conservative evaluation must retain it. Materialize explicitly permits extra fetched parts but forbids omitted qualifying parts; Iceberg similarly makes inclusive projection a necessary partition condition rather than an exact row test. (medium confidence)",
+          "source": "https://materialize.com/blog/how-filter-pushdown-works/",
+          "note": null,
+          "claimId": "clm:f3de8cf85e7f95239a5cc17a322f9a8f09cb76ff670668c3245bf3330f3f7f59",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6b9ab083d8eae33f93a585c1a9b3bcc0cbbc48bdf2e7c2e686d21f33519906c1",
+            "ev:c44859f3cd8e7666f0f546fe61aff7689418bb86169303f16ee813362c9f6fab"
+          ]
+        },
+        {
+          "text": "Conservative pruning must retain uncertainty rather than risk losing matches. SERVER-59505 documents how naive extrema comparisons over mixed arrays and scalars excluded matching buckets; Materialize independently explains why false-positive candidates are acceptable but false-negative pruning is incorrect. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-59505",
+          "note": null,
+          "claimId": "clm:9a0341714a00051bb253ef3db661f5c85ed733276ea06401fa4d25982a4eee1d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:38933c329408d4e81c3b671ba575f47178d006fe3fc47c2de7eaf88d1bf12e79",
+            "ev:c44859f3cd8e7666f0f546fe61aff7689418bb86169303f16ee813362c9f6fab"
+          ]
+        },
+        {
+          "text": "In the inspected MongoDB implementation, comparison-to-null and object/array operands are ineligible for this extrema rewrite. String comparisons also require compatible collation. These restrictions scope the rewrite rather than prohibit evaluating the original query. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/timeseries/bucket_level_comparison_predicate_generator.cpp",
+          "note": null,
+          "claimId": "clm:e51c5275c401d80fb1bc9095c4e98f1db9d2893b81720926c9e3eac8c93e1f2f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5114196c41899fa3f80544f7fc94e7194522df99ca771353be99ef39df45da6b",
+            "ev:aa5c818875a3d5754badf878ff403be3a3dec0082d0444bdecc4d77355f35967"
+          ]
+        },
+        {
+          "text": "Materialize combines nullability and range summaries with conservative abstract interpretation. When the summaries cannot rule out true, they cannot justify skipping a part; this independently illustrates why min/max filtering is an approximation rather than an exact row-membership test. (low confidence)",
+          "source": "https://materialize.com/blog/how-filter-pushdown-works/",
+          "note": null,
+          "claimId": "clm:79eed66aa0395627957369a64874e7b1279c4deeb467384ed5a18f5910570007",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3a2cc4fb96ff1c6b133949aee32d8177e00ede3351ad1823abcc228650d52a1e",
+            "ev:c44859f3cd8e7666f0f546fe61aff7689418bb86169303f16ee813362c9f6fab"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "For event predicate P and bucket B, the safe loose guarantee is: if some event in B satisfies P, L(B) must be true. Thus L(B)=false permits rejection, while L(B)=true does not establish that a matching event exists. Materialize's conservative range analysis gives the same no-false-negative rationale. (high confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/timeseries/bucket_spec.h",
+          "note": null,
+          "claimId": "clm:b98ca7d4da4e5ff74cc2daf880eb23b6a2f8e2ba15ff8121e2a0f1ef5622c389",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7c1f304798fecb30902b9469f4b935b1c68e903a37e78375294b29efccecdde4",
+            "ev:7e703f7a7bef14e704aab0224afa92c605e7accb3f31707929ef2e60ee79f3ff",
+            "ev:c44859f3cd8e7666f0f546fe61aff7689418bb86169303f16ee813362c9f6fab"
+          ]
+        },
+        {
+          "text": "MongoDB's comparison generator disables tight predicates on non-time measurement fields. Missing measurements do not contribute to control extrema; array-valued controls also introduce implicit element traversal. Consequently, replacing x > 5 with min.x > 5 as proof that every event matches is unsafe. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/timeseries/bucket_spec.h",
+          "note": null,
+          "claimId": "clm:868d7fa48e839a430e3b26d86ea66ce448f6c41086649c2f0842d71e3fdc8a2f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:44d646127a6cb376f53bdec65e527daba76b57aea62c74e5e40e8b3fbb4e5cf4",
+            "ev:7e703f7a7bef14e704aab0224afa92c605e7accb3f31707929ef2e60ee79f3ff"
+          ]
+        },
+        {
+          "text": "The comparison generator rejects object/array operands, null comparisons, strings under a differing query collation, computed or projected-away fields, and non-type-bracketing LT/LTE on non-time fields. Its comments identify comparator differences and missing-value semantics as correctness constraints. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/timeseries/bucket_level_comparison_predicate_generator.cpp",
+          "note": null,
+          "claimId": "clm:f4bc3215a50803674435edbc410969bb6c5772830c3f7c96847c36c8fcfdb724",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:aa5c818875a3d5754badf878ff403be3a3dec0082d0444bdecc4d77355f35967"
+          ]
+        },
+        {
+          "text": "For an eligible measurement comparison a > 5, MongoDB uses control.max.a > 5 as the loose comparison, expressed with an internal comparison operator. Mixed-schema safety can add a disjunct, so this is not always the entire generated predicate. (high confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/timeseries/bucket_spec.h",
+          "note": null,
+          "claimId": "clm:aed10ab1a9dd2ec2da6780f26623b53441a2d45e71cd8063037ffb45cf73165a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3a385ecba454dc382f1cfd8146a3d8bdf2b0c7332580658f2d1d8c9ea828b2e3",
+            "ev:7e703f7a7bef14e704aab0224afa92c605e7accb3f31707929ef2e60ee79f3ff"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "0a1eaf5ce517e6812e19351d808df92935709f0617de8a3c64de03ac54cd6864",
+  "canonicalConceptId": "concept:af1e72f6388f5fc0e89de77eff165b32cc8227345f1ea9907a6917edae16e134"
+}
