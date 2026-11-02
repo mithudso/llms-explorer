@@ -204,3 +204,27 @@ def test_literal_boundaries_preserve_sentence_punctuation(case, statement, sourc
     else:
         with pytest.raises(ValueError, match='identifiers or numbers'):
             gate.prepare(shared, manifest, root / 'attempt', 0, 0)
+
+
+def test_format_retry_budget_cannot_be_reset_by_repeating_the_command(case):
+    shared, manifest, doc, root = case
+    shared._create_run = lambda *args, **kwargs: manifest
+    shared.load_manifest = lambda slug: manifest
+    shared.save_manifest = lambda value: None
+    shared.run_lock = lambda slug: nullcontext()
+    shared._now = lambda: '2026-11-02T00:00:00Z'
+    shared._print = lambda value: None
+    calls = []
+    def judge(*args):
+        attempts = sorted((root / 'gate/attempts').glob('*'))
+        (attempts[-1] / 'verdicts.json').write_text('{broken')
+        calls.append(True)
+        return {'is_error':False}
+    shared.run_agent = judge
+    gate.install(shared)
+    args = SimpleNamespace(slug='test', sample=None, dry_run=False, refetch_cap=0,
+                           model=None, effort=None, max_turns=5, agent_timeout=30)
+    assert shared.cmd_gate(args) == 1
+    assert len(calls) == 2
+    assert shared.cmd_gate(args) == 1
+    assert len(calls) == 2

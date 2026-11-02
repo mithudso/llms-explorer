@@ -559,8 +559,10 @@ def install(shared):
         return 0 if error is None else 1
 
     def gate(args):
+        previous_attempt = shared.load_manifest(args.slug).get('gate', {}).get('attempt')
         result = gate_once(args)
-        if result and not args.dry_run:
+        if (result and not args.dry_run and
+                shared.load_manifest(args.slug).get('gate', {}).get('attempt') != previous_attempt):
             message = shared.load_manifest(args.slug).get("gate", {}).get("error", "")
             # One fresh format-only attempt. Evidence mismatches and dissent stop.
             if message.startswith(("Expecting value:", "Expecting property name", "Unterminated string")) or (
