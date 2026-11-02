@@ -1,0 +1,94 @@
+{
+  "slug": "pinned-wiredtiger-eviction-worker-tuning-and-handle-lock-backoff",
+  "concept": "Pinned WiredTiger eviction-worker tuning and handle-lock backoff",
+  "generated": "2026-11-02",
+  "summary": "Source-anchored research for Pinned WiredTiger eviction-worker tuning and handle-lock backoff. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Evidence limitation: the pinned tuner uses eviction rate as its success metric. The University of British Columbia case study reports that experienced WiredTiger developers could not debug difficult performance issues from code knowledge alone and needed high-quality performance information. These sources support inspecting the tuner and backoff as mechanisms; they do not establish that a particular worker setting universally improves workload latency. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/third_party/wiredtiger/src/evict/evict_lru.c",
+          "note": null,
+          "claimId": "clm:ced0db0d315ef924a9702c4c1e57ab8db1048c5311ff857ff546c8c439923fc0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0341c30cf6f17192642272ed7b4e9eb488514d8b5615766b29b9a833467838dd",
+            "ev:3bdf094b56822d2b51aa0984188f816f5f4d4e6681d494d46568d4edf1ea3424",
+            "ev:b381c275905cb09a54cfc4358f6b6d6b81e30d637e6b6f2cd194baf92883ddde",
+            "ev:c89c3102926109410154ca2a596cb6ab3129c3566865733d08689941b655814e"
+          ],
+          "temporal": {
+            "applicability_version": "Pinned MongoDB r8.0.0 code plus the historical ESEC/FSE2018 UBC empirical case study. The study does not independently reproduce the release-specific backoff effects."
+          },
+          "also": [
+            "https://people.ece.ubc.ca/~craigm/papers/fse18main-final.pdf"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "In MongoDB 8.0.0’s vendored WiredTiger code, __evict_lock_handle_list repeatedly calls __wt_try_readlock while the result is EBUSY and pass_intr is zero. Failed attempts yield while spins is below WT_THOUSAND, then call __wt_sleep(0, WT_THOUSAND). The source comment states that this custom backoff lets the eviction server notice interrupts quickly. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/third_party/wiredtiger/src/evict/evict_lru.c",
+          "note": null,
+          "claimId": "clm:693fbfc475fa5ebf65ffb382623a78cbc461cd14e0a4a436aa83ac1f6127a098",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2352ddb134d1d2a7c4add46b5ad838dacf62f71661cf23cfc53fd87b44b149df",
+            "ev:4419db3900e3a43a0a36d9c3512fcc7fd966be125b8d746b9e2469de244bc833"
+          ],
+          "temporal": {
+            "applicability_version": "MongoDB r8.0.0 vendored WiredTiger. Exact source URLs and snapshot hashes pin this release; no later-build or universal latency behavior is established."
+          },
+          "also": [
+            "https://www.mongodb.com/docs/manual/release-notes/8.0.md"
+          ]
+        },
+        {
+          "text": "In MongoDB 8.0.0’s eviction pass, if eviction_progress does not change and either loop < 100 or evict_aggressive_score is below WT_EVICT_SCORE_MAX, the pass increments cache_eviction_server_slept and waits on evict_cond with WT_THOUSAND as the timeout. Its comment explains that eviction walks hold the handle-list lock and can block operations that free cache space, and that this wait must be interruptible. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/third_party/wiredtiger/src/evict/evict_lru.c",
+          "note": null,
+          "claimId": "clm:9c97c04c29697a5424fda63ff92380734bbfd66ce3ba647c97b33ed99257f12a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2352ddb134d1d2a7c4add46b5ad838dacf62f71661cf23cfc53fd87b44b149df",
+            "ev:ca04cc2548c62c6ba147471d25dfbd296d3d49286322f7e58e31148d751c03aa"
+          ],
+          "temporal": {
+            "applicability_version": "MongoDB r8.0.0 vendored WiredTiger. Exact source URLs and snapshot hashes pin this release; no later-build or universal latency behavior is established."
+          },
+          "also": [
+            "https://www.mongodb.com/docs/manual/release-notes/8.0.md"
+          ]
+        },
+        {
+          "text": "MongoDB 8.0.0’s handle-removal and eviction paths coordinate through pass_intr. In __wti_conn_dhandle_discard_single, a session that does not already hold the handle-list lock increments pass_intr before taking the handle-list write lock to remove a handle and decrements it afterward. The eviction lock-acquisition loop checks that counter. The caller treats EBUSY from that helper as a reason to return, with a deadlock-avoidance comment about clearing walks without the handle-list lock. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/third_party/wiredtiger/src/conn/conn_dhandle.c",
+          "note": null,
+          "claimId": "clm:79d08c56881433408ddc68a4c7db905c3599fd448ee081d4ddea8c44234253f0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2352ddb134d1d2a7c4add46b5ad838dacf62f71661cf23cfc53fd87b44b149df",
+            "ev:4419db3900e3a43a0a36d9c3512fcc7fd966be125b8d746b9e2469de244bc833",
+            "ev:49f00922b5689faa0eebc3b452699b25c8d9adbf89925ccbed4ad409ddd158c7",
+            "ev:bba97e2e491f0fc75cb4253a0a37f6004da13e6163e4e63f7269b969b54c6917"
+          ],
+          "temporal": {
+            "applicability_version": "MongoDB r8.0.0 vendored WiredTiger. Exact source URLs and snapshot hashes pin this release; no later-build or universal latency behavior is established."
+          },
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/third_party/wiredtiger/src/evict/evict_lru.c",
+            "https://www.mongodb.com/docs/manual/release-notes/8.0.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "1e40acf0d80dd1f2c28372a2e863af9dffcdf46bf01c34017a6f0b111387c851",
+  "canonicalConceptId": "concept:e2a24fe89c3043c08050a29b107abaf1673e1fe8d3546be31054f592ee9a5bd5"
+}
