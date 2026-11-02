@@ -20,6 +20,40 @@ PACK_FILES = ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt",
               "llms-vocabulary.txt", "units.jsonl", "concept-graph.json", "manifest.json")
 
 
+def resolve_parent(nodes: list[dict], requested: str | None, queue_rows: list[dict]) -> str | None:
+    """Find an existing ancestor without promoting a frontier-only parent."""
+    if not requested:
+        return None
+    known = {node["concept"].casefold(): node["concept"] for node in nodes}
+    for node in nodes:
+        for alias in node.get("aliases", []):
+            known.setdefault(alias.casefold(), node["concept"])
+    edges = {}
+
+    def add_edge(child, parent):
+        if parent:
+            canonical = known.get(parent.casefold(), parent)
+            edges.setdefault(child.casefold(), {})[canonical.casefold()] = canonical
+
+    for node in nodes:
+        for child in node.get("childConcepts", []):
+            add_edge(child, node["concept"])
+    for row in queue_rows:
+        add_edge(row["concept"], row.get("parentConcept") or row.get("parent"))
+    current, seen = requested, set()
+    while current.casefold() not in known:
+        key = current.casefold()
+        if key in seen:
+            raise ValueError(f"research parent ancestry has a cycle: {requested}")
+        seen.add(key)
+        parents = edges.get(key, {})
+        if len(parents) != 1:
+            reason = "ambiguous" if parents else "unanchored"
+            raise ValueError(f"research parent ancestry is {reason}: {requested}")
+        current = next(iter(parents.values()))
+    return known[current.casefold()]
+
+
 def load_module(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
@@ -249,15 +283,20 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
                 if current != name:
                     ct.rename(after, current, name)
             existing = {node["concept"]: node for node in after}
+            queue_path = path.with_name("RESEARCH_QUEUE.md")
+            queue_rows = ct.load_queue(queue_path) if queue_path.is_file() else []
             for name, docs in documents.items():
                 children = [child for doc in docs for child in doc.get("child_concepts", [])]
                 if name == topic:
                     children += [child for child in by_name if child != topic]
                 # Keep each target's curated placement. Only new nodes receive
-                # the run's proposed parent, and sync.upsert handles missing parents.
+                # the run's proposed parent. A frontier-only parent resolves to
+                # its documented existing ancestor without completing the parent.
                 parent = existing[name].get("parentConcept") if name in existing else (
                     manifest.get("cohort_parents", {}).get(name) or cohort_parent
                     or (manifest.get("parent_concept") if name == topic else topic))
+                if name not in existing:
+                    parent = resolve_parent(after, parent, queue_rows)
                 skill_id = manifest.get("skill_id") or manifest["slug"]
                 if manifest.get("kind") == "spoke" and manifest.get("hub"):
                     skill_id = f"{manifest['hub']}/references/{skill_id}.md"

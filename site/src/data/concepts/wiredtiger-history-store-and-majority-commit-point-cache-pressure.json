@@ -1,0 +1,231 @@
+{
+  "slug": "wiredtiger-history-store-and-majority-commit-point-cache-pressure",
+  "concept": "WiredTiger history store and majority commit point cache pressure",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for WiredTiger history store and majority commit point cache pressure. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "WT-3745 describes a historical MongoDB 3.6/lookaside feedback loop in which heavy updates caused replication lag, retained majority-read history increased cache pressure, and slowed oplog reads aggravated lag. Treat this as historical mechanism evidence, not as proof of identical behavior in modern history-store releases. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/WT-3745",
+          "note": null,
+          "claimId": "clm:fce6c2074939f955c6a395c0ebe534fa87e51de115c0772f638fd89c74e7c53b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2eb176b6f9a76d0ccf5d0bd2ebf3549de7cf4b7b59b5118675dd54fe4c052da3"
+          ]
+        },
+        {
+          "text": "A firsthand MongoDB 4.4-to-5.0 migration report records history-store growth during member outages despite w:1, a one-second history window, and disabled flow control; restoring members reduced the file. This is one deployment report and does not establish a general growth rate or prove that lowering the minimum window bounds retained history. (low confidence)",
+          "source": "https://dba.stackexchange.com/questions/335254/mongodb-wiredtiger-history-store-file-growth-observed-during-failover",
+          "note": null,
+          "claimId": "clm:41dcb4da5352ac940e0d8104729816afa540c6f29afefc913e7a7222a6b3c835",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6d4711685360d717fa27c72a551b97c47ebdba7d4a2b2fadd93f2e018dab5daa"
+          ]
+        },
+        {
+          "text": "For the documented PSA scenario, MongoDB describes temporarily setting the unavailable or lagging secondary to votes:0 and priority:0 so the remaining primary can advance majority commits, then using rs.reconfigForPSASet when restoring the secondary. This procedure changes voting and majority-write durability and requires topology-specific evaluation. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/mitigate-psa-performance-issues.md",
+          "note": null,
+          "claimId": "clm:806f79ab960334dba21b39462dbe3d02e96a8823cee9f0ac86c1de2093b0c1b6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ea2b588465f8014c9869fad3b8582efe31f6bc56dd8ad588d19b62a893e7f904"
+          ]
+        },
+        {
+          "text": "WT-6681 records a reproduced case of rapid history-store disk growth with a replica-set member down and was resolved Works as Designed. File growth alone therefore does not establish a memory leak, and the ticket's initial diagnostic hypotheses should not be presented as settled root causes. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/WT-6681",
+          "note": null,
+          "claimId": "clm:8604156cfbd26f57e4b8c5b361d635b77f324c4bb6c86b19f49a965e79db84d8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0e3f201863c5f23803bce003682c0bd03660b192b3f7f0bf4be132888134aba2"
+          ]
+        },
+        {
+          "text": "Increasing minSnapshotHistoryWindowInSeconds requires retaining older modified values for a longer window and can increase disk usage. Inference: reducing that window is not a guaranteed remedy for majority-lag retention, because MongoDB separately requires durable history after the lagged commit point. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null,
+          "claimId": "clm:e9959fb666fe7d7f28c2577e2b12833e6f2174af45b29e8317232942c7c3639b",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "In a primary-secondary-arbiter replica set, an unavailable or lagging secondary can stall the majority commit point even while w:1 writes continue. Retaining post-commit-point history adds disk writes and can increase cache pressure; the oplog may also exceed its configured limit to preserve the commit point. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/mitigate-psa-performance-issues.md",
+          "note": null,
+          "claimId": "clm:8b09648af60c63bce831470e0076e0a527bafd22969c60f993151fa2ecd8d618",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ea2b588465f8014c9869fad3b8582efe31f6bc56dd8ad588d19b62a893e7f904"
+          ]
+        },
+        {
+          "text": "Starting with MongoDB 5.0, enableMajorityReadConcern cannot be disabled. The older workaround of disabling majority read concern is therefore not applicable to 5.0 and later deployments. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/read-concern-majority.md",
+          "note": null,
+          "claimId": "clm:9867fdd825acddc1b67163c9c652ded82fd6af37c3d1eaaf6240773b5371a4bf",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:68cd01821969b2a4a5397b3aa2ff0c6a455527009ad1addd1e9856a4b1e7be69"
+          ]
+        },
+        {
+          "text": "WT-18765 reports dirty history-store content that eviction cannot remove during the history-store checkpoint pass, with workload-specific dirty-ratio overshoots above the configured trigger. This is evidence that a dirty trigger is not a hard instantaneous ceiling, not a universal overshoot percentage. (low confidence) (verified as of 2026-10-26)",
+          "source": "https://jira.mongodb.org/browse/WT-18765",
+          "note": null,
+          "claimId": "clm:ddc3498cb146de426d9c70e27395ee1fd26d75f953f3d004df551432a7f0cd30",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b9d235d149bf6ea3f7a06de3403740e0b99160728c9faf700a2ffd84bb5a4df2"
+          ]
+        },
+        {
+          "text": "The replication README defines oldest_timestamp as the earliest timestamp with guaranteed retained history and states that it advances with, and cannot exceed, stable_timestamp. This links retention progress to replication's safe timestamp progress; it is not solely a matter of how recently the application requested a snapshot. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
+          "note": null,
+          "claimId": "clm:7f5c7ee1eebb76933cdefa4453a847c9e2e7f5b860b388c1a21333fe29c310e4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c3f33eeea748d5c93774a418c295960002028c6b511dee4f21c39812c4e3552d",
+            "ev:ea2b588465f8014c9869fad3b8582efe31f6bc56dd8ad588d19b62a893e7f904"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "WiredTiger stores non-obsolete older record versions in the on-disk history store while the newest committed version goes to the user table. Older versions can therefore be evicted rather than all remaining resident in cache. (high confidence)",
+          "source": "https://source.wiredtiger.com/mongodb-4.4/arch-hs.html",
+          "note": null,
+          "claimId": "clm:00cd8d6e6e7e92011c60eecd7b95d97812c8cd6b75593b46e1c73e3707065ba9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9e71709aa7e034e2f9eb2aa66ba5e80ad80f1da7a24087caada7b7de38c4fce2",
+            "ev:c9d662300b0800fb9cc2a7494d8105b47b73c3d8c6c08ac730c6acb418d62f2c"
+          ]
+        },
+        {
+          "text": "The history store is a shared internal row-store table named WiredTigerHS.wt. Its records become reclaimable according to oldest-reader and oldest-timestamp visibility, rather than solely because wall-clock time has elapsed. (low confidence)",
+          "source": "https://source.wiredtiger.com/mongodb-4.4/arch-hs.html",
+          "note": null,
+          "claimId": "clm:b21ba5e8ea8a8f8518d63c56c1a525fbcf56de9913a61a75d22a48180a54f351",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9e71709aa7e034e2f9eb2aa66ba5e80ad80f1da7a24087caada7b7de38c4fce2",
+            "ev:c9d662300b0800fb9cc2a7494d8105b47b73c3d8c6c08ac730c6acb418d62f2c"
+          ]
+        },
+        {
+          "text": "Netdata's MongoDB monitoring guidance correlates cache fill and dirty ratios with per-node replication lag, oplog windows and member states. This provides an operational way to investigate whether replication trouble accompanies history retention rather than diagnosing from a single cache gauge. (low confidence)",
+          "source": "https://netdata-website.netlify.app/guides/mongodb/mongodb-monitoring-checklist/",
+          "note": null,
+          "claimId": "clm:69f05b759468125b1d234fa667624230b7c861814f2384d7078f15f6d21bbe02",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:14819bf8ca7a0419d25fb3b8212f6fbfc20733647a5ce0e536a132251ff21912",
+            "ev:ad39cf04840b19fcfea6ca4ab931553a12f729ed7889ec3ee097a34bd35c4348",
+            "ev:d2a772dce7e0941c68566a77c3c9bf27f6e3334426cc40b607f761251394e3da"
+          ]
+        },
+        {
+          "text": "The develop-branch WT_CACHE structure distinguishes history-store in-memory bytes, dirty bytes and update bytes through bytes_hs, bytes_hs_dirty and bytes_hs_updates. Its comment warns that these cached accounting values can be outdated; they are internal fields rather than a promise of identically named serverStatus metrics. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/wiredtiger/wiredtiger/blob/develop/src/include/cache.h",
+          "note": null,
+          "claimId": "clm:9acd6d5bdf13d7bb7e11d263677cb519deedea8d477e0581076bf8b6242ec74c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d1ac21cf5d20f1846dcba4eff9ef749b40577a8aee168efb144bb5e7502d4580",
+            "ev:ff77410c4f5ec8eb72875e4832d02375099ad86fdc1b8ad501ca9136761099c1"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Moving older versions out of a user page does not guarantee an equivalent drop in cache usage: history-store writes consume cache too. WT-14336 explicitly describes dirty-content movement from the data store to the history store as a source of cache pressure. (medium confidence)",
+          "source": "https://source.wiredtiger.com/mongodb-4.4/arch-hs.html",
+          "note": null,
+          "claimId": "clm:4374c9c55515231f0648c3974975c43817433204274f73e65f6fb5e3366afc68",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5be086cc60c6e0685379b3f15bfbbe9e81d3193300f4ad8467dd2b7b37f30631"
+          ]
+        },
+        {
+          "text": "Measure history-store cache residency separately from its on-disk size. Percona's serverStatus example exposes bytes belonging to the history store table in the cache, history-store on-disk size, and read/insert counters; WT-14336 adds the motivation for separate total, dirty and update-byte accounting. (medium confidence)",
+          "source": "https://www.percona.com/blog/mongodb-101-how-to-tune-your-mongodb-configuration-after-upgrading-to-more-memory/",
+          "note": null,
+          "claimId": "clm:f4f2021f89e9ea8c36516128bf1ce47b20d3d85e45adfa3227002894f0fe35d4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0331fdd9d0072f86826f80858ddc9a8298d27f33834d4adef08a0d42b2fc4d5f",
+            "ev:1bca4ed46d17e97cbe7f864e5227ca1fb00143fdc04540bf1e36b34d5e9a481a",
+            "ev:5be086cc60c6e0685379b3f15bfbbe9e81d3193300f4ad8467dd2b7b37f30631"
+          ]
+        },
+        {
+          "text": "Retaining history does not require keeping every historical version resident in RAM: the history store exists partly so older versions can be evicted while remaining available to older readers. History retention can nevertheless increase cache and I/O work. (high confidence)",
+          "source": "https://source.wiredtiger.com/mongodb-4.4/arch-hs.html",
+          "note": null,
+          "claimId": "clm:a51887700ce1b0c4d3cb2be850544a81c3ee94246b708c1f9926450f92b747c4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c9d662300b0800fb9cc2a7494d8105b47b73c3d8c6c08ac730c6acb418d62f2c",
+            "ev:ea2b588465f8014c9869fad3b8582efe31f6bc56dd8ad588d19b62a893e7f904"
+          ]
+        },
+        {
+          "text": "A long-running timestamped reader can prolong the lifetime of historical versions that it still needs. History-store cleanup depends on visibility to readers and the application's oldest timestamp, so committed writes from other transactions can create retained history while that reader remains open. (high confidence)",
+          "source": "https://source.wiredtiger.com/mongodb-4.4/arch-hs.html",
+          "note": null,
+          "claimId": "clm:d54df642d797d9d138379ae6f7aa43be9a6dce88a327534b009e6bab4d2c0e95",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9e71709aa7e034e2f9eb2aa66ba5e80ad80f1da7a24087caada7b7de38c4fce2",
+            "ev:c9d662300b0800fb9cc2a7494d8105b47b73c3d8c6c08ac730c6acb418d62f2c",
+            "ev:e9891a9759059e62aec2f53cd5bed9a2cc30282c0e68bb9ef5dfa57f39537bd6"
+          ]
+        },
+        {
+          "text": "Percona's WiredTiger Details dashboard exposes cache occupancy and byte rates read into and written from the cache. These provide operational context for history-retention investigations, but those aggregate panels do not by themselves attribute activity to the history store. (low confidence) (verified as of 2026-10-29)",
+          "source": "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html",
+          "note": null,
+          "claimId": "clm:71544ac07fa8827a4d370dfff85323ed8fbdc873a89ba9f1e318c98f137e7b2e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4b641086fe46964850de65adec7e57a0a34166a42875f29d4100e0279f08c271",
+            "ev:7fffcf6a095d00901a1584930387935c9dc3bde7c6e14fa9d846383b988d2d28"
+          ]
+        },
+        {
+          "text": "Netdata's transaction diagnostic workflow combines serverStatus transaction counters with currentOp transaction ages and WiredTiger cache measurements. It supplies a way to investigate old readers alongside cache pressure; an inactive transaction counter alone should not establish the causal diagnosis. (low confidence)",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-long-running-transactions/",
+          "note": null,
+          "claimId": "clm:5370c30e41f0ea5481ea26f90064c2e7c25229ee1469e95ac9bc237e39f5c022",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7b7edc9bccf11c6274989be16e8e9f3681dfbdbe8ff47c7985fd1d0bee2a07ff"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "0eec6ba5d1253b7e892295aa0cfa4d73e82083082d1144431db28f15689b167c",
+  "canonicalConceptId": "concept:fd69db6f06df4093b64689dd3084db042aba1f905a653f98f8a9df1bf0efa52e"
+}

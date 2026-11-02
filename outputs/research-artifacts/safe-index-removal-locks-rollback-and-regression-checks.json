@@ -1,0 +1,253 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Safe index removal: locks, rollback and regression checks",
+  "slug": "safe-index-removal-locks-rollback-and-regression-checks",
+  "canonical_concept_id": "concept:c59857459d968e3af1215f575000b4ab9bb55c60f6b735ff6d2d1c7074e61d2e",
+  "canonical_artifact_sha256": "086a242017641bc0e684848ac071fa376cc0cf81c46ee890db0f468e0cb8fe32",
+  "claims": [
+    {
+      "id": "clm:a8fd1f50ced0d55b32329295de4344bf806885e0aa3d69b644eb363ccd902c76",
+      "text": "Preserve the pre-change usage baseline: hiding or unhiding an index resets its $indexStats statistics when the visibility changes. Index recreation and mongod restarts also reset counters, so post-change zeroes are not a continuous history of non-use. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3455000277da615e20fc1094a7f9a6a147da592ed3be4fd07f947419f9918b8a",
+        "ev:49b643db5f9ff842122f7353101fdcd2a774cb5607cfd4a5b1cb3e95a4ef2e6b"
+      ]
+    },
+    {
+      "id": "clm:ba8d5fa02b482c4bce25747e51ad1e8939508fb4a3f7775a8ca3d563f259301f",
+      "text": "dropIndexes kills queries using the dropped index, including queries considering it during planning. A removal change therefore needs application error monitoring as well as latency monitoring. (low confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:e594772102bcab290ee5eddc34241d97bc0e273a917edf0075fffcac08aebcb7"
+      ]
+    },
+    {
+      "id": "clm:0c187fab5a13698ef4ff90c796bbd07461c271caad5c3bdcf2a89812a2ef4a8f",
+      "text": "Review explicit application hints before hiding or dropping an index. Hidden indexes cannot be hinted; the experimental MongoDB hint article shows that hints force index selection and that a missing named index or an ambiguous key-pattern hint can error. A fallback index does not by itself make an application hint safe. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+      "also": [
+        "https://dev.to/mongodb/hint-in-mongodb-is-different-that-sql-optimizer-hints-they-force-indexes-4c33"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0250ca498889613e58671fb94911729b3d18f6c59bca0e245eddccbc07724eb6",
+        "ev:9ab1346484df2292f31a9ec45633a2c2dc65cbef9f99f756025cd3549ee685ac",
+        "ev:fdbea775b5fa0871c890c2879f5905abb70e74285f7cc93f9ed94bc4e208b6fe"
+      ]
+    },
+    {
+      "id": "clm:684f310d8a460f0c29f3476f6410c7d6a5b454685c85dbdc018d1e2f36c91bf8",
+      "text": "A unique-index rebuild can fail if existing or concurrent writes violate the constraint at the end of the build. Together with continued uniqueness enforcement while hidden, this means a successful hide test does not establish that dropping and later recreating a unique index is a safe semantic rollback. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/index-creation.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:ca56575010e8212a275e0481470c021fa921aea1495237fd16eabb0ea329f87c",
+        "ev:d0d7dd0e8180acd38dce216fefce52c9c564cd98ec841d61efd34b6971e8c243"
+      ]
+    },
+    {
+      "id": "clm:6f1ee666d71bbad64602543315676b2a4da76cb95a375a8efc5efff216fc925c",
+      "text": "The Indexterity architecture records a concrete regression-monitoring blind spot: a slow-query-only profiler may miss fast failed hints to a hidden index. Its documented response compares pre-hide and post-hide failures and reports unavailable or partial coverage. This is project-specific operational evidence, not a MongoDB-wide guarantee or an independently reproduced benchmark. (low confidence)",
+      "source_url": "https://github-wiki-see.page/m/FullmetalBober/Indexterity/wiki/Architecture",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:a3cd707f83880d5472cde5d388ee2e271603137717a6db0a2f152160123f52e8"
+      ]
+    },
+    {
+      "id": "clm:e6eef50e1372225004c2a715a01a1d18787532a7e7d72017df375a540ad6a99f",
+      "text": "Check failed operations separately from latency. Hidden indexes cannot be hinted; the Indexterity author reports that hiding a text index caused queries to fail quickly while its latency-only gate appeared stable. Inference: a faster latency metric alone cannot certify a safe removal trial. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+      "also": [
+        "https://github-wiki-see.page/m/FullmetalBober/Indexterity/wiki/Architecture"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6aeae28c51fc9065cdb21b046547b37c82644537fa065c17253490095b4eac53",
+        "ev:fdbea775b5fa0871c890c2879f5905abb70e74285f7cc93f9ed94bc4e208b6fe"
+      ]
+    },
+    {
+      "id": "clm:9efd37b1acc3617f3d70d196e9baf24340406113355677bed80b89913e8f4b9b",
+      "text": "Use the explicit reviewed index name for a single-index removal. The dropIndexes wildcard selects multiple indexes, while the default _id index cannot be dropped; a wildcard command is therefore inappropriate for a one-candidate experiment. (low confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:234f4296fbccb495769e451d8e5e77c0424864556ffb535a15c86fa9874ceae7",
+        "ev:793cf7d09a37636abce1349dcae1f30c70f0c1a433dc57d38034872cbf2a01d7",
+        "ev:817b8e85d070c87bb361365bc99f307f90ebb5504915d5c3ae876ab0eb694409",
+        "ev:81b95ee86fcedfbe711b900ad355f45424dbf824beacdda9744c9100547f27c0"
+      ]
+    },
+    {
+      "id": "clm:7e02a75cba0636d3d67d9415cd44a481d20c670dac1d9bba74c453238c9bcbc2",
+      "text": "Treat zero usage as a removal candidate rather than authorization. Percona recommends comparing the uptime window, reviewing every replica-set member because usage is node-local, and confirming with the application team before dropping. (low confidence)",
+      "source_url": "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-unused-indexes.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0057767bea53b7a5425a17c5daa1b485421732cd456b55bf29488350faf03f1c"
+      ]
+    },
+    {
+      "id": "clm:94b73c523e2193efe67e35dddcdec581448bcc3fa1e806201e8b7573870dfeb2",
+      "text": "Recommended regression checks are application latency and errors plus query-level plan and scan work: compare slow queries, collection scans, documents examined versus returned, and host I/O against a representative baseline. This is a synthesis of MongoDB query-plan inspection and Netdata operational guidance about silent index regressions, not a universal numerical acceptance threshold. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+      "also": [
+        "https://www.netdata.cloud/guides/mongodb/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:816f5f60b6f58d3fd342aaca4dd20b89a891d1610c4fe14ebd1447829a1b030e",
+        "ev:b6154ab6e0089fda36b1519549c807b733f1db67efbb8935ad3cff673b4314aa",
+        "ev:d02be1bfb11ec725f70ee1d4651bcc8d9da658554faa5203a6e2076913e666d7",
+        "ev:e3f6d0f541c3b5eeb2ba169df8679b9704eed5a7a07a074870c5b338ca70403c"
+      ]
+    },
+    {
+      "id": "clm:0f3368621383e3370f7da04aa269e50df224947aff9e86dcc71f1b5d45e5fc99",
+      "text": "Check node coverage and observation history before approving removal: $indexStats is node-local, and an index unused on one replica-set member can be used on another. Review all relevant members and account for restarts rather than relying on one zero counter. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+      "also": [
+        "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-unused-indexes.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0057767bea53b7a5425a17c5daa1b485421732cd456b55bf29488350faf03f1c",
+        "ev:3455000277da615e20fc1094a7f9a6a147da592ed3be4fd07f947419f9918b8a",
+        "ev:347418ed9f8ad032681780fb5ab33211ac7aaa74cdde08e1333117f3a25e5228"
+      ]
+    },
+    {
+      "id": "clm:772baaef7cebace03acbd4051644017f0790c9764649a34a6eee7fba0b0225ef",
+      "text": "Hide a candidate index before dropping it to test the effect of excluding it from query planning. If the workload regresses, unhide the maintained index; it is available without rebuilding. A satisfactory hide test can be followed by dropping the still-hidden index. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:75b0314aacefe11c9a9fae31a68ac00698bb86394c5fd0a0c6012fd547f2bb07"
+      ]
+    },
+    {
+      "id": "clm:e140b84b56c4b2a242b802932bc0558f9ecf269283b9a6f173e3310e8386910d",
+      "text": "The dropIndexes command acquires an exclusive lock on the target collection for the operation duration. The concurrency FAQ also identifies dropIndexes as a collection-locking command. Plan for DDL contention, but do not turn the command page wording into an unconditional claim that every modern read blocks: the FAQ separately documents lock-free reads. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/faq/concurrency/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:50bee56a71e8d897e9eb001e184e8abe9a5ab7741889051751f77cdeb6bd428f",
+        "ev:9920c71c3bdabfc6ccce0bc4b4a80e0fec02d01113e8163d740495e6596be085",
+        "ev:a0b6bac4a19d90f4951d1808dcb3245500d46816e2a5c1591ee1c39a118dd0a1"
+      ]
+    },
+    {
+      "id": "clm:b5cc4899f1d58dc8da906a05ba47cc455d2d55d2fa5f65964396592fbf9ef85b",
+      "text": "Hiding does not simulate every consequence of dropping: hidden indexes still enforce unique constraints, expire TTL documents, receive write updates, and consume disk and memory. SERVER-49160 requested different TTL behavior but was resolved Works as Designed; its proposal is not evidence that hidden TTL expiration stops. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-49160"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:220fa7ad91725363ee7b8363f3c0dff0e3244e828ebed558eb590d02b0ef9db3",
+        "ev:34cc47ec1c97ff0a27535945abc3eb513dfd36dfb30f0172cf8edf31c577cff8",
+        "ev:a3da868f8e8f433c6635fdb83378f6337159a5fa7ef188321483845e50964adf"
+      ]
+    },
+    {
+      "id": "clm:6d197a9748ba8ebea34c4c816f1c767995cb57cc47f6cf88ff446ec1c837ecff",
+      "text": "Creating, deleting, or hiding an index clears the relevant collection plan cache. explain ignores existing cache entries and does not populate the cache, so an explain result alone does not prove the steady-state behavior of application queries after index DDL. (low confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:41ad8e3a630e0776e5e872e8dd19acc9aae0c9b00cf75c039f33e04e6be981cc",
+        "ev:9927281177c2b726e062e3fce378f1006f998b15980463ff0560c91747fc2205"
+      ]
+    },
+    {
+      "id": "clm:4c2a8a0f142794ae5ae0b3620e5899accaad5903012dd3e4b556a98e6f910232",
+      "text": "A recovery plan after actual deletion must budget for a new index build. MongoDB describes builds as taking collection locks at their beginning and end and warns that heavy writes can reduce write performance and prolong builds. Saving the exact index definition before deletion is an operational implication of needing recreation, not an instant undo guarantee. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/index-creation.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:75b0314aacefe11c9a9fae31a68ac00698bb86394c5fd0a0c6012fd547f2bb07",
+        "ev:e7ec6c1197830723f0a2c509b2b2438bc2aabcce3fc365230c8e07cbd0928ac0",
+        "ev:f14ebb46853955a24d8113a978ad01ebab5880e87c5f2339a6fd2ea43b5646f3"
+      ]
+    },
+    {
+      "id": "clm:cd53e1b9adc35603eb4e734c75c522fb31d0ded7fd387a858b9acbb93eba8e98",
+      "text": "dropIndexes obtains an exclusive collection lock. Operations requiring conflicting locks can wait for its release, so account for that contention during removal. Starting in MongoDB 5.0, eligible lock-free reads such as find, count, distinct and aggregate are not blocked solely by a collection-level exclusive lock. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/faq/concurrency/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9920c71c3bdabfc6ccce0bc4b4a80e0fec02d01113e8163d740495e6596be085",
+        "ev:ddc22faf20a83b50d0453b013f9da0478edeb31ea19a9c82e2cc4d3faf4ad8d9",
+        "ev:f0e1c411db68b1354ce4d6557e7badbf5beedda2c4874013a50e781f1aadf530"
+      ]
+    },
+    {
+      "id": "clm:67d6b77bdacd7ce1469ce7dbfa4b03c2bdb577226c8dae5c80428dbd0501fac7",
+      "text": "A hidden index remains maintained on writes and continues consuming disk and memory. Hiding therefore tests planner dependence; it does not measure the write or storage savings of physically removing the index. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+      "also": [
+        "https://github-wiki-see.page/m/FullmetalBober/Indexterity/wiki/Architecture"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:c0c5ab4a76617385e82edf990fa7f1681050b92cd4fe5a29b70f3eff700fa87c",
+        "ev:d9ae317b4314b18dd285375421b424d6c2f9585325e09c44c30c7f2876020b44"
+      ]
+    },
+    {
+      "id": "clm:b130a0ae52ec64a18a5ef0bb8e0261705276e90181039fcd5e56b533207d12d5",
+      "text": "Hidden unique indexes still enforce uniqueness, and hidden TTL indexes still expire documents. Since $indexStats excludes internal TTL deletion activity, zero query accesses and a successful hide test do not establish that removing these indexes preserves application semantics. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-hidden.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:378188426d08a2f12812d7d44c5ec4f7c2223bcc239eeba6b3895910574f3f7b",
+        "ev:ca56575010e8212a275e0481470c021fa921aea1495237fd16eabb0ea329f87c"
+      ]
+    },
+    {
+      "id": "clm:591d44df5781f4e9ce94916f6049be08dde31121ca1f7c79588acf32a6055b14",
+      "text": "Regression checks should watch query latency and scan efficiency after hiding or dropping an index. Netdata identifies silent index regressions through COLLSCAN and increasing documents examined relative to documents returned; the Indexterity author describes a hide-and-observe workflow that reverses a hide on degradation. (medium confidence)",
+      "source_url": "https://www.netdata.cloud/guides/mongodb/",
+      "also": [
+        "https://github-wiki-see.page/m/FullmetalBober/Indexterity/wiki/Architecture"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0ee62ceddfe4fe289dd44a46e354cd4ddd66b8e5b6a7f5b48c41cdd50b7449ed",
+        "ev:a4eb2e17efc5448dd9049900034947acc0e8f8982115cab6aa68da6d48e7f7f6"
+      ]
+    }
+  ],
+  "projection_sha256": "c0875c57829f0e82be10a6f1af3e7ac6be9d62f0e21fe0477d7092bb90465a93"
+}
