@@ -1,5 +1,70 @@
 # Prompts Log
 
+## Prompt v77 - 2026-10-30
+
+> UI implementation task: a research summary/distillation page for llms to use as reference files, skills, blogs, and how-to articles for AI/LLM work, for people with moderate AI experience who want to find a concept file or family for their task, reference it in a prompt, read a blog post and download skills; inspect first, implement with loading/empty/error/success states, render and verify at mobile and desktop widths.
+
+Scope: TASK-966. Build /research/ on the existing Astro conventions, verify it in a real browser under the production CSP, and deliver through a PR. Delta: prompt v76 to v77; memory 0.22.75 to 0.22.76.
+
+## Prompt v76 - 2026-10-29
+
+> Antigravity scouted new concepts and sources to research, research the mongodb queue list
+
+Scope: TASK-960. Validate the Antigravity handoff, reconcile current MongoDB queue and qualified coverage, research the selected eligible concepts with native /dr and current gates, persist qualified outputs and deliver verified changes. Preserve paused services, reservations, previous completed research, and unrelated work. Delta: prompt v75 to v76; memory 0.22.70 to 0.22.71.
+
+## Prompt v75 - 2026-10-29
+
+> Disable all Delta hooks
+
+Scope: disable the installed Delta plugin at its user configuration source and verify project overrides and Codex registrations. Preserve other plugins/hooks and the ongoing queue repair work. Delta: prompt v73 to v74; memory 0.22.63 to 0.22.64.
+
+## Prompt v74 - 2026-10-29
+
+> Resolve the issues, sync the site here and also the tree in .global-ai-hub then commit push pr
+
+Scope: resolve the research queue audit findings, repair existing withheld research with fresh bound gates, synchronize qualified results and queue/tree metadata into the hub and repository, regenerate the website, and deliver through a verified PR. Preserve paused services, suite reservations, immutable evidence, prior completed research and unrelated divergent-main commits. Delta: prompt v72 to v73; memory 0.22.62 to 0.22.63.
+## Prompt v73 - 2026-10-29
+
+> Look at how the facts and other /dr output is being saved in files, is it effective? Can it be made better? Carefully examine how data is searched for, retrieved, stored, recorded, and determine which aspects of those steps could be meaningfully improved. Should there be better or different indexing? Is the storage pattern complete enough that useful facts are retrievable? Is there too much data included in each line? Should there be a cleanup or distillation step? Also make sure that the /dr /cfe and rabbithole skills are updated to look for, understand, and utilie the scout's research.
+
+Scope: TASK-954. Audit the current pipeline and real saved artifacts, measure granularity and retrieval coverage, compare prior draft contracts with shipped behavior, and deliver prioritized recommendations. Implement explicit scout consumption in all three research workflows and their active mirrors. Preserve evidence, active research, draft PR219 and paused indexing/embeddings. Delta: prompt v72 to v73.
+
+## Prompt v72 - 2026-10-29
+
+> audit the research queue
+
+Scope: audit queue grammar, status, ranking, reservations and research evidence across the hub, divergent shared checkout, remote main and retained runtime checkout. Preserve research and queue state. Save findings and a reproducible inventory under docs/research/research-queue-audit-2026-10-29/. Stele task creation failed because the monthly write allowance is exhausted; use the disk continuation record. Delta: prompt v71 to v72; memory 0.22.61 to 0.22.62.
+
+## Prompt v71 - 2026-10-29
+
+> I have access to antigravity, which isn't as good at the analysis of doing /dr research or concept family explorer work, but it is very fast and has good web lookup skills, would it be helpful to use antigravity as the scout stage when researching the queue in this repo and expanding the frontier concepts? If so, then create a scout skill specifically to do this and to store the links and resources in a location and in a format that you will know and understand, and then add this skill to the ~/.claude/skills since antigravity picks that up.
+
+Scope: create and install research-scout for bounded source discovery and candidate frontier proposals. Preserve research validation, queue completion, active runs, and the divergent checkout. Delta: prompt v70 to v71.
+
+Suggested Antigravity invocation:
+
+```text
+Use research-scout to scout the next four MongoDB queue concepts and propose related frontier concepts. Save source leads and continuation notes using the skill's private handoff format. Spend at most 20 minutes. Leave claim validation and frontier acceptance to /dr and concept-family-explorer.
+```
+
+## Prompt v70 - 2026-10-27
+
+> I refreshed the libs read token
+
+Scope: TASK-944/TASK-947. Record the user-confirmed token refresh, verify a fresh Cloudflare preview and final checks, then merge only after they pass. The confirmation does not establish credential validity. Delta: prompt v69 to v70.
+
+## Prompt v69 - 2026-10-27
+
+> how's it going?
+
+Scope: report the current MongoDB plan outcomes and publication checks from live verification; keep local finalization, withheld research and remote publication distinct. Delta: prompt v68 to v69.
+
+## Prompt v68 - 2026-10-27
+
+> continue researching the research list. Expand the mongodb concept list and begin researching those topics.
+
+Scope: TASK-944. Continue the independent local MongoDB queue, expand source-backed pending concepts and begin native research. Preserve frozen plans and paused embeddings. Delta: prompt v67 to v68.
+
 ## Prompt v70 - 2026-10-27
 
 > Using the skills and reference files you just created optimize the local and remote hermes setups using best practices and make sure it all works correctly, choose the best memory and context servers and set those up, and optimize whatever you can optimize on this and on the 5080 box.
@@ -952,3 +1017,9 @@ User requested committing pending changes and updating this checkout to latest
 main. Reconcile existing draft PR #234, preserve local scratch and blocked vendor
 mirrors, run the required checks, merge the reviewed result, and synchronize the
 shared checkout. Preserve newer main fixes and unique checkpoint research.
+
+# MongoDB full claim validation — 2026-10-31
+
+User asked to start validating every MongoDB concept, fanning out agents,
+marking each concept in the tree as it is validated so no effort repeats, and to
+keep cycling until all MongoDB concepts are validated.
