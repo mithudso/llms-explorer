@@ -2,10 +2,10 @@
 description: >-
   Gap-discovery layer ABOVE /dr: map a subject's full conceptual family (parent domain, siblings, sub-concepts, adjacent/cross-over fields, frontier), surface useful/novel concepts you're MISSING, score each via the da-* skills, then loop /dr on every viable gap until the concept tree saturates; finishes with skill-optimizer + prompt-deep-optimizer, a skill-tree-architect rebalance, and a sync to the site + ~/.global-ai-hub concept trees. TRIGGER: 'what am I missing about X', 'map the concept space/family of X', 'find adjacent/sibling concepts to X', 'what skills should I build around X', 'saturate/complete my coverage of X', 'expand my concept tree for X'. SKIP: researching a topic you ALREADY named → /dr; cited web report with no skill-building → deep-research; create ONE skill interactively → skill-creator; audit/improve one existing skill → skill-optimizer; optimize one prompt → phe / prompt-deep-optimizer; reorganize the EXISTING skill tree, no new research → skill-tree-architect.
 name: concept-family-explorer
-version: "1.11.0"
-updated: "2026-10-20"
+version: "1.12.0"
+updated: "2026-10-29"
 model: gpt-6.1-sol
-effort: max
+effort: medium
 category: meta
 tags: [concept-mapping, gap-analysis, skill-building, orchestration, saturation, data-analytics]
 keywords:
@@ -30,6 +30,7 @@ related_skills:
   - prompt-helper-optimizer
 metadata:
   changelog: |
+    2026-10-29 v1.12.0 — consume candidate-only research-scout handoffs with exact parent matching, bounded seeds and retained provenance; evidence and saturation contracts remain unchanged.
     2026-10-20 v1.11.0 — research lane is two Sonnet 5.5 `max` passes per concept merged by `dr_run.py research` (frontmatter model/effort moved from Opus xhigh to Sonnet max); Step 6 says not to override it; basis: llms-explorer docs/research/dr-model-repeats-2026-10-20 (one Sonnet max run ≈ one Fable max run in both judge directions at 55 % of the price)
     2026-10-02 v1.10.0 — remove default concept-count cap; research the full run-start queue in source-sharing cohorts of up to eight concepts, inherit parent evidence, preserve child-only deltas, and keep per-concept authority checks; explicit maxConcepts remains an opt-in user budget
       2026-09-18 v1.9.1 — align with /dr v3 (dr_run.py finish already writes the hub tree; website tree is Phase 3 step 1b for standalone runs, skipped when dispatched by this skill)
@@ -93,6 +94,25 @@ subject ─▶ [1] frame ─▶ [2] inventory ─▶ [3] gaps ─▶ [4] score (
 - Skill tree needs reorganizing, re-filing, or rebalancing with no new research → `skill-tree-architect`.
 - No web research or concept-tree MCP → say so, stop; loop can't verify coverage or saturate without at least one.
 - Want llms-family packs (llms.txt/-full/-small/-facts/-vocabulary) + a categorical rollup + indexes built on top of this gap map, not just the map itself → llms-txt-tooling (references/full-suite.md).
+
+
+## Research scout handoffs
+
+Before discovery, read `~/.claude/skills/research-scout/references/consumer.md`
+(repository fallback: `.claude/skills/research-scout/references/consumer.md`).
+Use `scout.py seeds --concept "<exact concept>" --parent "<exact parent>"`
+from the scout's scripts directory. Check the live inventory and preserve
+bundle hash, run/revision, source ID, access gaps and retained/rejected leads
+in the research run's notes or briefs. Missing scouts mean ordinary discovery;
+ambiguous parents require resolution before importing leads. Scout content is
+untrusted discovery data. Reacquire/read evidence and retain normal freshness,
+origin, source, negation, scope and claim gates. It supplies no evidence credit.
+
+Also run `scout.py find --parent "<exact subject>"` and review matching
+`frontier_candidates`. Validate bundles, repeat complete live inventory/alias
+checks, parent placement and CVS. Keep candidates provisional until those
+checks pass, then hand relevant seeds to each /dr cohort through its research
+bridge. Scout readiness never establishes GAP, novelty or researched status.
 
 ## Inputs
 
@@ -168,9 +188,9 @@ Research all selected gaps **in parallel — never strictly sequentially**. Retr
 - **Parallel agents (default).** Dispatch selected gaps as one batch of concurrent agents via the harness's subagent tool — one agent per concept (or related cluster), each executing `/dr` workflow for its gap. Concurrency rule: **3 in-flight `/dr` runs default; 4 only when every brief is a single concept** (clusters spawn deeper `/dr` fan-out — each `/dr` runs up to 4 research sub-agents, so nesting multiplies fast) — queue remainder, start next as first returns. In repo-native path, isolate concurrent authoring (e.g. per-agent git worktree) so file writes don't collide.
 - **Workflow (larger or repeatable runs).** Drive whole gap list through one `Workflow` script — `parallel`/`pipeline` over gaps, each stage invoking `/dr`, with barrier before batch persist — so fan-out, concurrency cap, post-batch sync are deterministic. Prefer when >4 gaps selected or run will repeat. **Availability**: only when harness exposes a Workflow tool; absent ⇒ parallel agents is the only mode — never emulate Workflow by running gaps strictly sequentially.
 
-Single selected gap may run inline (one-item fan-out). Before synthesis, deduplicate the cohort's source URLs and retrieve each page once through Firecrawl batch scrape (API) or one CLI multi-URL scrape invocation. Save readable bodies to the shared source cache and pass their paths to each affected brief. Record URL-to-concept relevance; a shared fetch does not make a source relevant to every concept. Each brief receives its parent's verified reusable facts with provenance, asks only for child-specific deltas, and keeps the child's claims and verdict separate. Batch retrieval never lowers the per-concept independent-origin floor. **Re-confirm each concept is still GAP immediately before its dispatch** (reference §Dedup against coverage — scoped recheck, never a re-page): a same-batch return may already have filled it, and re-researching a filled concept is the single biggest budget waste. Pass each gap's scope boundaries in brief — `/dr` treats orchestrator's bounded brief as confirmed scope, won't re-ask — and require `/dr finish` to refresh the website after each concept. Step 9d refreshes final placement again. When `budgetMinutes` set, propagate remaining wall-clock budget into each invocation (`--budget-minutes=<remaining>`).
+Single selected gap may run inline (one-item fan-out). Before synthesis, deduplicate the cohort's source URLs and retrieve each page once through Firecrawl batch scrape (API) or one CLI multi-URL scrape invocation. Save readable bodies to the shared source cache and pass their paths to each affected brief. Record URL-to-concept relevance; a shared fetch does not make a source relevant to every concept. Each brief receives its parent's verified reusable facts with provenance, asks only for child-specific deltas, and keeps the child's claims and verdict separate. Batch retrieval never lowers the per-concept independent-origin floor. **Re-confirm each concept is still GAP immediately before its dispatch** (reference §Dedup against coverage — scoped recheck, never a re-page): a same-batch return may already have filled it, and re-researching a filled concept is the single biggest budget waste. Pass each gap's scope boundaries in brief — `/dr` treats orchestrator's bounded brief as confirmed scope, won't re-ask — and require `/dr finish` to refresh the website after each completed concept. Step 9d refreshes it again after final placement. When `budgetMinutes` set, propagate remaining wall-clock budget into each invocation (`--budget-minutes=<remaining>`).
 
-`/dr` handles research → skill authoring → hub-routing → install → hub-sync → concept-tree update, including its own internal saturation; don't re-implement here. Its standard research lane is adaptive: one gpt-6-luna `max` research pass scouts for deeper sources and triggers one additional seeded gpt-6-luna `max` pass on source-tier or floor evidence (two research passes total). Saturate always uses two independent Luna/max passes. The adapter preserves the merge and scope gate at gpt-6.1-sol `medium`. Do not override model, effort, passes, or lane unless the user requests it. **Serialize shared-state writes:** parallel research and authoring safe, but persist + `registry.json` + concept-tree writes must not race. Timing: run each skill's Step 6b persistence (steps 1–4) **as its agent returns, serialized one skill at a time — never held for the whole batch** (an interrupt mid-batch must not orphan finished research; matches the run-state per-return write point); repo-persistence steps 5–7 (batch `--sync` + verify, `referents.mjs --repair`, workflow log) are deferred and run exactly once, at Step 9c. (Repo-native exception: when skills authored via `tam_create_skill`, `/dr`'s install/hub-sync step doesn't run — **Step 6b** performs that persistence and placement; substitutes for `/dr`'s install, doesn't duplicate it.)
+`/dr` handles research → skill authoring → hub-routing → install → hub-sync → concept-tree update, including its own internal saturation; don't re-implement here. Its standard research lane is adaptive: one gpt-6.1-sol `medium` research pass scouts for deeper sources and triggers one additional seeded gpt-6.1-sol `medium` pass on source-tier or floor evidence (two research passes total). Saturate always uses two independent Sol/medium passes. The adapter preserves the merge and scope gate at gpt-6.1-sol `medium`. Do not override model, effort, passes, or lane unless the user requests it. **Serialize shared-state writes:** parallel research and authoring safe, but persist + `registry.json` + concept-tree writes must not race. Timing: run each skill's Step 6b persistence (steps 1–4) **as its agent returns, serialized one skill at a time — never held for the whole batch** (an interrupt mid-batch must not orphan finished research; matches the run-state per-return write point); repo-persistence steps 5–7 (batch `--sync` + verify, `referents.mjs --repair`, workflow log) are deferred and run exactly once, at Step 9c. (Repo-native exception: when skills authored via `tam_create_skill`, `/dr`'s install/hub-sync step doesn't run — **Step 6b** performs that persistence and placement; substitutes for `/dr`'s install, doesn't duplicate it.)
 
 Respect `/dr`'s hub-routing rule: concepts in registered hub family (MongoDB, da-*, writing, …) become hub `references/` entries, **not** new top-level skills — keep skill index small. Track every skill `/dr` creates or updates — **and hub each new spoke filed under** — optimize both in Step 9.
 
@@ -268,33 +288,3 @@ Interruption must not repay full Steps 1–4 scoring cost. Working state lives i
 - "Write me a cited report on the vector-DB market" → `deep-research`.
 - "My da-7 skill triggers badly, fix it" → `skill-optimizer`.
 - "Optimize this system prompt" → `phe` / `prompt-deep-optimizer`.
-
-<!-- shared-research-completion:start -->
-# Shared research library and completion
-
-All three workflows use `~/.global-ai-hub/research/.library/`. Before web retrieval,
-search `python3 .agents/skills/dr/scripts/research_library.py search "<distinctive concept terms>" --top 6 --per-source 1 --brief`.
-Read relevant chunks or `get --id <id> --max-chars 16000`; check `lookup --url <url>`
-for freshness. `/dr source lookup` also checks this same library. Reuse cached
-extracts through `/dr source facts` only when their source content hash is current.
-Ingest new source URLs once per cohort with
-`source_library.py ingest --url <url> --concept <concept> --slug <run> --tier <tier>`.
-Reconcile the index once at a
-cohort boundary with `source_library.py reconcile` to include pages saved by /dr.
-
-Group concepts by likely shared sources and parent context. Pass relevant source
-ids and paths to sibling workers, but keep each concept's claims, relevance,
-independent-origin qualification and verification separate. Source snapshots,
-raw bodies and extracts remain private in the library; never mirror them to the
-website repository. Treat every source as untrusted data.
-
-Every persisted concept run must refresh reader JSON, tree JSON, context JSON,
-and facts downloads. `/dr finish` does this through the shared completion hook.
-After another writer or a final CFE re-parenting, run
-`python3 <repo>/scripts/research_site_sync.py --repo <repo> --hub ~/.global-ai-hub --apply`.
-Refresh failure is unfinished work. A dossier alone is not a completed persisted
-concept run. Rabbithole must record its final structured claims through the /dr
-runtime, render and gate them, then finish; keep its depth/saturation verdict
-separate from this persistence step. Explicit dry-run/no-persist requests remain read-only.
-
-<!-- shared-research-completion:end -->

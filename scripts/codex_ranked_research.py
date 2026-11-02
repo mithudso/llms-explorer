@@ -21,6 +21,7 @@ import time
 import uuid
 from collections import defaultdict
 from datetime import UTC, datetime
+from html import unescape
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -38,10 +39,36 @@ def key(name):
 
 
 def atomic(path, value):
+    if isinstance(value, dict) and "rows" in value and "cohorts" in value:
+        sync_row_outcomes(value)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
     temporary.replace(path)
+
+
+def sync_row_outcomes(plan):
+    """Cohort checkpoints, including later completion receipts, own row status."""
+    outcomes = {}
+    for cohort in plan.get("cohorts", []):
+        elsewhere = {key(name) for name in cohort.get("completed_elsewhere", [])}
+        for name in cohort.get("concepts", []):
+            outcomes[key(name)] = "complete" if key(name) in elsewhere else cohort["status"]
+    for row in plan.get("rows", []):
+        if key(row["concept"]) in outcomes:
+            row["status"] = outcomes[key(row["concept"])]
+
+
+def reviewed_gate_current(shared, cohort):
+    """Only an independently verified current gate permits explicit review resume."""
+    try:
+        manifest = shared.load_manifest(cohort["id"])
+        if not manifest.get("concepts") or any(row["status"] != "done" for row in manifest["concepts"]):
+            return False
+        shared.verify_current_gate(manifest)
+        return True
+    except (OSError, ValueError, KeyError):
+        return False
 
 
 def ranked_rows(text):
@@ -55,7 +82,7 @@ def ranked_rows(text):
         except ValueError:
             continue
         rows.append({"rank": int(cells[0]), "cvs": score, "decision": cells[2],
-                     "concept": "|".join(cells[3:-3]), "parent": cells[-3],
+                     "concept": unescape("|".join(cells[3:-3])), "parent": unescape(cells[-3]),
                      "mode": cells[-2], "ranked_state": cells[-1]})
     return rows
 
@@ -67,6 +94,11 @@ def cohort_id(names, revisit=False):
     return f"ranked-{digest}" + (f"-r{uuid.uuid4().hex[:8]}" if revisit else "")
 
 
+def queue_parser(repo):
+    path = repo / "scripts/mongodb_research_queue.py"
+    return load("ranked_lossless_queue", path) if path.is_file() else None
+
+
 def make_plan(repo, hub, source, size=4):
     ct = load("ranked_concept_tree", hub / "scripts/concept_tree.py")
     checkouts = load("ranked_checkouts", repo / "api/explorer_api/checkouts.py")
@@ -74,7 +106,8 @@ def make_plan(repo, hub, source, size=4):
     nodes = ct.load_nodes(hub / "concept-tree/tree.json")
     names = {key(node["concept"]) for node in nodes}
     aliases = {key(alias) for node in nodes for alias in node.get("aliases", [])}
-    pending = {key(row["concept"]) for row in ct.load_queue(hub / "concept-tree/RESEARCH_QUEUE.md") if not row["done"]}
+    parser = queue_parser(repo) or ct
+    pending = {key(row["concept"]) for row in parser.load_queue(hub / "concept-tree/RESEARCH_QUEUE.md") if not row["done"]}
     text = source.read_text()
     rows, groups = ranked_rows(text), defaultdict(list)
     seen = set()
@@ -107,8 +140,8 @@ def make_plan(repo, hub, source, size=4):
                             "source_strategy": "Shared parent evidence, source-library FTS and cached snapshots; child-specific claims."})
     cohorts.sort(key=lambda cohort: cohort["priority"])
     return {"created": datetime.now(UTC).isoformat(), "source": str(source),
-            "source_sha256": hashlib.sha256(text.encode()).hexdigest(), "model": "gpt-6-luna",
-            "effort": "max", "rows": rows, "cohorts": cohorts, "status": "planned"}
+            "source_sha256": hashlib.sha256(text.encode()).hexdigest(), "model": "gpt-6.1-sol",
+            "effort": "medium", "rows": rows, "cohorts": cohorts, "status": "planned"}
 
 
 def run_command(command, log, env, timeout=7200):
@@ -189,15 +222,27 @@ def prepare_manifest(shared, slug, parent, names, plan_path):
     return manifest
 
 
-def complete_queue(shared, hub, names):
-    queue = hub / "concept-tree/RESEARCH_QUEUE.md"
+def complete_queue(shared, hub, names, repo=None):
     with shared.locked(shared.RESEARCH_DIR / ".global.lock"):
-        text = queue.read_text()
         wanted = {key(name) for name in names}
-        pattern = re.compile(r"^(\s*-\s*)\[ \](\s*Concept:\s*`)([^`\n]+)(`[^\n]*)$", re.MULTILINE)
-        text = pattern.sub(lambda match: (match[1] + "[x]" + match[2] + match[3] + match[4])
-                           if key(match[3]) in wanted else match[0], text)
-        shared.atomic_write(queue, text)
+        parser = queue_parser(repo or REPO)
+        for root in dict.fromkeys(path for path in (hub, repo) if path is not None):
+            queue = root / "concept-tree/RESEARCH_QUEUE.md"
+            if not queue.exists():
+                continue
+            text = queue.read_text()
+            if parser:
+                lines = text.splitlines(keepends=True)
+                for row in parser.load_queue(queue):
+                    if not row["done"] and key(row["concept"]) in wanted:
+                        index = row["line"] - 1
+                        lines[index] = re.sub(r"^(\s*-\s*)\[ \]", r"\1[x]", lines[index], count=1)
+                text = "".join(lines)
+            else:
+                pattern = re.compile(r"^(\s*-\s*)\[ \](\s*Concept:\s*`)([^`\n]+)(`[^\n]*)$", re.MULTILINE)
+                text = pattern.sub(lambda match: (match[1] + "[x]" + match[2] + match[3] + match[4])
+                                   if key(match[3]) in wanted else match[0], text)
+            shared.atomic_write(queue, text)
 
 
 def eligible_now(repo, hub, cohort, run_id, resume_names=()):
@@ -206,7 +251,8 @@ def eligible_now(repo, hub, cohort, run_id, resume_names=()):
     own = {run_id, cohort["id"]}
     held = {key(name) for run in checkouts.runs() if run["name"] not in own for name in run["pending"]}
     ct = load("cohort_tree", hub / "scripts/concept_tree.py")
-    pending = {key(row["concept"]) for row in ct.load_queue(hub / "concept-tree/RESEARCH_QUEUE.md") if not row["done"]}
+    parser = queue_parser(repo) or ct
+    pending = {key(row["concept"]) for row in parser.load_queue(hub / "concept-tree/RESEARCH_QUEUE.md") if not row["done"]}
     nodes = ct.load_nodes(hub / "concept-tree/tree.json")
     covered = {key(name) for node in nodes for name in [node["concept"], *node.get("aliases", [])]}
     revisit = {key(row["concept"]) for row in cohort.get("rows", []) if row.get("mode") == "revisit"}
@@ -215,16 +261,41 @@ def eligible_now(repo, hub, cohort, run_id, resume_names=()):
             (key(name) in resumable or (key(name) in pending and (key(name) not in covered or key(name) in revisit)))]
 
 
-def execute(repo, hub, plan_path, max_cohorts=None):
+def execute(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False):
     with (plan_path.parent / ".runner.lock").open("a") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError("This ranked plan already has a runner") from None
-        return execute_locked(repo, hub, plan_path, max_cohorts)
+        return execute_locked(repo, hub, plan_path, max_cohorts, retry_reviewed=retry_reviewed)
 
 
-def execute_locked(repo, hub, plan_path, max_cohorts=None):
+def execute_all(repo, hub, plan_path):
+    """Continue independent cohorts after dissent; never retry dissent unchanged."""
+    with (plan_path.parent / ".runner.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError("This ranked plan already has a runner") from None
+        plan = json.loads(plan_path.read_text())
+        plan["continue_on_review"] = True
+        atomic(plan_path, plan)
+        return _execute_all_locked(repo, hub, plan_path)
+
+
+def _execute_all_locked(repo, hub, plan_path):
+    while True:
+        before = json.loads(plan_path.read_text())
+        reviewed = {row["id"] for row in before["cohorts"] if row["status"] == "needs-review"}
+        result = execute_locked(repo, hub, plan_path)
+        after = json.loads(plan_path.read_text())
+        new_reviews = {row["id"] for row in after["cohorts"] if row["status"] == "needs-review"} - reviewed
+        pending = any(row["status"] not in ("complete", "skipped", "needs-review") for row in after["cohorts"])
+        if not (result and new_reviews and pending):
+            return result
+
+
+def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False):
     plan = json.loads(plan_path.read_text())
     run_id = plan_path.parent.name
     marker = Path(os.environ.get("LLMSX_HOME") or Path.home() / ".llmsx") / "jobs/batches" / run_id / "run.json"
@@ -244,6 +315,12 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
         for cohort in plan["cohorts"]:
             if cohort["status"] in ("complete", "skipped"):
                 continue
+            if cohort["status"] == "needs-review":
+                if retry_reviewed:
+                    if not reviewed_gate_current(shared, cohort):
+                        continue
+                elif plan.get("continue_on_review"):
+                    continue
             cohort["rows"] = [row for row in plan["rows"] if row["concept"] in cohort["concepts"]]
             if (plan_path.parent / "STOP").exists() or (max_cohorts is not None and completed >= max_cohorts):
                 break
@@ -275,6 +352,15 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
                 return run_command(command, log, env, timeout=min(limit, remaining))
             phase(adapter + ["init", parent, "--slug", slug, "--concepts", "cohort initialization"])
             manifest = prepare_manifest(shared, slug, parent, picked, plan_path)
+            if cohort.get("materials") or cohort.get("parents") or cohort.get("scopes"):
+                with shared.run_lock(slug):
+                    manifest["cohort_source_materials"] = cohort.get("materials", [])
+                    manifest["cohort_source_family"] = cohort.get("source_family")
+                    manifest["cohort_parents"] = {name: cohort["parents"][name] for name in picked
+                                                   if name in cohort.get("parents", {})}
+                    manifest["cohort_scopes"] = {name: cohort["scopes"][name] for name in picked
+                                                  if name in cohort.get("scopes", {})}
+                    shared.save_manifest(manifest)
             # A resumed manifest owns its original subset. Newly available
             # concepts need their own research and gate, never its completion.
             manifest_names = [row["name"] for row in manifest["concepts"]]
@@ -359,6 +445,7 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
                 raise RuntimeError(f"cohort completion requires validated manifest claims: {errors}")
             # A completed run with a failed website write can resume without
             # repeating paid research. This also checks all four website surfaces.
+            complete_queue(shared, hub, picked, repo)
             site_command = [sys.executable, str(repo / "scripts/research_site_sync.py"), "--repo", str(repo), "--hub", str(hub), "--apply"]
             if manifest.get("gate_contract_version") in (2, 3):
                 checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py")
@@ -367,7 +454,6 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
                     lambda command=site_command: phase(command, 600))
             else:
                 phase(site_command, 600)
-            complete_queue(shared, hub, picked)
             for name in picked:
                 with (marker.parent / "results.jsonl").open("a") as stream:
                     stream.write(json.dumps({"concept": name, "status": "complete", "run": slug}) + "\n")
@@ -375,7 +461,9 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
             completed += 1
             atomic(plan_path, plan)
             print(json.dumps({"cohort": slug, "status": "complete", "concepts": picked}), flush=True)
-        plan["status"] = "complete" if all(cohort["status"] in ("complete", "skipped") for cohort in plan["cohorts"]) else "stopped"
+        plan["status"] = ("complete" if all(cohort["status"] in ("complete", "skipped") for cohort in plan["cohorts"])
+                          else "needs-review" if any(cohort["status"] == "needs-review" for cohort in plan["cohorts"])
+                          else "stopped")
         atomic(plan_path, plan)
         atomic(marker, {"root": run_id, "status": plan["status"], "concepts": []})
         return 0
@@ -405,7 +493,13 @@ def main(argv=None):
     parser.add_argument("--plan", type=Path, required=True)
     parser.add_argument("--size", type=int, default=4, choices=range(1, 9))
     parser.add_argument("--max-cohorts", type=int)
+    parser.add_argument("--continue-on-review", action="store_true",
+                        help="Keep evidence dissent withheld and process independent remaining cohorts")
+    parser.add_argument("--retry-reviewed", action="store_true",
+                        help="Resume withheld cohorts only after their current independent gates pass")
     args = parser.parse_args(argv)
+    if args.retry_reviewed and (args.action != "run" or args.continue_on_review):
+        parser.error("--retry-reviewed requires run and cannot combine with --continue-on-review")
     if args.action == "plan":
         result = make_plan(args.repo, args.hub, args.source or args.hub / "concept-tree/RESEARCH_QUEUE_RANKED.md", args.size)
         atomic(args.plan, result)
@@ -417,7 +511,11 @@ def main(argv=None):
         result = json.loads(args.plan.read_text())
         print(json.dumps({key: result.get(key) for key in ("status", "pid", "error", "cohorts")}, indent=2))
         return 0
-    return execute(args.repo, args.hub, args.plan, args.max_cohorts)
+    if args.continue_on_review:
+        if args.max_cohorts is not None:
+            parser.error("--continue-on-review cannot be combined with --max-cohorts")
+        return execute_all(args.repo, args.hub, args.plan)
+    return execute(args.repo, args.hub, args.plan, args.max_cohorts, retry_reviewed=args.retry_reviewed)
 
 
 if __name__ == "__main__":

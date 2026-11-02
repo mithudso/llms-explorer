@@ -1,0 +1,175 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "MLX-LM native DoRA and quantized adapter mechanics",
+  "slug": "mlx-lm-native-dora-and-quantized-adapter-mechanics",
+  "canonical_concept_id": "concept:8e1cab460078942c79b00e5dec841be37cf2f5482547aeb782df95a9555a5e64",
+  "canonical_artifact_sha256": "ce8b1fc78c9ad428b5d29d23f3fd642ddfb351a4a404716a60793d1e6939084d",
+  "claims": [
+    {
+      "id": "clm:174c29a84c72660c79e90031c6c8ef376cce0f82794e925e8ef92d843030b0e9",
+      "text": "As of 2026-10-23, MLX-LM exposes fine_tune_type=dora and maps nn.Linear and nn.QuantizedLinear layers to DoRALinear; its dispatcher raises for SwitchLinear and QuantizedSwitchLinear, so native DoRA conversion does not cover those MoE layer types. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/utils.py",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LORA.md",
+        "https://github.com/ml-explore/mlx/issues/3435",
+        "https://hbmartin.github.io/Foundation-Models-and-Core-AI-and-MLX-skills/part-12-mlx-python/references/06-finetuning-and-porting-models/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6a0a81498da38739a838bf51553eac34679cfc7736e31ee0ecefaae5e0746aef",
+        "ev:ecef582d5470ecb6b86f8aaa2d4f42ddec368d159ad3d01fb1eee33f93ef237b"
+      ]
+    },
+    {
+      "id": "clm:3d3bdf2dad02b3caf3f84ee2682212364bac0de7307465988e3adb40f1f852f4",
+      "text": "For an nn.QuantizedLinear base, DoRALinear.from_base recovers the logical input dimension from the packed weight width using 32 // bits; DoRALinear then dequantizes weight, scales, and biases using the layer's group_size, bits, and mode for its forward calculation. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/tuner/dora.py",
+      "also": [
+        "https://hbmartin.github.io/Foundation-Models-and-Core-AI-and-MLX-skills/part-12-mlx-python/references/06-finetuning-and-porting-models/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b1f7e480ab30549276c7c4b42500be51461be320f4bfdcc4b8cdb4333067a27c"
+      ]
+    },
+    {
+      "id": "clm:7d26dfb392a5ded28052b8ca0c388a0e719589161db4f942febf72745a85e145",
+      "text": "MLX-LM exposes `--fine-tune-type dora` and maps nn.Linear and nn.QuantizedLinear targets to DoRALinear; its DoRALinear.fuse merges the low-rank delta and magnitude scaling, then requantizes a quantized layer with its original group_size, bits, and mode unless dequantize=True. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LORA.md",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/utils.py",
+        "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/tuner/dora.py",
+        "https://hbmartin.github.io/Foundation-Models-and-Core-AI-and-MLX-skills/part-12-mlx-python/references/06-finetuning-and-porting-models/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6a0a81498da38739a838bf51553eac34679cfc7736e31ee0ecefaae5e0746aef",
+        "ev:b1f7e480ab30549276c7c4b42500be51461be320f4bfdcc4b8cdb4333067a27c",
+        "ev:ecef582d5470ecb6b86f8aaa2d4f42ddec368d159ad3d01fb1eee33f93ef237b"
+      ]
+    },
+    {
+      "id": "clm:eec76c795785705686d73a24c56f071d6def1abad9f7ca421265e599990258bf",
+      "text": "The fine-tuning entry point calls model.freeze() before converting selected layers to DoRA. The new DoRA wrapper introduces trainable lora_a, lora_b and magnitude m while retaining the frozen pretrained base layer; full fine-tuning instead explicitly unfreezes selected base layers. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/lora.py",
+      "also": [
+        "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/tuner/dora.py",
+        "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/tuner/utils.py"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:42e8f0a40fa82c5be8f7b3fbae9a745d5b1c8986194816d035a71d1c8d97c75d",
+        "ev:735d82768f54ec8109e16d01100908f2d1e083a3ff8d4f7621025c9cb724d653",
+        "ev:d80c23c964ba8b4d4707023b5158b9dcb21b2b50c0b8ec04cf97fa0df6ea2c4d"
+      ]
+    },
+    {
+      "id": "clm:85aeef0283bd6f7844d3aa1984a342802bea0db66849947efe5e89f9c69c4504",
+      "text": "For ordinary LoRA on a quantized base, MLX-LM retains the wrapped base layer and calls self.linear(x) before adding the low-rank branch; its guide calls LoRA training on a quantized model QLoRA. This preserves the base module's own forward implementation, unlike DoRALinear's explicit full-weight dequantization path. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/lora.py",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LORA.md",
+        "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/tuner/dora.py"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6a0a81498da38739a838bf51553eac34679cfc7736e31ee0ecefaae5e0746aef",
+        "ev:b1f7e480ab30549276c7c4b42500be51461be320f4bfdcc4b8cdb4333067a27c",
+        "ev:d6cbc17ad3fc349b24480ff4ce6e5b9e91e758256fc19bac22d928f4021913f5"
+      ]
+    },
+    {
+      "id": "clm:225b3523f92edc2c815e2ef95db7d43417bf6b44f44cc7f72cb74e0c18538528",
+      "text": "The adapter converter routes nn.QuantizedEmbedding to DoRAEmbedding, but DoRAEmbedding.from_base explicitly checks for nn.QuantizedLinear rather than nn.QuantizedEmbedding; the independent guide flags that the packed embedding path can therefore miss the intended guard and fail later on shape mismatch, so quantized embedding targets need version-specific verification. (medium confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/utils.py",
+      "also": [
+        "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/tuner/dora.py",
+        "https://hbmartin.github.io/Foundation-Models-and-Core-AI-and-MLX-skills/part-12-mlx-python/references/06-finetuning-and-porting-models/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3d3e73e91aec338228a0c02c228d402bda4be4f8bcfc52d4006a4e41f9ba8b04",
+        "ev:8b61a3a3078a51e10a14357fa279e606b42ab8fc92e5d541d626507418a17d2e",
+        "ev:ecef582d5470ecb6b86f8aaa2d4f42ddec368d159ad3d01fb1eee33f93ef237b"
+      ]
+    },
+    {
+      "id": "clm:c62f53f6c3491707e4c229c23a71e520c2db1b8c9b5a159282e00231979f16c2",
+      "text": "DoRAEmbedding.from_base contains the exact error message \"DoRAEmbedding does not yet support quantization.\" Its guard tests nn.QuantizedLinear rather than nn.QuantizedEmbedding, although the converter selects DoRAEmbedding for nn.QuantizedEmbedding. Do not interpret the message as proof that every quantized embedding is rejected cleanly. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/tuner/dora.py",
+      "also": [
+        "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/tuner/utils.py"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:45c284d0b8a13300756d46d7c60e987cee0075cbecb9385a084abf617ff0b599",
+        "ev:6eb09391f0d60bf98bbbd06cd7874665bf4b0d402bd49b296958dff3304d5c09"
+      ]
+    },
+    {
+      "id": "clm:578923ddd965d128231812f182d84c2cd3a7a8b539021f7534bcc821358d2320",
+      "text": "DoRA reparameterizes pretrained weights into direction and magnitude, applying a low-rank LoRA update to direction while learning magnitude separately; MLX-LM's DoRALinear implements this with lora_a, lora_b, and a trainable per-output magnitude vector m. (high confidence)",
+      "source_url": "https://arxiv.org/abs/2402.09353",
+      "also": [
+        "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/tuner/dora.py",
+        "https://hbmartin.github.io/Foundation-Models-and-Core-AI-and-MLX-skills/part-12-mlx-python/references/06-finetuning-and-porting-models/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7c6c6a1ba9b6fa109475d9e13abcf2eabdd94a6c87e8c027321df5bfcab12010",
+        "ev:b1f7e480ab30549276c7c4b42500be51461be320f4bfdcc4b8cdb4333067a27c",
+        "ev:df446845a619bd425afdb9f8bc9016060bddbe638c5acdde0c64437f71e8bd40"
+      ]
+    },
+    {
+      "id": "clm:c269f38e583c438a0a2faf20ce80fac8781f0bcd19899a6a2388702728791040",
+      "text": "For a QuantizedLinear base, MLX-LM's DoRALinear forward calls _dequantized_weight(), computes the base output with a dense x @ w.T, constructs the full adapted weight matrix, and computes its row norms on each call. A quantized base is therefore accepted, but the unmerged DoRA forward path does not preserve the base QuantizedLinear forward path; an independent practitioner report describes the same dequantization and dense-normalization behavior. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/tuner/dora.py",
+      "also": [
+        "https://justinbarias.io/blog/notes-from-fine-tuning-a-tekken-coach/",
+        "https://hbmartin.github.io/Foundation-Models-and-Core-AI-and-MLX-skills/part-12-mlx-python/references/06-finetuning-and-porting-models/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:324e1ed3939aded90fdae598515794dfbc40d747aed2237c6b0ec4384fc3562e",
+        "ev:b1f7e480ab30549276c7c4b42500be51461be320f4bfdcc4b8cdb4333067a27c"
+      ]
+    },
+    {
+      "id": "clm:7e2759f40d9b56e260f5287401551a8a595952fa25886d7bb29e699c5c984b71",
+      "text": "A practitioner report dated 2026-08-08 measured 4.1 tokens/s for one DoRA adapter on a 4-bit Qwen base on an M5 Max and about 33 tokens/s after fusing the adapter or switching to LoRA. These are setup-specific measurements, not a portable speed ratio. (low confidence) (verified as of 2026-08-08)",
+      "source_url": "https://justinbarias.io/blog/notes-from-fine-tuning-a-tekken-coach/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:324e1ed3939aded90fdae598515794dfbc40d747aed2237c6b0ec4384fc3562e",
+        "ev:ca987032ea0bf13d8c20e3f19efe5d65ad003df37d4442976d2491a4e836e0ab"
+      ]
+    },
+    {
+      "id": "clm:8e58dd5102759a335d7f6ece04e290b1944129301acba874a670bf8e2b086063",
+      "text": "In MLX-LM's DoRALinear, the learned base magnitude is stored per output row; each forward pass adds the scaled low-rank update, computes the adapted row norms with stop_gradient, and rescales the output by the ratio of base magnitude to adapted norm. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/tuner/dora.py",
+      "also": [
+        "https://arxiv.org/abs/2402.09353",
+        "https://hbmartin.github.io/Foundation-Models-and-Core-AI-and-MLX-skills/part-12-mlx-python/references/06-finetuning-and-porting-models/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:00282b9298e47c17d16ea938e4b8fa515eeffbe48b8ff959bc8158a2a41a1b45",
+        "ev:b1f7e480ab30549276c7c4b42500be51461be320f4bfdcc4b8cdb4333067a27c"
+      ]
+    },
+    {
+      "id": "clm:fb9698b4b000b289a96757f510f6121d28d6fb932ef3424bdc794aaecc66980d",
+      "text": "DoRALinear uses scale directly: z=(dropout(x) @ lora_a) @ lora_b and out=x @ w.T + scale*z before magnitude normalization. The adapted weight is w + (scale*lora_b.T) @ lora_a.T. This code does not divide scale by rank; its quantized base w comes from mx.dequantize. (low confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/tuner/dora.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:42e8f0a40fa82c5be8f7b3fbae9a745d5b1c8986194816d035a71d1c8d97c75d"
+      ]
+    }
+  ],
+  "projection_sha256": "aae4cae1806ff93c33db1dac0f8050ef3a4c2105998ffc22883a158ad115e41f"
+}

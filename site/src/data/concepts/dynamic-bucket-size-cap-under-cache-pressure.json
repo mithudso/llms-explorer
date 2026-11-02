@@ -1,0 +1,229 @@
+{
+  "slug": "dynamic-bucket-size-cap-under-cache-pressure",
+  "concept": "Dynamic bucket size cap under cache pressure",
+  "generated": "2026-10-24",
+  "summary": "Source-anchored research for Dynamic bucket size cap under cache pressure. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The minimum-size floor is version-sensitive historically: SERVER-82798 records a fix for respecting the time-series bucket minimum size and lists 7.0.4 and 7.2.0-rc0 as fix versions. The pinned implementation contains that floor. (high confidence) (verified as of 2023-11-07)",
+          "source": "https://jira.mongodb.org/browse/SERVER-82798",
+          "note": null,
+          "claimId": "clm:c4a8687db7a4aca10ebf1e3e5b7966d009039c2548e8e6d70ac29e522b826ffb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2671b86770edbecfd226215e420ac82274395bd6beb77b00f55838c97d07d675",
+            "ev:a2dd50783217ef5f935b3af972b5d28e896b5d7332cdf7cc6190c1a135e1dfd5"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "SERVER-69899 describes lowering bucket limits to target roughly half the WiredTiger cache for active buckets and avoid repeated write-through at high cardinality. This is a policy objective, not a guaranteed memory ceiling, especially when the minimum-size floor binds. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-69899",
+          "note": null,
+          "claimId": "clm:90bf6e01a12038a621942e200023c4f132c116225670efd71a06d1599b457ba7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:66b61cc2242f5517dcd03f1668a30a6c4b66a7f274f28d93726c078a5d495b01",
+            "ev:a2dd50783217ef5f935b3af972b5d28e896b5d7332cdf7cc6190c1a135e1dfd5"
+          ]
+        },
+        {
+          "text": "During insertion, after time-range and count checks, MongoDB compares the bucket’s current size plus the incoming size estimate against the effective cap. For a bucket with at least timeseriesBucketMinCount measurements, exceeding that cap returns kSize only when the effective cap equals gTimeseriesBucketMaxSize; if the cap is lower, it returns kCachePressure, even when the proposed size also exceeds the configured maximum. The rollover enum explicitly distinguishes these reasons. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null,
+          "claimId": "clm:124b5accac20733297d38ecb8471652940272183cc72fca6b53e92d44b20c75f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4ce1d05b51796d986457070514a294039f00adc28045598764f64f5ae108d6b8",
+            "ev:dced84573c29e932d5bef782f090249ab806b94802a5c63c14dad7f63f202449"
+          ]
+        },
+        {
+          "text": "MongoDB introduced dynamic time-series bucket sizing in 6.2 (SERVER-69899 lists fix version 6.2.0-rc0). Its purpose is to reduce write-through behavior when many active buckets would otherwise outgrow the WiredTiger cache; smaller buckets trade cache residency against disk usage and query performance. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-69899",
+          "note": null,
+          "claimId": "clm:d03bc9256821aa10b6fbf02f5149cae98eef11815edb357fe5836f9015f7c66a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:66b61cc2242f5517dcd03f1668a30a6c4b66a7f274f28d93726c078a5d495b01",
+            "ev:7e7ea977a7fe30a3e67704097fb67657d82519ccd5500abfe7de273d59aeeccd"
+          ]
+        },
+        {
+          "text": "SERVER-105187 describes raising timeseriesBucketMinSize as high as timeseriesBucketMaxSize to suppress ordinary dynamic bucketing and proposes making the factor of two configurable. The inspected code still hardcodes that factor. Treat this as an engineering tuning mechanism whose effects require workload validation, not a demonstrated universally beneficial setting. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null,
+          "claimId": "clm:2af3c7f8fcdc8b4b125ee84577b2d457725aab60ff5cbd9cde3c083300fd51df",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a2dd50783217ef5f935b3af972b5d28e896b5d7332cdf7cc6190c1a135e1dfd5",
+            "ev:ab4c7d4697047ade5c905e9c636c2d6c92833fb74b0fe3c629323ad6867373f8",
+            "ev:c1fa6065d2f7d67c57691287b859b7dd654bf4f903753e6b8955ac9e7a40c34e"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "numBucketsClosedDueToCachePressure counts dynamic-size-limit closures. numBucketsClosedDueToSize tracks the ordinary size reason, while numBucketsClosedDueToMemoryThreshold and numBucketsArchivedDueToMemoryThreshold describe bucket-catalog memory reclamation. A cache-pressure counter alone does not prove WiredTiger cache occupancy reached a measured threshold. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null,
+          "claimId": "clm:717f548c3ffbdd32ae608d621cbd9a2b5dec88f4f22f487c8ff636bd05b49461",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0549b9fa3ff0ee671d1f6ba40cd11c515fcaf2e9c298d68eb0c78aa5b802aee5",
+            "ev:31c8a263adbb37f3fe789272c73fca38e298232238d244dbcd31cc23b4ab1ead",
+            "ev:93b4926116b47f80e0d2837ba784c33cfff466e61a086ac6d0db937aa1f8b170",
+            "ev:a2dd50783217ef5f935b3af972b5d28e896b5d7332cdf7cc6190c1a135e1dfd5",
+            "ev:dced84573c29e932d5bef782f090249ab806b94802a5c63c14dad7f63f202449"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "The sizing policy uses storage-cache capacity and global active-bucket cardinality. It is a workload heuristic rather than a direct measurement of current cache occupancy or eviction pressure; another collection's active buckets can affect the calculation. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null,
+          "claimId": "clm:0f4312e558058a30e43515fd4ea1816f9ea1ac7bb31053c489e78ef94f0a2c43",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a2dd50783217ef5f935b3af972b5d28e896b5d7332cdf7cc6190c1a135e1dfd5",
+            "ev:b3c0676641ef7a25853b74d51da1d4051d705b29446595f0ab2fdea7e9a20256",
+            "ev:c1fa6065d2f7d67c57691287b859b7dd654bf4f903753e6b8955ac9e7a40c34e"
+          ]
+        },
+        {
+          "text": "The design explicitly trades better avoidance of repeated writes for potentially poorer disk utilization and query performance from smaller buckets. A 2023 user experiment reported severe bucket fragmentation during interleaved multi-collection loading; that report illustrates a failure case rather than a universal performance multiplier. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-69899",
+          "note": null,
+          "claimId": "clm:b0ac6f1654cfcc3dbedfdcf3be175466f7187f6bf12c55e3864774de6f58d0d2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3634c94002c195fa96043d4fe15f77f97bbb14c28a894d065f403ac415a82891",
+            "ev:f8458b0b1202df34ecf51e1f61b622ee11096cf2e8edf7206d1f61abf50b58a8"
+          ]
+        },
+        {
+          "text": "SERVER-105187 describes increasing timeseriesBucketMinSize up to timeseriesBucketMaxSize as a way to suppress ordinary dynamic bucketing. This changes the intended cache-versus-packing tradeoff; the pinned code still applies its separate large-measurement absolute ceiling. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-105187",
+          "note": null,
+          "claimId": "clm:fd254112dcef87c4024a8b15610fd7cad7433cb41c58a8529e225f15a527e2fa",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a2dd50783217ef5f935b3af972b5d28e896b5d7332cdf7cc6190c1a135e1dfd5",
+            "ev:c1fa6065d2f7d67c57691287b859b7dd654bf4f903753e6b8955ac9e7a40c34e",
+            "ev:dced84573c29e932d5bef782f090249ab806b94802a5c63c14dad7f63f202449"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "At pinned MongoDB revision 35647d07, for active-bucket count N > 0 and storage-cache capacity C bytes, getCacheDerivedBucketMaxSize computes D = max(timeseriesBucketMinSize, min(floor(C / (2*N)), INT32_MAX)) and returns effective ordinary cap min(timeseriesBucketMaxSize, D) plus D. For N = 0 it returns the configured maximum and INT_MAX. The inputs are cache capacity and cardinality, not measured cache occupancy or eviction rate. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null,
+          "claimId": "clm:9c6b51c3b48c4f5aadbbe143e42387fcc931e44738e4465196448aabfa4eefc9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a2dd50783217ef5f935b3af972b5d28e896b5d7332cdf7cc6190c1a135e1dfd5",
+            "ev:b3c0676641ef7a25853b74d51da1d4051d705b29446595f0ab2fdea7e9a20256"
+          ]
+        },
+        {
+          "text": "The minimum-count optimization can keep a bucket open beyond the ordinary effective cap to accommodate large measurements. It remains bounded by min(Bucket::kLargeMeasurementsMaxBucketSize, D); exceeding a cache-derived absolute ceiling produces kCachePressure. Thus the minimum count does not guarantee ten measurements per bucket. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null,
+          "claimId": "clm:af7bb9b52693a95a5050017e6f2121bb0d3ba4a50766902ae2192a485073604d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ab4c7d4697047ade5c905e9c636c2d6c92833fb74b0fe3c629323ad6867373f8",
+            "ev:dced84573c29e932d5bef782f090249ab806b94802a5c63c14dad7f63f202449"
+          ]
+        },
+        {
+          "text": "SERVER-89233 reports pathological one-document buckets with numBucketsClosedDueToCachePressure on affected versions 7.0.4 and 7.0.5; its issue record lists fixes in 8.0.5 and 8.1.0-rc0. These are the issue’s listed versions, not an exhaustive affected-version or backport matrix. (medium confidence) (verified as of 2024-10-03)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null,
+          "claimId": "clm:32226ef28e54f585d8d8f1f7a633d51dc84dd228d97f8fb4977f7d4eef7850bb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:44675475e0d7f3a9a48b84809510221b88a42b69f42e6703d2b66ee15a400372"
+          ]
+        },
+        {
+          "text": "High metadata cardinality tends to create more concurrent buckets and can therefore lower the cache-derived cap. OneUptime describes the cardinality-to-bucket-count relationship, while MongoDB's implementation and design issue establish its connection to dynamic sizing. (medium confidence)",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-time-series-metafields/",
+          "note": null,
+          "claimId": "clm:470f287fc0fed5f301ef60ee89629907b0cb627423e53d288507f4afe4c6855e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3634c94002c195fa96043d4fe15f77f97bbb14c28a894d065f403ac415a82891",
+            "ev:a2dd50783217ef5f935b3af972b5d28e896b5d7332cdf7cc6190c1a135e1dfd5",
+            "ev:ed0e87712ad895cb2c3d98ff0356a5ec876d366b3a342931124595031d771883"
+          ]
+        },
+        {
+          "text": "Percona's mongodb_exporter reference documents the collstats collector and --mongodb.collstats-colls for selecting collections. These are collection-statistics collection controls, not parameters that tune MongoDB's dynamic bucket cap; the reference does not guarantee export of a particular cache-pressure metric. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/percona/mongodb_exporter/blob/main/REFERENCE.md",
+          "note": null,
+          "claimId": "clm:e69120beca2e3143fb6afa91ab2626b23894a75663ae66b016ddb6ef0309a9df",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0b39643c2eda564fe8436f5c2a2e39518c25e6a7217ff1dd100b9c20cf30b70b"
+          ]
+        },
+        {
+          "text": "The active-bucket cardinality includes open and archived buckets. The sizing policy uses the global count across collections, so another collection can affect a collection’s dynamic cap. The half-cache target is a sizing heuristic, not a guarantee that all bucket-related memory stays within half the cache. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null,
+          "claimId": "clm:a6b9ef34737d48c61bf4b58dc00aba1ef0c98adce812d9a511f194f48a621531",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:66b61cc2242f5517dcd03f1668a30a6c4b66a7f274f28d93726c078a5d495b01",
+            "ev:7e7ea977a7fe30a3e67704097fb67657d82519ccd5500abfe7de273d59aeeccd",
+            "ev:a2dd50783217ef5f935b3af972b5d28e896b5d7332cdf7cc6190c1a135e1dfd5",
+            "ev:b3c0676641ef7a25853b74d51da1d4051d705b29446595f0ab2fdea7e9a20256"
+          ]
+        },
+        {
+          "text": "At revision 35647d07, timeseriesBucketMaxSize defaults to 128000 bytes, timeseriesBucketMinSize defaults to 5120 bytes, and timeseriesBucketMinCount defaults to 10. The minimum-size parameter is available at startup and runtime; the maximum-size and minimum-count parameters are startup parameters. The size floor prevents the dynamic calculation from shrinking without bound. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null,
+          "claimId": "clm:3954baa77fec6a7f086ac43108ab1096ee1cd2e7acd084677d9c7eb0fc8be452",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a2dd50783217ef5f935b3af972b5d28e896b5d7332cdf7cc6190c1a135e1dfd5",
+            "ev:ab4c7d4697047ade5c905e9c636c2d6c92833fb74b0fe3c629323ad6867373f8"
+          ]
+        },
+        {
+          "text": "Percona mongodb_exporter provides a collstats collector and a mongodb.collstats-colls selection option. These provide an external monitoring integration for collection statistics, but its reference does not document or independently validate MongoDB’s dynamic-cap formula. (low confidence) (verified as of 2026-10-24)",
+          "source": "https://github.com/percona/mongodb_exporter/blob/main/REFERENCE.md",
+          "note": null,
+          "claimId": "clm:af2be9fd015025fe2fbc8a9ff73f246ca143b3ee7760d0c5dfe8988bb99c90e1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0b39643c2eda564fe8436f5c2a2e39518c25e6a7217ff1dd100b9c20cf30b70b"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "c4cc0fab5c9a6f88629e384bbbd7e6d5f4eda5e83267f51d524c09d3ddffe5bc",
+  "canonicalConceptId": "concept:c63f122907a063ffb1ea8a85dbe7293015bc56fbafbd754708279fc62bae2c3b"
+}

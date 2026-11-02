@@ -111,4 +111,17 @@ LiteLLM indexes use SQLite vectors and FTS5. Query `litellm_published_docs` for 
 
 Query `concept__<concept-slug>__facts` through `hub_query_docset` for any of the 33 packs. The run exited `SATURATION-DISSENT` with five queued gaps; packs are extractive third-party text (private, not published as reader pages).
 
+### MLX-LM concept suite (2026-10-23)
+
+| File | Path | Holds | Ask it for |
+|---|---|---|---|
+| llms.txt | ~/.global-ai-hub/llms-concepts/mlx-lm-family.llms/llms.txt | MLX-LM training, generation, native service and model contracts, with explicitly external post-training integrations. | Products, Facts |
+
+| File | Path | Holds | Ask it for |
+|---|---|---|---|
+| Repository skill | .agents/skills/mlx-lm-expert/SKILL.md | Eight routed, source-qualified references | Native training, generation, service and model contracts; explicitly external post-training integrations |
+| Run report | docs/research/mlx-lm-full-suite-2026-10-23/README.md | 21 concepts, 302 supported statements, verification and limits | Map-bounded coverage, fixed answer banks, keyword indexing and the embeddings pause |
+
+Keyword lookup uses the permanent `~/.global-ai-hub/llms-concepts/<slug>.llms/` paths through `keyword_index.py query`. New semantic indexes are deferred under the existing embeddings pause; filesystem skill installation does not establish global semantic-router registration.
+
 <!-- llms-routing:end -->

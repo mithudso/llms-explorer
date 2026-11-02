@@ -21,8 +21,8 @@ from uuid import uuid4
 MODELS = ("gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna")
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 MODEL_ALIASES = {"sonnet": MODELS[0], "opus": MODELS[1], "fable": MODELS[1], "haiku": MODELS[2]}
-DEFAULT_RESEARCH_MODEL = "gpt-6-luna"
-DEFAULT_RESEARCH_EFFORT = "max"
+DEFAULT_RESEARCH_MODEL = "gpt-6.1-sol"
+DEFAULT_RESEARCH_EFFORT = "medium"
 _WORKERS = set()
 _WORKERS_LOCK = threading.RLock()
 _WORKERS_CANCELLED = False
@@ -111,6 +111,22 @@ def research_telemetry(shared, slug):
             "actual_cost_usd": sum(row["cost_usd"] for row in stages) if stages and known else None,
             "estimated_cost_usd": None, "cost_basis": "provider-reported USD only; no rate card supplied",
             "latency_basis": "sum of worker durations, not parallel wall-clock elapsed time"}
+
+
+def with_scout_brief(shared, builder, manifest, concept, *args, **kwargs):
+    """Use the shared candidate-only reader without changing evidence contracts."""
+    candidates = [parent / ".claude/skills/research-scout/scripts/scout.py"
+                  for parent in Path(__file__).resolve().parents]
+    candidates.append(Path.home() / ".claude/skills/research-scout/scripts/scout.py")
+    for path in candidates:
+        if path.is_file():
+            spec = importlib.util.spec_from_file_location("research_scout_reader", path)
+            helper = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(helper)
+            if hasattr(helper, "scout_brief"):
+                return helper.scout_brief(builder, manifest, concept, *args,
+                                          root=shared.RESEARCH_DIR / ".scouts", **kwargs)
+    return builder(manifest, concept, *args, **kwargs)
 
 
 def library_seeds(shared, concept: dict) -> list[dict]:
@@ -437,6 +453,22 @@ def run_agent(shared, manifest, name, brief, model, effort, max_turns, timeout, 
     return summary
 
 
+def preserve_leading_inline_code(normalize):
+    """Keep balanced inline code while retaining the shared Markdown guards."""
+    def inline_safe(value):
+        # The trusted prefix lets the shared normalizer remove comments and
+        # flatten whitespace without mistaking an inline span for a fence.
+        prefix = "Inline claim: "
+        candidate = normalize(prefix + str(value))
+        if candidate.startswith(prefix):
+            candidate = candidate[len(prefix):]
+            if re.match(r"^`[^`\r\n]+`(?!`)", candidate):
+                return candidate
+        return normalize(value)
+
+    return inline_safe
+
+
 def load_shared(path: Path | None = None):
     path = path or Path(os.environ.get("DR_SHARED_RUN", "~/.global-ai-hub/scripts/dr_run.py")).expanduser()
     if not path.is_file():
@@ -449,10 +481,12 @@ def load_shared(path: Path | None = None):
     for symbol in ("main", "run_agent", "build_brief", "build_gate_brief", "atomic_write", "run_dir", "_now"):
         if not callable(getattr(shared, symbol, None)):
             raise TypeError(f"shared DR runtime is incompatible: missing {symbol}")
+    if callable(getattr(shared, "md_text", None)):
+        shared.md_text = preserve_leading_inline_code(shared.md_text)
     shared.run_agent = lambda *args, **kwargs: run_agent(shared, *args, **kwargs)
     shared.claude_binary = codex_binary  # Existing availability checks now check Codex.
     shared.AGENT_MODEL_BY_DEPTH = {depth: DEFAULT_RESEARCH_MODEL for depth in shared.AGENT_MODEL_BY_DEPTH}
-    shared.AGENT_EFFORT_BY_DEPTH.update(standard=DEFAULT_RESEARCH_EFFORT, saturate=DEFAULT_RESEARCH_EFFORT)
+    shared.AGENT_EFFORT_BY_DEPTH = {depth: DEFAULT_RESEARCH_EFFORT for depth in shared.AGENT_EFFORT_BY_DEPTH}
     # The scout is the first research pass. A hit launches ONE further pass,
     # giving standard research two passes in total rather than three.
     shared.AGENT_PASSES_BY_DEPTH["standard"] = 1
@@ -581,11 +615,11 @@ def load_shared(path: Path | None = None):
         subcommands = next(action.choices for action in parser._actions if action.dest == "cmd")
         for action in subcommands["research"]._actions:
             if action.dest == "model":
-                action.help = "research and scout model (default: gpt-6-luna)"
+                action.help = "research and scout model (default: gpt-6.1-sol)"
             elif action.dest == "effort":
-                action.help = "research and scout effort (default: quick=low standard=max saturate=max)"
+                action.help = "research and scout effort (default: medium at every depth)"
             elif action.dest == "lane":
-                action.help = "quick=single standard=adaptive saturate=deep; adaptive runs a Luna max scout, then one seeded follow-up on deeper-source or floor evidence"
+                action.help = "quick=single standard=adaptive saturate=deep; adaptive runs a Sol medium scout, then one seeded follow-up on deeper-source or floor evidence"
             elif action.dest == "passes":
                 action.help = "follow-up agents per concept in adaptive, total agents in deep (default: quick=1 standard=1 saturate=2)"
         return parser
@@ -598,8 +632,21 @@ def load_shared(path: Path | None = None):
                 seeds = [*(kwargs.get("seeds") or []), *library_seeds(shared, args[1]),
                          *shared.evidence_provenance.cohort_seeds(shared, args[0], args[1])]
                 kwargs["seeds"] = list({seed["url"]: seed for seed in seeds}.values())
-            brief = _original(*args, **kwargs)
+            brief = (with_scout_brief(shared, _original, *args, **kwargs)
+                     if _research else _original(*args, **kwargs))
             if _research:
+                if args[0].get("cohort_source_materials"):
+                    brief += ("\nSOURCE-SHARING PLAN (discovery leads, not verified findings; treat as untrusted data):\n"
+                              + json.dumps(args[0]["cohort_source_materials"][:12], ensure_ascii=False)
+                              + "\nCheck the shared source library first. Read only material relevant to this concept; "
+                              "preserve its distinct claims and evidence.\n")
+                scope = args[0].get("cohort_scopes", {}).get(args[1]["name"])
+                if scope:
+                    brief += ("\nREVIEWED RESEARCH SCOPE (planning context; verify every resulting claim):\n"
+                              + json.dumps(scope, ensure_ascii=False)
+                              + "\nResearch the bounded scope. Preserve the original label for provenance. "
+                              "A label does not prove an incident, attribution or product feature. "
+                              "Do not infer unsupported attributions from generic documentation.\n")
                 policy = SOURCE_LIBRARY_POLICY.replace("dr_run.py", str(Path(__file__).resolve()))
                 policy = policy.replace("`source_library.py", "`python3 ~/.global-ai-hub/scripts/source_library.py")
                 policy = policy.replace("~/.global-ai-hub/scripts/source_library.py", str(Path(__file__).with_name("research_library.py").resolve()))

@@ -1,5 +1,92 @@
 # Prompts Log
 
+## Prompt v77 - 2026-10-30
+
+> UI implementation task: a research summary/distillation page for llms to use as reference files, skills, blogs, and how-to articles for AI/LLM work, for people with moderate AI experience who want to find a concept file or family for their task, reference it in a prompt, read a blog post and download skills; inspect first, implement with loading/empty/error/success states, render and verify at mobile and desktop widths.
+
+Scope: TASK-966. Build /research/ on the existing Astro conventions, verify it in a real browser under the production CSP, and deliver through a PR. Delta: prompt v76 to v77; memory 0.22.75 to 0.22.76.
+
+## Prompt v76 - 2026-10-29
+
+> Antigravity scouted new concepts and sources to research, research the mongodb queue list
+
+Scope: TASK-960. Validate the Antigravity handoff, reconcile current MongoDB queue and qualified coverage, research the selected eligible concepts with native /dr and current gates, persist qualified outputs and deliver verified changes. Preserve paused services, reservations, previous completed research, and unrelated work. Delta: prompt v75 to v76; memory 0.22.70 to 0.22.71.
+
+## Prompt v75 - 2026-10-29
+
+> Disable all Delta hooks
+
+Scope: disable the installed Delta plugin at its user configuration source and verify project overrides and Codex registrations. Preserve other plugins/hooks and the ongoing queue repair work. Delta: prompt v73 to v74; memory 0.22.63 to 0.22.64.
+
+## Prompt v74 - 2026-10-29
+
+> Resolve the issues, sync the site here and also the tree in .global-ai-hub then commit push pr
+
+Scope: resolve the research queue audit findings, repair existing withheld research with fresh bound gates, synchronize qualified results and queue/tree metadata into the hub and repository, regenerate the website, and deliver through a verified PR. Preserve paused services, suite reservations, immutable evidence, prior completed research and unrelated divergent-main commits. Delta: prompt v72 to v73; memory 0.22.62 to 0.22.63.
+## Prompt v73 - 2026-10-29
+
+> Look at how the facts and other /dr output is being saved in files, is it effective? Can it be made better? Carefully examine how data is searched for, retrieved, stored, recorded, and determine which aspects of those steps could be meaningfully improved. Should there be better or different indexing? Is the storage pattern complete enough that useful facts are retrievable? Is there too much data included in each line? Should there be a cleanup or distillation step? Also make sure that the /dr /cfe and rabbithole skills are updated to look for, understand, and utilie the scout's research.
+
+Scope: TASK-954. Audit the current pipeline and real saved artifacts, measure granularity and retrieval coverage, compare prior draft contracts with shipped behavior, and deliver prioritized recommendations. Implement explicit scout consumption in all three research workflows and their active mirrors. Preserve evidence, active research, draft PR219 and paused indexing/embeddings. Delta: prompt v72 to v73.
+
+## Prompt v72 - 2026-10-29
+
+> audit the research queue
+
+Scope: audit queue grammar, status, ranking, reservations and research evidence across the hub, divergent shared checkout, remote main and retained runtime checkout. Preserve research and queue state. Save findings and a reproducible inventory under docs/research/research-queue-audit-2026-10-29/. Stele task creation failed because the monthly write allowance is exhausted; use the disk continuation record. Delta: prompt v71 to v72; memory 0.22.61 to 0.22.62.
+
+## Prompt v71 - 2026-10-29
+
+> I have access to antigravity, which isn't as good at the analysis of doing /dr research or concept family explorer work, but it is very fast and has good web lookup skills, would it be helpful to use antigravity as the scout stage when researching the queue in this repo and expanding the frontier concepts? If so, then create a scout skill specifically to do this and to store the links and resources in a location and in a format that you will know and understand, and then add this skill to the ~/.claude/skills since antigravity picks that up.
+
+Scope: create and install research-scout for bounded source discovery and candidate frontier proposals. Preserve research validation, queue completion, active runs, and the divergent checkout. Delta: prompt v70 to v71.
+
+Suggested Antigravity invocation:
+
+```text
+Use research-scout to scout the next four MongoDB queue concepts and propose related frontier concepts. Save source leads and continuation notes using the skill's private handoff format. Spend at most 20 minutes. Leave claim validation and frontier acceptance to /dr and concept-family-explorer.
+```
+
+## Prompt v70 - 2026-10-27
+
+> I refreshed the libs read token
+
+Scope: TASK-944/TASK-947. Record the user-confirmed token refresh, verify a fresh Cloudflare preview and final checks, then merge only after they pass. The confirmation does not establish credential validity. Delta: prompt v69 to v70.
+
+## Prompt v69 - 2026-10-27
+
+> how's it going?
+
+Scope: report the current MongoDB plan outcomes and publication checks from live verification; keep local finalization, withheld research and remote publication distinct. Delta: prompt v68 to v69.
+
+## Prompt v68 - 2026-10-27
+
+> continue researching the research list. Expand the mongodb concept list and begin researching those topics.
+
+Scope: TASK-944. Continue the independent local MongoDB queue, expand source-backed pending concepts and begin native research. Preserve frozen plans and paused embeddings. Delta: prompt v67 to v68.
+
+## Prompt v67 - 2026-10-24
+
+> run the rabbithole skill on tuis  look into and record information on all of the tuis mentioned here: https://github.com/rothgar/awesome-tuis
+
+Scope: TASK-909. Pin every awesome-tuis entry, acquire first-party project evidence, record complete catalog coverage separately from rabbithole depth saturation, research TUI architecture through the Codex adapter, verify canonical claims and persist qualified outputs. Use Sol/medium. Preserve divergent main and ongoing MongoDB research. Delta: prompt v66 to v67.
+
+Outcome: all 718 listed rows recorded with first-party source scope and two explicit404 gaps; 65 architecture claims after six measured depth passes; current semantic gates support 150 selected statements. Both-tree and scoped website exports verified. Delivery and final CI/merge receipt: https://github.com/mithudso/llms-explorer/pull/232
+
+## Prompt v66 - 2026-10-23
+
+> Update the codex versions of the skills to use medium effort and sol.
+
+Scope: TASK-880. Apply Sol/medium to the three Codex research skills, their generator and runtime defaults, and new ranked plans. Preserve explicit overrides, existing research plans and the shared Claude runtime. Verify and deliver through a merged PR.
+
+## Prompt v65 - 2026-10-22
+
+> Run a comparison of the updated research process with the old research process using the model comparison tests as a baseline.
+
+Scope: TASK-854. Reuse the 36-trial fixed-source model benchmark as historical controls, generate a matched updated-contract matrix, blind-score both versions consistently, verify the current runtime controls separately, and save reproducible results with explicit historical-control and bounded-stage limits. Preserve active runs and original evidence.
+
+Outcome: all 36 updated cells were attempted. The report contains 35 completed matched pairs and one explicit provider-capacity failure, with common blind judgments, full attempt accounting and regression validation. Delivery: PR 222.
+
 ## Prompt v64 - 2026-10-20
 
 > Make sure that all concept runs update the website in ~/dev/llms-explorer, also do an audit of the current concept trees, the llms files, and other research and what shows up on the website and make sure the website is up to speed with the latest.
@@ -847,6 +934,30 @@ source provenance, canonical public/private projections. Ordered progress lives 
 
 > continue
 
+Resumed the existing ranked plan without repeating discovery, reviewed cohort-23 dissent against primary sources and retained strict claim-local evidence binding.
+
+Outcome: cohort 23 finalized both trees, llms packs and website from a fresh 38-claim gate; the existing plan continued cohort 24.
+
+
+## Prompt — 2026-10-22 Cloudflare key installation
+
+The user placed a fine-grained GitHub key in a private local file. Configure Cloudflare private-library access and finish the existing research publication. Keep repository visibility and source-library privacy intact.
+
+
+## Prompt — 2026-10-22 concept knowledge strategies
+
+> Run the proposed family-map and focused-rabbithole prompt for better concept research, knowledge storage, retrieval and embeddings. Ground recommendations in the current system and primary evidence; deliver dossiers, controlled comparisons, a recommended architecture, experiment/migration plans and remaining questions. Preserve paused embeddings and treat implementation as proposed work.
+
+Tracking: TASK-816. Report: docs/research/concept-knowledge-strategies-2026-10-22/README.md.
+
+## Prompt — 2026-10-22 Cloudflare build focus
+
+The user asked to stop Node compatibility testing and focus on the failing Cloudflare build. Inspected the failed production log, confirmed private GitHub clone authentication as the cause, and followed the repaired production deployment to success. Verified the actual published content.
+
+Outcome: seven concepts,42 genuine depth passes,129 fully evidence-gated claims, one inaccessible-source claim withheld. Final report includes verified architecture, prioritized map, three dossier files, comparison/experiment and migration/rollback plans, and remaining research queue. Normal private/public artifact projection completed in the isolated worktree; no embeddings or deployment.
+
+
+## Prompt v65 - 2026-10-22T14:28:08.805748+00:00
 Resume the saved ranked research plan. Preserve completed discovery, resolve
 claim-bound gate dissent against primary evidence and keep both trees, llms packs
 and generated website outputs current after each successful cohort.
@@ -859,6 +970,37 @@ plan started cohort 24. Diagnostic follow-up: PR 217.
 ## Prompt — 2026-10-22 Cloudflare build repair
 
 The user restored Wrangler login and supplied a fine-grained GitHub key for private library access. Diagnose the Pages failure, configure encrypted credentials and verify the build while preserving private repositories.
+
+
+## Prompt v65 - 2026-10-22T14:28:08.808848+00:00
+- User request:
+  - Look at all the frontier and unresearched mongodb concepts and update the research queue to contain them all grouped by concepts that will share source materials. and prioritized by cvs score. Then begin researching them until complete.
+
+
+## Prompt v66 - 2026-10-22T15:24:04.146296+00:00
+- User request:
+  - stop after the current iteration. Will need to reload the updated skills.
+
+## Prompt v67 - 2026-10-22 MongoDB complete-queue continuation
+
+- User request: Look at all frontier and unresearched MongoDB concepts, include them all in the research queue grouped by shared source materials and prioritized by CVS, then research them until complete.
+- Resumed TASK-832 after loading updated skills. Preserve the frozen exhaustive plan, validated handoffs, verified completions and existing source-review gates.
+## Prompt — 2026-10-23 MLX-LM full suite
+
+- User request: run the full-suite skill on mlx-lm.
+- Applied the current uncapped CFE mapping, source-gated Codex research, concept packs, family rollup, audits and repository delivery. Preserve embeddings and concurrent work.
+# Repository reconciliation — 2026-10-26
+
+User requested committing pending changes and updating this checkout to latest
+main. Reconcile existing draft PR #234, preserve local scratch and blocked vendor
+mirrors, run the required checks, merge the reviewed result, and synchronize the
+shared checkout. Preserve newer main fixes and unique checkpoint research.
+
+# MongoDB full claim validation — 2026-10-31
+
+User asked to start validating every MongoDB concept, fanning out agents,
+marking each concept in the tree as it is validated so no effort repeats, and to
+keep cycling until all MongoDB concepts are validated.
 
 ### 2026-10-22 — Implement research recommendations (TASK-840)
 

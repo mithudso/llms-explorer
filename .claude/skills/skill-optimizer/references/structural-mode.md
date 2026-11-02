@@ -18,6 +18,7 @@ It **orchestrates** the existing `~/.claude/skill-consolidation/` scripts and fi
 | **Step 6** verify · **Step 7** registry rebuild and routing verify | |
 | **Step 7.7** SKILLS-INDEX refresh (still runs; frontmatter and version changed) · **Step 7.8** degraded tally | |
 | **gap-lints** via `meta-validate.mjs` (below) | |
+| **offline pre-lint** via `~/.claude/scripts/skill_optimizer_offline.py` (SKILL.md Step 2.4; single-file mechanical checks) | |
 
 Step 7.6 is a no-op in every mode, so it is neither run nor skipped here.
 
@@ -32,10 +33,10 @@ Skipping Pass A as *content quality* must not drop reference **resolvability**, 
 Run from `~/.claude/skill-consolidation/` (scripts resolve their own paths, but the cwd keeps invocations short):
 
 1. **State.** `node detect-candidates.mjs --json` to know hub/spoke membership for the target.
-2. **Gap-lints.** `node meta-validate.mjs <target> --json` (see below). Read its findings into the convergence set.
+2. **Gap-lints.** `node meta-validate.mjs <target> --json` (see below) plus the zero-token pre-lint `python3 ~/.claude/scripts/skill_optimizer_offline.py <target> --json` (SKILL.md Step 2.4). Read both findings sets into the convergence set; the pre-lint is skipped with a reason, never failed, when the script is absent.
 3. **Kept passes.** Run A′, G, I, L, N, O against the target, with Pass O's peer writes under the peer-write rail in `passes.md`. These are the judgment passes the linter cannot do.
-4. **Referent normalization.** `node referents.mjs --repair --apply` to normalize cold and hot `→ <hub> (references/<spoke>.md)` forms across the touched set. Do not hand-edit referents.
-5. **Cross-hub wiring (hub targets only).** `node fix-crosshub-generic.mjs <family>-manifest.json` to refresh the provenance banner and cross-hub map.
+4. **Referent normalization.** `node referents.mjs --repair` to inspect proposed cold/hot `→ <hub> (references/<spoke>.md)` normalization without writes. This helper scans the whole tree and has no target filter; never pass `--apply` inside `/sko`. Report needed normalization as a `skill-tree-architect` handoff instead of mutating unrelated skills.
+5. **Cross-hub wiring (hub targets only).** Inspect the target's provenance banner and cross-hub map against its family manifest. `fix-crosshub-generic.mjs <family>-manifest.json` rewrites every hub and spoke in that family; do not run it inside a single-target `/sko` audit. Hand required family-wide regeneration to `skill-tree-architect`.
 6. **Register.** Step 7: rebuild the index (`semantic_ops.router build`), then verify routing per `sync-protocol.md`. Runs unless `--no-sync` (see below).
 7. **Confirm clean.** Re-run `node meta-validate.mjs <target> --json` and confirm 0 High.
 

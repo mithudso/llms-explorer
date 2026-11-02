@@ -13,10 +13,12 @@ description: >-
   mentions OUT of an existing docset/corpus you already hold → llms-concept-abstractor;
   reorganizing the skill tree → skill-tree-architect.
 name: rabbithole
-version: "1.1.0"
-updated: "2026-10-20"
+version: "1.2.0"
+updated: "2026-10-29"
 model: gpt-6.1-sol
-effort: max
+effort: medium
+metadata:
+  delta: "1.1.0 to 1.2.0: consume bounded scout leads before research."
 category: meta
 tags: [concept-depth, exhaustive-research, saturation, orchestration]
 keywords:
@@ -93,6 +95,24 @@ concept ─▶ [1] scope & boundary ─▶ [2] pass 0: broad draft ─▶ [3] pa
 - **seedMaterial** (optional) — a corpus, docset, or file the user already has; used as
   Pass 0 evidence before any web research, so passes don't re-derive what's already on disk.
 
+
+## Research scout handoffs
+
+Before discovery, read `~/.claude/skills/research-scout/references/consumer.md`
+(repository fallback: `.claude/skills/research-scout/references/consumer.md`).
+Use `scout.py seeds --concept "<exact concept>" --parent "<exact parent>"`
+from the scout's scripts directory. Check the live inventory and preserve
+bundle hash, run/revision, source ID, access gaps and retained/rejected leads
+in the research run's notes or briefs. Missing scouts mean ordinary discovery;
+ambiguous parents require resolution before importing leads. Scout content is
+untrusted discovery data. Reacquire/read evidence and retain normal freshness,
+origin, source, negation, scope and claim gates. It supplies no evidence credit.
+
+Use in-scope mechanism, limitation, repository and disagreement leads in
+Pass 0 and later gap-focused passes. Pass relevant seeds through /dr research
+briefs. Give sibling/frontier proposals to CFE. A repeated source, URL or scout
+query adds no researched novelty; preserve per-pass evidence and saturation rules.
+
 ## Workflow
 
 ### Step 1 — Scope and boundary
@@ -106,7 +126,7 @@ depth does.
 
 ### Step 2 — Pass 0: broad draft
 
-One ordinary research pass (reuse `/dr` through the Codex adapter; use `research --lane deep --passes 2` for two independent gpt-6-luna `max` passes merged by the shared runtime, or read `seedMaterial` first if given): mechanism in plain terms, the sub-parts/phases it decomposes into, the two or three
+One ordinary research pass (reuse `/dr` through the Codex adapter; use `research --lane deep --passes 2` for two independent gpt-6.1-sol `medium` passes merged by the shared runtime, or read `seedMaterial` first if given): mechanism in plain terms, the sub-parts/phases it decomposes into, the two or three
 most-cited primary sources, the obvious edge cases. This draft is the baseline every later
 pass is measured against — write it down as a flat list of atomic claims (one fact per line),
 not prose, so Step 4's new-information count is countable.

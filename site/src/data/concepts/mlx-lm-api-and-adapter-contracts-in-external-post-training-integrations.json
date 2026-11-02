@@ -1,0 +1,435 @@
+{
+  "slug": "mlx-lm-api-and-adapter-contracts-in-external-post-training-integrations",
+  "concept": "MLX-LM API and adapter contracts in external post-training integrations",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for MLX-LM API and adapter contracts in external post-training integrations. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Tokenizer equality is a requirement of direct token-level teacher/student comparison, not of text-only teacher-response SFT. AutoContext rejects a vocabulary mismatch for its local OPD path; a Hugging Face TRL issue records that passing student token IDs directly into a differently-tokenized teacher gives incorrect teacher probabilities. Cross-tokenizer logit training needs explicit alignment or another objective; `mlx-go-lm` exposes a token-logit remapper and counts unmapped tokens. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://autocontext.ai/docs/guides/distillation-mlx",
+          "note": null,
+          "claimId": "clm:4bfea1adbb0b4418a2aa8ac7211c309547edd6f163fbd449d0c70d46040781aa",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0e8b4c59699f16c567e1da0344b452afa2a78b8da8cba1d10200b574125a5624",
+            "ev:827ad7fe3528d62ad8b5bfae305e43b96b974070eb7b3b1553fa7e7fe2411cff",
+            "ev:97a3e3361ae2c51390325beaf80e175320fc781291e7eaa48c7684d1e0558fea",
+            "ev:c5387105a43eb27783500abad7fa007a06449abc516cae1c97603cc18cfdfe6e"
+          ]
+        },
+        {
+          "text": "MLX-LM's DWQ is a scoped teacher-guided path: the documentation says it tunes quantized-model parameters such as scales and biases against a non-quantized teacher, and the implementation computes KL targets while updating the quantized model. This is weight-quantization distillation, not a general task-level teacher/student training interface; the September 2026 feature request explicitly distinguishes DWQ from general knowledge distillation. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LEARNED_QUANTS.md",
+          "note": null,
+          "claimId": "clm:0e5a5f54dd67b5eb458e255746e8e3f69dcd7e4e3dcdd2a89c589a9ae3863a92",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:42c123e8c47c47eb13765b7b8c912572cc2e70be6886e6ed41a629d4269ad32c",
+            "ev:765f5e8f033f6d020967775f5cc56417ef292d2aefa67066e22de9687d082262",
+            "ev:7bc2f04e004466fdf2c4cc8a957ada3ea6f21e67ddb23ed14dce09ca81bb5ca5",
+            "ev:b210e4a1d5d94e10365e3fae1283470b26629e97e9ea8a57e47ea229b18718f5"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "AutoContext maps variant=gspo to external --grpo-loss-type grpo --importance-sampling-level sequence; ordinary grpo selects token. The extension sequence option averages masked token log-ratios over each completion before exponentiation/clipping, while token returns per-token log-ratios. Its pinned variant guide labels this GSPO-style ratios and explicitly warns that the option does not reproduce every component of a complete GSPO recipe. This setting belongs to the external extension, not native fine_tune_type. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/greyhaven-ai/autocontext/f72c154152397f54d55407508b153d28861888a5/autocontext/src/autocontext/training/autoresearch/grpo_backend.py",
+          "note": null,
+          "claimId": "clm:53315241abaa7af2b59a96e7a5bcf316160aceda2590d361ce88de26635b94bd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:006613f89640562a269f0522af5757b1864e4238804941c6ea25a1995947be89",
+            "ev:147a0dbf0565f90bd23df473bccbfffeec7b1ea93c35914de226e274348935b7",
+            "ev:219f9cf15a463934d215b4dacf57a151727c1bce3bf765caeb3c2c81519846bf",
+            "ev:28cf3fc49501477f65d20c46a9351c115a4261de754a1e6b8f998f2be1034df3"
+          ]
+        },
+        {
+          "text": "AutoContext OPD writes adapters/adapters.safetensors from student.trainable_parameters() and adapter_config.json containing fine_tune_type=lora, num_layers, and lora_parameters. Pinned native load(base,adapter_path=that_directory) reads those two files, recreates adapter layers, and validates allowed names and shapes before loading. This is a concrete file-contract match for the matching base/config, not a live interoperability test; a standalone weights file or MLXSmith ADAPTER.txt placeholder does not satisfy it. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/greyhaven-ai/autocontext/f72c154152397f54d55407508b153d28861888a5/autocontext/src/autocontext/training/autoresearch/on_policy_distill.py",
+          "note": null,
+          "claimId": "clm:65deae7a1e33d7b1f7c181131bb698f4a541034edbe19d090ec962293e5139d1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:664380fb9e0175679e33526e63576d50b979b0bacb430e9c65716881fc08fdbc",
+            "ev:85955b8c7a35937debe731ee5fa76ef9bf6acfb8446577fa6a2640dc67790da1",
+            "ev:bf6f9239ab633e7f2d361ad0fd7beef8c06e93280368ea753c46956cf676e5ab"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "mlx_lm.generate.generate_step yields each sampled token with a vocabulary-wide log-probability vector computed after logits processors but before the sampler runs. make_sampler can then apply temperature, top-p, min-p, or top-k filtering. Therefore, the returned vector does not automatically represent the filtered behavior distribution when those sampler transforms are active; an adapter should define and consistently store the behavior-policy log probability used in its importance ratios. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:718c73c417eb35bc2b675b7b3fd211172a03908597da03ee2d7f7a5d9c9cbac0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:55ebcd75a314b37e0c596948d19ca7761c4ebf2442bebcb2ca7769074878a424",
+            "ev:b37b36536b022c8f0ccf8e64c12f5dc075cd95769c2b20150547554bfbc67b26",
+            "ev:b8f6af9f703f6256942db3391acc8064fef233912d16dfe78c845a78b609ba9e"
+          ]
+        },
+        {
+          "text": "The current MLX-LM tuner accepts a caller-supplied loss; its default loss applies shifted-token, length-masked cross-entropy, and its update path differentiates the supplied loss with nn.value_and_grad(model, loss) before calling optimizer.update(model, grad). An external GRPO or GSPO integration must provide rollout preparation and its RL objective around this hook because the shown tuner loop does not implement reward grouping or policy-ratio logic. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/trainer.py",
+          "note": null,
+          "claimId": "clm:80924519e4780aa383beca92db4d81c8eee8bba4ee9d57192c448338d8937386",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7bb59c97aafef88928c284a6bbbdd9a81465d4eb20f0d0f974512a1fb5ec0bc4",
+            "ev:ba2dc174c669f4d9bfba0b1906f5a3342510b34a0472a8b6f503d446aa0e8022"
+          ]
+        },
+        {
+          "text": "MLX-LM stream_generate yields a token ID and a log-probability vector for each generation step, while generate returns decoded text. The streamed vector is normalized from logits after explicit logits_processors and before the sampler, so it is not guaranteed to equal the sampling-distribution log probability when the sampler changes its input distribution. An external adapter should retain token IDs and completion masks and verify that rollout and training scores use matching policy conventions. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:fa56f4d024c00bb01c70d89da38c47d9703c13d54500e7c53e4b06534f390561",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:83f7de430e1bb7e0ab9baade6ab951fa5f723aae4b76fb489f98c7459a961be4",
+            "ev:b37b36536b022c8f0ccf8e64c12f5dc075cd95769c2b20150547554bfbc67b26",
+            "ev:b8f6af9f703f6256942db3391acc8064fef233912d16dfe78c845a78b609ba9e"
+          ]
+        },
+        {
+          "text": "Current TRL documentation requires a custom rollout_func to return prompt_ids, completion_ids, and logprobs, with logprob_token_ids optional. Its current GSPO recipe uses importance_sampling_level=\"sequence\" with loss_type=\"grpo\" and says the sequence setting matters when training goes slightly off-policy; the Paper Index also says the experimental GSPO-token implementation was removed after v1.13. An adapter should pin its trainer version and keep core sequence-level GSPO distinct from the removed experimental path. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://huggingface.co/docs/trl/grpo_trainer",
+          "note": null,
+          "claimId": "clm:f84f098275648bc908b0f59f724923223897172d4c826dccd8b8b337dae260df",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d4dd22b4b04a4b46cd8ae94efb0dcf64c5436f590995bcd9e7f513d303825159",
+            "ev:df6d2dbe2179124398ffcad28d129888cd9266ceb8e16d346eb2230c59c6099b"
+          ]
+        },
+        {
+          "text": "AutoContext run_grpo_training at f72c1541 launches python -m mlx_lm_lora.train, not native mlx_lm.lora. It writes train/valid JSONL and autocontext_reward.py; the registered reward accepts prompts=None, completions=None, **kwargs, reads singular answer (or answers), and forwards them to score_completions. For agent-task scenarios, evaluate_output receives the decoded per-completion answer state when available, otherwise shared_state. Game scenarios instead call execute_match(strategy,seed=seed) without passing that decoded state. Throwing verifiers score zero. The wrapper passes the reward file/name and selected GRPO-family flags to the external process. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/greyhaven-ai/autocontext/f72c154152397f54d55407508b153d28861888a5/autocontext/src/autocontext/training/autoresearch/grpo_backend.py",
+          "note": null,
+          "claimId": "clm:4f94760393cc74aaaaa0c40d30daf6c3136b07690c86e0a7e2c7c6e3bf65b6f8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6bb2e9f290cb300246a2e4914297e35681c1fd4888b4e5289e66ed6f95ebf1f9",
+            "ev:a605ce32944d286b0aafd92a076317b3efa9ebcc743db1c97d121dd563b124c2",
+            "ev:b53dff7f1a3b38ed5599a88918cd3f60fe7be4b63d34554c0f9dc959f28a67ef"
+          ]
+        },
+        {
+          "text": "The extension entry point loads the reference separately from reference_model_path or the base model path and calls freeze(); policy adapters belong to the distinct trainable model. grpo_loss scores the exact prompt-conditioned completion IDs with policy and reference, stop_gradient on reference scores, and skips reference scoring when beta=0 or no reference exists. In this implemented once-per-rollout objective, log_ratio=logps-stop_gradient(logps) has forward value zero but retains the policy gradient: reference probabilities are only for KL, not pi_old. Native streamed pre-sampler logprobs are therefore not a substitute for externally defined behavior probabilities when rollouts are reused or sampler filters change the distribution. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/Goekdeniz-Guelmez/mlx-lm-lora/311058c7a6a1d3c62ddd8cdf2c795bbb6d0bd632/mlx_lm_lora/train.py",
+          "note": null,
+          "claimId": "clm:5b651d260a529bd094f9d5133ee66a94396738d5b079c20206300bda2e020b43",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:147a0dbf0565f90bd23df473bccbfffeec7b1ea93c35914de226e274348935b7",
+            "ev:1674cd07bed1100d672968a4ecd06c0607211ef0d48994b4848d437aec6e97e7",
+            "ev:19732731abb6385a0c7f59d40e1fc25eaf3df8a28df68e48fe0aa57d019fb1b7",
+            "ev:329f11f6f751fda1d37f43082ac6950a80dbef7c993f7cf4737558fefda58231",
+            "ev:849a0118ca7f7d69afb74f56f89353ea7ef416f93878868cba4d9e8a273e49a4"
+          ]
+        },
+        {
+          "text": "Current external integrations separate offline teacher-text SFT from online token-level distillation. AutoContext describes its `mlxlm` route as SFT over a fixed teacher-written dataset and runs OPD in a separate in-process loop with a frozen teacher and LoRA student; MLXSmith likewise separates generated-response SFT from its OPD scoring mode. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://autocontext.ai/docs/guides/distillation-mlx",
+          "note": null,
+          "claimId": "clm:f70d0ae5f3f32d0825e439a22be5231a19bdd00c65a7266c88bd5d5eee5b7ef2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:81c9e91f306dd4dfc4ebd5f5e86a39eed312749c8663c4a74a9d1ac24527032a",
+            "ev:8a16c25a6cef0ddff0c8f4da463fb4ae70dd08885c8361f4dd0de6d35b44955c"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Token-level KL cannot compare raw teacher and student logits as if token IDs shared meaning when their tokenizers or vocabulary sizes differ. In TRL issue 4562, the maintainer says this constraint follows from GKD/MiniLLM's token-level objective; TRL's experimental GOLD trainer instead aligns text spans and uses ULD for cross-tokenizer cases. An MLX-LM integration must preserve a shared token coordinate system or implement an explicit alignment method; passing student token IDs directly to a different-tokenizer teacher is unsafe. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/huggingface/trl/issues/4562",
+          "note": null,
+          "claimId": "clm:7a640006091d0bd75f8c14ec120041c90d33447aaedc8b4aeaab338bfc479d28",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:638a56d17c0063611438094ff473bbf33daa0547f714367bd06abaecd73f44b9",
+            "ev:802c047558d0945d55f009b5cb286f229ca3baf62e373d7727bdeaa086632399",
+            "ev:c5387105a43eb27783500abad7fa007a06449abc516cae1c97603cc18cfdfe6e"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "GRPO uses online groups of sampled completions for each prompt, scores the completions, derives group-relative advantages, and optimizes token-level current-versus-old policy ratios; implementations may also include a reference-policy KL term. The rollout adapter therefore needs to preserve each prompt's group membership and align rewards and advantages with the corresponding completion tokens. (high confidence)",
+          "source": "https://arxiv.org/abs/2402.03300",
+          "note": null,
+          "claimId": "clm:e2ce48b33a76d2f372b47970ea135145aeff34c0935c63bdf44e63d82255e771",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b37b36536b022c8f0ccf8e64c12f5dc075cd95769c2b20150547554bfbc67b26"
+          ]
+        },
+        {
+          "text": "To adapt an external distillation objective to the pinned native trainer, supply train(student,optimizer,...,loss=my_loss,iterate_batches=my_batches): standard my_loss receives (model,token_batch,lengths) and returns (scalar_loss,token_count). Build an explicit completion/padding mask and token denominator rather than assuming the inclusive default_loss boundary excludes every padded target. The native loop differentiates only the supplied student module, sums gradients, averages across workers, divides by args.grad_accumulation_steps on updates, and calls the supplied optimizer; values below one are rejected. AutoContext instead calls nn.value_and_grad(student,loss_fn) in its own loop with teacher targets stopped. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/tuner/trainer.py",
+          "note": null,
+          "claimId": "clm:09de292b06ac37875a34d01603b69ef425ee4db7799c48fc05c54dca621c771e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3057d5788b0d2d882718329c1ad62f098e4b78fa9708099ba3d2757e72741925",
+            "ev:702cd08c4f32565deed65f4e3dd99c40a040369047159bb2cbb44a793a9bdca9",
+            "ev:7ca8ac9c412dae196bf9baf263a1214bf2ba35f4d740e9293de63592ba426aae",
+            "ev:95c28a5070332478b5fcfc0d9e5464d7d60d2d5020726326a717a2a6bbbdbb13"
+          ]
+        },
+        {
+          "text": "Native --resume-adapter-file calls model.load_weights(...,strict=False), then builds a new optimizer and starts the normal loop; it does not restore teacher identity/weights, optimizer moments, scheduler progress, RNG state, or rollout state. AutoContext OPD saves adapter tensors/config rather than those states, while MLXSmith may apply a source adapter but initializes a fresh optimizer and random.Random(seed). Exact external-training continuation therefore needs a separate checkpoint for that omitted state and resolved teacher/student revisions. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/lora.py",
+          "note": null,
+          "claimId": "clm:d45eebfe0e077bd471f49f517fa0f225b6dc3898cea3cf2ca8629c4efc7065ab",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:360ea7fd4d4fe571ceef5a6456d2100b515a8bda29e1976699d8a3b733f2497b",
+            "ev:3b14be6e9cb2c714049db31bb9d31789f64b9789c0d51f0e3d17f591c8c78e42",
+            "ev:bf6f9239ab633e7f2d361ad0fd7beef8c06e93280368ea753c46956cf676e5ab"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "On the upstream main snapshot checked on 2026-10-23, mlx_lm.tuner.trainer.train accepts custom loss and iterate_batches functions, computes gradients with nn.value_and_grad(model, loss), and applies them through optimizer.update(model, grad). Its signature has no named rollout-generation or reward callback, so an online GRPO/GSPO adapter must supply that logic through custom batching and loss code or an outer loop. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/trainer.py",
+          "note": null,
+          "claimId": "clm:93efc178e4233d4e10d54b8f0e057aad972b6f6adb615869594166ad9c3c9397",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7bb59c97aafef88928c284a6bbbdd9a81465d4eb20f0d0f974512a1fb5ec0bc4"
+          ]
+        },
+        {
+          "text": "GRPO samples a group of G completions for each prompt and computes advantages from rewards relative to that group. Its clipped policy update uses per-token current-policy to rollout-policy probability ratios; implementations may also include a reference-policy KL term. If an adapter reuses rollouts for multiple optimizer updates, it must retain the rollout log probabilities or a snapshot that can recompute them. (high confidence)",
+          "source": "https://arxiv.org/abs/2402.03300",
+          "note": null,
+          "claimId": "clm:fa5a528843792b76fe5cf639184dd4b7604b6d0cd8a1be8d9e6bde714e09e91c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b37b36536b022c8f0ccf8e64c12f5dc075cd95769c2b20150547554bfbc67b26"
+          ]
+        },
+        {
+          "text": "GSPO defines an importance ratio from the current-to-old likelihood of a complete response, raised to the inverse of its valid completion length, and applies clipping and optimization at sequence level. An adapter must aggregate the per-token log-probability differences over the valid completion span before computing the GSPO ratio; reusing token-level GRPO clipping changes the objective. (high confidence)",
+          "source": "https://arxiv.org/abs/2507.18071",
+          "note": null,
+          "claimId": "clm:e30679137d5760fb9e4e57653e5b2c29c7e1c3b605aff4288891f63627de8b2e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7df91babc1c4f6e08afc331d2a69f55969e9ee79644efa395740ed187f380b50",
+            "ev:7fc7cc1a76c97f194a84afe54ab725e5a6734aec83d181e3a341243d5cd64129"
+          ]
+        },
+        {
+          "text": "MLX-LM's stock iterate_batches pads token rows with zeros and returns offset/end length boundaries; default_loss uses those boundaries for its token mask. An RL custom loss needs explicit completion boundaries and a denominator over valid completion tokens, or prompt and padding positions can enter the policy objective. The adapter should also decide explicitly how to handle truncated completions. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/trainer.py",
+          "note": null,
+          "claimId": "clm:fbcc0d94681946ea8cc701648d6947e2933d17fec072620347a755f84719478d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9f30b3f4d93963264ca8d647d5741f3de2ea08ec7f68b8b18418fd5ff6806b4f",
+            "ev:b37b36536b022c8f0ccf8e64c12f5dc075cd95769c2b20150547554bfbc67b26",
+            "ev:ba2dc174c669f4d9bfba0b1906f5a3342510b34a0472a8b6f503d446aa0e8022"
+          ]
+        },
+        {
+          "text": "A separate MLX ecosystem guide lists GRPO and GSPO for the mlx-lm-lora fork but labels its mode and flag descriptions as unverified README claims. Soup's current training guide lists grpo_variant: gspo, yet its native backend: mlx page rejects GRPO and says that backend supports only SFT. These examples show support is project- and backend-specific; they do not define an upstream mlx-lm integration contract. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://hbmartin.github.io/Foundation-Models-and-Core-AI-and-MLX-skills/part-12-mlx-python/references/06-finetuning-and-porting-models/",
+          "note": null,
+          "claimId": "clm:758a07c54716470591cde5fbb5d1932eeabed73a67da5ec34a0a9984f6260cc0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:02c4ef5023c7a69e32572f4c143b5f8c133520ff6ed7ad35d8596a6d116bdc48",
+            "ev:a6b3562972c98625d0bc843cc95cce359473862f800f95b94ca57bbbaca08c57",
+            "ev:f0b9eff783b60afc9a9cae0ec47231b768b5afa871ac9873d8f4d3d236bd171f"
+          ]
+        },
+        {
+          "text": "In mlx-lm-lora generate_grpo at 311058c7, each prompt index is repeated group_size times, BatchGenerator.insert assigns rollout UIDs, and sampled IDs are collected by UID before returning completions/texts/batch_indices in insertion order. It uses native make_sampler(temperature,top_p,min_p,top_k), EOS stop sequences plus an optional encoded answer delimiter, and bounds completion/prefill concurrency separately from group expansion. EOS remains in policy token IDs but is removed from reward text; generator.close() and restoration of the model training mode run in finally. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/Goekdeniz-Guelmez/mlx-lm-lora/311058c7a6a1d3c62ddd8cdf2c795bbb6d0bd632/mlx_lm_lora/trainer/grpo_trainer.py",
+          "note": null,
+          "claimId": "clm:096a9d283d8820d555fa7f785b248b5618122ce5055ce46fb5dc23184fd700f9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5ad2f6a47e5a27c67bb41d4f3c156ac8428bd4796b094ab04b5ead457e3a1ad8"
+          ]
+        },
+        {
+          "text": "The external reward callback receives prompts, completions, answer (singular), and types, each expanded with batch_indices so rewards map to the originating prompt group; it must return one reward per completion. Group-relative advantages are calculated from the weighted rewards. train_grpo passes exact completion IDs/texts, batch_indices, advantages and reward_metrics to grpo_loss. Its completion mask starts at prompt_length-1 and spans exactly completion_length shifted targets, excluding right padding; grpo_loss returns (loss,valid_token_count,metrics). This triple and grouped metadata require an explicit wrapper/custom-batch design to fit native trainer.train, whose standard custom loss receives (model,batch,lengths) and returns only (loss,token_count). (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/Goekdeniz-Guelmez/mlx-lm-lora/311058c7a6a1d3c62ddd8cdf2c795bbb6d0bd632/mlx_lm_lora/trainer/grpo_trainer.py",
+          "note": null,
+          "claimId": "clm:7c771c23c01f8305b18c5cd1ba95a8c373d6c79cf1b2b362313cbba2f531726e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:147a0dbf0565f90bd23df473bccbfffeec7b1ea93c35914de226e274348935b7",
+            "ev:329f11f6f751fda1d37f43082ac6950a80dbef7c993f7cf4737558fefda58231",
+            "ev:7ca8ac9c412dae196bf9baf263a1214bf2ba35f4d740e9293de63592ba426aae",
+            "ev:95c28a5070332478b5fcfc0d9e5464d7d60d2d5020726326a717a2a6bbbdbb13",
+            "ev:aeef817af42572d3b7e0afd57792f6bfa0092b39fd5a8d6435d123b70adf26e1",
+            "ev:f50714115c7d49bf987bc7492f44a55f05eadfe45652dd2caba23ef15573a6bd"
+          ]
+        },
+        {
+          "text": "For standard LoRA, extension from_pretrained creates adapter_config.json with lora_parameters and num_layers; train_grpo writes trainable tensors to adapters.safetensors and numbered weight snapshots. Native load(...,adapter_path=...) expects those files, defaults missing fine_tune_type to lora, and requires compatible base-model names/shapes. Extension --resume-adapter-file only loads weights before initializing the optimizer. These adapter artifacts do not restore optimizer state, schedule position, RNG, reward-module/scenario state, frozen-reference revision, rollout groups, or stored behavior scores; preserve those separately for exact continuation. No artifact load was executed here. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/Goekdeniz-Guelmez/mlx-lm-lora/311058c7a6a1d3c62ddd8cdf2c795bbb6d0bd632/mlx_lm_lora/utils.py",
+          "note": null,
+          "claimId": "clm:4254d81edbda0fb5d153cb3f73559e4d214ff9c9897372e0d6118c8e84dee53e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:56502d2342c2f33e8bca08d0a8775f1a03c9c67976365c2f811b7dd41d3116b4",
+            "ev:664380fb9e0175679e33526e63576d50b979b0bacb430e9c65716881fc08fdbc",
+            "ev:a155eb651b0fb1b084b85b7441d6f2945f717f5c74d6729d884f33629fc4c974",
+            "ev:f1a89667c0e0403f1680e63ab9c55a2f215c1e69609ffda389cc67d07d82b050"
+          ]
+        },
+        {
+          "text": "The documented MLX-LM LoRA CLI consumes JSONL chat, tools, completions, or text records. Its `--mask-prompt` option computes loss on completion tokens for chat and completion datasets; for chat data the final message is treated as the completion. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LORA.md",
+          "note": null,
+          "claimId": "clm:9dc7e39674c9c121ec7d7ef716fd77c2fed5ee44fd7db64f31ffc42c0cd675c8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:bd32fd46e67ad31ebc41b13e3460a0e1891de439d2131ffa0dd8d4e3898f5d89",
+            "ev:fbe45194f16b693aff5fd2c1dde575c6cc228cd73a8956a5a68247be33480279"
+          ]
+        },
+        {
+          "text": "The Python `mlx_lm.tuner.trainer.train` function accepts a loss callable, differentiates that callable with `nn.value_and_grad`, and updates the supplied optimizer. External code can provide a student-logit objective at this lower-level seam; the stock LoRA CLI contract remains supervised fine-tuning. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/trainer.py",
+          "note": null,
+          "claimId": "clm:e294806076d97aeed5323307a2edb670c0250505eb66f5c3c7b32caf3f5177ee",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7bb59c97aafef88928c284a6bbbdd9a81465d4eb20f0d0f974512a1fb5ec0bc4",
+            "ev:959eb7114083330ae08dfa0c4ca991b547fba2574d22ffaddd13c811208efd5b",
+            "ev:bd32fd46e67ad31ebc41b13e3460a0e1891de439d2131ffa0dd8d4e3898f5d89"
+          ]
+        },
+        {
+          "text": "Hosted teacher APIs can feed the offline text path: AutoContext documents API or hosted teacher trace collection before training, while the MedTech and Distill-SQL projects describe teacher-generated reasoning or labels rendered as training records and then learned with MLX-LM LoRA. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://autocontext.ai/docs/guides/distillation-mlx",
+          "note": null,
+          "claimId": "clm:4f02c4ccf5bf1fbfd520d9340bcb0af1079f2d0a010d5bcac0e0ef756a77ddeb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:008a2c72a62cedfbb4aa78e20acb3926c0584f66041442b71c8d06694a893eaf",
+            "ev:11f86c597b1000d3d1aaf51d07945625d9043d519d2975b4c44f79d394e8bafe",
+            "ev:1b44c7784bc44d78063bd502666ccf81e1c193de25240b08692d8c3956c1c262",
+            "ev:3a046d3a827ca58ab5ee7425c00acca8dc7459cfdb99bc618c922542d7d1b791",
+            "ev:dde26f676c0898f1b6f089ba0f0a1a1c592be29f623b9e8cb21c99a0c231fe8a"
+          ]
+        },
+        {
+          "text": "`mlx-go-lm` documents a teacher-logit cache contract that writes precomputed targets in the same order used by training and streams cached logits batch by batch. An external MLX-LM integration that adopts cached logits therefore needs to preserve sample order and vocabulary coordinates across precompute and student training. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://pkg.go.dev/github.com/tmc/mlx-go-lm/mlxlm/llm/training",
+          "note": null,
+          "claimId": "clm:eaf9757be96c8747542188e8f8080403f1e3f73e1c5bf6ced428cba4e25f433f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0e8b4c59699f16c567e1da0344b452afa2a78b8da8cba1d10200b574125a5624",
+            "ev:5f62245e67ab6793cd7fa995d35cb34e4fb3fb1b5935e1c1606a5ea75dc08271",
+            "ev:abe7fe77627452fe505d67792f91d9c04b2322d6cf8808183703445916013cef"
+          ]
+        },
+        {
+          "text": "The documented `mlx_lm.lora` data contract accepts local JSONL with `chat`, `tools`, `completions`, or `text` records, one example per line. An external teacher's generated response can enter the student's ordinary SFT path after the caller stores it as a prompt/completion or message record. `--mask-prompt` supports completion-only loss for chat and completion datasets; the documented default computes loss for every token. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LORA.md",
+          "note": null,
+          "claimId": "clm:0cafbac3584c5ee6a06a1321ba7c7a8c009940c1caf3b1e9a2766c08a44a6227",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1bb6247c60332772ebb9bfd85a1bf08f08d22ecff02ecf5b09cd6fabc07be049",
+            "ev:bd32fd46e67ad31ebc41b13e3460a0e1891de439d2131ffa0dd8d4e3898f5d89",
+            "ev:fbe45194f16b693aff5fd2c1dde575c6cc228cd73a8956a5a68247be33480279"
+          ]
+        },
+        {
+          "text": "The Python `mlx_lm.tuner.trainer.train` contract accepts caller-supplied `loss` and `iterate_batches` functions plus a `training_callback` object implementing report methods. Its default loss shifts the token batch, computes masked next-token cross-entropy, and returns loss plus a token count. The current signature has no teacher-model argument, so direct logit distillation needs a custom loss and batch path or a separate training loop. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/trainer.py",
+          "note": null,
+          "claimId": "clm:65094ac66c61ea75900e48d4d984ade27104b0ff933d0aac76766fb811e3701c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7bb59c97aafef88928c284a6bbbdd9a81465d4eb20f0d0f974512a1fb5ec0bc4",
+            "ev:7ca8ac9c412dae196bf9baf263a1214bf2ba35f4d740e9293de63592ba426aae",
+            "ev:95c28a5070332478b5fcfc0d9e5464d7d60d2d5020726326a717a2a6bbbdbb13",
+            "ev:ba2dc174c669f4d9bfba0b1906f5a3342510b34a0472a8b6f503d446aa0e8022"
+          ]
+        },
+        {
+          "text": "A hosted teacher that supplies response text gives supervised examples, not token-probability targets. AutoContext documents provider-generated rationales as SFT data and says token-level distillation needs local or open-weight teacher logits; MLX-LM's JSONL loader and custom-loss hooks provide the student-side data and training extension points for those two distinct paths. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://autocontext.ai/docs/guides/distillation-mlx",
+          "note": null,
+          "claimId": "clm:8eee90c73b1118a923201f52ec814bb58cd7e3a156d6b040f538ca6e9820948a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3a046d3a827ca58ab5ee7425c00acca8dc7459cfdb99bc618c922542d7d1b791",
+            "ev:7bb59c97aafef88928c284a6bbbdd9a81465d4eb20f0d0f974512a1fb5ec0bc4",
+            "ev:bd32fd46e67ad31ebc41b13e3460a0e1891de439d2131ffa0dd8d4e3898f5d89"
+          ]
+        },
+        {
+          "text": "AutoContext run_on_policy_distillation at f72c1541 imports mlx_lm.load and linear_to_lora_layers. It loads/freeze()s the teacher, obtains student and tokenizer from load(student_model), freezes the student base, checks _model_logit_vocab(student/teacher) via a one-token forward, then installs LoRA on num_layers with rank=8, scale=20.0, dropout=0.0. Prompts use the student tokenizer chat template. This validates output-logit dimension equality; it does not validate identical token-to-ID mappings between tokenizers. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/greyhaven-ai/autocontext/f72c154152397f54d55407508b153d28861888a5/autocontext/src/autocontext/training/autoresearch/on_policy_distill.py",
+          "note": null,
+          "claimId": "clm:963fdebe1417f21b7f454873d62864e047fe3605452dc6ad2ebee71270d53d5e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3664c36cddc43294094c053eca20af22d067737eb8c9dd63241e1d21fd09db4f",
+            "ev:dfba68309ccc73fce0cc55ac42ccad85507ac04568977be47b22d2352bed3398"
+          ]
+        },
+        {
+          "text": "AutoContext full_kl OPD feeds [B,T,V] student and teacher raw logits into its own reverse_kl_per_token, applies temperature-scaled log-softmax internally, stop_gradient to teacher logits, and computes KL(student||teacher). Its fixed-length student rollout has no early EOS and masks prediction positions P-1 through P+max_tokens-2; normalization uses the mask sum with an epsilon floor. Native kl_div_loss/js_div_loss also accept raw logits and return per-position losses, but substituting them requires matching the intended divergence orientation and completion mask, not merely matching tensor shapes. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/greyhaven-ai/autocontext/f72c154152397f54d55407508b153d28861888a5/autocontext/src/autocontext/training/autoresearch/on_policy_distill.py",
+          "note": null,
+          "claimId": "clm:06717348f5d83cd0d1357a9fbf9a9a9e3210034da52f35deae450b2da56633bf",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3057d5788b0d2d882718329c1ad62f098e4b78fa9708099ba3d2757e72741925",
+            "ev:8352b318370708ee7e9530cae7807904d35364ff97bd6253fb5ed9b904ef85e8",
+            "ev:836ff8fd5eb30dc0e2a1e57f7007b74c8dbd6635e0edfe6be2f042fbc0ba5584",
+            "ev:b8492818c4554ab1bf7e1d142374fd07456bd67fe0a5e0cc6833de2e1af1f35f"
+          ]
+        },
+        {
+          "text": "MLXSmith run_distill at 3737578f uses a different OPD route: the student generates token IDs and behavior logprobs, the teacher scores that completion (or supplies a sequence-average fallback), and importance_sampling_loss uses a teacher-minus-behavior advantage. It aligns/truncates completion scores and accumulates gradients over cfg.train.grad_accum before applying averaged student gradients. Its offline branch writes teacher text then calls run_sft. If loading raises BackendNotAvailable, it writes ADAPTER.txt and returns; that placeholder is not a trained native adapter. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/Hmbown/MLXSmith/3737578f24c55ccbd56acfa41e7dab5b63a7a63b/src/mlxsmith/train/distill.py",
+          "note": null,
+          "claimId": "clm:d68a44ebfa081f88461f4fd56f6f05295b351916b94e845a94af0303fd7e611e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:360ea7fd4d4fe571ceef5a6456d2100b515a8bda29e1976699d8a3b733f2497b"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "93b3a48907aee6f779b622a6e97895682be5c752cc4fa0c76df5586762860085",
+  "canonicalConceptId": "concept:9ccb10ce05b4260b5a83f95d5d6d6ef7ee783d05fdfca207539d0213cd2c35b1"
+}

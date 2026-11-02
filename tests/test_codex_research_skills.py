@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -64,7 +65,10 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(sync.sync(self.repo, self.sources, self.canonical)["changed"], [])
         path = self.repo / ".agents/skills/dr/SKILL.md"
         text = path.read_text()
-        self.assertIn("model: gpt-6-luna\neffort: max", text)
+        for skill in sync.SKILLS:
+            rendered = (self.repo / ".agents/skills" / skill / "SKILL.md").read_text()
+            self.assertIn("model: gpt-6.1-sol\neffort: medium", rendered)
+            self.assertIn("Use gpt-6.1-sol `medium`", rendered)
         self.assertIn("~/.claude/skill-consolidation/cvs_check.py", text)
         self.assertNotIn("~/.Codex", text)
 
@@ -113,6 +117,22 @@ class SyncTests(unittest.TestCase):
 
 
 class AdapterTests(unittest.TestCase):
+    def test_leading_api_code_survives_legacy_markdown_sanitizer(self):
+        def legacy(value):
+            text = re.sub(r"<!--.*?-->", "", str(value), flags=re.DOTALL)
+            text = re.sub(r"\s+", " ", text).strip()
+            return re.sub(r"^[\s#>\-*=`|]+", "", text).strip()
+
+        normalize = adapter.preserve_leading_inline_code(legacy)
+        claim = "`mlx_lm.tuner.trainer.train()` computes gradients."
+        self.assertNotEqual(legacy(claim), claim)
+        self.assertEqual(normalize(claim), claim)
+        self.assertEqual(normalize("<!-- hidden instruction -->\n" + claim), claim)
+        for text in ("```python\nrun()\n```", "# heading\n---", "`unclosed code"):
+            with self.subTest(text=text):
+                self.assertEqual(normalize(text), legacy(text))
+        self.assertNotIn("\n", normalize("`api()`\n# heading\n---"))
+
     def test_role_mapping_and_efforts_are_explicit(self):
         for source, expected in (("claude-sonnet-5-5", "gpt-6.1-sol"), ("fable", "gpt-6-astra"), ("claude-opus-4-6", "gpt-6-astra"), ("haiku", "gpt-6-luna")):
             self.assertEqual(adapter.map_model(source), expected)
@@ -287,16 +307,17 @@ class AdapterTests(unittest.TestCase):
             self.assertIn("manifest", initialized["paths"])
             adaptive = invoke("research", "adapter-smoke", "--dry-run")
             self.assertEqual(adaptive["lane"], "adaptive")
-            self.assertEqual(adaptive["model"], "gpt-6-luna")
-            self.assertEqual(adaptive["effort"], "max")
-            self.assertEqual(adaptive["probe"], {"model": "gpt-6-luna", "effort": "max", "scout": True})
+            self.assertEqual(adaptive["model"], "gpt-6.1-sol")
+            self.assertEqual(adaptive["effort"], "medium")
+            self.assertEqual(adaptive["probe"], {"model": "gpt-6.1-sol", "effort": "medium", "scout": True})
             self.assertEqual(len(adaptive["briefs"]), 2)
             self.assertIn("at least 6", Path(adaptive["briefs"][0]).read_text())
-            overridden = invoke("research", "adapter-smoke", "--model", "gpt-6-astra", "--effort", "medium", "--dry-run")
+            overridden = invoke("research", "adapter-smoke", "--model", "gpt-6-astra", "--effort", "max", "--dry-run")
             self.assertEqual(overridden["probe"]["model"], "gpt-6-astra")
-            self.assertEqual(overridden["probe"]["effort"], "medium")
+            self.assertEqual(overridden["probe"]["effort"], "max")
             deep = invoke("research", "adapter-smoke", "--lane", "deep", "--passes", "2", "--dry-run")
             self.assertEqual(deep["passes"], 2)
+            self.assertEqual((deep["model"], deep["effort"]), ("gpt-6.1-sol", "medium"))
             for name in deep["briefs"]:
                 brief = Path(name).read_text()
                 self.assertIn("claims-check", brief)
@@ -306,6 +327,13 @@ class AdapterTests(unittest.TestCase):
             self.assertTrue(gate["dry_run"])
             self.assertIn("Codex web open", Path(gate["brief"]).read_text())
             self.assertFalse((root / "telemetry.jsonl").exists())
+            for depth, lane, passes in (("quick", "single", 1), ("saturate", "deep", 2)):
+                slug = "adapter-" + depth
+                invoke("init", "Codex depth defaults", "--slug", slug, "--depth", depth,
+                       "--concepts", "Atomic publication")
+                result = invoke("research", slug, "--dry-run")
+                self.assertEqual((result["model"], result["effort"]), ("gpt-6.1-sol", "medium"))
+                self.assertEqual((result["lane"], result["passes"]), (lane, passes))
 
 
 @unittest.skipUnless((Path.home() / ".global-ai-hub/scripts/dr_run.py").exists(), "shared DR runtime not installed")
@@ -394,12 +422,29 @@ class ResearchFlowTests(unittest.TestCase):
             self.invoke("research", "publication", *args)
         return self.shared.load_manifest("publication")["agents"]["rename-durability"]
 
+    def test_source_plan_and_reviewed_scope_reach_only_their_concept_workers(self):
+        manifest = self.shared.load_manifest("publication")
+        manifest["cohort_source_materials"] = [{"url": "https://docs.example/durability", "title": "Durability manual"}]
+        manifest["cohort_scopes"] = {
+            "Rename durability": {"bounded_scope": "Directory durability after replacement", "cautions": ["Do not infer an incident from its label."]},
+            "Different concept": {"bounded_scope": "OUT_OF_SCOPE_TEST_SENTINEL"},
+        }
+        self.shared.save_manifest(manifest)
+        self.research()
+        briefs = [call["brief"] for call in self.calls if not call["name"].endswith("-merge")]
+        self.assertTrue(briefs)
+        for brief in briefs:
+            self.assertIn("https://docs.example/durability", brief)
+            self.assertIn("Directory durability after replacement", brief)
+            self.assertIn("Do not infer unsupported attributions", brief)
+            self.assertNotIn("OUT_OF_SCOPE_TEST_SENTINEL", brief)
+
     def test_scout_hit_runs_exactly_one_seeded_second_pass_and_merges(self):
         url = "https://engineering.example/deep-rename"
         self.scout["candidates"].append({"url": url, "tier": "blog", "why": "Durability edge case"})
         result = self.research()
-        self.assertEqual([call["model"] for call in self.calls], ["gpt-6-luna", "gpt-6-luna", "gpt-6.1-sol"])
-        self.assertEqual([call["effort"] for call in self.calls], ["max", "max", "medium"])
+        self.assertEqual([call["model"] for call in self.calls], ["gpt-6.1-sol"] * 3)
+        self.assertEqual([call["effort"] for call in self.calls], ["medium"] * 3)
         self.assertIn("SEED SOURCES", self.calls[1]["brief"])
         self.assertIn(url, self.calls[1]["brief"])
         self.assertEqual(result["pass_count"], 2)
@@ -483,9 +528,13 @@ class ResearchFlowTests(unittest.TestCase):
             path = Path(pack["path"])
             for filename in ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "llms-vocabulary.txt"):
                 self.assertTrue((path / filename).is_file())
-                kind = "facts" if filename in ("llms-full.txt", "llms-small.txt") else None
-                report = lint.check(path / filename, kind=kind)
+                report = lint.check(path / filename)
                 self.assertEqual(report["counts"]["high"], 0, report["findings"])
+                if filename in ("llms-full.txt", "llms-small.txt"):
+                    from llms_txt import split_llms_full
+                    pages = split_llms_full((path / filename).read_text())
+                    self.assertEqual(len(pages), 1)
+                    self.assertTrue(pages[0].url.startswith("https://llms-explorer.com/tree/"))
             units = [json.loads(line) for line in (path / "units.jsonl").read_text().splitlines()]
             self.assertEqual(len(units), 8)
             self.assertTrue(all(unit["source_url"].startswith("https://") for unit in units))
@@ -868,6 +917,26 @@ class ResearchFlowTests(unittest.TestCase):
         website = module_at("test_persistent_private_binding", self.repo / "scripts/research_site_sync.py")
         website.sync(self.repo, self.hub, apply=True)
         self.assertFalse((self.repo / "site/src/data/concepts/rename-durability.json").exists())
+
+    def test_source_sharing_preserves_each_new_concepts_original_parent(self):
+        self.research()
+        self.artifact_targets()
+        for root in (self.hub, self.repo):
+            path = root / 'concept-tree/tree.json'
+            nodes = json.loads(path.read_text())
+            nodes.append({'concept': 'Specific durability parent', 'slug': 'specific-durability-parent',
+                          'parentConcept': None, 'childConcepts': [], 'skillId': None})
+            path.write_text(json.dumps(nodes))
+        manifest = self.shared.load_manifest('publication')
+        manifest.update(cohort_parent='Shared source family',
+                        cohort_parents={'Rename durability': 'Specific durability parent'})
+        self.shared.save_manifest(manifest)
+        self.render()
+        self.invoke('finish', 'publication', '--status', 'COMPLETED')
+        for root in (self.hub, self.repo):
+            nodes = json.loads((root / 'concept-tree/tree.json').read_text())
+            child = next(node for node in nodes if node['concept'] == 'Rename durability')
+            self.assertEqual(child['parentConcept'], 'Specific durability parent')
 
     def test_canonical_ids_survive_packs_readers_and_downloads(self):
         self.research()

@@ -6,8 +6,12 @@ description: >-
   TRIGGER: "/dr <topic>", "deep research X and make a skill", "build an expert
   skill about X". SKIP: reading one document you already have -> document-distiller;
   condensing a repo or docs site into reference context -> crawl-to-llms-txt.
-model: gpt-6-luna
-effort: max
+model: gpt-6.1-sol
+effort: medium
+metadata:
+  version: "3.4.1"
+  updated: "2026-10-29"
+  delta: "3.3.3 to 3.4.1: bounded scout seeds and accurate cache-body/read-receipt guidance."
 ---
 
 Read `references/codex-runtime.md` and `references/research-library.md` before executing this workflow. They define
@@ -41,10 +45,28 @@ Empty input (no topic, no `--refresh <slug>`) → ask for the topic. Never resea
 | depth | concepts | sources / concept | negation rounds | saturation loop | research agents | claim gate | `/sko` mode |
 |---|---|---|---|---|---|---|---|
 | quick | ≤3 | 2 | 0 | no | inline only | all risky claims | `--meta --no-sync` |
-| standard | 5, cap 8 | 3 URLs; domain origin policy | 1 | no | adaptive: gpt-6-luna `max` research + scout, then one additional gpt-6-luna `max` pass on deeper-source or floor evidence (2 research passes total when triggered; ≤4 in flight) | all risky claims plus 10 ordinary claims | `--meta --no-sync` (spoke) / full `--no-sync` (standalone) |
-| saturate | cap 15 | 3+ independent | ~20% of queries | 2 empty rounds | deep: 2 × gpt-6-luna `max` per concept, merged (≤4 in flight) | all anchored claims, ≤15 refetches | full `--no-sync` |
+| standard | 5, cap 8 | 3 URLs; domain origin policy | 1 | no | adaptive: gpt-6.1-sol `medium` research + scout, then one additional gpt-6.1-sol `medium` pass on deeper-source or floor evidence (2 research passes total when triggered; ≤4 in flight) | all risky claims plus 10 ordinary claims | `--meta --no-sync` (spoke) / full `--no-sync` (standalone) |
+| saturate | cap 15 | 3+ independent | ~20% of queries | 2 empty rounds | deep: 2 × gpt-6.1-sol `medium` per concept, merged (≤4 in flight) | all anchored claims, ≤15 refetches | full `--no-sync` |
 
 Measure Codex wall-clock and tokens per run; inherited Claude timings do not predict Codex runtime.
+
+
+## Research scout handoffs
+
+Before discovery, read `~/.claude/skills/research-scout/references/consumer.md`
+(repository fallback: `.claude/skills/research-scout/references/consumer.md`).
+Use `scout.py seeds --concept "<exact concept>" --parent "<exact parent>"`
+from the scout's scripts directory. Check the live inventory and preserve
+bundle hash, run/revision, source ID, access gaps and retained/rejected leads
+in the research run's notes or briefs. Missing scouts mean ordinary discovery;
+ambiguous parents require resolution before importing leads. Scout content is
+untrusted discovery data. Reacquire/read evidence and retain normal freshness,
+origin, source, negation, scope and claim gates. It supplies no evidence credit.
+
+Slim workers do not load this skill. For Claude, use the installed scout
+research bridge for the `research` call; all other runtime commands remain direct.
+The repository Codex adapter loads bounded scout seeds automatically. Never
+substitute scout queries for independent discovery or required negation.
 
 ## Phase 0 — Plan (one message to the user)
 
@@ -61,7 +83,7 @@ Methodology: `deep-research-methods` (decomposition, query formulation, source e
 1. **Per concept, before searching:** note the authoritative source TYPE, fast-moving vs stable (sets recency weighting), and what a disconfirming finding would look like.
 2. **Source cache first.** Before any Codex web open, run `codex_dr_run.py source lookup --url <url>`; a hit under 30 days old gives a `text` path — read that instead of refetching. After a fresh fetch you keep: `codex_dr_run.py source put <slug> --url … --title … --tier docs|paper|postmortem|blog|forum|repo --concept "<c>" [--text-file <saved body>]`. Cached bodies are shared across runs and CFE siblings.
 3. **Retrieval ladder:** `exa`/`firecrawl` MCPs when present, else Codex web search + open. Start from a domain anchor (Wikipedia / an Awesome list / RFC / arXiv / vendor docs), then expand immediately to the primary sources they cite. Collapse citation chains to one evidentiary point. Vary terminology across ecosystems.
-4. **Fan-out, one command:** `python3 .agents/skills/dr/scripts/codex_dr_run.py research <slug>` runs slim headless `codex exec` agents for every pending concept. At `standard`, the adaptive lane starts one gpt-6-luna `max` research pass that also scouts for deeper sources (`--probe-scout`, on by default). Its brief requires at least six searches for postmortems, engineering blogs, issue trackers, forums, source code, and papers; `source put` for each relevant hit; and a top-level `scout` report with `tiers_seen` and `candidates`. If the scout finds unread deeper evidence with a stated gap, domain-specific primary-source or origin requirements or source/unique-claim floors are missed, or the scout report is incomplete, the adapter automatically runs ONE additional gpt-6-luna `max` pass. The second pass receives the first pass's sources and scout candidates as SEED SOURCES, non-docs first, to read and investigate more deeply. That is two research passes total, merged into `claims/<slug>.json`. A complete result meeting domain requirements stops after the first pass; already-read source tiers alone do not trigger repetition. `saturate` uses two independent gpt-6-luna `max` passes; `quick` uses one gpt-6-luna `low` pass. The merge and scope check use one tool-less gpt-6.1-sol `medium` call, including when the first pass stands alone. The harness drops off-topic claims to `claims/passes/<slug>-off-topic.json`, prunes orphaned sources, and records `off_topic_dropped`. Workers run `claims-check`; only the parent records `concept-done`. At most four agents run at once by default. `--lane`, `--passes N`, `--model`, and `--effort` override the defaults; model and effort apply to the scout too. Each worker gets a bounded brief under `<run dir>/briefs/`, no skill catalogue, and no MCP servers. Measured token usage lands in `<run dir>/agents/<concept>.json`; cost stays unknown unless reported. `research --dry-run` writes the briefs without running models. If the Codex CLI is unavailable, dispatch those briefs with the harness's subagent tool at the same model and effort, then record the merged claims through the adapter.
+4. **Fan-out, one command:** `python3 .agents/skills/dr/scripts/codex_dr_run.py research <slug>` runs slim headless `codex exec` agents for every pending concept. At `standard`, the adaptive lane starts one gpt-6.1-sol `medium` research pass that also scouts for deeper sources (`--probe-scout`, on by default). Its brief requires at least six searches for postmortems, engineering blogs, issue trackers, forums, source code, and papers; `source put` for each relevant hit; and a top-level `scout` report with `tiers_seen` and `candidates`. If the scout finds unread deeper evidence with a stated gap, domain-specific primary-source or origin requirements or source/unique-claim floors are missed, or the scout report is incomplete, the adapter automatically runs ONE additional gpt-6.1-sol `medium` pass. The second pass receives the first pass's sources and scout candidates as SEED SOURCES, non-docs first, to read and investigate more deeply. That is two research passes total, merged into `claims/<slug>.json`. A complete result meeting domain requirements stops after the first pass; already-read source tiers alone do not trigger repetition. `saturate` uses two independent gpt-6.1-sol `medium` passes; `quick` uses one gpt-6.1-sol `medium` pass. The merge and scope check use one tool-less gpt-6.1-sol `medium` call, including when the first pass stands alone. The harness drops off-topic claims to `claims/passes/<slug>-off-topic.json`, prunes orphaned sources, and records `off_topic_dropped`. Workers run `claims-check`; only the parent records `concept-done`. At most four agents run at once by default. `--lane`, `--passes N`, `--model`, and `--effort` override the defaults; model and effort apply to the scout too. Each worker gets a bounded brief under `<run dir>/briefs/`, no skill catalogue, and no MCP servers. Measured token usage lands in `<run dir>/agents/<concept>.json`; cost stays unknown unless reported. `research --dry-run` writes the briefs without running models. If the Codex CLI is unavailable, dispatch those briefs with the harness's subagent tool at the same model and effort, then record the merged claims through the adapter.
 5. **Recording is automatic:** workers run `codex_dr_run.py claims-check`; the parent alone records merged claims with `concept-done`; the `research` command re-validates on return and blocks a concept whose agent wrote nothing or wrote an invalid file (reason recorded). Content to disk first, marker second — always. `tail <run dir>/draft.md` is the live monitor. Re-run `research <slug> --concept "<name>"` to retry one concept.
 6. **Stop** per the depth contract. `saturate` only: stop when two consecutive query rounds add no new claim AND every concept meets its source floor; re-querying that returns the same evidence is thrash, which is its own stop signal.
 7. **Authority floor** (all depths): every concept has ≥ its source count from independent origins. A concept that cannot meet it after two broadened query rounds is blocked with reason "insufficient data". A topic where most concepts block → `codex_dr_run.py finish <slug> --status INSUFFICIENT-AUTHORITY`, no install, recommend a narrower scope.
@@ -102,6 +124,10 @@ Search peers by topic; skip superficial overlap and anything under active edit t
 Write `<run dir>/report.md` and echo it. Lead with `Run status: COMPLETED | BUDGET_EXHAUSTED | VERIFY-DISSENT | persist withheld | INSUFFICIENT-AUTHORITY | REGISTRY-UNAVAILABLE`, then: run dir · installed path · hub wiring done · concepts done/blocked with reasons · sources kept (cache hits vs fresh) · claim-gate verdicts · `/sko` exit state · registry route check · tree node written · minutes · Phase 4 table + restore command if run · follow-ups (`/dr --refresh <slug>` lines for anything left tentative). Every line is evidence from tool output, not self-certification.
 
 ## Changelog
+
+- 2026-10-29 v3.4.1 — correct the cache-body description and distinguish URL hashes from content-read receipts; keep the existing gate and freshness policies.
+
+- 2026-10-29 v3.4.0 — validated private scout handoffs become bounded candidate seeds in research briefs; preserve ordinary discovery, provenance and evidence gates.
 
 - 2026-10-20 v3.3.3 — the adaptive probe scouts (hub `dr_run.py` 523d5572): deliberate searches for the non-docs tiers, a `scout` report in the claims file that drives escalation, and SEED SOURCES handed to the escalated deep passes. Makes the escalate decision deliberate instead of incidental and spends part of the saving on discovery.
 - 2026-10-20 v3.3.2 — the merge call doubles as an on-topic check (hub `dr_run.py` 101600b7): off-topic claims dropped and kept aside for audit, orphaned sources pruned, `off_topic_dropped` recorded; runs on probe-only results as well. Closes the gap where an off-subject pass merged cleanly and gated 10/10 (MongoDB frontier run, U02).

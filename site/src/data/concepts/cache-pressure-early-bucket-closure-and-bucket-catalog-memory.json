@@ -1,0 +1,176 @@
+{
+  "slug": "cache-pressure-early-bucket-closure-and-bucket-catalog-memory",
+  "concept": "Cache-pressure early bucket closure and bucket catalog memory",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for Cache-pressure early bucket closure and bucket catalog memory. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "MongoDB's time-series server README says `timeseriesIdleBucketExpiryMemoryUsageThreshold` triggers archiving or closure of idle buckets when BucketCatalog memory exceeds its threshold. Archiving removes most in-memory bucket state but keeps a small record; if archiving all idle buckets is insufficient, the catalog removes archived entries. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:9f81a3c35e6cb8976626574b88365e92a8cd4aa79ec3b497bf3896926ea73396",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:28e25b9f05a5d5181dc146ebbde5f4fc52cfc4fab9d514acffabb3a1b734da3f"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Do not treat 3 GB as a documented universal BucketCatalog cap: the feedback submitter labels that figure a guess, the current manual describes the default allocation as 2.5% of available system memory, and the server README identifies `timeseriesIdleBucketExpiryMemoryUsageThreshold` as the controlling parameter. (medium confidence) (verified as of 2026-10-19)",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-7595",
+          "note": null,
+          "claimId": "clm:3c9cf6771cf3ffaf9257f645593634c0f94cbd07ccb51412fd00b08ee314b081",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:28e25b9f05a5d5181dc146ebbde5f4fc52cfc4fab9d514acffabb3a1b734da3f",
+            "ev:3c4f5eb86407801d742df21527600bedbceb8c76a65a4d024d67a46999984f60",
+            "ev:a05c2cc10a8e3c3c0a66570c7246b57d5a173707c2b27529baa27936aa1d216f"
+          ]
+        },
+        {
+          "text": "A July 2026 deployment report describes MongoDB 6.0.x on a 4GB VM with 17,000 sites: a backfill produced 3,459,670 `numBucketsClosedDueToMemoryThreshold` closures and about one measurement per commit. After the author set `timeseriesIdleBucketExpiryMemoryUsageThreshold` to 512MB and reset the collection, the bucket count was 17,000. This is one workload-specific result; it does not establish a safe threshold for other hosts or show that the setting changes `numBucketsClosedDueToCachePressure`. (low confidence) (verified as of 2026-07-16)",
+          "source": "https://sangkihan.github.io/posts/mongodb-timeseries-migration/",
+          "note": null,
+          "claimId": "clm:93b1c1048079638bfef2af7153684c91ee527d44890689a321b828c7c1c9571d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:05fbdf5a5331a27024e265f782e9553b5540ec26229b807ec4064baf430c2f42",
+            "ev:3c3ff2bb1507b7befc5637f604284f075dc54b9d2c03cad8d63c7df1d4dc33a5",
+            "ev:693435234d9c478f2ee6a36f6fa9575fac1e0609626b6417ee2b47d3970e6234",
+            "ev:8ff010977c15c436ece42b263188255fd79ba4d93b7aac23a20a78a5e8901f78",
+            "ev:98d5cec9afc775fda8503d84b41025778d807d6e917609578760bd408134053c"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "MongoDB's tracking-allocator issue says BucketCatalog memory use had been estimated and error-prone, and records the allocator work as fixed for 7.3.0-rc0. The current server README says the Tracking Allocator calculates memory use for the BucketCatalog and related time-series internals. (medium confidence) (verified as of 2024-01-19)",
+          "source": "https://jira.mongodb.org/browse/SERVER-85291",
+          "note": null,
+          "claimId": "clm:687f2a4c26c7a73172e7db88df50fe3f9d1c8ad797965b058248b6a075ee28e9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6a6a6165f3a3f35a0c890119c1401e585e28009f08ca2c5458b19ecc47ce4508",
+            "ev:c1bd1fad5db55114b87d1fa1f4b9512c782f4e249140e1b2eff7670a5edc7d4f"
+          ]
+        },
+        {
+          "text": "MongoDB v8.0 documents two different closure counters: `numBucketsClosedDueToMemoryThreshold` counts closures when active buckets do not fit the allowed BucketCatalog cache size, while `numBucketsClosedDueToCachePressure` counts closures when a bucket exceeds a dynamic size limit derived from storage-engine cache size and tracked `numBuckets`. The cache-pressure limit is distinct from the ordinary maximum bucket size. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/",
+          "note": null,
+          "claimId": "clm:e89f9a06bbf65bea8c98a1db65ff61162297405e134305e1e93abad776c2cd68",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:da8f7d29c7fba510cdbd802bb476e08db7aed50246d53c726fcb7742fc88f900"
+          ]
+        },
+        {
+          "text": "MongoDB v8.0 sets the ordinary bucket cap at 1,000 measurements or 125KB, whichever is lower, and says high-cardinality workloads may receive a lower cap so the bucket working set fits in WiredTiger cache. A MongoDB Community load-test report illustrates the fragmentation risk: a Type 2 chunk loaded after work in other collections produced 420,000 buckets, one average measurement per commit, and 415,000 cache-pressure closures; loading the chunk first produced 25,000 buckets and 17 average measurements per commit. The poster reported at least three times more space in the fragmented run. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://www.mongodb.com/docs/v8.0/core/timeseries/timeseries-limitations/",
+          "note": null,
+          "claimId": "clm:e8fc52be63def2bc9531e7ed045ddb6859cdc638e024bcb84f39db35183aceb0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b737340e3af6f1178ad95c3f9e415185d4504c4ddb3648e50d88399d278182b9",
+            "ev:e81b16cef89abbc317406ec01c774a20d5a99db8b0485c0c558778e61a5355e0"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB documents two distinct memory-related closure conditions: the active-bucket set does not fit in the storage-engine cache, or the BucketCatalog exceeds its total memory allocation. A closed bucket can no longer accept writes, but its data remains available for queries. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null,
+          "claimId": "clm:0a1c2c0e4b686e3fe3e4455408700dddb821132cc53461b3c64663c09cf80f0c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a05c2cc10a8e3c3c0a66570c7246b57d5a173707c2b27529baa27936aa1d216f"
+          ]
+        },
+        {
+          "text": "A MongoDB Community report describes poor packing under interleaved, high-cardinality load: a chunk with 25,000 metadata pairs produced about 420,000 buckets, an average of one measurement per commit, and 415,000 cache-pressure closures; the same chunk loaded before the competing workload produced 25,000 buckets and 17 measurements per commit. A separate Jira report also records one-measurement buckets associated with cache-pressure closures. (medium confidence) (verified as of 2025-03-03)",
+          "source": "https://www.mongodb.com/community/forums/t/suboptimal-bucket-creation-in-timeseries-collection-due-to-cache-pressure/249863",
+          "note": null,
+          "claimId": "clm:afe3f5e19e7d5c236607194f855ba69e07f631e9d827576a13a7ffc34bd5401d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:44675475e0d7f3a9a48b84809510221b88a42b69f42e6703d2b66ee15a400372",
+            "ev:b737340e3af6f1178ad95c3f9e415185d4504c4ddb3648e50d88399d278182b9"
+          ]
+        },
+        {
+          "text": "In a 2026 deployment report, a workload with 17,000 sites reporting every five minutes produced near one-to-one bucket-to-measurement counts while memory-threshold closures dominated. The author later reported zero such closures and 408,000 daily buckets after setting the threshold to 512 MiB and using one-hour bucket spans; this is one workload result, not a universal tuning guarantee. (medium confidence) (verified as of 2026-07-16)",
+          "source": "https://sangkihan.github.io/posts/mongodb-timeseries-migration/",
+          "note": null,
+          "claimId": "clm:187298bf8447a3c232ce34e7618ba1c23647d54c7b484ee0d52eaa41733b2a71",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:02feb767947964e458c94504b66284cd6ad8fcba19a2b7e8854f5a4cc69ca607",
+            "ev:3c3ff2bb1507b7befc5637f604284f075dc54b9d2c03cad8d63c7df1d4dc33a5",
+            "ev:8ff010977c15c436ece42b263188255fd79ba4d93b7aac23a20a78a5e8901f78"
+          ]
+        },
+        {
+          "text": "The SERVER-89233 issue scopes one cache-pressure fragmentation regression to MongoDB 7.0.4 and 7.0.5 and records fix versions 8.0.5 and 8.1.0-rc0. That fix record applies to the tracked regression; it does not establish that all memory-triggered early closures disappeared. (low confidence) (verified as of 2025-04-25)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null,
+          "claimId": "clm:fa85896be60cfe2e28fb36d3e0777a35334cfdcef05402f862840b35dd70ec47",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:44675475e0d7f3a9a48b84809510221b88a42b69f42e6703d2b66ee15a400372"
+          ]
+        },
+        {
+          "text": "MongoDB's v8.0 `serverStatus` documentation lists `numBucketsClosedDueToMemoryThreshold` and `numBucketsClosedDueToCachePressure` as separate bucket-catalog fields. SERVER-89233 reports the cache-pressure counter, while a 2026 deployment report gives the memory-threshold counter. Those reports do not establish that the counters are interchangeable; compare each using the definition for the deployed server release. (medium confidence) (verified as of 2026-07-16)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null,
+          "claimId": "clm:da22208f06e74d65d0eab67dc7b9154ff8d15e5a0a96862266f760d873ea015b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:44675475e0d7f3a9a48b84809510221b88a42b69f42e6703d2b66ee15a400372",
+            "ev:8ff010977c15c436ece42b263188255fd79ba4d93b7aac23a20a78a5e8901f78",
+            "ev:da8f7d29c7fba510cdbd802bb476e08db7aed50246d53c726fcb7742fc88f900"
+          ]
+        },
+        {
+          "text": "MongoDB Jira `SERVER-89233` records a sharded-cluster case where cache pressure produced about one bucket per document. The issue lists affected versions 7.0.4 and 7.0.5 and fix versions 8.0.5 and 8.1.0-rc0. This is a version-scoped bug report, not evidence that cache-pressure closure always produces singleton buckets. (medium confidence) (verified as of 2025-04-25)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null,
+          "claimId": "clm:7f7f99cc6d214c26f35732f64a6f9c944f28c78980b3518f03c4b68063c3244a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:44675475e0d7f3a9a48b84809510221b88a42b69f42e6703d2b66ee15a400372"
+          ]
+        },
+        {
+          "text": "A July 2021 +N Consulting walkthrough showed `collStats().timeseries` closure counters for memory threshold, time forward, count, and size, while the author said the counters' meaning was not yet clear to them. MongoDB v8.0 now documents separate meanings for memory-threshold and cache-pressure closures, so diagnosis should use the definitions for the server version being run. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://www.plusnconsulting.com/post/Time-Series-Collections-Native-Support/index.html",
+          "note": null,
+          "claimId": "clm:63b63cfc3a07df11ed95ea0e7694f4bf529a889f5612eb347018d05dff56c0b5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:da8f7d29c7fba510cdbd802bb476e08db7aed50246d53c726fcb7742fc88f900",
+            "ev:e72a8e975764e33f8f7a23a5c0b0b943e8b8481f5d32e60fe1cf516d2f250ce6",
+            "ev:e74bdb1265091d209863cd2bd75a926980979a715ade3b8097c663d3aee857b8"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "94a2854e38d6f41aeab42823bd7298e04d92f6e8b4f2e1d4f0599266d6af2139",
+  "canonicalConceptId": "concept:aef62d116c1bde1b890458e23d30c470fcd30ea5c84c45edb2358ceb1d5d3c1b"
+}

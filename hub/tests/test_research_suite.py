@@ -42,6 +42,15 @@ QUEUE = """\
 """
 
 
+@pytest.fixture(autouse=True)
+def isolated_queue(tmp_path, monkeypatch):
+    """ConceptTree fixtures must not read the operator's live research queue or
+    in-flight research state. load_research_state also prunes dead runs and
+    rewrites its file, so an unpatched path lets a test write the live hub."""
+    monkeypatch.setattr(ct, "QUEUE_PATH", tmp_path / "absent-queue.md")
+    monkeypatch.setattr(ct, "RESEARCH_STATE_PATH", tmp_path / "absent-research-state.json")
+
+
 @pytest.fixture
 def tree(tmp_path, monkeypatch):
     p = tmp_path / "tree.json"

@@ -1,0 +1,154 @@
+{
+  "slug": "delete-and-re-insert-safety-on-time-series",
+  "concept": "Delete and re-insert safety on time series",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for Delete and re-insert safety on time series. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "For measurement-level time-series deletes whose predicate does not apply to the bucket document as a whole, MongoDB unpacks candidate buckets and checks each measurement. It repacks unaffected measurements into the original bucket with the same `_id`, and deletes a bucket only when every measurement matches. If the predicate applies to the whole bucket document, MongoDB skips unpacking and deletes the bucket directly. A partial measurement delete therefore does not itself rebucket surviving measurements. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:670a9920b5350b10ec1d55346679f908e084d057fb5555fb9c57f6798c69dc17",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e4e6ef9258b12f8f12c731981a040f7a7ebdd65c3bae8459cea432d7f371ef66"
+          ]
+        },
+        {
+          "text": "SERVER-99527 scopes a delete/reinsert defect to MongoDB 7.0.0-7.0.15 and 8.0.0-8.0.3. It requires a delete filter that omits metaField, the specified {metaField: 1, timeField: 1} index when a metaField exists or {timeField: 1} when it does not, and a subsequent measurement timestamp within the issue's listed window: 2 hours for seconds granularity, 2 days for minutes, 2 months for hours, or 2*bucketMaxSpanSeconds for custom bucketing. Under these conditions, inserted measurements may be prematurely deleted by TTL or omitted from time-filtered query results. The issue lists fixes in 7.0.16, 8.0.4, and 8.1.0-rc0. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://jira.mongodb.org/browse/SERVER-99527",
+          "note": null,
+          "claimId": "clm:658760a4fa3f630ce585dbdd902d56ae54d629cb11695e86d79fb2f3f67c7aa5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c69dffff1fe0816095032e4334fb5ce27e26cc4fb00cb5bb1d5dda3f7adae9ac"
+          ]
+        },
+        {
+          "text": "A 2023 DBA Stack Exchange question reports that indexed queries on a replacement time-series database took upwards of two minutes or returned no result after the user dropped an older database and created a new one. The question gives no confirmed cause and does not connect the slowdown to delete/reinsert or SERVER-99527. (low confidence)",
+          "source": "https://dba.stackexchange.com/questions/323750/mongodb-timeseries-unusably-slow-queries-after-deletion-and-re-creation",
+          "note": null,
+          "claimId": "clm:1b650d3ab85bc51cb92dd8f497353f996b62a01e708959a00a6537447ccea8fd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:59411373fb2e486910ffc3a7bac5f39177d4852c470ba98dd573df6023f1e847"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "One community user reports that deleting and re-inserting 20,539 measurements left the logical count at 20,539 while bucket count fell from 3,120 to 370. The report does not prove value-by-value equality or a repeatable performance gain. A separate DBA Stack Exchange question describes slow queries after the user dropped an older time-series database and created a replacement; it does not report the same delete-and-reinsert procedure. (low confidence)",
+          "source": "https://mongodb.com/community/forums/t/mongodb-v6-0-time-series-slowness-issue/283439",
+          "note": null,
+          "claimId": "clm:a7cf90fc69fbadf4fbd766c1d26c22b149eafac4d448226486c06a7ca3ad26ba",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:59411373fb2e486910ffc3a7bac5f39177d4852c470ba98dd573df6023f1e847",
+            "ev:ecaf14db5ebd115bf6e5846dd80ec02db20556a4f6202f2b69d242f8bca9a3db"
+          ]
+        },
+        {
+          "text": "Two community users report slow deletes for small match sets or short time windows, including reports over one second and over ten seconds. These are workload-specific anecdotes and do not isolate bucket rewriting as the cause or benchmark a full reinsert remediation. (low confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/document-deletes-very-slow-for-time-series-collection/241803",
+          "note": null,
+          "claimId": "clm:19e526c3c9bd5b2bfcc30d1686f37683d1a87ea3cc4ad5b8c973518f8c899950",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:62d93ed0c68689a73609b74ad8170249a9060480f9d912ebc89cc9326e8fc427",
+            "ev:c793b68df53d67803afe1c7b4b90a57cc52624534f662ede5c0c01403b164bd9"
+          ]
+        },
+        {
+          "text": "Version context matters: a 2021 Umea University thesis describes MongoDB 5.0 time-series collections as supporting inserts and reads but not manual updates or deletes, while the current MongoDB server README documents arbitrary updates and deletes. The historical 5.0 limitation should not be generalized to newer releases. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://umu.diva-portal.org/smash/get/diva2%3A1638667/FULLTEXT01.pdf",
+          "note": null,
+          "claimId": "clm:ce94ceaae1fa4a8809c615c0363e9cca136b53774ecbccad7f10cdf60192bc69",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a3e1dd946e47f0dad011aaca56f91a778b92f4b35c99dad2730b215c71d8c009",
+            "ev:b6b11bee4ca82e28ce8aabdcc0431b30cab057612e367392d337f61d5eebf96c",
+            "ev:ecc9b3ee7b15dd2f074b5ff633eef666d651da832b9639d7d4547c1040e584dc"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB groups measurements by matching metaField values and bounded time spans, and buckets also have count and size limits. Re-inserting the same logical series can therefore still produce multiple bucket documents; the bucket rules do not guarantee one bucket per series or month. (medium confidence) (verified as of 2026-10-19)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null,
+          "claimId": "clm:edee6e9e04734bb26cac0d8a336f4dcc7ad9b882f2a5d6f852982d4d493d717a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3752a282ba25bae283ab49a4c733547c9e52fe5b970e11fcc92f0a40c71eb7b8",
+            "ev:e00fe2bd5b7ea9b87852259887b48ee4b62c74c671a5a211d3ffe1637ce7acd1"
+          ]
+        },
+        {
+          "text": "MongoDB makes multi-document writes atomic per document, not as a whole, and other operations may interleave. A delete command followed by later inserts is not one all-or-nothing operation, so an interruption can leave a series partly removed or restored. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/write-operations-atomicity/",
+          "note": null,
+          "claimId": "clm:c9c075660d0de46dab49a9e6c0b4094b53ae4d1f6f1a6dc88adda49095d580bc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:dcd5986179694bdf196faef2f4db37c69ec68af7dcf033bb16b1a1d71e637cfa"
+          ]
+        },
+        {
+          "text": "MongoDB does not create a unique `_id` index on time-series collections, so copied `_id` values alone do not make a delete-and-reinsert retry idempotent. Validate expected measurements with an application-level key or content check after reinsertion. (medium confidence) (verified as of 2026-10-19)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null,
+          "claimId": "clm:07240be4e37661e919c3724a452f1c87dc25c5e1c7b2cdb6b2862a92d5c9aad4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:cd2568da269375d35d48d298617135d1a959b467b95d341c3c3ce439c35201dc",
+            "ev:eb423b0a5744645fcfc7a48a9337aa948d301c1e468c3ea303b0868f08257b2e"
+          ]
+        },
+        {
+          "text": "A 2023 community answer says MongoDB 6.0.6 did not support deletes selected by a non-metaField timestamp filter, while the current server README describes arbitrary time-series deletes. Check the target server release before applying older delete limitations or current behavior. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/community/forums/t/how-overcome-if-possible-time-series-limitation-acting-directly-on-bucket-collection/228275",
+          "note": null,
+          "claimId": "clm:ca0c426f2f67a2d3c9b3cb3ce87edeb03b2c09baf64c9c1b468914fc6b5cf981",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8411b3793dba5b7634e3c5224564216ca7b85f9cf06bb21faba8871998dc2b24",
+            "ev:ecc9b3ee7b15dd2f074b5ff633eef666d651da832b9639d7d4547c1040e584dc"
+          ]
+        },
+        {
+          "text": "A separate Jira report says non-metaField deletes on time-series collections sharded by timeField could lose bucket data on versions 7.0.0–7.0.15 and 8.0.0–8.0.3; it lists 7.0.16 and 8.0.4 as fixes. (low confidence) (verified as of 2026-09-04)",
+          "source": "https://jira.mongodb.org/browse/SERVER-94559",
+          "note": null,
+          "claimId": "clm:19ff124fb2da2460697a106ceb8aa9247f7844decd5de4adf7d49ffb88a65716",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:472f70efbb76ff18a84a437c34123a837a6b9b8d2215ef0e83051b35ec04dec8"
+          ]
+        },
+        {
+          "text": "For measurement-level deletes whose predicate does not apply to the whole bucket document, MongoDB unpacks candidate buckets, checks each measurement against the delete predicate, and writes surviving measurements back under the original bucket `_id`. A predicate that applies to the whole bucket can skip unpacking and delete the bucket directly. SERVER-99527 explains that a partial delete can recalculate `control.min` while leaving the timestamp embedded in `_id` unchanged, which can affect subsequent query-based bucket reopening. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:740cb42e5f9e66514f954f742df6d97e85f9ebf38c94a8700e537d6223beadf4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c69dffff1fe0816095032e4334fb5ce27e26cc4fb00cb5bb1d5dda3f7adae9ac",
+            "ev:e4e6ef9258b12f8f12c731981a040f7a7ebdd65c3bae8459cea432d7f371ef66"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "94a2854e38d6f41aeab42823bd7298e04d92f6e8b4f2e1d4f0599266d6af2139",
+  "canonicalConceptId": "concept:ee95de618058bdd2e086b6de338c7f7c44cace868fa234560eb1abb69ffbb798"
+}

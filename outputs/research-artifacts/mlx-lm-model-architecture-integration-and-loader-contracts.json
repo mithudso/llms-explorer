@@ -1,0 +1,159 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "MLX-LM model architecture integration and loader contracts",
+  "slug": "mlx-lm-model-architecture-integration-and-loader-contracts",
+  "canonical_concept_id": "concept:3e6e4cfd0937b60a3dad790682ef0c740f1c4477561c95338bef43ba9fbfb0df",
+  "canonical_artifact_sha256": "73f6d8b29b6e35a391092acada16224916e7d1ec4658f8d4f89f8e232f4f0701",
+  "claims": [
+    {
+      "id": "clm:bd4e7350a56c9a133a949829e334434d68fbad4fa148a1c326f81d5b2c05a3c7",
+      "text": "A model-type alias is valid only when the model graph and weight semantics match. The oMLX Xing4.0 report describes a distinct Xing4_0HyperConnection residual topology and says aliasing xing4_0 to deepseek_v3 would produce incorrect outputs; it calls for a compatible implementation and sanitizer instead. (medium confidence)",
+      "source_url": "https://github.com/jundot/omlx/issues/3729",
+      "also": [
+        "https://github.com/lablup/mlxcel/blob/main/docs/adding-models.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8a907fa08895150374617393d005110b698ef3f059477525d43a8a239b9c66f2"
+      ]
+    },
+    {
+      "id": "clm:5c6613dd940dc7ba72dec7649a2d20a259280da9580782ce4a8cee1c912ba575",
+      "text": "MLX-LM imports a config-declared model_file from the model directory only when trust_remote_code=True; the default is false. The merged upstream change threads this opt-in through load() and sharded_load(), and oMLX preflights the same trust decision before starting MLX-LM loading. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/utils.py",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/pull/1385",
+        "https://github.com/jundot/omlx/blob/main/omlx/utils/model_loading.py"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0a68fd9c6bc66f8c6f5471484900b642a27271896eacb58f4200184dcac3eb6a",
+        "ev:a8488176d55d99ba2f9acab4026f2bd653be080752742ec62c861bdd4a0abf6a",
+        "ev:dc034e05f0ff2e061d46f1d164fb504af4e42eb4b1b4cda8886747e0d48911c3"
+      ]
+    },
+    {
+      "id": "clm:3d410b2e75445de3b67f4505789debe8d4b337aab9fa68d7d8e1dc87f9b78d9a",
+      "text": "load_model reads model*.safetensors, applies optional model_config overrides, builds ModelArgs.from_dict(config) and Model, calls model.sanitize(weights) when provided, then calls model.load_weights(..., strict=True) by default. A registry mapping alone therefore does not adapt checkpoint tensor names or layouts that the selected model cannot consume. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/utils.py",
+      "also": [
+        "https://blog.ecitis.org/mlx-model-porting-and-kernels/",
+        "https://github.com/PipeNetwork/qwen38-flash-next-mlx",
+        "https://github.com/lablup/mlxcel/blob/main/docs/adding-models.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:85138df351d01ebf3fc368345f5d9b20808c68b78fbcf73428ac7c3b73203de0",
+        "ev:dc034e05f0ff2e061d46f1d164fb504af4e42eb4b1b4cda8886747e0d48911c3"
+      ]
+    },
+    {
+      "id": "clm:f1db8855725a8763ff31217738568b4f137460113d570f7ad80cb117a7233047",
+      "text": "load_model accepts a get_model_classes callable that maps config to (Model, ModelArgs) and defaults to _get_classes. The higher-level load() signature does not expose or forward this callback, so it is a resolver hook for direct load_model callers rather than a global loader registry. (low confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/utils.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8f6064046ff81516594b9c23e1f4aa65790c1179dc42313b1fdf71d9853d6b7e",
+        "ev:dc034e05f0ff2e061d46f1d164fb504af4e42eb4b1b4cda8886747e0d48911c3"
+      ]
+    },
+    {
+      "id": "clm:437c4060642bd947f5d9cdbc5fec013ff24301ad87f1b6932f53cb9a20e99db5",
+      "text": "In MLX-LM's built-in path, _get_classes requires config['model_type'], optionally remaps a (model_type, architectures) pair or a model-type alias, imports mlx_lm.models.<resolved-type>, and expects that module to expose Model and ModelArgs. A repository name or architecture label alone does not add an implementation to the loader. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/utils.py",
+      "also": [
+        "https://github.com/jundot/omlx/issues/3729",
+        "https://github.com/ml-explore/mlx-lm/issues/1462",
+        "https://adityakarnam.com/mlx-errors-apple-silicon-troubleshooting/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:85138df351d01ebf3fc368345f5d9b20808c68b78fbcf73428ac7c3b73203de0"
+      ]
+    },
+    {
+      "id": "clm:ed4a375c7d33a12f319bb81f3c603f060b07dbede7018ec7a619d734829877f3",
+      "text": "load_model has a separate config model_file path: it imports that file and expects Model and ModelArgs. This route raises unless trust_remote_code=True, which defaults to false. A Qwen3.8 checkpoint repository demonstrates stock mlx_lm.load(..., trust_remote_code=True) using its bundled model_file for an architecture absent from the released registry. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/utils.py",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/pull/1385",
+        "https://github.com/PipeNetwork/qwen38-flash-next-mlx"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:08a5390a951e56ab9bf0999bbb795aad82f3a4e5065ab3914d80e00a0d53654f",
+        "ev:dc034e05f0ff2e061d46f1d164fb504af4e42eb4b1b4cda8886747e0d48911c3"
+      ]
+    },
+    {
+      "id": "clm:b5c019ddba17957ba7ef09b268f0edd860bc434cb6b8ce951d262c6ca9b9626a",
+      "text": "Model-port validation needs reference outputs as well as model-type and shape checks: porting guidance describes tensor transposes and rotary/cache conventions that preserve shapes but change outputs, while an independent Qwen3.8 port reports sanitization, normalization, hash-seed, and sparse-mask errors in a candidate upstream implementation. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://blog.ecitis.org/mlx-model-porting-and-kernels/",
+      "also": [
+        "https://github.com/PipeNetwork/qwen38-flash-next-mlx",
+        "https://github.com/lablup/mlxcel/blob/main/docs/adding-models.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:08a5390a951e56ab9bf0999bbb795aad82f3a4e5065ab3914d80e00a0d53654f",
+        "ev:0a64b12ba02c79b126d7a0c8c357f8ce17d96039361a4e1279d3efa8faf47e33"
+      ]
+    },
+    {
+      "id": "clm:1cccff7d6985fdcedb3f1fd37b2853e23b6f4e722c1c052485326c79039bad07",
+      "text": "The minimum architecture metadata is consumer-specific: MLX-LM requires model_type and treats architectures as optional remapping input, while Ollama issue #19128 reports that its MLX importer and runner rejected a checkpoint with model_type but no architectures[0], even though the model_type named a supported runner architecture. Services should define and validate metadata fallbacks for each backend. (medium confidence) (verified as of 2026-10-19)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/utils.py",
+      "also": [
+        "https://github.com/ollama/ollama/issues/19128"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:436313dd942811cf02185647f712060b406054d674867161bd2e9eb07198f6c1",
+        "ev:85138df351d01ebf3fc368345f5d9b20808c68b78fbcf73428ac7c3b73203de0"
+      ]
+    },
+    {
+      "id": "clm:201f8e1c6e02ee85e7dc5003fdecfe0c8953fa30511f3b6cad11ef076b9cbe4d",
+      "text": "_get_classes reads config.model_type and examines architectures in order, treating a string as one architecture. The first matching (model_type, architecture) entry in MODEL_ARCHITECTURE_REMAPPING wins; if none matches, MODEL_REMAPPING applies. It imports mlx_lm.models.<resolved_type> and returns that module's Model and ModelArgs. ImportError becomes ValueError(\"Model type <resolved_type> not supported.\"). (low confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/utils.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:a16a73b0def079c9f4791a441cc4a386b1fedfcaf5414a7039085d710ddcb990"
+      ]
+    },
+    {
+      "id": "clm:d29294e5dbbf58dc72c0f2815ae9cbe6b7e7eae972893e0450df7eb8fcc229df",
+      "text": "load_model reads config.json, then calls config.update(model_config) for supplied overrides before ModelArgs.from_dict and Model construction. This is a shallow dictionary update: supplied values replace values under matching top-level keys. A model sanitize hook transforms the loaded weight dictionary before the final model.load_weights call. (low confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/utils.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:5eefff1bd250d96427b0cfee0b06d356f0ef357bc40f0606adeefc8b85988ebd",
+        "ev:786c6d3feeba7d0ec18b40670eead82da518f20c99fd6952f184edb620de594a"
+      ]
+    },
+    {
+      "id": "clm:bf168267485c00af9c3472b02dbe090c2d5e63b08c9572ef86f3c8956ccf12f6",
+      "text": "With strict=True, load_model raises FileNotFoundError(\"No safetensors found in <model_path>\") if model*.safetensors matches no files. It passes strict to model.load_weights; the documented contract raises if weights do not match the model. strict=False relaxes that contract and the missing-weight-files guard. (low confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/utils.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:5eefff1bd250d96427b0cfee0b06d356f0ef357bc40f0606adeefc8b85988ebd"
+      ]
+    },
+    {
+      "id": "clm:ac6f6dd8646c437427f9b87fede359f36a842bb5caae51deb38842942f4f05ab",
+      "text": "For config.quantization, the loader first honors explicit per-module entries keyed by module path. Otherwise class_predicate requires a to_quantized method and a matching <path>.scales checkpoint tensor, then infers the module quantization settings from checkpoint shapes/dtypes. A supported global_scale tensor adds that argument. This selective conversion prepares modules before weights are loaded. (low confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/utils.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:dbce588d445a614b84e3a1070ce45e90c02af8a0d15c78b9df28e7071969ef5d"
+      ]
+    }
+  ],
+  "projection_sha256": "612f930adebf7def560c7f14e8556f411d1172001bdf31634811a77a7ec9b368"
+}

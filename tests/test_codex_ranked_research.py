@@ -18,10 +18,56 @@ ranked = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ranked)
 
 
+def test_atomic_updates_stale_rows_from_cohort_checkpoints(tmp_path):
+    path = tmp_path / 'plan.json'
+    plan = {'rows': [{'concept': 'Done', 'status': 'pending'},
+                     {'concept': 'Blocked', 'status': 'pending'},
+                     {'concept': 'Later result', 'status': 'pending'}],
+            'cohorts': [{'id': 'a', 'status': 'complete', 'concepts': ['Done']},
+                        {'id': 'b', 'status': 'needs-review', 'concepts': ['Blocked']},
+                        {'id': 'c', 'status': 'pending', 'concepts': ['Later result'],
+                         'completed_elsewhere': ['Later result']}]}
+    ranked.atomic(path, plan)
+    assert [row['status'] for row in json.loads(path.read_text())['rows']] == [
+        'complete', 'needs-review', 'complete']
+
+
+def test_review_resume_requires_current_supported_gate_and_completed_claims():
+    manifest = {'concepts': [{'status': 'done'}]}
+    shared = SimpleNamespace(load_manifest=lambda slug: manifest,
+                             verify_current_gate=lambda value: None)
+    assert ranked.reviewed_gate_current(shared, {'id': 'reviewed'})
+    def stale(value):
+        raise ValueError('stale input or non-supported verdict')
+    shared.verify_current_gate = stale
+    assert not ranked.reviewed_gate_current(shared, {'id': 'reviewed'})
+    shared.verify_current_gate = lambda value: None
+    manifest['concepts'][0]['status'] = 'pending'
+    assert not ranked.reviewed_gate_current(shared, {'id': 'reviewed'})
+
+
+def test_review_resume_flag_cannot_enable_unbounded_review_retry():
+    with pytest.raises(SystemExit):
+        ranked.main(['run', '--plan', 'plan.json', '--retry-reviewed', '--continue-on-review'])
+
+
 def test_ranked_parser_keeps_literal_pipes_and_parent():
     rows = ranked.ranked_rows("| 1 | 4.2 | RESEARCH | A | B | Parent | dr | pending |")
     assert rows[0]["concept"] == "A|B"
     assert rows[0]["parent"] == "Parent"
+
+
+def test_new_ranked_plan_uses_sol_medium(tmp_path, monkeypatch):
+    source = tmp_path / "ranked.md"
+    source.write_text("| 1 | 4.2 | RESEARCH | New concept | Parent | dr | pending |\n")
+    tree = SimpleNamespace(load_nodes=lambda path: [], load_queue=lambda path: [
+        {"concept": "New concept", "done": False}])
+    checkouts = SimpleNamespace(_scan=lambda: (None, {}))
+    monkeypatch.setattr(ranked, "load", lambda name, path: checkouts if name == "ranked_checkouts" else tree)
+    monkeypatch.setattr(ranked, "queue_parser", lambda repo: None)
+    plan = ranked.make_plan(tmp_path, tmp_path, source)
+    assert (plan["model"], plan["effort"]) == ("gpt-6.1-sol", "medium")
+    assert plan["cohorts"][0]["concepts"] == ["New concept"]
 
 
 @pytest.mark.parametrize('signum', [signal.SIGINT, signal.SIGTERM])
@@ -113,10 +159,66 @@ def test_queue_completion_uses_planning_identity(tmp_path):
     assert queue.read_text().splitlines() == ["- [x] Concept: `A,   B` | Parent: `Root`", "- [ ] Concept: `A, B extra`"]
 
 
+def test_queue_completion_updates_both_roots_without_adding_private_names(tmp_path):
+    hub, repo = tmp_path / "hub", tmp_path / "repo"
+    for root in (hub, repo):
+        (root / "concept-tree").mkdir(parents=True)
+        (root / "concept-tree/RESEARCH_QUEUE.md").write_text('- [ ] Concept: `Public`\n')
+    queue = hub / "concept-tree/RESEARCH_QUEUE.md"
+    queue.write_text(queue.read_text() + '- [ ] Concept: `Private`\n')
+    shared = SimpleNamespace(RESEARCH_DIR=tmp_path / "research", locked=lambda path: nullcontext(),
+                             atomic_write=lambda path, text: path.write_text(text))
+    ranked.complete_queue(shared, hub, ["Public", "Private"], repo)
+    assert '[x]' in queue.read_text()
+    assert (repo / "concept-tree/RESEARCH_QUEUE.md").read_text() == '- [x] Concept: `Public`\n'
+
+
+def test_queue_completion_preserves_literal_inline_code_and_other_rows(tmp_path):
+    queue = tmp_path / 'concept-tree/RESEARCH_QUEUE.md'
+    queue.parent.mkdir()
+    queue.write_text('- [ ] Concept: ``The `$in` operator`` | Parent: `Root`\n'
+                     '- [ ] Concept: `Another concept` | Parent: `Root`\n')
+    shared = SimpleNamespace(RESEARCH_DIR=tmp_path / 'research', locked=lambda path: nullcontext(),
+                             atomic_write=lambda path, text: path.write_text(text))
+    ranked.complete_queue(shared, tmp_path, ['The `$in` operator'])
+    assert queue.read_text().splitlines() == ['- [x] Concept: ``The `$in` operator`` | Parent: `Root`',
+                                             '- [ ] Concept: `Another concept` | Parent: `Root`']
+
+
 def test_new_revisit_gets_a_fresh_identity():
     names = ["Previously researched"]
     assert ranked.cohort_id(names) == ranked.cohort_id(names)
     assert ranked.cohort_id(names, revisit=True) != ranked.cohort_id(names, revisit=True)
+
+
+def test_continue_on_review_processes_other_cohorts_without_retrying_dissent(tmp_path, monkeypatch):
+    plan = tmp_path / 'plan.json'
+    ranked.atomic(plan, {'continue_on_review': True, 'cohorts': [
+        {'id': 'a', 'status': 'pending'}, {'id': 'b', 'status': 'pending'}]})
+    calls = []
+    def execute(repo, hub, path):
+        value = json.loads(path.read_text())
+        pending = next(row for row in value['cohorts'] if row['status'] == 'pending')
+        calls.append(pending['id'])
+        pending['status'] = 'needs-review' if pending['id'] == 'a' else 'complete'
+        ranked.atomic(path, value)
+        return 1 if pending['id'] == 'a' else 0
+    monkeypatch.setattr(ranked, 'execute_locked', execute)
+    assert ranked.execute_all(tmp_path, tmp_path, plan) == 0
+    assert calls == ['a', 'b']
+    assert json.loads(plan.read_text())['cohorts'][0]['status'] == 'needs-review'
+
+
+def test_continue_on_review_stops_on_setup_failure_without_advancing(tmp_path, monkeypatch):
+    plan = tmp_path / 'plan.json'
+    ranked.atomic(plan, {'continue_on_review': True, 'cohorts': [{'id': 'a', 'status': 'pending'}]})
+    calls = []
+    def execute(*args):
+        calls.append(1)
+        return 1
+    monkeypatch.setattr(ranked, 'execute_locked', execute)
+    assert ranked.execute_all(tmp_path, tmp_path, plan) == 1
+    assert len(calls) == 1
 
 
 def test_adapter_setup_failure_releases_batch_checkout(tmp_path, monkeypatch):
@@ -197,7 +299,8 @@ def test_finalized_subset_defers_newly_eligible_concepts_without_completing_them
                              slugify=str.lower,
                              RESEARCH_DIR=tmp_path / "research", locked=lambda path: nullcontext(),
                              atomic_write=lambda path, text: path.write_text(text))
-    tree = SimpleNamespace(load_queue=lambda path: [{"concept": name, "done": False} for name in ("A", "B")],
+    tree = SimpleNamespace(load_queue=lambda path: [{"concept": name, "done": False, "line": index}
+                                                   for index, name in enumerate(("A", "B"), 1)],
                            load_nodes=lambda path: [{"concept": "A", "aliases": []}])
     def fake_load(name, path):
         if name == "ranked_adapter":
