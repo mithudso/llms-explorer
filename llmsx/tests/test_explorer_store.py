@@ -14,6 +14,24 @@ from conftest import INJECTION, TESTS_DIR, _git, make_repo
 
 from llmsx import explorer_store as es
 
+
+def test_queue_embedded_ticks_are_visible_and_completion_preserves_metadata(tmp_path):
+    repo = tmp_path
+    path = repo / es.QUEUE_REL
+    path.parent.mkdir()
+    original = (
+        '- [ ] Concept: ``Same-field `$or` to `$in` rewrite`` | Cluster: `index-union` | CVS: `4.15` | Mode: `dr` | Parent: ``Index `$or` union``\n'
+        '- [ ] Concept: `` `$natural` `` | Parent: `Query planner`\n'
+        '- [ ] Concept: ``unterminated`\n'
+    )
+    path.write_text(original)
+    rows = es.load_queue(repo)
+    assert [row["concept"] for row in rows] == ["Same-field `$or` to `$in` rewrite", "`$natural`"]
+    assert rows[0] == {"concept": "Same-field `$or` to `$in` rewrite", "parent": "Index `$or` union",
+                       "mode": "dr", "cluster": "index-union", "cvs": 4.15, "done": False}
+    assert es.mark_queue_done(repo, [rows[0]["concept"]]) == 1
+    assert path.read_text() == original.replace('[ ]', '[x]', 1)
+
 # --------------------------------------------------------------------------- #
 # tree
 
