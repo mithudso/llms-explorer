@@ -74,6 +74,14 @@ def render_facts(facts: list[dict]) -> str:
             line += f" — [source]({src})"
         elif src:
             line += f" — source: `{src}`"
+        for secondary in dict.fromkeys(fact.get("also") or []):
+            if not secondary or secondary == src:
+                continue
+            if secondary.startswith(("http://", "https://")) and not re.match(
+                    r"https?://(?:llms-explorer\.com|llmsx\.org)/sources/", secondary):
+                line += f" · [also]({secondary})"
+            else:
+                line += f" · also: `{secondary}`"
         if fact.get("note"):
             line += f" *({_md_text(fact['note'])})*"
         lines.append(line)
