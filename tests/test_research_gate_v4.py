@@ -401,3 +401,214 @@ def test_format_retry_budget_cannot_be_reset_by_repeating_the_command(case):
     assert len(calls) == 2
     assert shared.cmd_gate(args) == 1
     assert len(calls) == 2
+
+
+@pytest.mark.parametrize('token', ['$setOnInsert', '$$setOnInsert', '$$ROOT', '$field_name',
+                                    '$setOnInsert.field', '$field2', '0x05', '0xDE', '0XAF'])
+def test_complete_prefixed_and_hexadecimal_literals_pass(case, token):
+    shared, manifest, doc, root = case
+    source = f'Pinned source evidence: {token} is the retained token in this source body.'
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = f'The `{token}` token is retained.'
+    doc['claims'][0]['evidence'][0].update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+    assert gate.validate(packet, response(packet), root / 'attempt')['all_supported']
+
+
+@pytest.mark.parametrize('claim_token,source_token', [
+    ('$setOnInsert', '$$setOnInsert'), ('$setOnInsert', '$$$setOnInsert'),
+    ('$setOnInsert', '$setOnInsertExtra'), ('$setOnInsert', '$setOnInsert_extra'),
+    ('$setOnInsert', '$setOnInsert.field'), ('$setOnInsert', '$setOnInserté'),
+    ('$setOnInsert', 'é$setOnInsert'), ('$setOnInsert', 'x$setOnInsert'),
+    ('setOnInsert', '$setOnInsert'), ('0x05', '0x050'), ('0x05', '0x05F'),
+    ('0x05', '0x15'), ('0x05', '0X05'), ('0x05', 'x0x05'), ('0x05', 'é0x05'),
+    ('0x05', '$0x05'), ('0x05', 'x.0x05'), ('0x05', '0x05é'),
+    ('0x05', '0x05_suffix'), ('0x05', '0x05.value'), ('0x05', '0x05.1'),
+    ('5', '0x05'), ('5', '512'), ('numIdleCursors', 'numIdleCursorsExtra'),
+])
+def test_prefixed_and_hexadecimal_literals_require_exact_full_tokens(case, claim_token, source_token):
+    shared, manifest, doc, root = case
+    source = f'Pinned source evidence: {source_token} is the retained token in this source body.'
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = f'The `{claim_token}` token is retained.'
+    doc['claims'][0]['evidence'][0].update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    with pytest.raises(ValueError, match='identifiers or numbers'):
+        gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+
+
+@pytest.mark.parametrize('reviewer', [False, True], ids=['authored', 'reviewer'])
+@pytest.mark.parametrize('token,source_token,crop_prefix', [
+    ('$setOnInsert', '$$setOnInsert', True), ('$setOnInsert', 'é$setOnInsert', True),
+    ('$setOnInsert', 'x$setOnInsert', True), ('$setOnInsert', '$setOnInsertExtra', False),
+    ('0x05', 'x0x05', True), ('0x05', 'é0x05', True), ('0x05', '$0x05', True),
+    ('0x05', '0x050', False), ('0x05', '0x05F', False), ('0x05', '0x05_suffix', False),
+])
+def test_quote_edges_cannot_create_prefixed_or_hexadecimal_token_boundaries(case, token, source_token, crop_prefix, reviewer):
+    shared, manifest, doc, root = case
+    selected = f'Pinned source evidence: {source_token} is the retained token in this source body.'
+    source = selected + f' Outside the cited span: {token} is also documented.'
+    start = selected.index(token) if crop_prefix else 0
+    end = len(selected) if crop_prefix else selected.index(token) + len(token)
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = f'The `{token}` token is retained.'
+    span = doc['claims'][0]['evidence'][0]
+    span.update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    cropped = {**span, 'start': start, 'end': end, 'quote': source[start:end]}
+    if reviewer:
+        packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+        verdicts = response(packet)
+        verdicts['verdicts'][0]['evidence'] = [cropped]
+        with pytest.raises(ValueError, match='identifiers or numbers'):
+            gate.validate(packet, verdicts, root / 'attempt')
+    else:
+        doc['claims'][0]['evidence'] = [cropped]
+        with pytest.raises(ValueError, match='identifiers or numbers'):
+            gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+
+
+def test_hex_values_do_not_mask_other_decimal_version_or_identifier_details(case):
+    shared, manifest, doc, root = case
+    statement = 'Use 0x05 with v3.18.1, 2.5ms, 25% and numIdleCursors field.'
+    body = root / 'source.txt'
+    doc['claims'][0]['text'] = statement
+    for source in [statement, statement.replace('2.5ms', '2.5s'), statement.replace('25%', '125%'),
+                   statement.replace('v3.18.1', 'v3.18.10'), statement.replace('numIdleCursors', 'numIdleCursorsExtra')]:
+        body.write_text(source)
+        doc['claims'][0]['evidence'][0].update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+        if source == statement:
+            packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+            assert gate.validate(packet, response(packet), root / 'attempt')['all_supported']
+        else:
+            with pytest.raises(ValueError, match='identifiers or numbers'):
+                gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+
+
+@pytest.mark.parametrize('reviewer', [False, True], ids=['authored', 'reviewer'])
+@pytest.mark.parametrize('statement,token,source_token,crop_prefix', [
+    ('The limit is 5.', '5', '512', False),
+    ('The field is numIdleCursors.', 'numIdleCursors', 'numIdleCursorsExtra', False),
+    ('The field is metrics.idle.', 'metrics.idle', 'metrics.idleExtra', False),
+    ('The limit is 5.', '5', 'é5', True),
+    ('The limit is 5.', '5', '5é', False),
+    ('The field is numIdleCursors.', 'numIdleCursors', 'énumIdleCursors', True),
+    ('The field is numIdleCursors.', 'numIdleCursors', 'numIdleCursorsé', False),
+    ('The field is metrics.idle.', 'metrics.idle', 'émetrics.idle', True),
+    ('The field is metrics.idle.', 'metrics.idle', 'metrics.idleé', False),
+    ('The limit is 2.5ms.', '2.5ms', '2.5msExtra', False),
+])
+def test_ordinary_tokens_use_full_source_boundaries_at_quote_edges(case, statement, token, source_token, crop_prefix, reviewer):
+    shared, manifest, doc, root = case
+    selected = f'The documented token is {source_token} and remains stable in this source.'
+    # A correct occurrence outside the selected citation cannot rescue a crop.
+    source = selected + f' Complete correct token: {token} is documented elsewhere.'
+    start = selected.index(token) if crop_prefix else 0
+    end = len(selected) if crop_prefix else selected.index(token) + len(token)
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = statement
+    span = doc['claims'][0]['evidence'][0]
+    span.update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    cropped = {**span, 'start': start, 'end': end, 'quote': source[start:end]}
+    if reviewer:
+        packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+        verdicts = response(packet)
+        verdicts['verdicts'][0]['evidence'] = [cropped]
+        with pytest.raises(ValueError, match='identifiers or numbers'):
+            gate.validate(packet, verdicts, root / 'attempt')
+    else:
+        doc['claims'][0]['evidence'] = [cropped]
+        with pytest.raises(ValueError, match='identifiers or numbers'):
+            gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+
+
+@pytest.mark.parametrize('reviewer', [False, True], ids=['authored', 'reviewer'])
+@pytest.mark.parametrize('cross_source', [False, True], ids=['one-source', 'cross-source'])
+def test_one_literal_cannot_be_synthesized_across_evidence_spans(case, reviewer, cross_source):
+    shared, manifest, doc, root = case
+    # Joining these two exact quotes with a newline would fabricate the backtick literal.
+    first = 'First fragment is sufficiently long'
+    second = 'Second fragment is also sufficiently long'
+    literal = first + '\n' + second
+    if cross_source:
+        texts = {'https://example.org/first': first + ' original suffix',
+                 'https://example.org/second': 'original prefix ' + second,
+                 'https://example.org/complete': literal}
+    else:
+        texts = {'https://example.org/first': first + ' unrelated middle ' + second + '\n' + literal}
+    metadata, fragments = {}, []
+    for index, (url, text) in enumerate(texts.items()):
+        body = root / f'split-source-{index}.txt'
+        body.write_text(text)
+        metadata[url] = {'id': f'src:split{index}', 'url': url, 'text_path': str(body), 'sha256': gate.digest(body.read_bytes())}
+    for url, fragment in [('https://example.org/first', first),
+                          ('https://example.org/second' if cross_source else 'https://example.org/first', second)]:
+        meta = metadata[url]
+        text = Path(meta['text_path']).read_text()
+        start = text.index(fragment)
+        fragments.append({'url': url, 'source_id': meta['id'], 'snapshot_sha256': meta['sha256'],
+                          'start': start, 'end': start + len(fragment), 'quote': fragment, 'extraction_status': 'complete'})
+    shared.lib_find = lambda url: metadata[url]
+    shared.source_id = lambda url: metadata[url]['id']
+    doc['claims'][0].update(text=f'The exact phrase is `{literal}`.', sources=list(metadata))
+    doc['claims'][0]['evidence'] = [{**fragment} for fragment in fragments]
+    if reviewer:
+        # Prepare with a complete real occurrence, then let the reviewer select only fragments.
+        url = 'https://example.org/complete' if cross_source else 'https://example.org/first'
+        meta = metadata[url]
+        text = Path(meta['text_path']).read_text()
+        start = text.index(literal)
+        doc['claims'][0]['evidence'] = [{'url': url, 'source_id': meta['id'], 'snapshot_sha256': meta['sha256'],
+            'start': start, 'end': start + len(literal), 'quote': literal, 'extraction_status': 'complete'}]
+        packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+        verdicts = response(packet)
+        verdicts['verdicts'][0]['evidence'] = fragments
+        with pytest.raises(ValueError, match='identifiers or numbers'):
+            gate.validate(packet, verdicts, root / 'attempt')
+    else:
+        with pytest.raises(ValueError, match='identifiers or numbers'):
+            gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+
+
+@pytest.mark.parametrize('reviewer', [False, True], ids=['authored', 'reviewer'])
+def test_separate_complete_literals_may_use_different_cited_sources(case, reviewer):
+    shared, manifest, doc, root = case
+    texts = {'https://example.org/first': 'The numIdleCursors field has a limit of 5.',
+             'https://example.org/second': 'The metrics.idle field has a latency of 2.5ms and a threshold of 25%.'}
+    metadata, spans = {}, []
+    for index, (url, text) in enumerate(texts.items()):
+        body = root / f'complete-source-{index}.txt'
+        body.write_text(text)
+        meta = {'id': f'src:complete{index}', 'url': url, 'text_path': str(body), 'sha256': gate.digest(body.read_bytes())}
+        metadata[url] = meta
+        spans.append({'url': url, 'source_id': meta['id'], 'snapshot_sha256': meta['sha256'],
+                      'start': 0, 'end': len(text), 'quote': text, 'extraction_status': 'complete'})
+    shared.lib_find = lambda url: metadata[url]
+    shared.source_id = lambda url: metadata[url]['id']
+    doc['claims'][0].update(text='The numIdleCursors field has a limit of 5; the metrics.idle field has a latency of 2.5ms and a threshold of 25%.',
+                            sources=list(metadata), evidence=spans)
+    packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+    if reviewer:
+        assert gate.validate(packet, response(packet), root / 'attempt')['all_supported']
+    else:
+        assert gate.preflight(packet, root / 'attempt') == []
+
+
+@pytest.mark.parametrize('token,source', [
+    ('5', 'The numeric limit is 5.'), ('2.5ms', 'The latency is (2.5ms).'),
+    ('25%', 'The threshold is 25%; this is documented.'),
+    ('numIdleCursors', 'The field is (numIdleCursors), with ordinary punctuation.'),
+    ('metrics.idle', 'The field is [metrics.idle]; this is documented.'),
+    ('numIdleCursors', 'The field is «numIdleCursors» with Unicode punctuation.'),
+    ('metrics.idle', 'The field is metrics.idle—documented with Unicode punctuation.'),
+])
+def test_complete_ordinary_terms_keep_valid_punctuation(case, token, source):
+    shared, manifest, doc, root = case
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = f'The {token} term is documented.'
+    doc['claims'][0]['evidence'][0].update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+    assert gate.validate(packet, response(packet), root / 'attempt')['all_supported']

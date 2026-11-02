@@ -441,16 +441,20 @@ Judge each claim ONLY against the evidence files of the sources that claim cites
 Use Grep on an evidence file to find distinctive terms, then Read around the hits.
 
 Verdicts:
-- SUPPORTED: one cited evidence file states the entire claim, including every number, default,
-  version, limit, API name, permission and condition.
+- SUPPORTED: the cited evidence file or files, considered together, establish the entire claim,
+  including every number, default, version, limit, API name, permission and condition.
+  Multiple passages may support different clauses. Their combined evidence must also establish
+  every asserted relationship and compatible version, edition and time scope. Separate keyword
+  matches do not establish a relationship. Do not invent causal links, temporal joins or guarantees.
 - CONTRADICTED: a cited evidence file states something incompatible with the claim.
 - NOT-IN-SOURCE: the cited text is about the topic but does not establish the claim. Also use this
   when the claim attributes another product's behavior to MongoDB (for example Azure DocumentDB or
   Cosmos DB limits presented as MongoDB limits), or when the claim adds a clause the source lacks.
 - UNVERIFIED: the cited evidence text is unusable (empty, a navigation shell, an error page).
 
-For SUPPORTED, quote at least one exact passage. Copy it character for character from the evidence
-file: 40 to 400 characters, no ellipses, no edits. A paraphrased quote is rejected and the claim
+For SUPPORTED, quote the exact passage or passages needed to establish every clause and asserted
+relationship. Copy each passage character for character from its cited evidence file:
+40 to 400 characters, no ellipses, no edits. A paraphrased quote is rejected and the claim
 fails. For other verdicts, quote the conflicting or nearest passage when one exists.
 
 Write ONLY this JSON object to {out} with the Write tool, one entry per claim, no omissions:
