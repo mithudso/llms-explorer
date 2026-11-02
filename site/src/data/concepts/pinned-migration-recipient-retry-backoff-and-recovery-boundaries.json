@@ -1,0 +1,246 @@
+{
+  "slug": "pinned-migration-recipient-retry-backoff-and-recovery-boundaries",
+  "concept": "Pinned migration-recipient retry backoff and recovery boundaries",
+  "generated": "2026-11-02",
+  "summary": "Source-anchored research for Pinned migration-recipient retry backoff and recovery boundaries. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The real caller constructs a `CancelableOperationContext` from a newly made client operation context, the cancellation token and the fixed executor, grants internal authorization when authentication is enabled, and uses `opCtx->sleepFor(delay)`. Its `PrimaryOnlyServiceRetryStrategy` uses `kAlwaysRetryPredicate`; the source comment motivates backoff for persistent errors such as `NotWritablePrimary` until stepdown cancellation or writability. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.cpp",
+          "note": null,
+          "claimId": "clm:71373643c95926bbb38014eb2d855d9bdaa9458cb773ca9fa3fb68041d473d43",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9242019e605f32b4ff5fb3859013da635add32313aa7d72b6d6feba753ef1c9d"
+          ]
+        },
+        {
+          "text": "The header broadly lists explicit abort among cancellation causes. In the implementation, `abort` returns without changing state if no session exists and rejects a mismatched session. On its remaining path, and in `abortWithoutSessionIdCheck`, cancellation occurs only when `_state < kCommitStart`; the method then sets `kAbort` and notifies waiters. The source comment explains that interrupting critical-section acquisition at or after `kCommitStart` can leave an uncleared recovery document. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.cpp",
+          "note": null,
+          "claimId": "clm:716339e3e2b77d38d197e94cd7bba37ec1ed6adb4f57f659a64ad201ee78dbfd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4a92e60957cb1db14276eefdbad470bd59188066ebd2127ed6dbb194085df369",
+            "ev:9d59c263a8c1e3aee213772ae7bbbb5f9764a391ee88a690ed558a13340b5196"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.h"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "After the retry-document gate, the caller installs the logical session id and transaction number, checks out the session, and calls `txnParticipant.beginOrContinue`. It invokes `_recoverMigration` when `skipToCritSecTaken || isRetry`, otherwise `_migrateDriver`. Its error callback calls `_setStateFail` before the helper evaluates cancellation or retry policy. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.cpp",
+          "note": null,
+          "claimId": "clm:71e8327a1c154768e68a0f67e5103997bd7948fe341f4ed9fab0354d1cb69fb7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7762dd44410effd5843cdc8d56437eedb8970daaec41e570db902235bd7ae29c",
+            "ev:9242019e605f32b4ff5fb3859013da635add32313aa7d72b6d6feba753ef1c9d"
+          ]
+        },
+        {
+          "text": "The `StopsWhenCanceled` fixture cancels the loop token inside the first attempt and throws `InterruptedDueToReplStateChange`. It asserts one attempt, zero sleeps, one matching error callback, and no recorded strategy failures. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager_test.cpp",
+          "note": null,
+          "claimId": "clm:3b6815c3bde8b9176a932312bdc3f28acac6fc93764487ea7dbfe8f962e00c8e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:63ceb20eea5d823d6de7ff8996c78e440fba8e7083eb61f9eba087bf6f606f1d"
+          ]
+        },
+        {
+          "text": "The `StopsWhenRetryStrategyGivesUp` fixture sets the retry limit to two, always throws `NotWritablePrimary`, and asserts three attempts, two sleeps, three recorded failures and zero successes. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager_test.cpp",
+          "note": null,
+          "claimId": "clm:0c84b3289970bb450710f72cc490159df460501ce52ed5abb86de74b81a7514c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ed350d97719d2e1e4e073b6526c1635caf85d75549e578acbdc72b63034667b2"
+          ]
+        },
+        {
+          "text": "The production retry strategy builds `DefaultRetryStrategy` from server retry parameters after setting `base.maxRetryAttempts` to `std::numeric_limits<std::int32_t>::max()`. Its failure method delegates to the underlying strategy, increments the jitter attempt count and calls the transient callback only when that result permits retry, and otherwise calls the unrecoverable callback. The next delay is the maximum of the underlying delay and jitter delay. Success, targeting metadata and backoff accounting delegate to the underlying strategy. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/primary_only_service_helpers/primary_only_service_retry_strategy.h",
+          "note": null,
+          "claimId": "clm:d21d32751a929f2e0d755ce1651279dc4a435dddb093f3e643d023a87f2a2e36",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:882fb613a64ba152c166ee95423bc2dac811a634a55e0233040624357e21b73e",
+            "ev:b8b64db7582307e56c7afe3340f968708cb0138914aec4abddd9ff58bbe8bf59"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/primary_only_service_helpers/primary_only_service_retry_strategy.cpp"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "The fixtures use `FakeRetryStrategy`, which returns a fixed delay, appends failures and backoffs, increments successes, and permits retry while the failure count is at most `_maxRetries`. Their operation contexts use `CancellationToken::uncancelable()`; cancellation of the separately supplied loop token is exercised explicitly, rather than through token-bound fixture contexts. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager_test.cpp",
+          "note": null,
+          "claimId": "clm:19719f5acc261caf6e8e652ef876f86b84e6d14d58d86217329ccea973f7d5a3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:fd1ce82d6468ee86a6070a15d55d85c39b92f9125fe9fc23f7f514e3c77fc0c2"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "In the pinned helper, each loop iteration calls `makeOpCtx` before entering the `try` block. The first iteration has `isRetry = false`, so it calls `attempt` without querying the retry delay; a normal return records success and returns. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.cpp",
+          "note": null,
+          "claimId": "clm:912b6d6d19b97ac27edbe61c2d1a61dd306659164343ac55781c9e3cbf4b0255",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7762dd44410effd5843cdc8d56437eedb8970daaec41e570db902235bd7ae29c",
+            "ev:c1c7f21470a4e750a281ce4a3fe031bc7f4512e5f1d26e3fb641645ebe7a0ccf"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.h"
+          ]
+        },
+        {
+          "text": "The helper header says it calls sleep before every retry. In the implementation, `retryStrategy.getNextRetryDelay` selects the retry delay; only a value greater than `Milliseconds{0}` invokes `sleep` on the new attempt context, followed by `retryStrategy.recordBackoff`. Zero or negative delays invoke neither callback. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.cpp",
+          "note": null,
+          "claimId": "clm:b77f64c98e9df6d880a5e257025544ddd0767d320c37a27e8e8694902e235cc9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7762dd44410effd5843cdc8d56437eedb8970daaec41e570db902235bd7ae29c",
+            "ev:c1c7f21470a4e750a281ce4a3fe031bc7f4512e5f1d26e3fb641645ebe7a0ccf"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.h"
+          ]
+        },
+        {
+          "text": "The catch block converts the exception to a status and calls `onError` before checking cancellation. Cancellation short-circuits `retryStrategy.recordFailureAndEvaluateShouldRetry`; otherwise that strategy decision determines whether the loop returns or creates another context. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.cpp",
+          "note": null,
+          "claimId": "clm:8aaf9647c2c4f403787a52521d29fcebd21e6a16ff23182040e44bc20afd7de9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7762dd44410effd5843cdc8d56437eedb8970daaec41e570db902235bd7ae29c"
+          ]
+        },
+        {
+          "text": "The catch block surrounds delay selection, sleeping, backoff accounting, the attempt and success accounting. Context creation occurs outside it, and `onError` runs inside the catch handler; neither location is covered by that same catch. The helper has no unconditional cancellation check before the first attempt. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.cpp",
+          "note": null,
+          "claimId": "clm:bb49e8f6932ee5b53313949afa8ec8f1b1fb84e564298222f892c61d6b517e12",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7762dd44410effd5843cdc8d56437eedb8970daaec41e570db902235bd7ae29c"
+          ]
+        },
+        {
+          "text": "On a retry, the real attempt first checks `migrationRecipientRecoveryDocumentExists` and returns immediately if absent. The predicate counts recipient recovery documents in `kMigrationRecipientsNamespace` whose migration-session-id field matches `sessionId.toString()`, and tests whether the count is greater than zero. This early return reaches the helper success path without invoking recovery. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.cpp",
+          "note": null,
+          "claimId": "clm:f7ac6f92a365fc9f30c4b8937a39ee3bd26e3101e17ecf4b6f23f143fdb57f02",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1da468a698e53de270805956032264b840005a70b5d8affd99de21d5a834293e",
+            "ev:7762dd44410effd5843cdc8d56437eedb8970daaec41e570db902235bd7ae29c",
+            "ev:9242019e605f32b4ff5fb3859013da635add32313aa7d72b6d6feba753ef1c9d"
+          ]
+        },
+        {
+          "text": "`restoreRecoveredMigrationState` waits for an existing migration thread outside the mutex, restores fields from the recovery document, sets `kCommitStart`, and starts `_migrateThread` with the skip-to-critical-section argument true. That initial recovery attempt has its retry flag false, so the retry-only document-existence gate does not run on it. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager.cpp",
+          "note": null,
+          "claimId": "clm:3d71fbb147934feab8ad1fc63493b01c296cb7b0f78956a3e1cbd102e7c381bc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:26d3cbe2e6dc940bfae173707fe87b63eb3cbde5e72d1aa46511d56f288388de",
+            "ev:7762dd44410effd5843cdc8d56437eedb8970daaec41e570db902235bd7ae29c",
+            "ev:9242019e605f32b4ff5fb3859013da635add32313aa7d72b6d6feba753ef1c9d"
+          ]
+        },
+        {
+          "text": "The `FirstAttemptSucceedsWithoutSleeping` fixture asserts one attempt flagged false, no sleeps, errors or failures, and one success. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager_test.cpp",
+          "note": null,
+          "claimId": "clm:acabb45b1fdaabd30d521d57c298364fa0f1308f714e98ef44a3a3abbd89f1e3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:66783492f6d3b69af51a36b6f54e180ba90633ed790e19fc44264f487603c835"
+          ]
+        },
+        {
+          "text": "The `BacksOffBeforeEachRetry` fixture throws `NotWritablePrimary` twice, then asserts attempt flags false/true/true, two sleeps of 100 milliseconds, matching recorded backoffs, two matching errors/failures, and one success. Its sleep callback checks that backoff accounting has not yet advanced for that sleep. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager_test.cpp",
+          "note": null,
+          "claimId": "clm:e7b41da43687141cd40f2c2fa8c0b9770a1efcaeb3799904bc4e6dad2208da13",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2610d0bb0d7bf784c18ef387ac819e3984ed6ce3ddad3229c2b6038e5098e9b7"
+          ]
+        },
+        {
+          "text": "The `SleepsOnTheOperationContextOfTheNextAttempt` fixture asserts two attempts and that the sleep context equals the final attempt context; it does not assert that context pointer addresses differ across attempts. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager_test.cpp",
+          "note": null,
+          "claimId": "clm:e5990d679ae5c3e0b30cb0381b1b7ca129f29cac73b67550466b2b76a61e082c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:397088f01e4c884623a95f1112aafb8f7cc14a16e668d7158cbb32ff3b36d985"
+          ]
+        },
+        {
+          "text": "The `DoesNotSleepWhenDelayIsZero` fixture uses a zero delay and asserts two attempts, zero sleeps and an empty backoff vector. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager_test.cpp",
+          "note": null,
+          "claimId": "clm:892884e75dd130ab30afb2a1fd85f135a0f08bb43f13ac01e085b211b1164485",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a23f5b9e77bff27949520f506c41abd9031a1b3ef925f7f1f85d7f092407a18b"
+          ]
+        },
+        {
+          "text": "The `StopsWhenSleepIsInterrupted` fixture first throws `NotWritablePrimary` from an attempt, then cancels the token and throws `CallbackCanceled` from sleep. It asserts one attempt, two errors with cancellation last, and no recorded backoff. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/s/migration_destination_manager_test.cpp",
+          "note": null,
+          "claimId": "clm:b74cc2271e6a269fd3e3785ca148905840c6fca5e704130f797a309fa6f0c77b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1f90d9b3d67ae7055d0db6899f032e9d6257ccdcdb6e6efc0130ae30b793dd48"
+          ]
+        },
+        {
+          "text": "The command documentation describes `stopShardDraining` as stopping draining intent and returning the shard to rebalance participation. At the pinned source, the helper takes the config-shards DDL lock and delegates to `stopDrain`. These passages do not establish the outcome of an already-running recipient migration or connect this command to the recipient retry token. (medium confidence) (verified as of 2026-11-02)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/ec4332d345e8b681880a8267531b1ee4805242dd/src/mongo/db/topology/remove_shard_command_helpers.cpp",
+          "note": null,
+          "claimId": "clm:1de2a887e5016ea5bf1886deda1320d58a22b443a841d44b123f2303142c18c8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1ebbc6eb88836ae019df0b5cd0678705a2f3bb67616978f4aeaad9f269ccab0f",
+            "ev:83945e3c3f84d2f2529e1dba969e93840423ce7aa42f739389a891e0bca28f8a"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/manual/reference/command/stopShardDraining.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "6882c27148fdc7b60b714cdc7416912fa28b2937320b6a9585adc7678083342b",
+  "canonicalConceptId": "concept:810a4b38bce5e6d542b89587d9859dcefc609ee3e08ae7f672f4da19b4825c00"
+}
