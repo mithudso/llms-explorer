@@ -74,7 +74,17 @@ def fixture_dist(tmp_path_factory) -> Path:
     tree["nodes"]["empty-pack"]["hasPack"] = True
     (root / "src" / "data" / "tree.json").write_text(json.dumps(tree))
     packs = {
-        "available-reference": fixture_pack("available-reference"),
+        "available-reference": fixture_pack("available-reference", facts=[
+            {"text": "This claim has a source.", "source": "https://example.test/primary-document", "note": None},
+            {"text": "Two-source claim <with markup>.", "source": "https://example.test/primary-two",
+             "also": ["https://example.test/primary-two", " ",
+                      'https://example.test/secondary?x=1&label="quoted"',
+                      'https://example.test/secondary?x=1&label="quoted"'],
+             "note": "Keep <this note>."},
+            {"text": "Archived secondary evidence.", "source": "https://example.test/current-document",
+             "also": ["https://llms-explorer.com/sources/retired?x=1&y=2",
+                      "https://llms-explorer.com/sources/retired?x=1&y=2"], "note": None},
+        ]),
         "empty-pack": fixture_pack("empty-pack", facts=[]),
         "unsourced-pack": fixture_pack("unsourced-pack", facts=[
             {"text": "An uncited claim.", "source": "   ", "note": None}]),
@@ -156,6 +166,33 @@ def test_source_linked_fixture_reference_is_indexable(fixture_dist):
     assert 'href="https://example.test/primary-document"' in html
     assert 'href="/editorial/"' in html
     assert "does not certify independent review or accuracy" in html
+
+
+
+def test_fact_html_preserves_ordered_unique_secondary_citations(fixture_dist):
+    html = (fixture_dist / "tree" / "available-reference" / "index.html").read_text()
+    items = re.findall(r"<li>(.*?)</li>", html, re.DOTALL)
+    single = next(item for item in items if "This claim has a source." in item)
+    assert re.findall(r'href="([^"]*)"', single) == ["https://example.test/primary-document"]
+    assert ">[source]</a>" in single
+    item = next(item for item in items if "Two-source claim &lt;with markup&gt;." in item)
+    assert re.findall(r'href="([^"]*)"', item) == [
+        "https://example.test/primary-two",
+        "https://example.test/secondary?x=1&amp;label=&quot;quoted&quot;",
+    ]
+    assert ">[source 1]</a>" in item and ">[source 2]</a>" in item
+    assert "Keep &lt;this note&gt;." in item
+    assert "<with markup>" not in item and "<this note>" not in item
+
+
+def test_archived_secondary_citation_remains_a_nonlink_label(fixture_dist):
+    html = (fixture_dist / "tree" / "available-reference" / "index.html").read_text()
+    item = next(item for item in re.findall(r"<li>(.*?)</li>", html, re.DOTALL)
+                if "Archived secondary evidence." in item)
+    assert re.findall(r'href="([^"]*)"', item) == ["https://example.test/current-document"]
+    label = "[archived source: https://llms-explorer.com/sources/retired?x=1&amp;y=2]"
+    assert item.count(label) == 1
+    assert '<span class="fact-source">' + label + "</span>" in item
 
 
 def test_tree_index_labels_only_available_references_as_readable(fixture_dist):

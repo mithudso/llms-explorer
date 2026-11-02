@@ -4711,30 +4711,38 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Dataflow streaming MongoDB CDC userOption representations` | Parent: `BigQuery Atlas Dataflow CDC` | Mode: `dr` | CVS: `3.25`
 - [x] Concept: `Atlas audit-event predicates and successful-authCheck cost boundary` | Parent: `Atlas Audit Logging` | Mode: `dr` | CVS: `3.55`
 - [ ] Concept: `Customer-scheduled Data Federation Azure Blob out jobs` | Parent: `Azure Synapse Atlas Data Federation` | Mode: `dr` | CVS: `3.75`
-- [ ] Concept: `Entra Domain Services LDAPS certificate renewal for Atlas clients` | Parent: `Atlas LDAP Azure AD DS` | Mode: `dr` | CVS: `3.50`
+- [x] Concept: `Entra Domain Services LDAPS certificate renewal for Atlas clients` | Parent: `Atlas LDAP Azure AD DS` | Mode: `dr` | CVS: `3.50`
 - [x] Concept: `Search static multi-type mappings for one field` | Parent: `Search Index Mapping` | Mode: `dr` | CVS: `3.75`
-- [ ] Concept: `Compass aggregation preview sampling versus full pipeline execution` | Parent: `Compass Aggregation Pipeline Builder` | Mode: `dr` | CVS: `3.45`
-- [ ] Concept: `Atlas API deprecation-header inventory and migration alerts` | Parent: `Atlas Admin API Date Versioned Media Types` | Mode: `dr` | CVS: `3.75`
-- [ ] Concept: `Index side-write drain moving-denominator progress in r8.2.0` | Parent: `serverStatus indexBuilds metrics and index build observability` | Mode: `dr` | CVS: `3.75`
-- [ ] Concept: `Azure App Service scale-out MongoDB pool and SNAT budgets` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | CVS: `3.50`
+- [x] Concept: `Compass aggregation preview sampling versus full pipeline execution` | Parent: `Compass Aggregation Pipeline Builder` | Mode: `dr` | CVS: `3.45`
+- [x] Concept: `Atlas API deprecation-header inventory and migration alerts` | Parent: `Atlas Admin API Date Versioned Media Types` | Mode: `dr` | CVS: `3.75`
+- [x] Concept: `Index side-write drain moving-denominator progress in r8.2.0` | Parent: `serverStatus indexBuilds metrics and index build observability` | Mode: `dr` | CVS: `3.75`
+- [x] Concept: `Azure App Service scale-out MongoDB pool and SNAT budgets` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | CVS: `3.50`
 - [x] Concept: `Atlas Free/Flex database-authentication support table` | Parent: `Atlas Auth Tier Feature Matrix M0 Flex M10` | Mode: `dr` | CVS: `3.30`
-- [ ] Concept: `TCMalloc zero-rate background release versus allocator-generation units` | Parent: `WiredTiger cache eviction and dirty ratio` | Mode: `dr` | CVS: `3.30`
+- [x] Concept: `TCMalloc zero-rate background release versus allocator-generation units` | Parent: `WiredTiger cache eviction and dirty ratio` | Mode: `dr` | CVS: `3.30`
 - [x] Concept: `Time-series creation-only field identities versus mutable values/options` | Parent: `Time Series Collection Creation (timeField, metaField, granularity)` | Mode: `dr` | CVS: `3.30`
-- [ ] Concept: `Pinned WiredTiger eviction-worker tuning and handle-lock backoff` | Parent: `WiredTiger cache eviction and dirty ratio` | Mode: `dr` | CVS: `3.55`
+- [x] Concept: `Pinned WiredTiger eviction-worker tuning and handle-lock backoff` | Parent: `WiredTiger cache eviction and dirty ratio` | Mode: `dr` | CVS: `3.55`
 - [ ] Concept: `Atlas OTLP log bridge to Azure Monitor ingestion` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | CVS: `3.50`
 - [ ] Concept: `Reachability Analyzer scope for customer-owned Atlas PrivateLink paths` | Parent: `Connection Troubleshooting` | Mode: `dr` | CVS: `3.50`
 - [ ] Concept: `Synapse serverless SQL credentials for Atlas-exported Blob files` | Parent: `Azure Synapse Atlas Data Federation` | Mode: `dr` | CVS: `3.50`
-- [ ] Concept: `Route 53 Resolver forwarding direction for Atlas private SRV chains` | Parent: `DNS and SRV Records` | Mode: `dr` | CVS: `3.30`
+- [x] Concept: `Route 53 Resolver forwarding direction for Atlas private SRV chains` | Parent: `DNS and SRV Records` | Mode: `dr` | CVS: `3.30`
 - [ ] Concept: `Measured Search resident memory across replacement-index lifecycle` | Parent: `Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling` | Mode: `dr` | CVS: `3.15`
 - [x] Concept: `Ops Manager AppDB w:2 locality versus Kubernetes quorum placement` | Parent: `Kubernetes Operator Deployment` | Mode: `dr` | CVS: `3.55`
-- [ ] Concept: `Query-analyzer sampled-byte counters versus TTL-retained storage` | Parent: `analyzeShardKey and query sampling` | Mode: `dr` | CVS: `3.30`
-- [ ] Concept: `New Relic Node preload order and MongoDB trace-verification boundary` | Parent: `New Relic Integration` | Mode: `dr` | CVS: `3.10`
-- [ ] Concept: `Trigger Project Expression before EventBridge entry-size validation` | Parent: `EventBridge Integration` | Mode: `dr` | CVS: `3.05`
-- [ ] Concept: `Historical WiredTiger raw-compression block-sizing callback` | Parent: `Block Compression (snappy/zlib/zstd)` | Mode: `dr` | CVS: `2.95`
+- [x] Concept: `Query-analyzer sampled-byte counters versus TTL-retained storage` | Parent: `analyzeShardKey and query sampling` | Mode: `dr` | CVS: `3.30`
+- [x] Concept: `New Relic Node preload order and MongoDB trace-verification boundary` | Parent: `New Relic Integration` | Mode: `dr` | CVS: `3.10`
+- [x] Concept: `Trigger Project Expression before EventBridge entry-size validation` | Parent: `EventBridge Integration` | Mode: `dr` | CVS: `3.05`
+- [x] Concept: `Historical WiredTiger raw-compression block-sizing callback` | Parent: `Block Compression (snappy/zlib/zstd)` | Mode: `dr` | CVS: `2.95`
 - [x] Concept: `Pinned LangChain MongoDB self-query filter translation and typed metadata values` | Parent: `RAG Patterns` | Mode: `dr` | CVS: `3.65`
 - [ ] Concept: `Pinned AKO expired AtlasDatabaseUser reconciliation and unmanage lifecycle` | Parent: `Atlas RBAC` | Mode: `dr` | CVS: `3.90`
-- [ ] Concept: `Pinned Compass stage-preview cancellation before aggregate dispatch` | Parent: `MongoDB Compass` | Mode: `dr` | CVS: `3.60`
-- [ ] Concept: `Pinned Compass preview cap injection and collection-count guard` | Parent: `Compass aggregation preview sampling versus full pipeline execution` | Mode: `dr` | CVS: `3.15`
-- [ ] Concept: `Atlas log-export replay destination changes and failure-state observations` | Parent: `Atlas External Log Sink to GCS` | Mode: `dr` | CVS: `3.45`
-- [ ] Concept: `Pinned balancer scheduler cancellation versus shard draining intent` | Parent: `Shard draining cancellation, status and commit protocol` | Mode: `dr` | CVS: `3.40`
-- [ ] Concept: `Pinned event-mongodb transaction context and checkpoint write boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.25`
+- [x] Concept: `Pinned Compass stage-preview cancellation before aggregate dispatch` | Parent: `MongoDB Compass` | Mode: `dr` | CVS: `3.60`
+- [x] Concept: `Pinned Compass preview cap injection and collection-count guard` | Parent: `Compass aggregation preview sampling versus full pipeline execution` | Mode: `dr` | CVS: `3.15`
+- [x] Concept: `Atlas log-export replay destination changes and failure-state observations` | Parent: `Atlas External Log Sink to GCS` | Mode: `dr` | CVS: `3.45`
+- [x] Concept: `Pinned balancer scheduler cancellation versus shard draining intent` | Parent: `Shard draining cancellation, status and commit protocol` | Mode: `dr` | CVS: `3.40`
+- [x] Concept: `Pinned event-mongodb transaction context and checkpoint write boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.25`
+- [x] Concept: `Pinned event-mongodb and event v3 transactional handler compatibility` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.65`
+- [x] Concept: `Pinned stopShardDraining command forwarding and catalog mutation boundaries` | Parent: `Shard draining cancellation, status and commit protocol` | Mode: `dr` | CVS: `3.40`
+
+## Qualified MongoDB continuation checkpoints — 2026-11-02
+
+- [x] Concept: `Pinned WiredTiger diagnostic page-dump field semantics` | Parent: `Reconciliation and Page Splitting` | Mode: `dr` | CVS: `3.65`
+- [x] Concept: `Pinned unified Node runner cleanup rejection and resource-release isolation` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `3.40`
+- [x] Concept: `Self-managed MongoDB evidence preservation before destructive restore` | Parent: `Security KB Articles` | Mode: `dr` | CVS: `3.90`
