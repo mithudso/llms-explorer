@@ -1033,3 +1033,13 @@ All unheld repository mongodb queue entries
 ```
 
 Continuation of Prompt v76: Antigravity scouted new concepts and sources to research, research the mongodb queue list. Scope is the exact run-start unheld repository queue. Preserve held suites and accepted results.
+
+User asked to start validating every MongoDB concept, fanning out agents,
+marking each concept in the tree as it is validated so no effort repeats, and to
+keep cycling until all MongoDB concepts are validated.
+
+### 2026-10-22 — Implement research recommendations (TASK-840)
+
+User: "Implement all 4 recommendations."
+
+Scope: validate factual auxiliary prose; preserve canonical evidence with optional temporal metadata; correct retrieval-unit identity and lexical coverage; bind embeddings and query caches to exact revisions. Implementation uses an isolated branch and preserves the embedding pause.

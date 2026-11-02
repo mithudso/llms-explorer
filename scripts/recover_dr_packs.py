@@ -42,7 +42,7 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
             skipped.append({"run": path.parent.name, "reason": "unresolved claim contradiction"})
             continue
         canonical = None
-        if manifest.get("gate_contract_version") == 2:
+        if manifest.get("gate_contract_version") in (2, 3):
             try:
                 contract = load("recovery_bound_gate", repo / "scripts/research_gate.py")
                 dr.HUB_DIR, dr.RESEARCH_DIR = hub, hub / "research"
