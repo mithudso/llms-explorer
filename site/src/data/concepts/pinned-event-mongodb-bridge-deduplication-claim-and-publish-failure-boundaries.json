@@ -1,0 +1,198 @@
+{
+  "slug": "pinned-event-mongodb-bridge-deduplication-claim-and-publish-failure-boundaries",
+  "concept": "Pinned event-mongodb bridge deduplication claim and publish failure boundaries",
+  "generated": "2026-11-02",
+  "summary": "Source-anchored research for Pinned event-mongodb bridge deduplication claim and publish failure boundaries. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "`Dedup` panics for a nil coordinator or a TTL at or below zero, and uses `DefaultDedupKey` when the key function is nil. For a nonempty key it calls `coord.Claim(ctx, key, ttl)` before `next`; an empty key bypasses the claim and calls `next` directly. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/dedup.go",
+          "note": null,
+          "claimId": "clm:ba795367a8a895e0c971acba881ed86e87a720e8cbb2ea8bd8b16fd6f590e65a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e4ed0794b17f8cb85896962146d6b83da18fcf0abfa13199014cd2f6c134759c"
+          ],
+          "temporal": {
+            "applicability_version": "b112463682d44b0e57d8545e3cdf5d51e112e914",
+            "recorded_at": "2026-11-02T16:50:00+00:00"
+          }
+        },
+        {
+          "text": "The coordinator contract requires atomic claims that expire after TTL and recommends retaining them through the source redelivery window. `MemoryCoordinator` is process-local: it returns false while an existing expiry is in the future, then permits reclaiming an expired key. It does not coordinate separate replicas. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/coordinator.go",
+          "note": null,
+          "claimId": "clm:849f933d0a4ff40250c3feb1b81a8ec8e8266562f17657beb40264fabd845e6b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:268b0071949194851b63e7a2b61f13a1b507c525267fe4e4fcc9691d3f2b539f",
+            "ev:72e5a4f40964beedebee0c4b6fde3d34eba8694df12c55bb48c8f1db39129f79"
+          ],
+          "temporal": {
+            "applicability_version": "b112463682d44b0e57d8545e3cdf5d51e112e914",
+            "recorded_at": "2026-11-02T16:50:00+00:00"
+          }
+        },
+        {
+          "text": "The pinned `Dedup` comments state that exactly one replica per claim window publishes when the coordinator is healthy and the claim TTL exceeds the source redelivery window. The same comments explicitly warn that a crash after claim and before sink publish leaves the claim held until TTL expiry, suppressing redeliveries and losing the event at the sink. These are attributed documentation positions, not an unconditional crash-safe delivery guarantee. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/dedup.go",
+          "note": null,
+          "claimId": "clm:81218e3a2d773065d2427b2e07aeeaa5a749b0b039688191d5a6d443a6ff5c59",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9e116d66312e39bd22640e048ec934aad842c15a19bd88ab8463105c0e7fb16c",
+            "ev:a61d19185dc16b4e3f3e7380bcb07a342975359bf2c429bbd8a2258e9aa0c337"
+          ],
+          "temporal": {
+            "applicability_version": "b112463682d44b0e57d8545e3cdf5d51e112e914",
+            "recorded_at": "2026-11-02T16:52:02.776252+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A coordinator error returns an error by default; the o.FailOpen option instead calls `next`. A false claim without an error invokes o.OnSkip when configured and returns nil without calling `next`. A successful claim calls `next`. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/dedup.go",
+          "note": null,
+          "claimId": "clm:a423f22ebd5047489092030c2c8dbe8fc3ca4d16377684a5f44f7c34ca52a056",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e4ed0794b17f8cb85896962146d6b83da18fcf0abfa13199014cd2f6c134759c"
+          ],
+          "temporal": {
+            "applicability_version": "b112463682d44b0e57d8545e3cdf5d51e112e914",
+            "recorded_at": "2026-11-02T16:50:00+00:00"
+          }
+        },
+        {
+          "text": "The pump composes middleware around `publishTo`, whose terminal action is `sink.Publish`. It passes the pipeline error to `msg.Ack(err)`. Thus a duplicate suppressed with nil is acknowledged without a sink publish; a returned publish error reaches the source acknowledgment path, with redelivery dependent on source support. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/pump.go",
+          "note": null,
+          "claimId": "clm:b9ef03f6d5e0bf2ff4ae10b11bae87ee6a689b12671087109126d67a1cb6a158",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:846f4761090d9a199bc92b78216cb993f73f9583870d059ce661f655ca5a8ce7",
+            "ev:9dd2e403a0a22447517c2ae18e3143b12b494a3ced12959cbda2a2adf10a1214",
+            "ev:d57417b1c6e74117742da620531fe142e38a6d7e64f30e38a5ae6cbdc54851bb",
+            "ev:e4ed0794b17f8cb85896962146d6b83da18fcf0abfa13199014cd2f6c134759c"
+          ],
+          "temporal": {
+            "applicability_version": "b112463682d44b0e57d8545e3cdf5d51e112e914",
+            "recorded_at": "2026-11-02T16:50:00+00:00"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/middleware.go",
+            "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/dedup.go"
+          ]
+        },
+        {
+          "text": "Inference from the pinned control flow: an ordinary downstream publish failure does not release a successful claim in `Dedup`. The pump can nack that failure, but a replay denied by the still-held claim returns nil and can then be acknowledged without retrying the sink publish. This is source analysis, not an executed crash or delivery result. For this pinned MongoDB transport, SupportsRedelivery returns false; a nack does not establish automatic replay. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/dedup.go",
+          "note": null,
+          "claimId": "clm:63b85abecd933f17343bf25a9c6ad5dff9e680c91af213e9f54f5e3b022f5503",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6138b260f6ee557b0d730daa830634639a2eabd14b8721e3fdd02e35842709ce",
+            "ev:846f4761090d9a199bc92b78216cb993f73f9583870d059ce661f655ca5a8ce7",
+            "ev:d1e8138a8f9c71420df109915f671d7da2ae9d0810df4d0f364a8da397dc07c2",
+            "ev:d57417b1c6e74117742da620531fe142e38a6d7e64f30e38a5ae6cbdc54851bb",
+            "ev:e4ed0794b17f8cb85896962146d6b83da18fcf0abfa13199014cd2f6c134759c"
+          ],
+          "temporal": {
+            "applicability_version": "b112463682d44b0e57d8545e3cdf5d51e112e914",
+            "recorded_at": "2026-11-02T16:50:00+00:00"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/middleware.go",
+            "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/pump.go",
+            "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/mongodb.go"
+          ]
+        },
+        {
+          "text": "`DLQFunc` handles a returned downstream error by publishing to its DLQ sink, returning nil on success and the original error if that write fails. Inference: this error path is not proof that DLQ recovers an abrupt process crash between claim and publish; the crash warning and DLQ code must be read separately. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/middleware.go",
+          "note": null,
+          "claimId": "clm:f65e7aa538f26c35ed68b97e0dd36f504291375b327510cdb2742e5374c7bc07",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4e6b54be6fdc09e31bb35b298f978d0fc11c257b2751d0effe03ae66030edeeb",
+            "ev:9e116d66312e39bd22640e048ec934aad842c15a19bd88ab8463105c0e7fb16c"
+          ],
+          "temporal": {
+            "applicability_version": "b112463682d44b0e57d8545e3cdf5d51e112e914",
+            "recorded_at": "2026-11-02T16:50:00+00:00"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/transport/bridge/dedup.go"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "In the pinned adapter, `DedupKeyFromChangeStream` returns `msg.ID()` and returns an empty string for a nil message. Its documentation identifies that ID with the resume token `_data` field, rather than a cluster-time/namespace/document-key tuple. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/bridge.go",
+          "note": null,
+          "claimId": "clm:e9df3ba338ed35aa4b8a062a3ccb24088be0cca37f9ea75f8199a1ceab5e7b09",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7f536587bf8aa5333f45dc30eb054e7c7cdf9e15bae87f91aa69cc71ee75a37a"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:50:00+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "The pinned transport assigns `doc.ID.Data` to `event.ID` and passes `event.ID` to `transport.NewMessageWithAck`. If the token ID is empty, `extractChangeEvent` instead calls `transport.NewID()`; inference: resume-token identity across replicas requires a present token ID. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/mongodb.go",
+          "note": null,
+          "claimId": "clm:0052d2663b3d86fc4c2d188a8fa96c56a48403ff22b43c79d52f920f0f1b42e2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7f536587bf8aa5333f45dc30eb054e7c7cdf9e15bae87f91aa69cc71ee75a37a",
+            "ev:b564940fa20efad2fc1e3f92ff5488256ebdb7adde40e8afb10afba5696f5247",
+            "ev:d1e8138a8f9c71420df109915f671d7da2ae9d0810df4d0f364a8da397dc07c2"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:50:00+00:00"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/bridge.go"
+          ]
+        },
+        {
+          "text": "The pinned key fixture supplies two fake message IDs with matching second, namespace and document key, then checks that their extracted keys differ. It also checks empty IDs and nil messages. The fixture exercises the key function, with a no-op fake `Ack`; it provides no sink-delivery or crash-recovery execution receipt. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/bridge_test.go",
+          "note": null,
+          "claimId": "clm:03577bfb5368446eccda231c050594ad27d64c2ec496435269f374308763081b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:89d8ca19cb8440a3630cd713b4b0abac6fdd4ce33c5e397fe0a89f3870dac0e6"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:50:00+00:00"
+          }
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "2155d2f4bf0b6b0e8fb125d804249ee621d42672614effaba7af5808820a074b",
+  "canonicalConceptId": "concept:cfe9124f3f672eddc6814509e79501d6d2ea80864bb8eed89bf3dca791dfeb05"
+}

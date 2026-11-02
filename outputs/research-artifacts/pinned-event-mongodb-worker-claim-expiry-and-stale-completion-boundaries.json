@@ -1,0 +1,241 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Pinned event-mongodb worker claim expiry and stale completion boundaries",
+  "slug": "pinned-event-mongodb-worker-claim-expiry-and-stale-completion-boundaries",
+  "canonical_concept_id": "concept:19b704add25b4d937f03fc79785c4ab7f48039685c1cefdb83159987202e9783",
+  "canonical_artifact_sha256": "e2318dd67c5ddbba39d54adcca43d1d3ca94cf6e4b439dc900315e247a0594bf",
+  "claims": [
+    {
+      "id": "clm:06d621178dc5dd4bb130b68c35ad7fdf4b0d56b4427bc324de0ce3f304f31a70",
+      "text": "MarkProcessed filters only by `_id`, sets completed status and expiry to now plus s.completionTTL, and calls UpdateOne without upsert or a matched-count check. It does not compare worker identity, processing status, or lease expiry. Code inference: an old worker can complete a replacement claim with the same message ID; completion of a missing document returns nil when the database operation succeeds, without recreating the claim. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b39d06ea987584fc12b7cbe2f33dfbac1ed6ca26f45e6071d8a23d7e468db339"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T16:50:34.878495+00:00"
+      }
+    },
+    {
+      "id": "clm:8521fa98554eb380f8fe5140e14ece9510b45e36c6441c8622e5e28281f967e0",
+      "text": "Acquire uses an upserting find-and-update operation returning the post-update document and returns whether the returned WorkerID matches the newly generated worker ID. Duplicate-key errors return false without error. On `mongo.ErrNoDocuments`, a follow-up read rejects a document whose ExpiresAt is after the captured now; otherwise tryInsert attempts a new processing document, treating duplicate key as non-acquisition. Other database errors propagate. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:a2678364b51c4d775ef96e603d9938d6ae5524748019228ecee71eae2957270d",
+        "ev:ae262d10f4bd40065210aa13e3007465734466f63dd63d807d735fb418148416"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T16:50:34.878492+00:00"
+      }
+    },
+    {
+      "id": "clm:56cfa7326fa75975a48f1507c19cd4052a5b66f3686d74584be91c6decb5440b",
+      "text": "WorkerPoolMiddleware calls the handler directly when the context has no event ID. If Acquire returns an error, it optionally logs a warning, signals AcquisitionAcquired when a signal exists, and returns the handler result directly. These early returns bypass the later payload storage, MarkProcessed, and Reset branches. Failure-open handling therefore does not establish a successful database claim. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/distributed/middleware.go",
+      "also": [
+        "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/distributed/middleware_test.go"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0154713b656b40e5dfe0fdd47155e0abf750f68c317b8b6c48a9967ca7c4863e",
+        "ev:42e369fbfe7a505929ac6549ca4b97d9fe61e5891add6f2315bbee5a073836e8"
+      ],
+      "temporal": {
+        "applicability_version": "event@b112463682d44b0e57d8545e3cdf5d51e112e914",
+        "recorded_at": "2026-11-02T16:50:34.878507+00:00"
+      }
+    },
+    {
+      "id": "clm:d64963b5af1c8b5349b17f7bfb9c119f980366952b4625e5e6ff089d520597f5",
+      "text": "WorkerPoolMiddleware defaults payload storage to false unless explicitly configured; WithBus derives storage from redelivery support and WithPayloadRecovery enables it. After acquisition, storage requires a PayloadStore, nonempty raw payload, and an acceptable size; only a successful StorePayload sets payloadStored. A storage error logs and still proceeds to the handler. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/distributed/middleware.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:22b0a86b5b0bbb98f238c4f3778cfbfc4a4e6fd7e55c698446f7db70f463ea9d",
+        "ev:3a8e3b2ffb631e86b1df1ae7e7e024d7c8f4a8d07afc738ac1380322b84bd733",
+        "ev:9b1604f70dde3c5f83caa080d5e36aa18fe289f681bca1f957d7a43ef5a36d88",
+        "ev:b9a90ae2c167591089d82da942eaea658b1bdf0713a779dda884277cfcf83b11"
+      ],
+      "temporal": {
+        "applicability_version": "event@b112463682d44b0e57d8545e3cdf5d51e112e914",
+        "recorded_at": "2026-11-02T16:50:34.878516+00:00"
+      }
+    },
+    {
+      "id": "clm:7c0d3c6b795556103c9b491900126fc045ba9b8fc0bf61bf0035c384c08fb210",
+      "text": "After a claimed handler succeeds, WorkerPoolMiddleware clears payload if payloadStored (ignoring the clear error), then calls MarkProcessed; a marking error is logged but the middleware still returns the nil handler result. On handler failure it leaves state for recovery when payloadStored, otherwise calls Reset, logs a reset error if present, and returns the handler error. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/distributed/middleware.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:22b0a86b5b0bbb98f238c4f3778cfbfc4a4e6fd7e55c698446f7db70f463ea9d"
+      ],
+      "temporal": {
+        "applicability_version": "event@b112463682d44b0e57d8545e3cdf5d51e112e914",
+        "recorded_at": "2026-11-02T16:50:34.878518+00:00"
+      }
+    },
+    {
+      "id": "clm:ccce21c795fa348a504a38d8475dfe41a2f71ae5f220f620df517dac1247cea4",
+      "text": "The pinned middleware fixtures use mockCoordinator and mockCoordWithPayload test doubles. They assert handler dispatch on acquisition error, skipping on non-acquisition, marking on success, reset on handler failure without stored payload, and preservation without reset when payload was stored. These observations do not execute WorkerPoolMiddleware against MongoStateManager across lease expiry. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/distributed/middleware_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:29739ca3e8950f9cb94032082ddc53eb7ea5f76f15332ccdc74fe12ac63e3cd3",
+        "ev:a9c669d2d767c43bb184034a5f51f6e26c032de5fa927e1a124952b5c5ec22b2",
+        "ev:f1b1ba4f1abcbce9d73b1e46951c365e7a546d7c544920d1853d7b4673d3c056"
+      ],
+      "temporal": {
+        "applicability_version": "event@b112463682d44b0e57d8545e3cdf5d51e112e914",
+        "recorded_at": "2026-11-02T16:50:34.878575+00:00"
+      }
+    },
+    {
+      "id": "clm:b1b9e6734f68a9dc595c7ebab3078b4853e64add18b0a9f9a3cfdee1143046d0",
+      "text": "After an error-free Acquire returning false, WorkerPoolMiddleware signals AcquisitionSkipped when available and returns nil without calling the handler. Successful acquisition signals AcquisitionAcquired and continues. The mock-based NotAcquired fixture asserts that its handler was not called; this is a branch assertion rather than MongoDB execution evidence. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/distributed/middleware.go",
+      "also": [
+        "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/distributed/middleware_test.go"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:29739ca3e8950f9cb94032082ddc53eb7ea5f76f15332ccdc74fe12ac63e3cd3",
+        "ev:35bbb589488f736d28b8816e0b34f975f5e7eaf61d2b12c31e5d7aeaa2542d5e",
+        "ev:69e312bbfe1808d76bfc5498404d1f4f8eb7eb5d7a9277cbb8286d152a16f3ba"
+      ],
+      "temporal": {
+        "applicability_version": "event@b112463682d44b0e57d8545e3cdf5d51e112e914",
+        "recorded_at": "2026-11-02T16:50:34.878513+00:00"
+      }
+    },
+    {
+      "id": "clm:fa9388b407ca33817988d6d103a962a3f6a2c78b79f6bb131eae50dfefc02176",
+      "text": "Bounded code inference: the middleware has no lease-renewal loop around its synchronous handler call, Acquire returns a boolean rather than a claim token, and MongoStateManager completion/reset accept only a message ID. Therefore the inspected implementation and fixtures do not establish end-to-end exclusivity for a handler that outlives its lease. An expired owner may still run while another caller reacquires, and the old completion/reset predicates do not fence that owner. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event/b112463682d44b0e57d8545e3cdf5d51e112e914/distributed/middleware.go",
+      "also": [
+        "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb.go",
+        "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb_integration_test.go"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0154713b656b40e5dfe0fdd47155e0abf750f68c317b8b6c48a9967ca7c4863e",
+        "ev:92612e54cc6ad710349f4deafb24c86031336c75e9f4dd23456e39bc4e48ad50",
+        "ev:9ec079ba18c28fc65c3474568237cbdf1e935d21efee87db34d310a29b256fb9",
+        "ev:a2678364b51c4d775ef96e603d9938d6ae5524748019228ecee71eae2957270d",
+        "ev:b39d06ea987584fc12b7cbe2f33dfbac1ed6ca26f45e6071d8a23d7e468db339"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e; event@b112463682d44b0e57d8545e3cdf5d51e112e914",
+        "recorded_at": "2026-11-02T16:50:34.878581+00:00"
+      }
+    },
+    {
+      "id": "clm:5828d66c0181c424efa0d4a83285c7508aa045745b3f480eea1db7d3dec407b1",
+      "text": "The Acquire method of MongoStateManager matches `_id` plus an alternative: `expires_at` is strictly `$lt` the local `time.Now()`, `status` is released, or status does not exist. It sets processing status, a generated `worker_id`, expiry at now plus ttl, and updated time; creation time is set only on insert. The released-status alternative explicitly handles same-millisecond Reset/reacquisition despite BSON date truncation. Its expiry alternative does not exclude completed documents after their expiry. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4c64dc0ed3d95dc4410784ee10986ecfe4e3ef9e68fc582a4a9b26fbe0675577",
+        "ev:a2678364b51c4d775ef96e603d9938d6ae5524748019228ecee71eae2957270d"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T16:50:34.878424+00:00"
+      }
+    },
+    {
+      "id": "clm:4273f51cab4a37a9b0671918bb9a6c0e878f105281d5a9fbc7bf921831058965",
+      "text": "Reset filters only by `_id`. In regular mode it deletes that document; in capped mode it updates status to released and both expiry and updated time to now. Neither branch checks worker identity or current status. Code inference: a delayed old worker Reset can remove or release a newer claim for the same ID. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:92612e54cc6ad710349f4deafb24c86031336c75e9f4dd23456e39bc4e48ad50"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T16:50:34.878496+00:00"
+      }
+    },
+    {
+      "id": "clm:dbf521a7cffff5828e8ddbf1b1b108d2a3bcf3863a57346b3e31223da456f034",
+      "text": "ListStale selects processing documents with `updated_at` strictly before now minus staleTimeout and optionally limits results; it does not use `expires_at`. ResetStale first lists IDs, then filters only by `_id` in that list for DeleteMany in regular mode or released-status UpdateMany in capped mode. Code inference: the second operation does not recheck staleness, status, or ownership, so an intervening completion or reacquisition is not excluded by its mutation filter. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4853136edc859d3856b6c848ab51ddb149590da3d857ca48b3fe38cf68a1d941"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T16:50:34.878498+00:00"
+      }
+    },
+    {
+      "id": "clm:eb097029fc3a69952ec42fdf89f759f65adbd7f0140e729c4c8dafec3bd6b061",
+      "text": "The pinned integration fixture TestIntegration_ConcurrentAcquire releases a barrier for 20 goroutines to Acquire the same ID with a one-minute lease; it asserts no unexpected errors and exactly one successful Acquire. It exercises acquisition contention, not simultaneous handler execution or completion after lease replacement. These are assertions in fixture source, not an execution-result report. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb_integration_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1ffb90b386ad2bf1695df59188d4ee315bcbb0fb6cde9c9af008c52d4fdf8b24"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T16:50:34.878522+00:00"
+      }
+    },
+    {
+      "id": "clm:61041f2994191d25f4eb4890d846db8ad9bfeb0ea8fc75767976b5d089819bdc",
+      "text": "The pinned TestIntegrationAcquireExpiredLease fixture acquires with `50*time.Millisecond`, sleeps `120 * time.Millisecond`, and expects a new Acquire with time.Minute to succeed. It does not keep an old handler running or invoke its completion after the second acquisition. This source assertion supports expiry reacquisition, not exclusive processing throughout a long handler. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb_integration_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9ec079ba18c28fc65c3474568237cbdf1e935d21efee87db34d310a29b256fb9"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T16:50:34.878527+00:00"
+      }
+    },
+    {
+      "id": "clm:80090a08d067dd24ab148978b60232e0d32f432090f7bda55dd330c1ecc58b9d",
+      "text": "The pinned integration fixtures assert that MarkProcessed with an hour completion TTL blocks immediate reacquisition, Reset permits immediate reacquisition, and ListStale/ResetStale detect and reset two entries using a tiny stale timeout after creating claims with one-minute TTLs. These sequential fixtures do not interleave stale selection with a competing completion or reacquisition. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb_integration_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4d2550f284a8fd6e8cf20d55ce9668a2f77a548555200409d40a01a77e6c7e7e"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T16:50:34.878543+00:00"
+      }
+    },
+    {
+      "id": "clm:d9aaf9e3ab6936030165a7e1dff8652d2830f2a7f8d4d966107eb9743c6002af",
+      "text": "The pinned TestIntegrationCappedCollectionLifecycle fixture creates a capped collection, resets and reacquires a claim, and repeats 50 tight Reset/Acquire cycles. Its stated regression target is BSON millisecond truncation. It does not assert owner-specific reset or completion fencing. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/distributed/mongodb_integration_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:34621aa33a05cc585f20b5a6409b2d105900e60b314e7429cb6449bddf45ba95"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T16:50:34.878550+00:00"
+      }
+    }
+  ],
+  "projection_sha256": "bc0f85066c2dc28495aa3eaae5349bba59ba29525a09519022beb980e034d75c"
+}

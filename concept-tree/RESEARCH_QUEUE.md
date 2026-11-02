@@ -4746,3 +4746,12 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [x] Concept: `Pinned WiredTiger diagnostic page-dump field semantics` | Parent: `Reconciliation and Page Splitting` | Mode: `dr` | CVS: `3.65`
 - [x] Concept: `Pinned unified Node runner cleanup rejection and resource-release isolation` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `3.40`
 - [x] Concept: `Self-managed MongoDB evidence preservation before destructive restore` | Parent: `Security KB Articles` | Mode: `dr` | CVS: `3.90`
+- [x] Concept: `Pinned event-mongodb worker claim expiry and stale completion boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.80`
+- [x] Concept: `Pinned event-mongodb outbox claim recovery and acknowledgment ownership` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.80`
+- [x] Concept: `Pinned event-mongodb resume-token persistence and pending acknowledgment boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.80`
+- [x] Concept: `Pinned event-mongodb bridge deduplication claim and publish failure boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.80`
+- [x] Concept: `Pinned event-mongodb persistent visibility and checkpoint ordering boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.65`
+- [x] Concept: `Pinned event-mongodb document-key coalescing and automatic acknowledgment boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.55`
+- [x] Concept: `Pinned event-mongodb lifecycle record identity and worker ownership observations` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.30`
+- [x] Concept: `Pinned event-mongodb schema version writes and notification failure boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.15`
+- [x] Concept: `Pinned event-mongodb BSON envelope and payload codec boundary contracts` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `2.90`

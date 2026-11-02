@@ -1,0 +1,226 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Pinned event-mongodb outbox claim recovery and acknowledgment ownership",
+  "slug": "pinned-event-mongodb-outbox-claim-recovery-and-acknowledgment-ownership",
+  "canonical_concept_id": "concept:f26fb5fec4ea06d90a16f0e7ef2395b8785243c5e51397af85906cbb58994d8c",
+  "canonical_artifact_sha256": "79fe1627f6779e120d46c536cd11faf65e1a0a0d521e19ceeaa2ef6ad45bcd12",
+  "claims": [
+    {
+      "id": "clm:cd52855534fec4cecabb5d9683ef8da2056d0c215cdc392071f2a8f18ccf9712",
+      "text": "The mongoMessage document declares RetryCount with BSON key `retry_count`. `RecoverStuck` selects processing documents whose `claimed_at` is strictly earlier than the computed cutoff, changes them to pending, unsets `claimed_at` and `claimed_by`, and returns the modified count. Its filter does not check owner identity or owner liveness. Its complete update contains only the status assignment and removal of the claim fields; it does not increment the declared retry counter. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:122f04843f1a60c872f33ba1ad109e0b263a10b5230afc8de97b28ca4cfab26e",
+        "ev:db3492990077d12c62d398a4f9ea9fa286b5a4006482f40630c58c9ca957786c"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:af65fe20dd667e1a7ac5b1128c6e11205710dfb97f43cf192308b6d0fa3f38a1",
+      "text": "In the pinned implementation, `claimBatch` returns no messages when `limit <= 0`; otherwise it finds candidate `_id` values whose `status` is pending or failed, ordered by descending `priority` and ascending `created_at`, with the requested limit. Candidate selection is a read before the claim update. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:e0c1fad90295e3bd6e66c9ac48d162c6f89ee25d0b6d08fe82d827b9b6e4cc67"
+      ],
+      "temporal": {
+        "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:19c002eac3ae51eb1054d9e947c4fad3a6511fa64ecf155ac35376caa4b24986",
+      "text": "Claim readback filters candidate `_id` values by the generated `claimed_by` UUID and repeats the priority/age sort. That fetch has no status predicate. The function does not refill the candidate list after another relay wins documents, so the returned batch may be smaller than the requested limit. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:e0c1fad90295e3bd6e66c9ac48d162c6f89ee25d0b6d08fe82d827b9b6e4cc67"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:799b3387fb5ea6530ccfc37c0ad52e7bc9e97916a94c8ed946286b535c7f86b5",
+      "text": "The Fail method of mongoBatch likewise calls `b.store.collection.UpdateByID` with the ObjectID, sets failed status and `last_error`, and increments `retry_count`. A nil cause produces an empty error string. It supplies no owner or status predicate and does not unset the claim fields. Its Close method returns nil without an operation. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb.go",
+      "also": [
+        "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb_integration_test.go"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:5857714bc76fe7196f3d718fa780cc72ed186b0c53f48da1f0595ca164f8fbdc",
+        "ev:c79e643391ec30b8a95a84209941cac025b517359eae3d89d2055bf3c77ee4a4"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:0f43c8c532716d7fe7e0d00d2d8a9f9862d3b2d4cf0a8abb97163f1544a47e08",
+      "text": "Code-level inference: recovery clears the claim UUID but preserves document identity, whereas Ack and Fail target only the ObjectID with `b.store.collection.UpdateByID`. A message retained by an earlier owner can therefore target the same extant document after recovery and reclamation; these methods contain no current-status or current-owner condition to reject that stale operation. This is a filter-based inference, not an observed race or a production incident. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:122f04843f1a60c872f33ba1ad109e0b263a10b5230afc8de97b28ca4cfab26e",
+        "ev:8c0153c2171337b04f0836d2a2d05ceb891a28f5ed803a7c2a2b1ff17f9c1592",
+        "ev:c79e643391ec30b8a95a84209941cac025b517359eae3d89d2055bf3c77ee4a4",
+        "ev:cf4da29a9abc4bcfdc56a1a134a0dfb74f735395189965ee2c8421f927650b86",
+        "ev:e0c1fad90295e3bd6e66c9ac48d162c6f89ee25d0b6d08fe82d827b9b6e4cc67"
+      ],
+      "temporal": {
+        "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:30cfdf72fb09cb9ee29a73c1e0d8a5fdc4a58198c01b24645efa1766873273b9",
+      "text": "The ordinary Ack fixture asserts published status. The ordinary Fail fixture asserts failed status, a retry count of 1, and the stored error text. Neither fixture interleaves recovery or a successor claim with the acknowledgment. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb_integration_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:45f4a7d00b56fdaa7daef4dfb27de9c2af8ffa730dd1a6f5b485d358e2688136",
+        "ev:80e1ac2c7aacf31f720b4fe58930cdca383470161dc170a20e1d8d976e05806d"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:b5fca71b1b78f40292bfc186c9837e7b8d593acb47ffc21a91da731352a6b213",
+      "text": "The relay fixtures assert eventual published state after polling and live insertion, failed state on a transport error, and two recorded publishes plus two published documents after PublishOnce. Their recording transport records a successful Publish call in memory and returns a configured transport error before recording. These fixture bodies do not simulate a process crash after publish succeeds and before acknowledgment, or an acknowledgment write failure. They do not prove exactly-once external publication across that boundary; these are source assertions, not executed results. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/relay_integration_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:094519f61d8590f0ed969f2e8363496fe36d59cd48930015490806b5d3c69696",
+        "ev:3eb107ec56558a6d277b06677e10d862d4a19cd5729f0a277ba3fcb0ea59bf95",
+        "ev:9198aee0a2b99fda3a080ff364059f01aa98fc74ab5517feccc680070cab3665",
+        "ev:91ee7358c1605f42b866b3154ae472f7b7407e0942891877c02ffa0c09d658fc",
+        "ev:bbe69f9194fa20368ff02289e300033fa396d53844c146581f7c4d9c5018d44a"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:a9dfb308f4ec47b3c0a6a73348458f7fc57dc02c1354f52bbeff3ab7b5d91ff4",
+      "text": "The claim write generates a UUID `claimToken` and uses `UpdateMany` with both candidate `_id` membership and a fresh pending-or-failed `status` predicate. It sets processing status, `claimed_at`, and `claimed_by`. The implementation describes the status check as atomic per document; it does not wrap the candidate read and batch update in one transaction. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7cbd81164a4dfa03c89e9e51a58ede4388b2c31c1bbcc0a37d778376b4e47232"
+      ],
+      "temporal": {
+        "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:0899ab11f7f6b8cc74269a672f5b29f8bc13475bc42d4415b070457cef1a848b",
+      "text": "`toClaimedMessage` stashes the document ObjectID with `evtoutbox.NewClaimedMessage(msg, m.ID)`. The unit fixture `TestMongoMessageToClaimedMessage` explicitly checks that the recovered token has type `bson.ObjectID` and equals the original ObjectID. This is a source assertion, not an executed result. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb.go",
+      "also": [
+        "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb_test.go"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2f685de0cae77003b43cb05460b1e57ce2193362ffdefa70856565266273afea",
+        "ev:cf4da29a9abc4bcfdc56a1a134a0dfb74f735395189965ee2c8421f927650b86"
+      ],
+      "temporal": {
+        "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:5ae256f7c22366e752edcdcb29357e2817be19b2b880820e541d716d4afa1ab0",
+      "text": "The Ack method of mongoBatch requires an ObjectID token and calls `b.store.collection.UpdateByID` to set published status and `published_at`. It checks for a missing match but supplies no claim-owner, claim-age, processing-status, or batch-membership predicate; it does not unset the claim fields. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb.go",
+      "also": [
+        "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb_integration_test.go"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8c0153c2171337b04f0836d2a2d05ceb891a28f5ed803a7c2a2b1ff17f9c1592"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:63e84ea6e28e6dee89001d16ec9240b44144e1fd50bc8073317282505a0bb544",
+      "text": "The fixture `TestIntegrationClaimBatchConcurrencySafe` makes sequential claims and asserts that already-processing messages are not claimed again. Separately, `TestIntegrationConcurrentClaimNoDuplicates` seeds 20 events, launches 5 claiming goroutines, and asserts one observation per event and complete coverage. These are source assertions, not execution results from this research. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb_integration_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:744f6171c382469d8f2caee873fbbce7d4348a83964fd96b1024dac21ff8b318",
+        "ev:d4f5f16bfc1937c511a5712ccf43ca962818c34251ced97d873f242718abb67b"
+      ],
+      "temporal": {
+        "applicability_version": "event-mongodb@ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:86973c6caa4761bbbc3ed1b438752682545cce536299ec0071c3e092fff29348",
+      "text": "`TestIntegrationRecoverStuck` seeds a processing message claimed `30` minutes ago and a freshly claimed processing message, invokes recovery with a `5` minute threshold, and asserts one recovered, one pending, and one processing document. Its assertions do not read back cleared claim fields or exercise a live old owner after recovery. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb_integration_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2da5b18fae435e00dfe65feeb3b5526c9f3aa42cbbe3a4e970f491456b2b4503"
+      ],
+      "temporal": {
+        "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:f1c1a3d28e7ec721a3e9732fed439ff0755ffe42a89d4ee13955e14a7a2bef72",
+      "text": "`TestMongoStoreConformance` delegates to `evtoutbox.RunStoreConformance` with a seed function and a live MongoStore. Its local source says the test skips without reachable MongoDB. The wrapper itself provides no stale-owner or publication/acknowledgment crash assertions, and delegation is not evidence that the external suite passed. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/mongodb_conformance_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7747a2bcb1bb19bf416cfa300826a29cd48e14c34f1ca427a625b160bc23d316"
+      ],
+      "temporal": {
+        "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    },
+    {
+      "id": "clm:1a591feef54c1114421767a5867ab312728738a1abd31b0205004f314f86dc27",
+      "text": "`TestIntegrationRelayRecoverStuckViaStart` seeds an old processing message and configures the generic relay with a `20` millisecond stuck-check interval and a `5` minute threshold. It waits for at least one published document and at least one recording-transport publication. These lower-bound assertions do not establish a single publication or simulate a stale worker completing after recovery. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/outbox/relay_integration_test.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3dde7855ad5cf19f2c1280355bb407c2b61d1ec46abeb57ba19c71b64f7b8de0",
+        "ev:9198aee0a2b99fda3a080ff364059f01aa98fc74ab5517feccc680070cab3665"
+      ],
+      "temporal": {
+        "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+        "recorded_at": "2026-11-02T17:00:00Z"
+      }
+    }
+  ],
+  "projection_sha256": "84887a80a8d33f889145c8d12d857d54943d7c1602b8df8d0a86ee3edeac2f97"
+}
