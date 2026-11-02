@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.93 - 2026-11-02
+
+- TASK-997 merged all ten original PRs (219, 235-242, 250). Resolved code, tree/search projections, npm lockfile and Python requirements conflicts. All final PR heads passed GitHub Actions; optional Cloudflare previews remain externally queued. No production deployment is claimed.
+- Preserved original branch/snapshot commits and all 383 WIP paths in /Users/mitch/dev/worktrees/llms-explorer-local-wip-20261102, with every byte and exact Git status verified. Primary checkout is clean on sync/all-prs-20261102 tracking origin/main. Retained recovery snapshots and stash; original divergent main and other worktrees stay unchanged.
+- Final conflict verification: 197 tests and 12 subtests; full real 25-term privacy scan over 15,127 files; adapter parity and frozen vectors verified. Earlier 299 site tests, full build/publication policy and typecheck passed. Complete receipts and remaining maintenance delivery step: docs/maintenance/pr-merge-2026-11-02/memory.md. No research, inference, embedding or indexing ran; broader research cycles remain unfinished.
+- Delta: memory 0.22.92 to 0.22.93; prompt v79.
+
 ## v0.22.92 - 2026-10-31
 
 - TASK992 prevents a new researched child from silently becoming a root when its named parent exists only in the frontier. The native adapter resolves documented queue/tree ancestry to an existing canonical ancestor. Ambiguous, cyclic and unanchored new placement fails; existing curated placement remains authoritative. Actual both-root integration verifies the held-parent queue is unchanged and no fake researched parent is created. All64isolated research/transport tests plus6subtests and27mirrors pass; Ruff is clean.
