@@ -419,7 +419,7 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False,
                 phase(adapter + ["init", parent, "--slug", slug, "--refresh"])
                 manifest = shared.load_manifest(slug)
             if manifest["status"] != "finalized" or not artifact_gate_current(manifest):
-                strict = manifest.get("gate_contract_version") == 2
+                strict = manifest.get("gate_contract_version") in (2, 3)
                 checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py") if strict else None
                 stages = shared.run_dir(slug) / "checkpoints/stages.json"
                 claim_paths = [shared.run_dir(slug) / "claims" / (c["slug"] + ".json") for c in manifest["concepts"]]
@@ -483,7 +483,7 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False,
             # repeating paid research. This also checks all four website surfaces.
             complete_queue(shared, hub, picked, repo)
             site_command = [sys.executable, str(repo / "scripts/research_site_sync.py"), "--repo", str(repo), "--hub", str(hub), "--apply"]
-            if manifest.get("gate_contract_version") == 2:
+            if manifest.get("gate_contract_version") in (2, 3):
                 checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py")
                 publication_inputs = {"claims": documents, "gate_packet_sha256": manifest["gate"]["packet_sha256"]}
                 checkpoints.run_stage(shared.run_dir(slug) / "checkpoints/stages.json", "local-publication", publication_inputs,

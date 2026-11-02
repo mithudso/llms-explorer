@@ -229,6 +229,7 @@ def canonical_facets(units: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "claimId": unit["id"],
             "validationStatus": unit.get("validation_status", "LEGACY-UNBOUND"),
             "evidenceIds": unit.get("evidence_ids", []),
+            **({"temporal": unit["temporal"]} if "temporal" in unit else {}),
         }
         if unit.get("also"):
             fact["also"] = [scrub_home_path(source) for source in unit["also"]]

@@ -1290,3 +1290,17 @@ projections together and preserve frozen semantic vectors. Local scratch and
 the three vendor mirrors rejected by secret protection stay outside delivery.
 See docs/research/repository-reconciliation-2026-10-26.md for the conflict policy
 and verification scope. Delivery completes after passing checks and merge.
+
+
+# MongoDB full claim validation — 2026-10-31
+
+scripts/claim_validation.py validates every claim in each MongoDB concept pack
+(hub llms-concepts first, then the repository peer pack) against pinned source
+snapshots. Agents return exact quotes; the driver binds offsets and reuses
+research_gate.validate. State lives in ~/.global-ai-hub/concept-tree/claim-validation.json
+and is mirrored to the tree node field claimValidation. Pilot: 2 concepts, 95
+claims, $1.02. The full detached run started 2026-10-31 (Stele TASK-972, KNOW-973).
+
+### 2026-10-22 — Four concept knowledge recommendations (TASK-840)
+
+Implemented prospective full-prose gates, optional temporal claim history, chunk-aware hybrid retrieval and full lexical coverage, and exact embedding/query revision bindings on `codex/knowledge-strategies-implementation-20261022`. See `docs/architecture/concept-knowledge-contracts.md` for compatibility behavior. Existing research receipts remain versioned; frozen vectors remain byte-identical. No embeddings or deployment were performed. Validation evidence is recorded with TASK-840.
