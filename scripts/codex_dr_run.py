@@ -633,6 +633,9 @@ def load_shared(path: Path | None = None):
         subcommands = next(action.choices for action in parser._actions if action.dest == "cmd")
         subcommands['gate'].add_argument('--upgrade-evidence-contract', action='store_true',
             help='explicitly checkpoint and upgrade a resumed legacy run to v4 evidence requirements')
+        for action in subcommands['gate']._actions:
+            if action.dest == 'sample':
+                action.help = 'legacy v2/v3 ordinary sample; v4 reviews all new assertions and reuses validated unchanged judgments'
         for action in subcommands["research"]._actions:
             if action.dest == "model":
                 action.help = "research and scout model (default: gpt-6.1-sol)"
