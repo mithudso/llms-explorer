@@ -701,6 +701,29 @@ class ResearchFlowTests(unittest.TestCase):
             else:
                 self.assertIn("Publication constraint", target.read_text())
 
+    def test_finish_does_not_import_an_unrelated_live_hub_pack(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        artifacts = module_at("test_scoped_finish_artifacts", REPO / "scripts/codex_dr_artifacts.py")
+        lca = module_at("test_scoped_finish_lca", REPO / ".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py")
+        other = copy.deepcopy(self.doc)
+        other["concept"] = "Unrelated concurrent research"
+        pack = self.hub / "llms-concepts/unrelated-concurrent-research.llms"
+        artifacts.compile_claims(lca, pack, other["concept"], "unrelated-concurrent-research", [other], "COMPLETED")
+        before = {p.name:p.read_bytes() for p in pack.iterdir() if p.is_file()}
+        for root in (self.repo, self.hub):
+            path = root / "concept-tree/tree.json"
+            nodes = json.loads(path.read_text())
+            nodes.append({"concept":other["concept"], "slug":"unrelated-concurrent-research",
+                          "parentConcept":None, "childConcepts":[], "skillId":None})
+            path.write_text(json.dumps(nodes))
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        self.assertTrue((self.repo / "site/src/data/concepts/rename-durability.json").is_file())
+        self.assertFalse((self.repo / "site/src/data/concepts/unrelated-concurrent-research.json").exists())
+        self.assertFalse((self.repo / "outputs/llms-concepts/unrelated-concurrent-research.llms").exists())
+        self.assertEqual(before, {p.name:p.read_bytes() for p in pack.iterdir() if p.is_file()})
+
     def test_current_run_refresh_retry_keeps_correction_authority_without_recompiling(self):
         self.research()
         self.artifact_targets()

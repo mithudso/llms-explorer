@@ -1,5 +1,16 @@
 # Memory
 
+## v0.22.96 - 2026-11-02
+
+- Reopened TASK-971 because its historical completion establishes scouting only. Research saturation remains unassessed. TASK-963 remains active; TASK-1010/1011/1012 track saved R3, delivery and frontier.
+- Three saved R3 scopes now pass current v4 all-assertion gates and finalized bounded-scope export: WiredTiger9, Node6 and security11 factual rows. The34 final assertions include summaries and open questions. Reused26 unchanged source-bound judgments and reviewed8 repaired judgments. Preserved all original attempts,120 paid files, duplicate rows and the untested combined security procedure privately. WT comment versus executable-branch conflict remains explicitly attributed.
+- Four independently reviewed complete R1-C scopes export27 accepted factual judgments without new gates or legacy upgrades. All151 earlier completed current gates/artifact bindings remain mechanically valid under their accepted legacy contracts; unsampled statements receive no new verification claim.
+- Fixed v4 reuse so an invalid sibling cannot discard independently valid unchanged judgments. Full packet/envelope/source/coverage/conflict checks still fail closed. Native finish now selects its repository reader slugs, preventing imports from unrelated concurrent live packs. Mirrors and meaningful regressions cover both changes.
+- Controlled publication preserves874 generated preimages and restores875 paths and replaces broad refresh output with7 owned readers. Hub delivery adds those7 and5 already accepted concepts from immutable published site packs. Three prior artifact-bound parent placements apply to both selected trees;3 absent/remediation nodes remain withheld. Hermes unfinished publication remains deferred and private research stays intact.
+- Recovery found4 remaining transferred scopes with preparation only and no paid outputs. Relocated legacy bodies retain exact hashes; current parent drift requires a versioned rebind before first native v4 research. The old runner must not resume unchanged. Other pending exact source/workload gaps remain open.
+- Scout boundary296 unchanged ready bundles,1188 raw proposals/1184 identities grants zero empty-round credit. Preserve461 frozen identities,619 excluded holds,694 reservations, paused October14 suite and concurrent remediation/services. Current nonbillable quota read permits ordinary use; old refusal is superseded. Existing120-second monitor remains sole controller; owned export-pause marker serializes delivery.
+- Remaining: independent projection acceptance, final checks/CI/merge, selected plan reconciliation, four rebound author scopes and other viable gap repairs. Continue frontier checks to two evidence-grounded empty rounds and independent saturation, or an actual external blocker. Stele transport closed after lifecycle writes; defer graph reconciliation explicitly. Delta:0.22.95 to0.22.96; prompt82.
+
 ## v0.22.95 - 2026-11-02
 
 - TASK-1003 retry preserves PR256 and canonical PR65. CodeQL-safe identifier scanning now keeps complete dotted tokens; all 188 focused tests and six subtests pass. CFE evidence guidance follows its overview, so generated tree matches committed bytes again.

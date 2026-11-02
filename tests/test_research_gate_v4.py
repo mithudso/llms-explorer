@@ -136,6 +136,54 @@ def test_supported_judgments_survive_dissent_and_later_preflight_failures(case):
     assert [row['claim_id'] for row in current['reused_verdicts']] == [packet['claims'][0]['claim_id']]
 
 
+@pytest.mark.parametrize('corruption', ['missing-identifier', 'wrong-quote', 'wrong-hash', 'wrong-text'])
+def test_valid_sibling_survives_an_invalid_returned_judgment(case, corruption):
+    shared, manifest, doc, root = case
+    doc['claims'].append({**doc['claims'][0], 'text':'The cursor field includes pinned cursors.'})
+    old = root / 'gate/attempts/first'
+    packet = gate.prepare(shared, manifest, old, 0, 0)
+    verdicts = response(packet)
+    bad = verdicts['verdicts'][0]
+    if corruption == 'missing-identifier':
+        source = bad['evidence'][0]['quote']
+        bad['evidence'][0].update(start=source.index('field counts'), quote=source[source.index('field counts'):])
+    elif corruption == 'wrong-quote': bad['evidence'][0]['quote'] += ' invented'
+    elif corruption == 'wrong-hash': bad['evidence'][0]['snapshot_sha256'] = 'false'
+    else: bad['text'] += ' silently substituted'
+    with pytest.raises(ValueError):
+        gate.validate(packet, verdicts, old)
+    partial = gate.validate(packet, verdicts, old, allow_partial=True)
+    assert not partial['validated'] and not partial['all_supported']
+    assert partial['rejected_judgment_ids'] == [packet['claims'][0]['claim_id']]
+    (old / 'verdicts.json').write_text(json.dumps(verdicts))
+    (old / 'validation.json').write_text(json.dumps({'validated':False, 'is_error':True,
+                                                  'packet_sha256':packet['packet_sha256']}))
+    current = gate.prepare(shared, manifest, root / 'gate/attempts/repaired', 0, 0)
+    assert [row['claim_id'] for row in current['reused_verdicts']] == [packet['claims'][1]['claim_id']]
+    assert 'reused_conflict_review' not in current
+    doc['claims'][1]['text'] = 'Changed source claim needs its own review.'
+    assert gate.prepare(shared, manifest, root / 'gate/attempts/changed', 0, 0)['reused_verdicts'] == []
+
+
+@pytest.mark.parametrize('corruption', ['packet-hash', 'response-hash', 'duplicate-id', 'missing-conflict-review'])
+def test_partial_reuse_still_rejects_broken_packet_or_response_envelope(case, corruption):
+    shared, manifest, doc, root = case
+    doc['claims'].append({**doc['claims'][0], 'text':'Open cursors include pinned cursors.'})
+    old = root / 'gate/attempts/first'
+    packet = gate.prepare(shared, manifest, old, 0, 0)
+    verdicts = response(packet)
+    if corruption == 'packet-hash': packet['coverage']['total_claims'] += 1
+    elif corruption == 'response-hash': verdicts['packet_sha256'] = 'false'
+    elif corruption == 'duplicate-id': verdicts['verdicts'][1] = copy.deepcopy(verdicts['verdicts'][0])
+    else: verdicts.pop('conflict_reviewed_claim_ids')
+    (old / 'packet.json').write_text(json.dumps(packet))
+    (old / 'verdicts.json').write_text(json.dumps(verdicts))
+    (old / 'validation.json').write_text(json.dumps({'validated':False, 'is_error':True,
+                                                  'packet_sha256':packet['packet_sha256']}))
+    current = gate.prepare(shared, manifest, root / 'gate/attempts/repaired', 0, 0)
+    assert current['reused_verdicts'] == []
+
+
 def test_unchanged_failed_gate_refuses_another_paid_call_and_repairs_review_only_changed_claim(case):
     shared, manifest, doc, root = case
     doc['claims'].append({**doc['claims'][0], 'text':'Open cursors include pinned cursors.'})
@@ -173,7 +221,7 @@ def test_unchanged_failed_gate_refuses_another_paid_call_and_repairs_review_only
 
 
 def test_conflict_ledger_blocks_even_when_each_source_supports_its_claim(case):
-    shared, manifest, doc, root = case
+    shared, manifest, _doc, root = case
     packet = gate.prepare(shared, manifest, root / 'attempt', 0, 0)
     verdicts = response(packet)
     verdicts['conflicts'] = [{'claim_ids':[packet['claims'][0]['claim_id']], 'resolution':'unresolved',
@@ -207,7 +255,7 @@ def test_literal_boundaries_preserve_sentence_punctuation(case, statement, sourc
 
 
 def test_format_retry_budget_cannot_be_reset_by_repeating_the_command(case):
-    shared, manifest, doc, root = case
+    shared, manifest, _doc, root = case
     shared._create_run = lambda *args, **kwargs: manifest
     shared.load_manifest = lambda slug: manifest
     shared.save_manifest = lambda value: None
