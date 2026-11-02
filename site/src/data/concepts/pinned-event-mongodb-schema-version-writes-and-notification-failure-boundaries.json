@@ -1,0 +1,199 @@
+{
+  "slug": "pinned-event-mongodb-schema-version-writes-and-notification-failure-boundaries",
+  "concept": "Pinned event-mongodb schema version writes and notification failure boundaries",
+  "generated": "2026-11-02",
+  "summary": "Source-anchored research for Pinned event-mongodb schema version writes and notification failure boundaries. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "The read-check-replace sequence is not a database compare-and-swap on the version: `Get` reads by `_id`, while `p.collection.ReplaceOne` filters only by `_id`. Inference from those predicates: a concurrent writer can replace the record between the check and replacement, so this method alone does not establish atomic monotonic version enforcement. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb.go",
+          "note": null,
+          "claimId": "clm:1bc48f2ac2b74af9c269694582a3f7fff05de34855c514979584816d7413b8fb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:eea784404a832b31a5b3ac51f613e43ed5539ca555dcf17526268bba6d5f80ed"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:57:00.189315+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "In the pinned implementation, `Set` calls `schema.Validate()` before checking whether the provider is closed. It then calls `p.Get(ctx, schema.Name)` and returns its error. The downgrade predicate is `existing != nil && schema.Version < existing.Version`; equal versions are permitted. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb.go",
+          "note": null,
+          "claimId": "clm:d94527638ae20f0e1f2593c36dbfaaccacd3faade11fa4e6218082d98aa72f4e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d00c831ea5eacd7e67c6955aa7a70900ffe2aff8783e2f89f2692133b8417c7c"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:57:00.189245+00:00"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb_test.go"
+          ]
+        },
+        {
+          "text": "After the version check, `Set` converts the supplied schema, assigns `m.UpdatedAt` from `time.Now()`, assigns `m.CreatedAt` for a new record or preserves the existing value, and calls `p.collection.ReplaceOne` with only `_id` in the filter and `options.Replace().SetUpsert(true)`. A replacement error returns before notification. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb.go",
+          "note": null,
+          "claimId": "clm:73e8ebd5a6cc95cf2c87d69deedf816c9aea119744fbee5611c4ac7c79f6adce",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d00c831ea5eacd7e67c6955aa7a70900ffe2aff8783e2f89f2692133b8417c7c"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:57:00.189306+00:00"
+          }
+        },
+        {
+          "text": "After a successful replacement, Set constructs a SchemaChangeEvent from Name, Version and the same timestamp, attempts local watcher sends under an RLock using select with a default branch, releases the lock, and invokes a non-nil publisher. A channel that cannot accept the send loses that notification without an error from this loop. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb.go",
+          "note": null,
+          "claimId": "clm:f34269e2f0ea23e158fb2819b6362297fda2f59a08a8a17cd2d4a331b6e00c5d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d00c831ea5eacd7e67c6955aa7a70900ffe2aff8783e2f89f2692133b8417c7c"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e"
+          }
+        },
+        {
+          "text": "A publisher error is returned directly from Set after the replacement and local watcher-send attempts; the method contains no rollback, retry or persisted pending-notification operation for that error path. This is a source-level control-flow observation, not an executed failure test. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb.go",
+          "note": null,
+          "claimId": "clm:74a9bd1b8c686b7e6708d7430b819e33c5972835f8875d439dce99ae98a0dce6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d00c831ea5eacd7e67c6955aa7a70900ffe2aff8783e2f89f2692133b8417c7c"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e"
+          }
+        },
+        {
+          "text": "Coverage limit of the two inspected pinned schema test files: neither contains a concurrent version-write assertion, a failing publisher callback scenario, watcher buffer saturation, crash recovery, or durable notification replay. The inspected success fixtures therefore do not establish atomic concurrent-version enforcement or durable notification delivery. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb_integration_test.go",
+          "note": null,
+          "claimId": "clm:c7eeadd55668404210f7bb08553d8d01e11ba42b2e2f17c842e92fd60f0d1820",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:38c8b868befb5fc3a7b0ef4a57e7e75f8f29371c6f1402a36997a0828f37b9d0",
+            "ev:ef0114ee0a834baa027358a6228f8845353c163eda5bbd75626d4ab91a1c0249"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:57:00.189346+00:00"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb_test.go"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "`Delete` checks the closed flag and calls `p.collection.DeleteOne` using `_id`; it wraps database errors and otherwise returns nil without inspecting the deletion count. Unlike `Set`, its body does not send to local watchers or invoke the publisher. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb.go",
+          "note": null,
+          "claimId": "clm:e5d9340ce00017f2728d2e1f5c748325c747a528789031c160024fee06cb1f44",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ceed14e316bd676304b8d5a489f72af48fa174d3e09f7e63156309fd554f9880",
+            "ev:d00c831ea5eacd7e67c6955aa7a70900ffe2aff8783e2f89f2692133b8417c7c"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:57:00.189318+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "`Watch` rejects a closed provider, creates a local channel with capacity `100`, appends it to `p.watchers`, and starts a goroutine that waits for context cancellation or `p.closeChan`. The goroutine removes the channel under the mutex and closes it. This method does not open a MongoDB change stream or replay persisted notifications. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb.go",
+          "note": null,
+          "claimId": "clm:8fbff987b79f5344412764e69a79193c37410c5aa372e69aef21208cfbde2e5f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:404ec1e4cd96b06308a9c16d39ef1737ca3543c904818926cdad4202e5a4f353"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:57:00.189319+00:00"
+          }
+        },
+        {
+          "text": "As source observations, the sequential `TestIntegrationSetVersionDowngrade` fixture sets version `5`, expects `ErrVersionDowngrade` for version `3`, permits another version `5`, and permits version `6`. `TestIntegrationSetPreservesCreatedAt` asserts preserved creation time and advancing update time after sequential writes. These assertions are not execution results from this research pass. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb_integration_test.go",
+          "note": null,
+          "claimId": "clm:6f5dea21fbc28f34d38266813ca2a7e1cb71a0a1596deb1f83113686de4cedf4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9c81aeddabc7417cac709fd4b405c026676e17f0b1703ff24a14e927c169723b"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:57:00.189325+00:00"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb.go"
+          ]
+        },
+        {
+          "text": "As source observations, `TestIntegrationSetGetDelete` checks a missing record, writes a schema, checks retrieved fields and nonzero timestamps, deletes it, and expects a missing record afterward. The unit fixtures separately assert closed-provider guards and rejection of an empty schema name before server interaction; they do not execute those integration operations. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb_integration_test.go",
+          "note": null,
+          "claimId": "clm:dce30a69b64de079bb0cee8c747e5bb892b48d8396c902440744db4c4775c541",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1b0b8cb77317c988e1d64ddf9c6330a6249ce0ac2bba3160f9c6a766fe1ebb78",
+            "ev:1b49efb1bd7116ee1d0b8c7691bdea0a607d57e5a5f59e945c7eb3ca3ba2ffb5",
+            "ev:dc731350f3df3b9dcd0ccdbed604f5410cb1477c21c428dd2c7a986f09a6ce78"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:57:00.189334+00:00"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb_test.go"
+          ]
+        },
+        {
+          "text": "The success-path fixture `TestIntegrationPublisherInvokedOnSet` asserts one callback invocation with event name `evt` and version `2`. `TestIntegrationWatchReceivesChange` uses a nil publisher, asserts a local notification for `watched` at version `7`, and checks channel closure after cancellation. These are fixture assertions, not observed test outcomes. (low confidence)",
+          "source": "https://raw.githubusercontent.com/rbaliyan/event-mongodb/ca444aedec31e7e959c0932a8f7577c15312f37e/schema/mongodb_integration_test.go",
+          "note": null,
+          "claimId": "clm:47b5601f96fc697f6e24a29fbe700fd7e098fd68c1b0acd3704e8ef8fb62e577",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a064ddefa43bba105b30678714232d535e8ffb20f78b0bfb4b34f44811b6c837"
+          ],
+          "temporal": {
+            "applicability_version": "ca444aedec31e7e959c0932a8f7577c15312f37e",
+            "recorded_at": "2026-11-02T16:57:00.189340+00:00"
+          }
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "1208fb047599ae7c4c36bba26bfab80821be405273584508bc7ce64f12c33838",
+  "canonicalConceptId": "concept:b07d96fa52eccb3465316c162e37eb85bd86b3c0c0499dbd283a39356be8f598"
+}
