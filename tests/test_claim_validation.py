@@ -393,3 +393,10 @@ def test_leased_prior_validation_survives_release_and_expiry(hub, monkeypatch):
     cv.claim_batch(hub, cv.DEFAULT_ROOT, 1, "third")
     _, packet, parts = cv.prepare(hub, row, lib=lib)
     assert len(packet["reused_verdicts"]) == 4 and sum(map(len, parts)) == 3
+
+
+def test_brief_requires_every_clause_and_relationship_across_cited_files():
+    assert 'file or files, considered together, establish the entire claim' in cv.BRIEF
+    assert 'every asserted relationship and compatible version, edition and time scope' in cv.BRIEF
+    assert 'Separate keyword\n  matches do not establish a relationship' in cv.BRIEF
+    assert 'Do not invent causal links, temporal joins or guarantees' in cv.BRIEF
