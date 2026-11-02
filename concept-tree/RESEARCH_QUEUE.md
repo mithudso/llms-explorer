@@ -4735,3 +4735,6 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Pinned AKO expired AtlasDatabaseUser reconciliation and unmanage lifecycle` | Parent: `Atlas RBAC` | Mode: `dr` | CVS: `3.90`
 - [ ] Concept: `Pinned Compass stage-preview cancellation before aggregate dispatch` | Parent: `MongoDB Compass` | Mode: `dr` | CVS: `3.60`
 - [ ] Concept: `Pinned Compass preview cap injection and collection-count guard` | Parent: `Compass aggregation preview sampling versus full pipeline execution` | Mode: `dr` | CVS: `3.15`
+- [ ] Concept: `Atlas log-export replay destination changes and failure-state observations` | Parent: `Atlas External Log Sink to GCS` | Mode: `dr` | CVS: `3.45`
+- [ ] Concept: `Pinned balancer scheduler cancellation versus shard draining intent` | Parent: `Shard draining cancellation, status and commit protocol` | Mode: `dr` | CVS: `3.40`
+- [ ] Concept: `Pinned event-mongodb transaction context and checkpoint write boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.25`
