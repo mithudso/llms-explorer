@@ -4755,3 +4755,6 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [x] Concept: `Pinned event-mongodb lifecycle record identity and worker ownership observations` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.30`
 - [x] Concept: `Pinned event-mongodb schema version writes and notification failure boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.15`
 - [x] Concept: `Pinned event-mongodb BSON envelope and payload codec boundary contracts` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `2.90`
+- [x] Concept: `Pinned event-mongodb payload recovery republishing and reset exclusion boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.80`
+- [x] Concept: `Pinned event-mongodb outbox relay failure accounting and retry exhaustion boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.80`
+- [x] Concept: `Pinned event-mongodb monitor acquisition signals and completion caller boundaries` | Parent: `Change Data Capture Patterns` | Mode: `dr` | CVS: `3.55`
