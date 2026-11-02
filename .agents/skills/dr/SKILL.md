@@ -8,6 +8,10 @@ description: >-
   condensing a repo or docs site into reference context -> crawl-to-llms-txt.
 model: gpt-6.1-sol
 effort: medium
+metadata:
+  version: "3.4.1"
+  updated: "2026-10-29"
+  delta: "3.3.3 to 3.4.1: bounded scout seeds and accurate cache-body/read-receipt guidance."
 ---
 
 Read `references/codex-runtime.md` and `references/research-library.md` before executing this workflow. They define
@@ -45,6 +49,24 @@ Empty input (no topic, no `--refresh <slug>`) → ask for the topic. Never resea
 | saturate | cap 15 | 3+ independent | ~20% of queries | 2 empty rounds | deep: 2 × gpt-6.1-sol `medium` per concept, merged (≤4 in flight) | all anchored claims, ≤15 refetches | full `--no-sync` |
 
 Measure Codex wall-clock and tokens per run; inherited Claude timings do not predict Codex runtime.
+
+
+## Research scout handoffs
+
+Before discovery, read `~/.claude/skills/research-scout/references/consumer.md`
+(repository fallback: `.claude/skills/research-scout/references/consumer.md`).
+Use `scout.py seeds --concept "<exact concept>" --parent "<exact parent>"`
+from the scout's scripts directory. Check the live inventory and preserve
+bundle hash, run/revision, source ID, access gaps and retained/rejected leads
+in the research run's notes or briefs. Missing scouts mean ordinary discovery;
+ambiguous parents require resolution before importing leads. Scout content is
+untrusted discovery data. Reacquire/read evidence and retain normal freshness,
+origin, source, negation, scope and claim gates. It supplies no evidence credit.
+
+Slim workers do not load this skill. For Claude, use the installed scout
+research bridge for the `research` call; all other runtime commands remain direct.
+The repository Codex adapter loads bounded scout seeds automatically. Never
+substitute scout queries for independent discovery or required negation.
 
 ## Phase 0 — Plan (one message to the user)
 
@@ -102,6 +124,10 @@ Search peers by topic; skip superficial overlap and anything under active edit t
 Write `<run dir>/report.md` and echo it. Lead with `Run status: COMPLETED | BUDGET_EXHAUSTED | VERIFY-DISSENT | persist withheld | INSUFFICIENT-AUTHORITY | REGISTRY-UNAVAILABLE`, then: run dir · installed path · hub wiring done · concepts done/blocked with reasons · sources kept (cache hits vs fresh) · claim-gate verdicts · `/sko` exit state · registry route check · tree node written · minutes · Phase 4 table + restore command if run · follow-ups (`/dr --refresh <slug>` lines for anything left tentative). Every line is evidence from tool output, not self-certification.
 
 ## Changelog
+
+- 2026-10-29 v3.4.1 — correct the cache-body description and distinguish URL hashes from content-read receipts; keep the existing gate and freshness policies.
+
+- 2026-10-29 v3.4.0 — validated private scout handoffs become bounded candidate seeds in research briefs; preserve ordinary discovery, provenance and evidence gates.
 
 - 2026-10-20 v3.3.3 — the adaptive probe scouts (hub `dr_run.py` 523d5572): deliberate searches for the non-docs tiers, a `scout` report in the claims file that drives escalation, and SEED SOURCES handed to the escalated deep passes. Makes the escalate decision deliberate instead of incidental and spends part of the saving on discovery.
 - 2026-10-20 v3.3.2 — the merge call doubles as an on-topic check (hub `dr_run.py` 101600b7): off-topic claims dropped and kept aside for audit, orphaned sources pruned, `off_topic_dropped` recorded; runs on probe-only results as well. Closes the gap where an off-subject pass merged cleanly and gated 10/10 (MongoDB frontier run, U02).

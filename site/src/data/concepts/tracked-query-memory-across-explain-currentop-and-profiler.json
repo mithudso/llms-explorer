@@ -1,0 +1,162 @@
+{
+  "slug": "tracked-query-memory-across-explain-currentop-and-profiler",
+  "concept": "Tracked query memory across explain, currentOp and profiler",
+  "generated": "2026-10-29",
+  "summary": "Source-anchored research for Tracked query memory across explain, currentOp and profiler. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The inspected master implementation of CurOp::setMemoryTrackingStats raises its stored peak only when a larger value arrives, then updates current in-use bytes. It writes peak first to maintain peak >= in-use. This is implementation evidence, not verification of every release branch. (low confidence) (verified as of 2026-10-27)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/curop.cpp",
+          "note": null,
+          "claimId": "clm:b4ae8c24c565cdcbb78625b7f99a5a31e6304e365dc25957b98cd74e970dedee",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:eacc7b59509fd374ea0d864fbde4d1cfd9866b15da504425a64d2262335e11ec"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "MongoDB 8.3 introduces inUseTrackedMemBytes and peakTrackedMemBytes in profiler output. They describe current tracked bytes and maximum tracked bytes, respectively. Release coverage also places query-memory tracking in currentOp and slow-query logs. (high confidence) (verified as of 2026-10-27)",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null,
+          "claimId": "clm:e43118532922378f91f391f815f6f8133f8b48a6299b9c1ce46bc7a09fa85bf5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2da3df22771182b9cb0043e29f4113d8463918b638da387df07c61d586ed0a57",
+            "ev:961328e6b0a1fab84868aa6ddf3cf118ce718944649d73882bf18efa703b075f"
+          ]
+        },
+        {
+          "text": "MongoDB recommends the $currentOp aggregation stage over the deprecated currentOp command and db.currentOp() method; run the stage first in a pipeline on the admin database. On mongos, localOps:true inspects the router, while false inspects shard operations. (low confidence) (verified as of 2026-10-27)",
+          "source": "https://www.mongodb.com/docs/v8.3/reference/operator/aggregation/currentop/",
+          "note": null,
+          "claimId": "clm:eaddae0f133aa6daafc7f88a7c35cd32f402b4fa1c306143afdee332f46ff362",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5a2c20c3d9194f7d51aa7bb47a8f02b824ab35199d36bac65eeb69a12476f8bf",
+            "ev:6df67e71052a4a6ecb3381e3032868b9fbc7ec8941c79defd4f611bd3207d0f7",
+            "ev:d29a04633ab0ed9260201b378cc09213975bd78bce3d44983ff79646676c2d74"
+          ]
+        },
+        {
+          "text": "Zero tracked bytes cannot establish zero memory consumption: SERVER-133136 describes specific internal DBDirectClient bucket-reopening reads with no blocking stages, no OperationMemoryUsageTracker and zero tracked bytes. This is a scoped implementation observation; the issue lists no affected or fix versions. (low confidence) (verified as of 2026-08-10)",
+          "source": "https://jira.mongodb.org/browse/SERVER-133136",
+          "note": null,
+          "claimId": "clm:280cab23349727be312786b655a1169c9f0d6abbe6140ede94fd16bd1af2fcc0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:71efce1a070cd8b4c1284b33d26ad4a27e3621b68d7e5611ee21d6d41cf7d327",
+            "ev:fad179e504802d8ef191d64cb5d93c1320a963cf79123650ca5a499a8c8796a1"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "The profiler fields system.profile.inUseTrackedMemBytes and system.profile.peakTrackedMemBytes have the same current-versus-maximum definitions as the live $currentOp fields, enabling comparison of those measurements across the two diagnostic surfaces. (medium confidence) (verified as of 2026-10-27)",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null,
+          "claimId": "clm:cbf79862640a156df22a8c78502032fb54653eceab6b58df4bfc6c218db54dc4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:34f952bc8c8615a9060dd26daa29a2afd32a83765d764f1088bd7539904802ec",
+            "ev:961328e6b0a1fab84868aa6ddf3cf118ce718944649d73882bf18efa703b075f"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB 8.3 explain.executionStats.peakTrackedMemBytes reports the whole-query tracked-memory peak and explain also reports blocking-stage peaks. With one blocking stage, the documented query and stage peaks are equal. (low confidence) (verified as of 2026-10-27)",
+          "source": "https://www.mongodb.com/docs/v8.3/reference/explain-results/",
+          "note": null,
+          "claimId": "clm:6219a762ec3cc1f37b25ce38b653c3776cdc9d616bb4bad04d47a26a0bbd525a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:085da2f767715bcebab5089b4f844cce43adff6a1530f4918d582aa9758fc43c"
+          ]
+        },
+        {
+          "text": "A diagnostic workflow can compare live currentOp memory with captured profiler memory, then use executionStats explain to locate blocking-stage peaks. This is a synthesis of documented surfaces, not evidence of an automatic correlation service or identical replay. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null,
+          "claimId": "clm:f5c000baa3490573d9206faddb2cf39e8b1da9c5e416e5a0aaee710b9fe94aa9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:085da2f767715bcebab5089b4f844cce43adff6a1530f4918d582aa9758fc43c",
+            "ev:961328e6b0a1fab84868aa6ddf3cf118ce718944649d73882bf18efa703b075f",
+            "ev:bd5f5ee3264553b762aa213d3d068ddd344f1797418a71d78922ceaea7b7e2ae"
+          ]
+        },
+        {
+          "text": "Treat explain as a separate experiment: it ignores the plan cache and does not cache its winning plan. planCacheShapeHash groups plan-cache query shapes; matching hashes do not prove two observations belong to one execution. (medium confidence) (verified as of 2026-10-27)",
+          "source": "https://www.mongodb.com/docs/v8.3/reference/explain-results/",
+          "note": null,
+          "claimId": "clm:99392bb8f4d4ffd7bc87b58ff1ffe060144b5be9c0779025d6d42562024af669",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:37436d0a912a3de896a4e8ed1c1dd05891087538083c7f0cd1d6aa41e0c1721d",
+            "ev:3d74731bc1d6636902798473ca3e180bb2be615e5e14cdbd37c0ff2bf39b10a2"
+          ]
+        },
+        {
+          "text": "SERVER-104648 separately adds memory statistics to QueryStats. It is marked Fixed with fix version 9.0.0-rc0 and requests peakTrackedMemBytes aggregation across shards and mongos. The 8.3 profiler/explain feature alone does not establish QueryStats support in 8.3. (low confidence) (verified as of 2026-09-25)",
+          "source": "https://jira.mongodb.org/browse/SERVER-104648",
+          "note": null,
+          "claimId": "clm:b16612758d1ced5f60bdbb172d93f196b8c8a352270b1d965d57b7e5818c5177",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6ac32607609fec78c6d572b98b68ec6f5a794796b3856121f1f32849c972f9ae"
+          ]
+        },
+        {
+          "text": "MongoDB explicitly documents both memory fields in $currentOp, db.currentOp(), profiler output and log messages; it separately lists peakTrackedMemBytes for explain results, PlanCache.list() and $planCacheStats. (medium confidence) (verified as of 2026-10-27)",
+          "source": "https://www.mongodb.com/docs/v8.3/release-notes/8.3/",
+          "note": null,
+          "claimId": "clm:ed479058cb733499fd182a14e43e9098d5eba74450e7c92e50ea8028cd556cdc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2da3df22771182b9cb0043e29f4113d8463918b638da387df07c61d586ed0a57"
+          ]
+        },
+        {
+          "text": "Percona's July 30, 2026 announcement lists query memory tracking among the observability features of its own Percona Server for MongoDB 8.3 Technical Preview. The announcement's preview status is historical, not a claim about its current production status. (low confidence) (verified as of 2026-07-30)",
+          "source": "https://www.percona.com/blog/percona-server-for-mongodb-8-3-technical-preview-is-now-available/",
+          "note": null,
+          "claimId": "clm:4d871ac7eb8733020a3a973d145a5b202a191dedf7781cc49d362c1672e018f9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0e40466eeb9c5088962e712994577bb1e8fcf2fa8b0f3b089a990037e1178278",
+            "ev:bd5f5ee3264553b762aa213d3d068ddd344f1797418a71d78922ceaea7b7e2ae"
+          ]
+        },
+        {
+          "text": "Alibaba's ApsaraDB for MongoDB 8.3 documentation lists per-operation memory tracking and describes inUseTrackedMemBytes as current memory and peakTrackedMemBytes as peak memory. Its broad field-placement summary should be scoped using MongoDB's more explicit surface-by-surface documentation. (medium confidence) (verified as of 2026-09-10)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/product-overview/features-of-mongodb-8-3",
+          "note": null,
+          "claimId": "clm:60ef2c35f1cfd75c1b2d2c2eb02c770eb2e144030f6470cfff9451dc8b2ca3b7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2da3df22771182b9cb0043e29f4113d8463918b638da387df07c61d586ed0a57",
+            "ev:6e3b2891157954d7054cd23208472a86a0c7bee1e012868ddd49779a7bcd6013",
+            "ev:de31446040e1452e8e82b3b0d35e32385873807fbffcdb6ca9bad88026d8646e"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "e20ab4be97f16ff5a9be7d01fbb7bae22b5b90069d846239909025f12b8c3be5",
+  "canonicalConceptId": "concept:1fc084487fd7fa28c32d9b413d57075b2e7ec9f53d1a16106e90035778b7c0bb"
+}
