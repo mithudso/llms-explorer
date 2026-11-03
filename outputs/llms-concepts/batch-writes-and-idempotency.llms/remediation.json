@@ -1,0 +1,708 @@
+{
+ "schema": "claim-remediation/v1",
+ "applications": [
+  {
+   "slug": "batch-writes-and-idempotency",
+   "at": "2026-11-02T08:40:07Z",
+   "pack": "outputs/llms-concepts/batch-writes-and-idempotency.llms",
+   "packSha256Before": "8b0c652b39a310e3d7f596e289fe059012a60883bcf4a901563b6e883ad12e4e",
+   "edits": [
+    {
+     "claim_id": "clm:5523da502ee5573611669fe97910412c94b85cba7c3166995e3f9d4353cc4cb3",
+     "unit_id": "clm:d16cfc5e964522b185ccb192c582bf65ee535cee11cbddad6de9ee3c570cf8dc",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Spark task retries and MongoDB driver retryable writes are separate mechanisms. Spark's `spark.task.maxFailures` setting allows a failed task to be attempted again, while MongoDB retryable writes cover a documented set of acknowledged operations after network errors or primary elections, usually with one retry. Driver retryability alone therefore does not guarantee idempotency when a Spark task re-executes writes that already reached MongoDB. (medium confidence) (verified as of 2026-07-14)",
+     "new": "Spark task retries and MongoDB driver retryable writes are separate mechanisms. Spark's `spark.task.maxFailures` setting allows a failed task to be attempted again, while MongoDB retryable writes cover a documented set of acknowledged operations after network errors or primary elections, usually with one retry. Driver retryability alone therefore does not guarantee idempotency when a Spark task re-executes writes that already reached MongoDB. (medium confidence) (verified as of 2026-07-14) Sources: https://spark.apache.org/docs/latest/configuration.html ; https://www.mongodb.com/docs/manual/core/retryable-writes.md ; https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://spark.apache.org/docs/latest/configuration.html",
+       "quote": "Number of continuous failures of any particular task before giving up on the job.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/retryable-writes.md",
+       "quote": "Retryable writes let drivers retry specific write operations once after network errors or if they cannot find a healthy",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/retryable-writes.md",
+       "quote": "MongoDB retries the following operations if they have acknowledged write concern",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/retryable-writes.md",
+       "quote": "By default, MongoDB retries writes **once**.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+       "quote": "From Spark’s perspective this is correct behaviour, but MongoDB has no idea it’s a “retry”, it just sees another insert.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Spark task retries and MongoDB driver retryable writes are separate mechanisms; spark.task.maxFailures allows a failed task to be attempted again.",
+       "outcome": "VERIFIED",
+       "note": "Spark config describes task failure count before giving up; retryable writes are a driver/server feature.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB retryable writes documentation"
+        ],
+        "urls": [
+         "https://spark.apache.org/docs/latest/configuration.html",
+         "https://www.mongodb.com/docs/manual/core/retryable-writes.md"
+        ]
+       }
+      },
+      {
+       "statement": "MongoDB retryable writes cover a documented set of acknowledged operations after network errors or primary elections, usually with one retry.",
+       "outcome": "VERIFIED",
+       "note": "Documented list of operations requires acknowledged write concern; one retry by default (more if timeoutMS set).",
+       "evidence_index": [
+        1,
+        2,
+        3
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB retryable writes documentation"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/retryable-writes.md"
+        ]
+       }
+      },
+      {
+       "statement": "Driver retryability alone does not guarantee idempotency when a Spark task re-executes writes already in MongoDB.",
+       "outcome": "VERIFIED",
+       "note": "Inference supported by the Databricks answer: MongoDB sees a re-executed task as another insert.",
+       "evidence_index": [
+        4
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB retryable writes documentation",
+       "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+      ],
+      "urls": [
+       "https://spark.apache.org/docs/latest/configuration.html",
+       "https://www.mongodb.com/docs/manual/core/retryable-writes.md",
+       "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+      ]
+     },
+     "rationale": "Spark's spark.task.maxFailures governs how many times a failed task is attempted before the job is abandoned, while MongoDB retryable writes are a separate driver feature covering a documented set of acknowledged operations, retried once by default. A Databricks Community answer describes Spark task retries re-inserting rows MongoDB cannot recognise as retries, so driver retryability does not make a re-executed Spark task idempotent. The final conclusion is an inference, consistent with those sources."
+    },
+    {
+     "claim_id": "clm:55b1e177917a18822fb3a7d5c969882a9bed8d6bb3a4b773f9957cf617ea128d",
+     "unit_id": "clm:9fd673d84a859ed65572a408c29764573c1ddb410a0aae0ce8b994a9ec4c5a13",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "`ignoreDuplicatesOnInsert` defaults to `false` and is enabled only for unordered inserts with `operationType=insert` (`ordered=false`). In commit `c54b576`, the writer catches `MongoBulkWriteException` and suppresses it when the option is enabled and every entry in `getWriteErrors()` has code 11000; otherwise it rethrows. A test in that commit shows the setting suppressing duplicate-key errors on a unique `name` index for documents without input `_id`, although the current configuration docs say the data should include `_id` or the fields in `idFieldList`. The implementation's check does not inspect write-concern errors, so it does not establish their handling. The setting suppresses duplicate-key errors; it does not turn inserts into upserts. (high confidence) (verified as of 2026-10-23)",
+     "new": "`ignoreDuplicatesOnInsert` defaults to `false` and is enabled only for unordered inserts with `operationType=insert` (`ordered=false`). In commit `c54b576`, the writer catches `MongoBulkWriteException` and suppresses it when the option is enabled and every entry in `getWriteErrors()` has code 11000; otherwise it rethrows. A test in that commit shows the setting suppressing duplicate-key errors on a unique `name` index for documents without input `_id`, although the current configuration docs say the data should include `_id` or the fields in `idFieldList`. The implementation's check does not inspect write-concern errors, so it does not establish their handling. The setting suppresses duplicate-key errors; it does not turn inserts into upserts. (high confidence) (verified as of 2026-10-23) Sources: https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md ; https://github.com/mongodb/mongo-spark/commit/c54b576",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+       "quote": "When set to `true`, the connector ignores duplicate key errors when performing unordered insert operations. The data being inserted must include an `_id` field value or whichever fields are specified in the `idFieldList` option.**Default:** `false`",
+       "supports": "claim"
+      },
+      {
+       "url": "https://github.com/mongodb/mongo-spark/commit/c54b576",
+       "quote": "ignoreDuplicatesOnInsert && !isOrdered() && getOperationType() == OperationType.INSERT;",
+       "supports": "claim"
+      },
+      {
+       "url": "https://github.com/mongodb/mongo-spark/commit/c54b576",
+       "quote": "&& ex.getWriteErrors().stream().allMatch(e -> e.getCode() == 11000)) {",
+       "supports": "claim"
+      },
+      {
+       "url": "https://github.com/mongodb/mongo-spark/commit/c54b576",
+       "quote": "} catch (MongoBulkWriteException ex) {",
+       "supports": "claim"
+      },
+      {
+       "url": "https://github.com/mongodb/mongo-spark/commit/c54b576",
+       "quote": "getCollection().createIndex(BsonDocument.parse(\"{name: 1}\"), new IndexOptions().unique(true));",
+       "supports": "claim"
+      },
+      {
+       "url": "https://github.com/mongodb/mongo-spark/commit/c54b576",
+       "quote": "// Then using unordered inserts with ignore duplicates does not throw",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "ignoreDuplicatesOnInsert defaults to false.",
+       "outcome": "VERIFIED",
+       "note": "Docs and commit agree.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "mongo-spark ignoreDuplicatesOnInsert commit c54b576 MongoBulkWriteException 11000"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md"
+        ]
+       }
+      },
+      {
+       "statement": "It is enabled only for unordered inserts with operationType=insert (ordered=false).",
+       "outcome": "VERIFIED",
+       "note": "Commit's ignoreDuplicatesOnInsert() requires !isOrdered() and INSERT.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "mongo-spark ignoreDuplicatesOnInsert commit c54b576 MongoBulkWriteException 11000"
+        ],
+        "urls": [
+         "https://github.com/mongodb/mongo-spark/commit/c54b576"
+        ]
+       }
+      },
+      {
+       "statement": "In c54b576 the writer catches MongoBulkWriteException and suppresses it when enabled and all getWriteErrors() entries have code 11000; otherwise rethrows.",
+       "outcome": "VERIFIED",
+       "note": "Diff shows the catch, allMatch(code==11000) and else throw ex.",
+       "evidence_index": [
+        2,
+        3
+       ],
+       "searched": {
+        "queries": [
+         "mongo-spark ignoreDuplicatesOnInsert commit c54b576 MongoBulkWriteException 11000"
+        ],
+        "urls": [
+         "https://github.com/mongodb/mongo-spark/commit/c54b576"
+        ]
+       }
+      },
+      {
+       "statement": "A test in that commit shows suppression on a unique name index for documents without _id, though current docs say data should include _id or idFieldList fields.",
+       "outcome": "VERIFIED",
+       "note": "Test and docs both quoted.",
+       "evidence_index": [
+        0,
+        4,
+        5
+       ],
+       "searched": {
+        "queries": [
+         "mongo-spark ignoreDuplicatesOnInsert commit c54b576 MongoBulkWriteException 11000"
+        ],
+        "urls": [
+         "https://github.com/mongodb/mongo-spark/commit/c54b576",
+         "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md"
+        ]
+       }
+      },
+      {
+       "statement": "The check does not inspect write-concern errors; the setting suppresses duplicate-key errors and does not turn inserts into upserts.",
+       "outcome": "VERIFIED",
+       "note": "Catch condition only examines getWriteErrors() codes; docs describe only ignoring duplicate key errors.",
+       "evidence_index": [
+        0,
+        2
+       ],
+       "searched": {
+        "queries": [
+         "mongo-spark ignoreDuplicatesOnInsert commit c54b576 MongoBulkWriteException 11000"
+        ],
+        "urls": [
+         "https://github.com/mongodb/mongo-spark/commit/c54b576"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "mongo-spark ignoreDuplicatesOnInsert commit c54b576 MongoBulkWriteException 11000"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+       "https://github.com/mongodb/mongo-spark/commit/c54b576"
+      ]
+     },
+     "rationale": "The mongo-spark commit c54b576 and the current config docs support each statement: default false, enabled only with ordered=false and operationType=insert, the MongoBulkWriteException catch that suppresses only when all write errors are code 11000, and the unique-name-index test with no _id. The code inspects only getWriteErrors(), so write-concern errors are not examined by it. The option only ignores duplicate key errors; it does not upsert."
+    },
+    {
+     "claim_id": "clm:70d1c4a7d921743bd89e1d4a23f863db04cb8fc6d1b69f35f84a1d0eee89fac2",
+     "unit_id": "clm:83c89fed3fbef901e22fc8aedb1b6a724778775f2730766d6445f83d9853c5c9",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "With the current documented default `truncateMode=DROP`, MongoDB Spark Connector `overwrite` mode drops the target collection and recreates it with default options, removing a pre-existing unique index. If retries rely on that index, creating it after the load leaves writes during the load without the uniqueness constraint. The `truncateMode=TRUNCATE` option clears entries but preserves indexes, collection options, and sharding configuration. The accepted Databricks Community reply suggests writing to a staging collection and then atomically renaming it as a workaround; its reply does not establish that staging is duplicate-free or that rename removes duplicates. (medium confidence) (verified as of 2026-10-23)",
+     "new": "With the current documented default `truncateMode=DROP`, MongoDB Spark Connector `overwrite` mode drops the target collection and recreates it with default options, removing a pre-existing unique index. If retries rely on that index, creating it after the load leaves writes during the load without the uniqueness constraint. The `truncateMode=TRUNCATE` option clears entries but preserves indexes, collection options, and sharding configuration. The accepted Databricks Community reply suggests writing to a staging collection and then atomically renaming it as a workaround; its reply does not establish that staging is duplicate-free or that rename removes duplicates. (medium confidence) (verified as of 2026-10-23) Sources: https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write.md ; https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md ; https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write.md",
+       "quote": "If you specify the `overwrite` write mode, the connector drops the target collection and creates a new collection that uses the default collection options.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+       "quote": "`TruncateMode.DROP`: *Default*. Drops the collection.; `TruncateMode.TRUNCATE`: Deletes all entries in the collection but preserves indexes, collection options, and any sharding configuration.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+       "quote": "Use a staging collection + atomic rename so partial/duplicate states never hit your live collection.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+       "quote": "which leads to the same data being written twice, since there’s no uniqueness constraint at that moment.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "With default truncateMode=DROP, overwrite drops the target collection and recreates it with default options, removing a pre-existing unique index.",
+       "outcome": "VERIFIED",
+       "note": "Drop with default options; index loss follows from dropping the collection.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write.md",
+         "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md"
+        ]
+       }
+      },
+      {
+       "statement": "Creating the index after the load leaves writes during the load without the uniqueness constraint.",
+       "outcome": "VERIFIED",
+       "note": "Matches the Databricks poster's account.",
+       "evidence_index": [
+        3
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+        ]
+       }
+      },
+      {
+       "statement": "truncateMode=TRUNCATE clears entries but preserves indexes, collection options and sharding configuration.",
+       "outcome": "VERIFIED",
+       "note": "Docs quote.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md"
+        ]
+       }
+      },
+      {
+       "statement": "The accepted Databricks reply suggests a staging collection and atomic rename; its reply does not establish that staging is duplicate-free.",
+       "outcome": "VERIFIED",
+       "note": "Reply asserts without demonstration.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write.md",
+       "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+       "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+      ]
+     },
+     "rationale": "The connector docs give truncateMode DROP as default and TRUNCATE as preserving indexes, collection options and sharding, and state that overwrite drops the collection and recreates it with default options. The Databricks accepted reply suggests a staging collection with atomic rename. That a dropped collection loses its unique index is implied by the poster's account of having no uniqueness constraint after overwrite."
+    },
+    {
+     "claim_id": "clm:9565e4d2d7f8fe9250c6474433a73ba0e03b853c76df5ebce5a4d80978f9820c",
+     "unit_id": "clm:486176adddd2f781f73256550f770d370c159f165550bc25269605416be7e96f",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Spark can retry failed tasks. A Databricks Community report about MongoDB Spark Connector writes described duplicate documents after a task had partly written data and a retry repeated plain inserts without a stable unique target key. A clean or deduplicated upstream batch therefore does not by itself prevent duplicates at the sink. (medium confidence)",
+     "new": "Spark can retry failed tasks. A Databricks Community report about MongoDB Spark Connector writes described duplicate documents after a task had partly written data and a retry repeated plain inserts without a stable unique target key. A clean or deduplicated upstream batch therefore does not by itself prevent duplicates at the sink. (medium confidence) Sources: https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243 ; https://spark.apache.org/docs/latest/configuration.html",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+       "quote": "If a task fails part-way through writing to MongoDB, Spark will retry that task.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+       "quote": "then the same row can be written twice when a task is retried.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+       "quote": "Because your Delta source is clean and deduplicated, the issue isn’t in Delta, it’s the at-least-once semantics of the write path.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://spark.apache.org/docs/latest/configuration.html",
+       "quote": "Number of continuous failures of any particular task before giving up on the job.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Spark can retry failed tasks.",
+       "outcome": "VERIFIED",
+       "note": "spark.task.maxFailures and the thread.",
+       "evidence_index": [
+        0,
+        3
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://spark.apache.org/docs/latest/configuration.html"
+        ]
+       }
+      },
+      {
+       "statement": "A Databricks Community report described duplicates after a partly written task was retried with plain inserts and no stable unique key.",
+       "outcome": "VERIFIED",
+       "note": "Thread 141243.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+        ]
+       }
+      },
+      {
+       "statement": "A clean or deduplicated upstream batch does not by itself prevent sink duplicates.",
+       "outcome": "VERIFIED",
+       "note": "Accepted answer.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+      ],
+      "urls": [
+       "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+       "https://spark.apache.org/docs/latest/configuration.html"
+      ]
+     },
+     "rationale": "The Databricks Community thread reports duplicates in MongoDB from a clean Delta source, and the accepted answer attributes them to Spark retrying a task that failed part-way, with plain inserts and no unique index. Spark's configuration page documents task failure retries. The thread supports the conclusion that clean upstream data does not prevent sink duplicates."
+    },
+    {
+     "claim_id": "clm:a7e4c342807373b999c149cc7abe1b495b4e1efe149e8c1d5577501ceebb8004",
+     "unit_id": "clm:59d1dc1361890665feec11fff664cbb832a3248c2ad5458adf039852fcfcada6",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "For a batch sink, idempotency means that replaying the same input leaves the same sink state; it is separate from guaranteeing that each row executes only once. General Spark pipeline guidance emphasizes deterministic reruns and sink operations that are safe to apply again. The MongoDB Connector's keyed replace or upsert settings provide one way to make repeated identical documents converge. This last connection is an inference from the documented write semantics. (medium confidence)",
+     "new": "For a batch sink, idempotency means that replaying the same input leaves the same sink state; it is separate from guaranteeing that each row executes only once. General Spark pipeline guidance emphasizes deterministic reruns and sink operations that are safe to apply again. The MongoDB Connector's keyed replace or upsert settings provide one way to make repeated identical documents converge. This last connection is an inference from the documented write semantics. (medium confidence) Sources: https://anchitgupt.github.io/learn-spark/pipeline-design.html ; https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243 ; https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://anchitgupt.github.io/learn-spark/pipeline-design.html",
+       "quote": "Every write idempotent (running it twice gives the same table), replayable from an immutable raw copy",
+       "supports": "claim"
+      },
+      {
+       "url": "https://anchitgupt.github.io/learn-spark/pipeline-design.html",
+       "quote": "its write path must be idempotent and ordered so that a retry, a late event, or a full replay converges on the same table.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+       "quote": "Introduce a unique, deterministic key and write via upserts / _id so retries are safe, or",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+       "quote": "`replace`: Replace an existing document that matches the `idFieldList` value with the new data. If no match exists, the value of `upsertDocument` indicates whether the connector inserts a new document.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "For a batch sink, idempotency means replaying the same input leaves the same sink state; it is separate from each row executing only once.",
+       "outcome": "VERIFIED",
+       "note": "Page defines by outcome of rerun; Databricks answer describes at-least-once execution made safe by idempotent keys.",
+       "evidence_index": [
+        0,
+        2
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://anchitgupt.github.io/learn-spark/pipeline-design.html",
+         "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+        ]
+       }
+      },
+      {
+       "statement": "General Spark pipeline guidance emphasizes deterministic reruns and sink operations safe to apply again.",
+       "outcome": "VERIFIED",
+       "note": "Pipeline design page.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://anchitgupt.github.io/learn-spark/pipeline-design.html"
+        ]
+       }
+      },
+      {
+       "statement": "The connector's keyed replace or upsert settings make repeated identical documents converge (inference).",
+       "outcome": "VERIFIED",
+       "note": "Replace with idFieldList and upsertDocument matches the keyed-upsert advice; flagged as inference.",
+       "evidence_index": [
+        2,
+        3
+       ],
+       "searched": {
+        "queries": [
+         "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+         "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "Databricks community MongoDB Spark Connector duplicate documents task retry overwrite staging collection rename"
+      ],
+      "urls": [
+       "https://anchitgupt.github.io/learn-spark/pipeline-design.html",
+       "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+       "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+      ]
+     },
+     "rationale": "The cited pipeline page defines idempotent writes as running twice giving the same table and stresses reruns converging. The Databricks answer separates at-least-once execution from idempotent keyed writes, and the connector docs show operationType replace as default with idFieldList and upsertDocument true. The link to the connector settings is an inference, as the claim itself says."
+    },
+    {
+     "claim_id": "clm:bd57c4931e0d04828451b80204b8290321f6cd68df0095195f615e71f007197e",
+     "unit_id": "clm:a856848c2c19ad5cc5857e52838dccf0ed4797b02d1393c5bae3094e82de6791",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "With the current documented default `truncateMode=DROP`, MongoDB Spark Connector's `overwrite` mode drops the target collection and creates a new collection with default options, removing a pre-existing custom unique index. If retry protection depends on that index, the index must exist during the load: creating it after the load leaves earlier writes without that constraint. `truncateMode=TRUNCATE` instead deletes collection entries while preserving indexes, collection options, and sharding configuration. A Databricks Community report describes creating indexes after overwrite and seeing duplicate documents after task retries. (medium confidence) (verified as of 2026-10-23)",
+     "new": "With the current documented default `truncateMode=DROP`, MongoDB Spark Connector's `overwrite` mode drops the target collection and creates a new collection with default options, removing a pre-existing custom unique index. If retry protection depends on that index, the index must exist during the load: creating it after the load leaves earlier writes without that constraint. `truncateMode=TRUNCATE` instead deletes collection entries while preserving indexes, collection options, and sharding configuration. A Databricks Community report describes creating indexes after overwrite and seeing duplicate documents after task retries. (medium confidence) (verified as of 2026-10-23) Sources: https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md ; https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write.md ; https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+       "quote": "`TruncateMode.DROP`: *Default*. Drops the collection.; `TruncateMode.TRUNCATE`: Deletes all entries in the collection but preserves indexes, collection options, and any sharding configuration.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write.md",
+       "quote": "If you specify the `overwrite` write mode, the connector drops the target collection and creates a new collection that uses the default collection options.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243",
+       "quote": "It looks like some Spark tasks sometimes fail and get retried, which leads to the same data being written twice, since there’s no uniqueness constraint at that moment.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Default truncateMode is DROP, and overwrite drops the target collection and recreates it with default options, removing a custom unique index.",
+       "outcome": "VERIFIED",
+       "note": "Default DROP drops the collection; recreated with default options, so custom indexes are not retained.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "mongo-spark connector truncateMode TRUNCATE DROP overwrite preserves indexes"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+         "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write.md"
+        ]
+       }
+      },
+      {
+       "statement": "If retry protection depends on the unique index, it must exist during the load; creating it after leaves earlier writes unconstrained.",
+       "outcome": "VERIFIED",
+       "note": "Logical consequence; illustrated by the Databricks post (no uniqueness constraint at that moment).",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "Databricks Community MongoDB Spark connector overwrite create index duplicate documents task retry"
+        ],
+        "urls": [
+         "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+        ]
+       }
+      },
+      {
+       "statement": "truncateMode=TRUNCATE deletes entries while preserving indexes, collection options and sharding configuration.",
+       "outcome": "VERIFIED",
+       "note": "Stated verbatim in the config docs.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "mongo-spark connector truncateMode TRUNCATE DROP overwrite preserves indexes"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md"
+        ]
+       }
+      },
+      {
+       "statement": "A Databricks Community report describes creating indexes after overwrite and seeing duplicates after task retries.",
+       "outcome": "VERIFIED",
+       "note": "Thread matches.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "Databricks Community MongoDB Spark connector overwrite create index duplicate documents task retry"
+        ],
+        "urls": [
+         "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "Databricks Community MongoDB Spark connector overwrite create index duplicate documents task retry",
+       "mongo-spark connector truncateMode TRUNCATE DROP overwrite preserves indexes"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write-config.md",
+       "https://www.mongodb.com/docs/spark-connector/current/batch-mode/batch-write.md",
+       "https://community.databricks.com/t5/data-engineering/mongodb-connector-duplicate-writes/m-p/141243"
+      ]
+     },
+     "rationale": "The connector docs state truncateMode defaults to DROP (drops the collection) and that TRUNCATE preserves indexes, collection options and sharding. The batch-write page says overwrite drops the collection and recreates it with default options, so a custom unique index is lost; that a post-load index leaves earlier writes unconstrained follows logically. A Databricks Community post describes overwrite-then-create-indexes and duplicates after Spark task retries."
+    }
+   ],
+   "skipped": [],
+   "changed": [
+    "llms-facts.txt",
+    "llms-full.txt",
+    "llms-small.txt",
+    "units.jsonl"
+   ]
+  }
+ ],
+ "publication": {
+  "schema": "remediation-public-projection/v1",
+  "source_record_sha256": "ff1615bfb7b73cacd4480d084b839e1acacb5db18017c52b3d75d664a5446311",
+  "redactions": [
+   "operator-specific pack path"
+  ]
+ }
+}

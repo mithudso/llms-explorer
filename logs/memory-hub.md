@@ -1,5 +1,41 @@
 # Memory Log — Hub (repository / infrastructure)
 
+## v1.1.78 - 2026-10-29
+- Queue repair delivery is PR82 in mithudso/global-ai-hub and PR248 in mithudso/llms-explorer. Independent evidence/publication/preservation review is complete with no open material findings. Local tests and publication/privacy checks pass; final CI and loaded checkout acceptance continue.
+- The standing readiness sweep returned eight incomplete schema-only research probes to draft:79,78,77,76,75,74,71,69. Their head SHAs remain unchanged. Required native gate/finalization receipts are unavailable; PR75 also has an unresolved factual review finding, PR76 lacks workflow records and PR74 has a misplaced research path. Existing drafts70/73 remain untouched. Private receipts: /Users/mitch/.global-ai-hub/research/.queue-repair-20261029/hub-pr-sweep/receipt.json . Do not merge these probes until their own qualification gaps are resolved.
+- Delta:1.1.77 to1.1.78; no research, source, gate or tree changes from the sweep.
+
+### Earlier local queue-repair checkpoint - 2026-10-29
+- Active task: resolve the October29 research queue audit and synchronize the website plus both concept trees. Preserve all unrelated dirty hub files, paused suite reservations, accepted research and immutable attempts.
+- Worktree: /Users/mitch/dev/worktrees/llms-explorer-queue-sync-20261029 . Private continuation: /Users/mitch/.global-ai-hub/research/.queue-repair-20261029/ . A702-file evidence baseline and170-file retained-runtime baseline are preserved.
+- Restored17 historical completed cohort directories plus four-concept Apple research from the trusted original M3:1,851 files /121,447,580 bytes passed per-file SHA256 checks. Legacy qualification remains legacy.
+- All19 MongoDB correction cohorts now have fresh current supported gates (569 selected claims;13 ordinary claims NOT-SAMPLED). Serialized finalization is running. Apple corrections are undergoing a second full43-claim gate.
+- Live concept_tree.py now uses the reviewed lossless queue grammar; no other hub code changed. Delta plugin disabled in Claude user settings, no project override or Codex Delta registration.
+- Remaining: reconcile queue/plan metadata and historical aliases, finish safe site sync, verify preservation/current projections and deliver task-owned changes. Keep separate unfinished Hermes publication deferred.
+- Version reconciliation: the original local checkpoint used1.1.71, which was already assigned in committed history. The current merged log is1.1.78; the corresponding prompts are116 and117.
+
+## v1.1.77 - 2026-10-29
+- Resolved the queue audit: lossless Markdown identity parsing, duplicate rows with parent history retained, explicit held and coverage review states, historical aliases and six orphan parent links. All694 paused reservations remain unchanged.
+- Repaired19 MongoDB cohorts and four Apple concepts with fresh current independent gates. Restored17 completed historical cohorts without upgrading legacy gates. The54 MongoDB plus4 Apple concepts retain855 canonical claims:825 selected SUPPORTED and30 ordinary NOT-SAMPLED.
+- Narrow hub delivery imports120 verified saved outcomes plus historical alias owners and required ancestors. It preserves unrelated dirty live work. Source evidence and frozen attempts remain private.
+- Delta is disabled in saved Claude user settings. Already-loaded sessions require /reload-plugins --force. Other plugins remain enabled.
+- Remaining: final tests, public website verification, CI and merged delivery. Delta:1.1.76 to1.1.77.
+
+## v1.1.76 - 2026-10-23
+- Apple Intelligence delivery now includes all 31 canonical packs (405 supported claims), the categorical family index, 32 new tree nodes (31 researched plus one structural domain), all 67 assessed CVS scores, and four unresearched above-threshold concepts queued at the configured round limit. The source-qualified set is complete; the family is not claimed saturated.
+- The scoped tree import preserved baseline placement and unrelated entries. Validation stayed at zero problems. The family has 31 exact relative index targets and matches the final reviewed renderer output. Source packs and semantic stores were not rewritten.
+- Final PR CI and the outer suite usability review remain pending.
+
+## v1.1.75 - 2026-10-23
+- Active work: Apple Intelligence private Hub delivery (TASK-900), linked to the full-suite task TASK-868. A clean origin/main worktree contains only the 31 approved canonical packs (405 supported claims; eight files per pack).
+- Every imported pack was checked against its immutable canonical artifact and current independent all-claim gate. Raw evidence, pools, lexicons, caches, vector stores and model registries are excluded. The live shared checkout remains unchanged.
+- Validation: all 31 pack indexes have zero High or Medium findings and 31 retained Low description-length findings. Server tests passed (8); full Hub suite passed (1131, 42 skipped); repository Ruff, JSON registries and required compile checks passed. One baseline overlong condition in scripts/dr_run.py was wrapped without behavioral change.
+- Final scoped tree/score/queue inputs and categorical family index are pending. The topical graph-serving repair will be ported only after source PR230 merges. Full-suite stop is bounded by the configured round limit; no family saturation claim is made. Embeddings remain paused.
+
+## v1.1.70 - 2026-10-20
+- Active work: TASK-737 website currency audit and TASK-739 ranked cohort startup in llms-explorer. Backed-up hooks refresh reader JSON, tree/context JSON and fact downloads after canonical tree/pack writes. The source library remains private. Historical DR backfill fills missing packs and preserves richer existing references.
+- Website audit baseline: 1627 hub nodes, 1602 repository nodes, 1069 site references. Five operator-private nodes stay excluded. The paused mongodb-2026-10-14 suite still holds 694 concepts; avoid duplicate research.
+
 <!-- Hub (repository / infrastructure) track. The hub track (repo code) and the TAM track (customer work) keep SEPARATE logs so cross-track pushes stop
      colliding here -- these were the only two files both wrote. Version numbers are per-file; gaps are entries that live in the
      sibling log, and are left in place so older cross-references still resolve. -->

@@ -1,0 +1,274 @@
+{
+ "schema": "claim-remediation/v1",
+ "applications": [
+  {
+   "slug": "groupbydistinct-internal-stage",
+   "at": "2026-11-02T14:10:26Z",
+   "pack": "outputs/llms-concepts/groupbydistinct-internal-stage.llms",
+   "packSha256Before": "356a6bb2b63f635881b9816264b1f0fdef2134f2a67ceaf314c6b352252546b5",
+   "edits": [
+    {
+     "claim_id": "clm:34bdd3204b6c82e8f35b34398af66443e9d99bacd490c89cc7ed316629d94365",
+     "unit_id": "clm:a2bbc4bcf8f022af145755302efbe82b61499896ede8c1e5b7871a9a30015715",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "Check explain('executionStats') for DISTINCT_SCAN, totalKeysExamined and totalDocsExamined. Index coverage is separate from duplicate skipping: a covered distinct plan can examine zero documents, while a first-document-per-group plan can include FETCH. (high confidence)",
+     "new": "Check explain('executionStats') for DISTINCT_SCAN, totalKeysExamined and totalDocsExamined. In MongoDB's published first/last-per-group example, the DISTINCT_SCAN plan reads one document per group (a FETCH stage sits above the DISTINCT_SCAN), so index use and document reads should be checked separately. Sources: https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md ; https://www.mongodb.com/docs/manual/reference/explain-results.md ; https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md",
+       "quote": "To determine whether a pipeline uses indexes, review the query plan and look for `IXSCAN` or `DISTINCT_SCAN` plans.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/reference/explain-results.md",
+       "quote": "refers to the total number of documents examined and *not* to the number of documents returned",
+       "supports": "claim"
+      },
+      {
+       "url": "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+       "quote": "The execution plan is efficient, reading only one document per group (totalDocsExamined: 10)",
+       "supports": "correction"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Check explain('executionStats') for DISTINCT_SCAN, totalKeysExamined and totalDocsExamined.",
+       "outcome": "VERIFIED",
+       "note": "Docs say to look for DISTINCT_SCAN in the plan; executionStats holds totalKeysExamined/totalDocsExamined.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB DISTINCT_SCAN $sort $group $first covered query no FETCH index include field totalDocsExamined 0"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md",
+         "https://www.mongodb.com/docs/manual/reference/explain-results.md"
+        ]
+       }
+      },
+      {
+       "statement": "A first-document-per-group plan can include FETCH.",
+       "outcome": "VERIFIED",
+       "note": "The published example has FETCH over DISTINCT_SCAN with totalDocsExamined 10.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB DISTINCT_SCAN $sort $group $first covered query no FETCH index include field totalDocsExamined 0"
+        ],
+        "urls": [
+         "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d"
+        ]
+       }
+      },
+      {
+       "statement": "A covered distinct plan can examine zero documents.",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "No MongoDB source found showing a covered DISTINCT_SCAN with zero docs examined; SERVER-31269 reports $first pipelines examining documents.",
+       "evidence_index": [],
+       "searched": {
+        "queries": [
+         "MongoDB DISTINCT_SCAN $sort $group $first covered query no FETCH index include field totalDocsExamined 0",
+         "explain DISTINCT_SCAN PROJECTION_COVERED $group $first aggregation index totalDocsExamined: 0"
+        ],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-31269",
+         "https://dev.to/mongodb/covering-index-for-group-in-mongodb-aggregation-with-hint-4e6m"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB DISTINCT_SCAN $sort $group $first covered query no FETCH index include field totalDocsExamined 0",
+       "explain DISTINCT_SCAN PROJECTION_COVERED $group $first aggregation index totalDocsExamined: 0"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md",
+       "https://www.mongodb.com/docs/manual/reference/explain-results.md",
+       "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+       "https://jira.mongodb.org/browse/SERVER-31269",
+       "https://dev.to/mongodb/covering-index-for-group-in-mongodb-aggregation-with-hint-4e6m"
+      ]
+     },
+     "rationale": "The docs say to look for DISTINCT_SCAN in the query plan, and explain-results documents totalKeysExamined and totalDocsExamined under executionStats. The dev.to article by a MongoDB author shows a $sort/$group/$first plan with FETCH over DISTINCT_SCAN and totalDocsExamined of 10. No source was found showing a covered DISTINCT_SCAN plan that examines zero documents, so that statement is dropped."
+    },
+    {
+     "claim_id": "clm:8720b23781b22c6f2d3658643d2ace1f24e436dafc688ebfbf10ffdabd8ce592",
+     "unit_id": "clm:3f4bccb26bb8853aa25690c32ea90966fb91dc2fb95a517ebf631734db0533c7",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "A supported pattern is an index-compatible $sort followed by $group using $first/$last. The optimizer can replace grouping with a DISTINCT_SCAN cursor and a document transformation; the performance gain comes from skipping repeated group-key entries. (high confidence)",
+     "new": "A supported pattern is an index-compatible $sort followed by $group using $first/$last. The optimizer can replace grouping with a DISTINCT_SCAN cursor and a document transformation; the performance gain comes from skipping repeated group-key entries. (high confidence) Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/pipeline_d.cpp ; https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d ; https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/pipeline_d.cpp",
+       "quote": "Tries to generate a distinct query executor for $sort+$group with $first/$last or $group with",
+       "supports": "claim"
+      },
+      {
+       "url": "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+       "quote": "If the conditions are met, MongoDB rewrites the pipeline to use DISTINCT_SCAN and $groupByDistinct, optimizing by skipping to the relevant index entries and retrieving only needed documents.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md",
+       "quote": "`DISTINCT_SCAN` executes faster than `IXSCAN` if there are multiple documents per key value.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "An index-compatible $sort followed by $group using $first/$last is a supported pattern the optimizer can replace with a DISTINCT_SCAN cursor and a document transformation.",
+       "outcome": "VERIFIED",
+       "note": "Source comment shows the rewrite to $cursor DISTINCT_SCAN plus $groupByDistinct.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB DISTINCT_SCAN $sort $group $first covered query no FETCH index include field totalDocsExamined 0"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/pipeline_d.cpp",
+         "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d"
+        ]
+       }
+      },
+      {
+       "statement": "The performance gain comes from skipping repeated group-key entries.",
+       "outcome": "VERIFIED",
+       "note": "DISTINCT_SCAN returns one document per index key and is faster with multiple documents per key; the rewrite skips to relevant index entries.",
+       "evidence_index": [
+        1,
+        2
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB DISTINCT_SCAN $sort $group $first covered query no FETCH index include field totalDocsExamined 0"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md",
+         "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB DISTINCT_SCAN $sort $group $first covered query no FETCH index include field totalDocsExamined 0"
+      ],
+      "urls": [
+       "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/pipeline_d.cpp",
+       "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+       "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md"
+      ]
+     },
+     "rationale": "The server source comment shows $sort + $group with $first/$last rewritten to a DISTINCT_SCAN cursor plus a $groupByDistinct transformation. MongoDB docs say DISTINCT_SCAN is faster than IXSCAN when there are multiple documents per key, and the MongoDB-authored article says the rewrite skips to the relevant index entries."
+    },
+    {
+     "claim_id": "clm:dba623f5092bea6f9c8c5f152ff566da2c2524fa4099b4b4e6d956fa7ad5f394",
+     "unit_id": "clm:f013c31e48dd84d0b1f8ce34270237a6b267eb4b3564162f0c068bede1542014",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "DISTINCT_SCAN does not imply a covered query: the published first/last example uses FETCH above DISTINCT_SCAN, while an independent reproduced example removes FETCH after adding the requested metadata field to the index. Check document reads separately from duplicate skipping. (high confidence)",
+     "new": "DISTINCT_SCAN does not imply a covered query: the published first/last example uses FETCH above DISTINCT_SCAN and examines one document per group. Check document reads separately from duplicate skipping. Sources: https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+       "quote": "The execution plan is efficient, reading only one document per group (totalDocsExamined: 10)",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "DISTINCT_SCAN does not imply a covered query; the published first/last example uses FETCH above DISTINCT_SCAN.",
+       "outcome": "VERIFIED",
+       "note": "The example plan has FETCH over DISTINCT_SCAN with totalDocsExamined 10.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB DISTINCT_SCAN $sort $group $first covered query no FETCH index include field totalDocsExamined 0"
+        ],
+        "urls": [
+         "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d"
+        ]
+       }
+      },
+      {
+       "statement": "An independent reproduced example removes FETCH after adding the requested metadata field to the index.",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "No such reproduction found in pinned sources or searches.",
+       "evidence_index": [],
+       "searched": {
+        "queries": [
+         "MongoDB DISTINCT_SCAN $sort $group $first covered query no FETCH index include field totalDocsExamined 0",
+         "explain DISTINCT_SCAN PROJECTION_COVERED $group $first aggregation index totalDocsExamined: 0"
+        ],
+        "urls": [
+         "https://dev.to/mongodb/covering-index-for-group-in-mongodb-aggregation-with-hint-4e6m",
+         "https://jira.mongodb.org/browse/SERVER-31269"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB DISTINCT_SCAN $sort $group $first covered query no FETCH index include field totalDocsExamined 0",
+       "explain DISTINCT_SCAN PROJECTION_COVERED $group $first aggregation index totalDocsExamined: 0"
+      ],
+      "urls": [
+       "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+       "https://dev.to/mongodb/covering-index-for-group-in-mongodb-aggregation-with-hint-4e6m",
+       "https://jira.mongodb.org/browse/SERVER-31269"
+      ]
+     },
+     "rationale": "The dev.to article shows a $sort/$group/$first plan with DISTINCT_SCAN under FETCH and totalDocsExamined of 10, so DISTINCT_SCAN alone does not mean no document reads. No source was found for an independent reproduction that removes FETCH after adding the metadata field to the index, so that statement is dropped."
+    }
+   ],
+   "skipped": [],
+   "changed": [
+    "llms-facts.txt",
+    "llms-full.txt",
+    "llms-small.txt",
+    "units.jsonl"
+   ]
+  }
+ ],
+ "publication": {
+  "schema": "remediation-public-projection/v1",
+  "source_record_sha256": "b0b37fdd41ee6eef9c92d240e80cd3276ef5d21412b111804b6b7320a8453e40",
+  "redactions": [
+   "operator-specific pack path"
+  ]
+ }
+}

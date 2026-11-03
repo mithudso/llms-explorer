@@ -1,0 +1,235 @@
+{
+  "slug": "tailable-cursors-and-maxawaittimems",
+  "concept": "Tailable cursors and maxAwaitTimeMS",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Tailable cursors and maxAwaitTimeMS. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "A tailable cursor follows new inserts in a capped collection and can remain open after the initial results are exhausted. It is a streaming read mechanism, not a mechanism for arbitrary sorted page navigation. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/tailable-cursors.md",
+          "note": null,
+          "claimId": "clm:dd51b049c0371400bd1e2897a76c30e3ab37d305ad4dc8e049cc2ed76e12c534",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": [],
+          "also": [
+            "https://docs.spring.io/spring-data/mongodb/reference/mongodb/tailable-cursors.html",
+            "https://mongoosejs.com/docs/api/query.html"
+          ]
+        },
+        {
+          "text": "An empty batch is not sufficient evidence that a tailable cursor is dead. In the Go driver, Next loops over empty batches while the cursor remains valid, whereas TryNext can return false and permit another attempt when Err is nil and ID is nonzero. Therefore maxAwaitTimeMS alone does not bound the entire Next call. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo-go-driver/blob/master/mongo/cursor.go",
+          "note": null,
+          "claimId": "clm:921998dbe20507b3ce1ad2ed6cd8c0ecf6d17267cbe46bbf834483ec6a89ed21",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": [],
+          "also": [
+            "https://jira.mongodb.org/browse/DRIVERS-2868"
+          ]
+        },
+        {
+          "text": "The CSOT specification computes getMore maxTimeMS as min(maxAwaitTimeMS, remaining timeoutMS - minRoundTripTime). The associated driver issue explains that a server wait too close to the client deadline can otherwise close connections and cause connection churn. Treat this as specified behavior and verify implementation for the selected driver. (medium confidence)",
+          "source": "https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md",
+          "note": null,
+          "claimId": "clm:13806c5a676606f3fb67ffe17376108d6c273497694011add60467130b393a66",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9a53775d3693c830657e1913c9cfbbd0abe1f0c1aa53657a08ac27c28846bdeb",
+            "ev:a1785b9cd48677fbdc0db647329f13847b39f7e19f1dd8075acd6ef89b397267"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/DRIVERS-2868"
+          ]
+        },
+        {
+          "text": "For Spring Data MongoDB, synchronous tailing creates a long-running blocking task. Spring recommends reactive tailing to reduce resource use and requires callers to cancel subscriptions or stop listener containers when finished. (low confidence)",
+          "source": "https://docs.spring.io/spring-data/mongodb/reference/mongodb/tailable-cursors.html",
+          "note": null,
+          "claimId": "clm:bc77c68e394a54984f7698cf262f4ce46b2513b72230d02badc1dad750fdbc14",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "When an awaitData wait expires without new data, the server can return an empty batch. Applications must not interpret that empty batch alone as cursor exhaustion. (medium confidence)",
+          "source": "https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md",
+          "note": null,
+          "claimId": "clm:28bea50bcbe9eb3420a216cd14c60d9a48c055aecfa13c21049a120ed3394943",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": [],
+          "also": [
+            "https://www.mongodb.com/docs/manual/reference/command/getMore.md"
+          ]
+        },
+        {
+          "text": "The getMore command documentation gives a default wait of 1000 milliseconds for tailable awaitData cursors when no per-call value is supplied; drivers can set different wait limits on successive getMore calls. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/getMore.md",
+          "note": null,
+          "claimId": "clm:f1e4971537d65f5e1bd395c02ddaeece2522d6342fb69dfaf48d2e843f6d0e29",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7a961219e1a2f587d8ff2c1930f8f737a793321f256ef22e1deb9b4c57cdf464"
+          ]
+        },
+        {
+          "text": "A tailable cursor can become invalid when new inserts overwrite its position in the capped collection. Spring Data also warns that a query with no match can produce a dead cursor, so an infinite-stream API is not a guarantee of uninterrupted delivery. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/tailable-cursors.md",
+          "note": null,
+          "claimId": "clm:029e187e78d58a10853b63068419cc6fa8453eb918a84812e36670034903f9c2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:77705a729ab50ac37992f7d49f312046424d6a95e8f8a4de1694384ae7c357ba",
+            "ev:df91e529d532f9418fe33f48afd6b2819852139d960ef8174a3d620be419145c"
+          ],
+          "also": [
+            "https://docs.spring.io/spring-data/mongodb/reference/mongodb/tailable-cursors.html"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Under the client-side operations timeout specification, tailable cursors use ITERATION timeout mode. For tailable awaitData cursors with a nonzero timeoutMS, the specification requires an error if maxAwaitTimeMS is greater than or equal to timeoutMS. (medium confidence)",
+          "source": "https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md",
+          "note": null,
+          "claimId": "clm:b2184a495bbb58e121e3237807a43ad21c86d7f6aac4fa02981b20e8c95db71d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a1785b9cd48677fbdc0db647329f13847b39f7e19f1dd8075acd6ef89b397267"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/DRIVERS-3092"
+          ]
+        },
+        {
+          "text": "Drivers transmit the tailable awaitData wait limit as maxTimeMS on each getMore. This getMore field requires awaitData; it is not a general per-batch timeout option for ordinary non-tailable cursors. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/getMore.md",
+          "note": null,
+          "claimId": "clm:dcd5310fa3c541ec123d411165999bcad6f1a22cfca33812382d1d9acc42303b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7a961219e1a2f587d8ff2c1930f8f737a793321f256ef22e1deb9b4c57cdf464"
+          ],
+          "also": [
+            "https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md"
+          ]
+        },
+        {
+          "text": "The client-side operations timeout specification requires an error when explicit maxAwaitTimeMS is greater than or equal to nonzero timeoutMS. Its wait budget uses min(maxAwaitTimeMS, remaining timeoutMS - minRoundTripTime); the validation rule must not be mistaken for a guarantee that every driver release enforces it correctly. (medium confidence)",
+          "source": "https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md",
+          "note": null,
+          "claimId": "clm:43901724f65cdc4e530cf5b1b8d02624a300b0971f35f95e7d028234265ac8cc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c1e975eb03606328aae6779f501838afb27471eda8c9f0ad099761ecc1db3d6",
+            "ev:a1785b9cd48677fbdc0db647329f13847b39f7e19f1dd8075acd6ef89b397267"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/DRIVERS-3092"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "For an indexed field, MongoDB recommends a regular cursor and subsequent queries using the last returned field value, for example {indexedField: {$gt: lastvalue}}, instead of a tailable cursor. This recommendation does not by itself establish a complete stable pagination protocol. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/tailable-cursors.md",
+          "note": null,
+          "claimId": "clm:78a358817d201b5e3f7935f92b34643815d40c9ea90148cb0687475eeab19316",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d49e478165ac1bb42bd595e507bae11797391b27a9e4531cfc64fa92b3eb3d40"
+          ]
+        },
+        {
+          "text": "For a tailable awaitData cursor, maxAwaitTimeMS sets the server wait for new matching documents in a subsequent getMore. It differs from maxTimeMS used to limit query processing and is not a cursor lifetime deadline. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.maxAwaitTimeMS.md",
+          "note": null,
+          "claimId": "clm:c06ecd302a99346bb8535dcac8b7ca7829f1e8ed3d818901713c402f0a7d3bb7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7a961219e1a2f587d8ff2c1930f8f737a793321f256ef22e1deb9b4c57cdf464",
+            "ev:e156ebfe863a11b8eb15dc11fd55efbb0e3c74d68e5df775b65f36e9f5703296"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/manual/reference/command/getMore.md",
+            "https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md",
+            "https://mongoosejs.com/docs/api/query.html"
+          ]
+        },
+        {
+          "text": "At the wire-command level, the tailable awaitData wait limit is named maxTimeMS on each getMore. If no new data arrives during that wait, the server can return an empty batch rather than treating the wait expiry as ordinary query failure. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/getMore.md",
+          "note": null,
+          "claimId": "clm:7ebeec80e58f4064a56b400ac8df1b21587cf8fbdad4ca31a539dfe174f8704e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:636959d50f346374dfaaba93a19b8753f3816483a4d2e9fae48dc16aa27ef4fe"
+          ],
+          "also": [
+            "https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md"
+          ]
+        },
+        {
+          "text": "A tailable cursor is not guaranteed to survive indefinitely: capped-collection rollover can invalidate its current position. Spring also documents invalid streams when an initial query matches nothing or the last returned document is deleted. Plan cursor termination handling rather than assuming an infinite stream cannot die. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/tailable-cursors.md",
+          "note": null,
+          "claimId": "clm:23851c1feb1ef55c21cb3e353c9f3e8820ef462b0ec509e3ebba074a1263f833",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": [],
+          "also": [
+            "https://docs.spring.io/spring-data/mongodb/reference/mongodb/tailable-cursors.html"
+          ]
+        },
+        {
+          "text": "Under the client-side operations timeout specification, tailable cursors support ITERATION timeout mode rather than CURSOR_LIFETIME. A next() deadline covers all getMore calls made during that next(), rather than restarting for every request. (low confidence)",
+          "source": "https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md",
+          "note": null,
+          "claimId": "clm:a21841450c4af787643cde43d24ecc0b0ceaa1dd69770446e4edf72bf37fcde5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9ad8e7736b429ea976baa40498964392d0c6be0e96094fc3987fe46be0387add",
+            "ev:a1785b9cd48677fbdc0db647329f13847b39f7e19f1dd8075acd6ef89b397267"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Tailable cursors return documents in natural order and do not use indexes. Their initial collection scan can be expensive, although retrieval after reaching the end is inexpensive. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/tailable-cursors.md",
+          "note": null,
+          "claimId": "clm:a40b632ac3f093f226fe7520ddef51614104ae050d8823787a58b63443de1816",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3544453474bdedce3d20621ea87e35389c7eee5395498e2f1614abd50b4fada7"
+          ]
+        },
+        {
+          "text": "Mongoose Query.tailable() exposes awaitData and maxAwaitTimeMS options, and documents that maxAwaitTimeMS requires both tailable and awaitData to be true. (medium confidence)",
+          "source": "https://mongoosejs.com/docs/api/query.html",
+          "note": null,
+          "claimId": "clm:5cb0fc8d215fcf909f7599088b4945227d7f6b4c5e8b95a1e203320cbbbebd9d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:be25cf20edce037e8ce1c4d80796640b7fb013b74814192c7002f6e725d129a6"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/manual/reference/method/cursor.maxAwaitTimeMS.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "3e31f4898b5f947dc5eee2270416891c62d8872d793c4c39529748905270a08c",
+  "canonicalConceptId": "concept:363564a0779260a2779bcbef30e7a5d6b75481e2066275a367102e9ab7d3cf7c"
+}

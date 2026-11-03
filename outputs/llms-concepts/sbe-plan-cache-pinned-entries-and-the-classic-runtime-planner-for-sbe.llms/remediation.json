@@ -1,0 +1,646 @@
+{
+ "schema": "claim-remediation/v1",
+ "applications": [
+  {
+   "slug": "sbe-plan-cache-pinned-entries-and-the-classic-runtime-planner-for-sbe",
+   "at": "2026-11-02T14:10:28Z",
+   "pack": "outputs/llms-concepts/sbe-plan-cache-pinned-entries-and-the-classic-runtime-planner-for-sbe.llms",
+   "packSha256Before": "eb9a71408f9b346ca1827bc9217fa7eea9e38da5bc4ccf06bf465c6b5e321ec0",
+   "edits": [
+    {
+     "claim_id": "clm:174a3d4639b4fba63ad796828f380caa266996b7afbf97e7bbb45c8859adefce",
+     "unit_id": "clm:d4de3c1f65f70f32e889b019959f43176c1108a8c62595bca0999b13356b1c51",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "For a nonpinned SBE-cache entry with `decisionReads`, `attemptToUsePlan` runs an SBE trial with a read budget of `internalQueryCacheEvictionRatio` times `decisionReads`; SERVER-85238 defines the cached read count as total keys examined plus total documents examined. Entries without `decisionReads` bypass this trial. The SBE-cache path can replan a cached foreign `$lookup` hash join before the trial if that join is no longer eligible. This differs from the classic-engine works feedback described by Percona. (medium confidence) (verified as of 2026-10-20)",
+     "new": "For a nonpinned SBE-cache entry with `decisionReads`, `attemptToUsePlan` runs an SBE trial with a read budget of `internalQueryCacheEvictionRatio` times `decisionReads`; SERVER-85238 defines the total reads of a plan as totalKeysExamined plus totalDocsExamined. Entries without `decisionReads` (pinned entries) bypass this trial. When recovering a plan from the SBE cache, the planner replans a cached foreign `$lookup` hash join before any trial if the foreign collection is no longer eligible for hash join. The classic runtime planner tracks 'works' for its budget, whereas SBE tracks reads. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp ; https://jira.mongodb.org/browse/SERVER-85238",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "quote": "size_t maxReadsBeforeReplan = internalQueryCacheEvictionRatio.load() * *decisionReads;",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "quote": "const bool isPinnedCacheEntry = !decisionReads.has_value();",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "quote": "that is no longer eligible for using a hash_lookup plan. In this case we",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-85238",
+       "quote": "Total number of reads, performed by a plan is equal to totalKeysExamined + totalDocsExamined stats.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-85238",
+       "quote": "Classic runtime planner tracks the number of “works” to determine a budget, but SBE tracks “reads” instead of “works”.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "For nonpinned entry with decisionReads, attemptToUsePlan runs an SBE trial with budget internalQueryCacheEvictionRatio times decisionReads",
+       "outcome": "VERIFIED",
+       "note": "Code computes maxReadsBeforeReplan and runs the trial.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "mongo SBE plan cache \"pinned\" entries single solution rooted $or README"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp"
+        ]
+       }
+      },
+      {
+       "statement": "SERVER-85238 defines the cached read count as keys examined plus docs examined",
+       "outcome": "VERIFIED",
+       "note": "Stated in the Jira description.",
+       "evidence_index": [
+        3
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-85238"
+        ]
+       }
+      },
+      {
+       "statement": "Entries without decisionReads bypass the trial",
+       "outcome": "VERIFIED",
+       "note": "Returns SingleSolutionPassthroughPlanner before the trial.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp"
+        ]
+       }
+      },
+      {
+       "statement": "SBE-cache path replans a cached foreign $lookup hash join before the trial if no longer eligible",
+       "outcome": "VERIFIED",
+       "note": "In makePlanner, replan is called without running a trial.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp"
+        ]
+       }
+      },
+      {
+       "statement": "This differs from the classic-engine works feedback described by Percona",
+       "outcome": "CORRECTED",
+       "note": "The classic works-versus-SBE reads difference is in SERVER-85238. The Percona description was not checked, so it is omitted.",
+       "evidence_index": [
+        4
+       ],
+       "searched": {
+        "queries": [
+         "mongo SBE plan cache \"pinned\" entries single solution rooted $or README"
+        ],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-85238"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "mongo SBE plan cache \"pinned\" entries single solution rooted $or README"
+      ],
+      "urls": [
+       "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "https://jira.mongodb.org/browse/SERVER-85238"
+      ]
+     },
+     "rationale": "The cached_planner.cpp source and SERVER-85238 establish the budget, the pinned bypass, the hash-join replan and the works-versus-reads difference. The reference to Percona's description was not sourced or checked, so it is dropped."
+    },
+    {
+     "claim_id": "clm:5e53abc3437fdb66c61c51d77dd5dffd3eda8ec63ac0a866c2598f916f7e2539",
+     "unit_id": "clm:04139bfcd665415254b16151e0cadd3a3b305125e782089bc3442982494e7aae",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "The supplied canonical_query_encoder.cpp commit uses separate legacy key tags for classic plans, SBE-compatible non-subplanner plans, and SBE $or subplanner entries. The distinct subplanner tag means that an entry without ordinary reads or works should not automatically be classified as a pinned entry. (high confidence)",
+     "new": "The supplied canonical_query_encoder.cpp commit uses separate legacy key tags for classic plans, SBE-compatible non-subplanner plans, and SBE $or subplanner entries. The distinct subplanner tag means that an entry without ordinary reads or works should not automatically be classified as a pinned entry. (high confidence) Sources: https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/canonical_query_encoder.cpp ; https://jira.mongodb.org/browse/SERVER-91095",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/canonical_query_encoder.cpp",
+       "quote": "// Encode a flag with three possible values:",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/canonical_query_encoder.cpp",
+       "quote": "// 3 ('o'): The cache entry is used for sub-planning using the classic SubPlanner",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-91095",
+       "quote": "Such cache entries are encoded with a special byte in their plan cache key to avoid conflation with other kinds of cache entries.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-91095",
+       "quote": "such cache entries should not store either a \"works\" or a \"reads\" value.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "The commit uses separate legacy key tags for classic, SBE non-subplanner, and SBE $or subplanner entries",
+       "outcome": "VERIFIED",
+       "note": "Tags 'c', 's', 'o'.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "mongodb README \"pinned\" plan cache entry \"does not store\" works reads SBE \"rooted $or\" eviction"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/canonical_query_encoder.cpp"
+        ]
+       }
+      },
+      {
+       "statement": "An entry without ordinary reads or works should not automatically be classed as pinned because of the distinct subplanner tag",
+       "outcome": "VERIFIED",
+       "note": "SERVER-91095 lists pinned and subplanner-only entries as separate states.",
+       "evidence_index": [
+        2,
+        3
+       ],
+       "searched": {
+        "queries": [
+         "mongodb README \"pinned\" plan cache entry \"does not store\" works reads SBE \"rooted $or\" eviction"
+        ],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-91095"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "mongodb README \"pinned\" plan cache entry \"does not store\" works reads SBE \"rooted $or\" eviction"
+      ],
+      "urls": [
+       "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/canonical_query_encoder.cpp",
+       "https://jira.mongodb.org/browse/SERVER-91095"
+      ]
+     },
+     "rationale": "At the pinned commit, encodeLegacyGetExecutorSubplanningData encodes 'c' (classic), 's' (classic-planned, run in SBE) and 'o' (SBE $or subplanning). SERVER-91095 states pinned entries are a different state from subplanner-only entries, and that the subplanner entries also have neither a meaningful works nor reads value."
+    },
+    {
+     "claim_id": "clm:5ed030dab15194e434b8f2c1b46525c193bc0ecb76aeb10f798e946a35320430",
+     "unit_id": "clm:af8d7f71aa2bd214af4e011e7e13fbb5cba4da0905d21904e0e88f79da57724f",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "In classic_runtime_planner_for_sbe, attemptToUsePlan treats a missing decisionReads value as a pinned-entry signal and returns SingleSolutionPassthroughPlanner before building the normal TrialRunTracker read-budget trial. MongoDB's README names single-solution and rooted $or queries as pinned examples and says standard cache eviction can still remove pinned plans. (high confidence) (verified as of 2026-10-20)",
+     "new": "In classic_runtime_planner_for_sbe, attemptToUsePlan treats a missing decisionReads value as a pinned-entry signal and returns SingleSolutionPassthroughPlanner before building the normal TrialRunTracker read-budget trial. Per SERVER-91095, a pinned entry has no reads or works value, so the cached plan trial period does not run and replanning never occurs for it. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp ; https://jira.mongodb.org/browse/SERVER-91095",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "quote": "const bool isPinnedCacheEntry = !decisionReads.has_value();",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "quote": "return std::make_unique<SingleSolutionPassthroughPlanner>(std::move(plannerData),",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-91095",
+       "quote": "This means that the plan can be retrieved from the cache, but the cached plan trial period will not run and replanning can never occur.",
+       "supports": "correction"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "attemptToUsePlan treats missing decisionReads as pinned and returns SingleSolutionPassthroughPlanner before the TrialRunTracker trial",
+       "outcome": "VERIFIED",
+       "note": "Code confirms.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "mongo SBE plan cache \"pinned\" entries single solution rooted $or README"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp"
+        ]
+       }
+      },
+      {
+       "statement": "MongoDB's README names single-solution and rooted $or queries as pinned examples",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "The plan_cache README has no mention of pinned entries. SERVER-91095 says rooted $or subplanner entries are a separate state from pinned entries.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "mongo SBE plan cache \"pinned\" entries single solution rooted $or README",
+         "mongodb README \"pinned\" plan cache entry \"does not store\" works reads SBE \"rooted $or\" eviction"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/plan_cache/README.md",
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/README_plan_cache.md",
+         "https://jira.mongodb.org/browse/SERVER-91095"
+        ]
+       }
+      },
+      {
+       "statement": "Standard cache eviction can still remove pinned plans",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "No pinned source states this.",
+       "evidence_index": [],
+       "searched": {
+        "queries": [
+         "mongo SBE plan cache \"pinned\" entries single solution rooted $or README",
+         "mongodb README \"pinned\" plan cache entry \"does not store\" works reads SBE \"rooted $or\" eviction"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/plan_cache/README.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "mongo SBE plan cache \"pinned\" entries single solution rooted $or README",
+       "mongodb README \"pinned\" plan cache entry \"does not store\" works reads SBE \"rooted $or\" eviction"
+      ],
+      "urls": [
+       "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/plan_cache/README.md",
+       "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/README_plan_cache.md",
+       "https://jira.mongodb.org/browse/SERVER-91095"
+      ]
+     },
+     "rationale": "The source code establishes the pinned check and the passthrough planner. The claim that a README names single-solution and rooted $or queries as pinned examples, and says standard eviction can remove pinned plans, was not found. The plan_cache README at master is unrelated. SERVER-91095 describes rooted $or subplanner entries as a separate state from pinned entries."
+    },
+    {
+     "claim_id": "clm:9e54493f0971609d18ae297549d58912e0ee4f3d284f88fec132b1f6ced1cde2",
+     "unit_id": "clm:52c6c0de2853157c8818a9b81d960528e5621ade32fb05f690c263c0c2dfb2bc",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "For a nonpinned SBE cache hit with decisionReads, the SBE classic runtime planner sets the trial read budget to internalQueryCacheEvictionRatio multiplied by decisionReads; it deactivates the entry and replans if TrialRunTracker exhausts that budget. SERVER-85238 defines the cached decision read count as totalKeysExamined plus totalDocsExamined. (high confidence) (verified as of 2026-10-20)",
+     "new": "For a nonpinned SBE cache hit with decisionReads, the SBE classic runtime planner sets the trial read budget to internalQueryCacheEvictionRatio multiplied by decisionReads; it deactivates the entry and replans if TrialRunTracker exhausts that budget. SERVER-85238 defines the cached decision read count as totalKeysExamined plus totalDocsExamined. (high confidence) (verified as of 2026-10-20) Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp ; https://jira.mongodb.org/browse/SERVER-85238",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "quote": "size_t maxReadsBeforeReplan = internalQueryCacheEvictionRatio.load() * *decisionReads;",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "quote": "if (candidate.stopCondition == MultiPlannerStopCondition::kExhaustedBudget) {",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "quote": "deactivateCb(plannerData);",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-85238",
+       "quote": "Total number of reads, performed by a plan is equal to totalKeysExamined + totalDocsExamined stats.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Budget is internalQueryCacheEvictionRatio times decisionReads for nonpinned hits",
+       "outcome": "VERIFIED",
+       "note": "Code confirms.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "mongo SBE plan cache \"pinned\" entries single solution rooted $or README"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp"
+        ]
+       }
+      },
+      {
+       "statement": "It deactivates the entry and replans if TrialRunTracker exhausts the budget",
+       "outcome": "VERIFIED",
+       "note": "Code confirms.",
+       "evidence_index": [
+        1,
+        2
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp"
+        ]
+       }
+      },
+      {
+       "statement": "SERVER-85238 defines decision reads as totalKeysExamined plus totalDocsExamined",
+       "outcome": "VERIFIED",
+       "note": "Jira text.",
+       "evidence_index": [
+        3
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-85238"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "mongo SBE plan cache \"pinned\" entries single solution rooted $or README"
+      ],
+      "urls": [
+       "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "https://jira.mongodb.org/browse/SERVER-85238"
+      ]
+     },
+     "rationale": "cached_planner.cpp sets the budget to internalQueryCacheEvictionRatio times decisionReads, then deactivates the entry and replans when the trial exhausts its budget. SERVER-85238 states that total reads equal totalKeysExamined plus totalDocsExamined."
+    },
+    {
+     "claim_id": "clm:aa2a62f970502c31f7678758f9bcde1710e04fa2a8e432a2fb0fab9e2c2c29b7",
+     "unit_id": "clm:7129aea6435e6e2fbf7f6c1a1d274b6b595b9e25177c14cbafb2df99f1221492",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "The plan-cache README identifies single-solution and rooted `$or` plans as pinned examples in the SBE cache. Pinned entries lack ordinary `works` or `reads` feedback and bypass the normal read-budget trial, although standard cache eviction can still remove them. The pinned `cached_planner.cpp` path checks whether a cached foreign `$lookup` hash join remains eligible before `attemptToUsePlan` checks `decisionReads` for the pinned-entry bypass; if that join is no longer eligible, the planner replans immediately. The sources therefore support skipping threshold-based cached-plan validation for pinned entries, but not a guarantee that every replan path is bypassed. (high confidence) (verified as of 2026-10-20)",
+     "new": "Pinned SBE plan cache entries have no reads or works value. The plan can be retrieved from the cache, but the cached plan trial period does not run and replanning never occurs for them (SERVER-91095). In cached_planner.cpp, makePlanner checks whether a cached foreign `$lookup` hash join is still eligible before calling `attemptToUsePlan`, which checks `decisionReads` for the pinned-entry bypass. If the join is no longer eligible, the planner replans immediately without a trial. So the pinned bypass skips only the read-budget trial, not every replan path. Sources: https://jira.mongodb.org/browse/SERVER-91095 ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-91095",
+       "quote": "The plan cache entry is pinned, and has no reads or works value.",
+       "supports": "correction"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-91095",
+       "quote": "This means that the plan can be retrieved from the cache, but the cached plan trial period will not run and replanning can never occur.",
+       "supports": "correction"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "quote": "invalidate the cache and immediately replan without ever running a trial period.",
+       "supports": "correction"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "quote": "const bool isPinnedCacheEntry = !decisionReads.has_value();",
+       "supports": "correction"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "The plan-cache README identifies single-solution and rooted $or plans as pinned examples in the SBE cache",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "README at the cited path has no pinned text. Jira SERVER-91095 treats rooted $or subplanner entries as a separate state from pinned.",
+       "evidence_index": [],
+       "searched": {
+        "queries": [
+         "mongo SBE plan cache \"pinned\" entries single solution rooted $or README",
+         "mongodb README \"pinned\" plan cache entry \"does not store\" works reads SBE \"rooted $or\" eviction"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/plan_cache/README.md",
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/README_plan_cache.md",
+         "https://jira.mongodb.org/browse/SERVER-91095"
+        ]
+       }
+      },
+      {
+       "statement": "Pinned entries lack works or reads feedback and bypass the normal read-budget trial",
+       "outcome": "VERIFIED",
+       "note": "Per SERVER-91095 and the code.",
+       "evidence_index": [
+        0,
+        1,
+        3
+       ],
+       "searched": {
+        "queries": [
+         "mongodb README \"pinned\" plan cache entry \"does not store\" works reads SBE \"rooted $or\" eviction"
+        ],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-91095"
+        ]
+       }
+      },
+      {
+       "statement": "Standard cache eviction can still remove pinned entries",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "No pinned source states this.",
+       "evidence_index": [],
+       "searched": {
+        "queries": [
+         "mongo SBE plan cache \"pinned\" entries single solution rooted $or README",
+         "mongodb README \"pinned\" plan cache entry \"does not store\" works reads SBE \"rooted $or\" eviction"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/plan_cache/README.md"
+        ]
+       }
+      },
+      {
+       "statement": "The hash-join eligibility check runs before attemptToUsePlan's decisionReads pinned bypass, and ineligibility causes an immediate replan",
+       "outcome": "VERIFIED",
+       "note": "In makePlanner the check precedes the attemptToUsePlan call.",
+       "evidence_index": [
+        2,
+        3
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp"
+        ]
+       }
+      },
+      {
+       "statement": "The sources do not guarantee that every replan path is bypassed for pinned entries",
+       "outcome": "VERIFIED",
+       "note": "Follows from the hash-join replan path running before the pinned check.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "mongo SBE plan cache \"pinned\" entries single solution rooted $or README",
+       "mongodb README \"pinned\" plan cache entry \"does not store\" works reads SBE \"rooted $or\" eviction"
+      ],
+      "urls": [
+       "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/plan_cache/README.md",
+       "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/README_plan_cache.md",
+       "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+       "https://jira.mongodb.org/browse/SERVER-91095"
+      ]
+     },
+     "rationale": "The code ordering and the pinned semantics are supported by cached_planner.cpp and SERVER-91095. The plan_cache README at the cited path has no pinned content. No source was found for single-solution and rooted $or being named as pinned examples, or for standard eviction removing pinned entries. SERVER-91095 treats rooted $or subplanner entries as a separate state from pinned entries."
+    },
+    {
+     "claim_id": "clm:ffeb4c98e6da0cfc51ff610382573b8d87d0744b3bdcb09bcca89b58eebdfb06",
+     "unit_id": "clm:0841088f2e9fe3c75abfb75100306b8283d186a2a73e6be002693fa0db453446",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Do not identify every no-works/no-reads entry as pinned. MongoDB's Jira distinguishes a special rooted $or branch entry for SBE subplanning, which also stores neither metric because rooted-$or replanning is unsupported. The current executor source still has a TODO to investigate removing that restriction. (medium confidence) (verified as of 2026-10-20)",
+     "new": "Do not identify every no-works/no-reads entry as pinned. MongoDB's Jira distinguishes a special rooted $or branch entry for SBE subplanning, which also stores neither metric because rooted-$or replanning is unsupported. The current executor source still has a TODO to investigate removing that restriction. (medium confidence) (verified as of 2026-10-20) Sources: https://jira.mongodb.org/browse/SERVER-91095 ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/get_executor.cpp",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-91095",
+       "quote": "The plan cache entry is pinned, and has no reads or works value.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-91095",
+       "quote": "Since we currently do not support replanning for rooted $or queries (see SERVER-18777), such cache entries should not store either a \"works\" or a \"reads\" value.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/get_executor.cpp",
+       "quote": "// TODO SERVER-120492: Investigate if we can remove the replanning restriction on",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Not every no-works/no-reads entry is pinned; Jira distinguishes a special rooted $or branch entry for SBE subplanning that also stores neither metric.",
+       "outcome": "VERIFIED",
+       "note": "Jira lists pinned entries and the special $or-branch entries as separate cases, and both store neither value.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-91095"
+        ]
+       }
+      },
+      {
+       "statement": "The $or-branch entry stores neither metric because rooted-$or replanning is unsupported.",
+       "outcome": "VERIFIED",
+       "note": "Stated directly in SERVER-91095.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-91095"
+        ]
+       }
+      },
+      {
+       "statement": "The current executor source still has a TODO to investigate removing that restriction.",
+       "outcome": "VERIFIED",
+       "note": "The TODO is in finishPrepare() in master get_executor.cpp and concerns the replanning restriction on subplanning.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/get_executor.cpp"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [],
+      "urls": [
+       "https://jira.mongodb.org/browse/SERVER-91095",
+       "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/get_executor.cpp"
+      ]
+     },
+     "rationale": "SERVER-91095 separates pinned entries (no reads or works) from the special $or-branch entry used in SBE subplanning. It says the $or-branch entry stores neither value because replanning is unsupported for rooted $or. The current get_executor.cpp has a TODO (SERVER-120492) to investigate removing the replanning restriction on subplanning."
+    }
+   ],
+   "skipped": [],
+   "changed": [
+    "llms-facts.txt",
+    "llms-full.txt",
+    "llms-small.txt",
+    "units.jsonl"
+   ]
+  }
+ ],
+ "publication": {
+  "schema": "remediation-public-projection/v1",
+  "source_record_sha256": "2fcb9de2725ea9232445de9368d3b271719821e6683ce837ffcfa67b592a1b73",
+  "redactions": [
+   "operator-specific pack path"
+  ]
+ }
+}

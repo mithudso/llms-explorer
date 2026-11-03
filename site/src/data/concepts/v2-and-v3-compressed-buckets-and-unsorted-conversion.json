@@ -1,0 +1,189 @@
+{
+  "slug": "v2-and-v3-compressed-buckets-and-unsorted-conversion",
+  "concept": "V2 and V3 compressed buckets and unsorted conversion",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for V2 and V3 compressed buckets and unsorted conversion. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The implementation README says newly created buckets default to V2 starting with MongoDB 8.0. Existing V1 buckets from upgrades remain supported and are sorted and compressed to V2 when reopened for insertion. This describes V1-to-V2 conversion, not evidence of automatic V3-to-V2 repair. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:374fde5a0dd2d2bfe0989ef04248183a57212d1ed2c41616a46d5975e2d30078",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8aa9bb8e5cbd6eb365517d28f507cd712d08c956aaa7298e4faac4c5948baa06"
+          ]
+        },
+        {
+          "text": "In the inspected write path, conversion occurs when a sorted bucket receives a batch whose first timestamp is earlier than its last stored timestamp. The code clears bucketIsSortedByTime, increments numCompressedBucketsConvertedToUnsorted, and includes the unsorted version in the compressed diff. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/write_ops/timeseries_write_ops_utils_internal.cpp",
+          "note": null,
+          "claimId": "clm:df0be055c335171e094d281b0cde46675bb4803e60fdfd0e0103392fdc066c10",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:012c03f5f6610f1e3c99f6bee72b19f136c44495b184422b043b9c96fd64a26a"
+          ]
+        },
+        {
+          "text": "V3 prevents read optimizations that rely on timestamps being ordered. A V3 label can therefore affect query performance even when a particular bucket's measurements happen to be ordered; no universal slowdown factor follows from the version alone. (high confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:dd16c648a1629fe6da1794c3c65aacd34d7d99d81ed2237f138d99da98cd0d3f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6b39e05d9b820fcff5c4e7f43e51818174b186b30f19bd4614dc59230496c241",
+            "ev:fbf4a73860f26040d545f9df4ef7aac9dc7c273f775ba2fda27c213cceab26df"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-123517"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "V2 time-series buckets store compressed measurements sorted by the time field. V3 buckets also remain compressed, but readers cannot assume time ordering. The bucket schema version is distinct from a MongoDB server release number. (high confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:cbab698ee4e558bc31a75ece9b281de7bedd958f3aa1eaa37b94a6ae5f6b64ec",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1164fafc48b945494093de3488367558b0bf2198e5540a865ebd9350e176a6f1",
+            "ev:b87a2dbbdaf1e91d87d1df997a78d191c087ccb985db17af23531977177e677f"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-86317"
+          ]
+        },
+        {
+          "text": "SERVER-123517 documents that a bucket marked V3 can contain measurements that are actually in order. Its stated consequence is missed read optimizations, and the issue changes the associated validation failure to a warning; the issue lists fix version 9.0.0-rc0. Do not infer deployment to an 8.x release from that issue. (low confidence) (verified as of 2026-04-14)",
+          "source": "https://jira.mongodb.org/browse/SERVER-123517",
+          "note": null,
+          "claimId": "clm:79abf688547a683d408af20ef371c8971bb52153bd598d1a35066435a74700d4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2458d27631e7d3d5bf91e5e2f2d09e0651827e6ed2347330aa250e19aed3283f"
+          ]
+        },
+        {
+          "text": "Inference for remediation assessment: a V2-to-V3 promotion alone does not demonstrate a bucket split or merge. The documented transition changes ordering assumptions inside the same compressed bucket, so V3 prevalence alone cannot establish how many partially filled buckets need remediation. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:5c5e6a04dde2acecda1dfaa9491b9820371f2191523bfa355bbde4fac6a5c09a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6b39e05d9b820fcff5c4e7f43e51818174b186b30f19bd4614dc59230496c241",
+            "ev:8813ed3bc84fc6e2f6e7413b06025000df610a7ab13bfee1ec4ce20288f907b2"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-86317"
+          ]
+        },
+        {
+          "text": "The historical reproduction in SERVER-90808 created a V3 bucket, downgraded to a 7.0 binary, and observed error 5857900, Invalid bucket version, on reads. This is historical compatibility evidence; the issue does not establish that all current 7.0 patch releases have that behavior. (low confidence) (verified as of 2026-09-29)",
+          "source": "https://jira.mongodb.org/browse/SERVER-90808",
+          "note": null,
+          "claimId": "clm:c6f562ecf167dd26ad2b663ce4c4dbf1c42a818b69bd2a401a69b5fdaa026a81",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9a4c7935fae4363cc0cadb30f9ebc3a1092e21d2b4b2f8753ffc74ff3aee6a7c",
+            "ev:c26361bc1a23beab02dc00611c3ee183be00a66c59688ef4b7cbdb45808c9959"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "If an incoming measurement is out of time order within the same V2 bucket, MongoDB promotes that bucket to V3. This conversion preserves compression; it is not a conversion back to an uncompressed V1 bucket. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:f5f0427c6533cdbb248a210358d230f6168835cfc6cc093765b77dbc71e2d929",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": [],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-86317"
+          ]
+        },
+        {
+          "text": "The implementation README explains the conversion through append-only BSONColumnBuilder instances for each data field: new measurements append to existing columns. It identifies low-cardinality concurrent bulk loads as a circumstance more likely to introduce out-of-order measurements into the same bucket. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:9d5743cef81bac89c5044a451bf0eaf0afff711a038503c97323d42827c59935",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        },
+        {
+          "text": "V3 buckets can lose query optimizations that depend on measurements being ordered by time. Neither cited source supplies a universal slowdown factor or establishes that every query becomes slower. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:c7895172b3b06fac0204b68d6679aff45d15ec85b19739cd3ee944f8f07c7da3",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": [],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-123517"
+          ]
+        },
+        {
+          "text": "serverStatus.bucketCatalog exposes numCompressedBucketsConvertedToUnsorted, documented as the number of compressed buckets containing documents not sorted by their timeField values. This metric concerns ordering; the documented definition does not measure bucket occupancy or quantify fragmentation. (low confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null,
+          "claimId": "clm:3a48abb806f1f2de5b4d68b4428d2f173d954c8d092fa05a518b621a34e2ebd2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:274c64713bb4d9099b740f30a628265ec819787296edb601b36828312c44fce7",
+            "ev:43e07273e345d0dd21fd8412f60e2ac720d993c920396a0701c0fc9fe65ba9a6"
+          ]
+        },
+        {
+          "text": "V2 and V3 use append-only BSONColumn builders. An out-of-order insertion into an existing V2 bucket can promote it to V3 while retaining compressed column storage. (high confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:275dfe338e5fbf6343e9a3ccf248785f75c80067bf3a2fe53d603ce7ad8b118b",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": [],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/write_ops/timeseries_write_ops_utils_internal.cpp"
+          ]
+        },
+        {
+          "text": "serverStatus exposes bucketCatalog.numCompressedBucketsConvertedToUnsorted. Read alongside the conversion write path, this is a conversion diagnostic; it should not by itself be interpreted as a current V3 inventory or proof that buckets need merging. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/write_ops/timeseries_write_ops_utils_internal.cpp",
+          "note": null,
+          "claimId": "clm:419690f5a60430c276bcdf8275220958006513b98d610d60f818d4e4492e7d64",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:012c03f5f6610f1e3c99f6bee72b19f136c44495b184422b043b9c96fd64a26a",
+            "ev:274c64713bb4d9099b740f30a628265ec819787296edb601b36828312c44fce7",
+            "ev:43e07273e345d0dd21fd8412f60e2ac720d993c920396a0701c0fc9fe65ba9a6"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/manual/reference/command/serverStatus/"
+          ]
+        },
+        {
+          "text": "The internal compressBucket API documents conversion of an uncompressed V1 bucket into sorted V2. That API description does not establish a supported V3-to-V2 repair or a multi-bucket merge operation. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:dbd577d6046398396a0e3504fb519290b257383dd7f96ad22713b710c54978f4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:596b57fbf581853537b02ef923f3d58aa08ed7df20b2735bb11916a8aea396e5"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_compression.h"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "4f2fd72d9aef3e158f08841cab9ab4307dddece2db7f6bc459d8548093e5aa26",
+  "canonicalConceptId": "concept:2548dfe6f6acddd24663d3d9f277c0c745c3dac3b7240eb0e898271bad7016c3"
+}

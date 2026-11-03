@@ -492,3 +492,21 @@
 ## Prompt v113 - 2026-10-14T23:29:08-04:00
 - User request:
   - Set up m3 (user@192.0.2.73) and m5 (user@192.0.2.236) with hostname entries and a litellm weighted-backoff mesh so any box can use any other for semantic indexing, /dr research, the concept-family queue and coding; design test plans for the best model on each Mac from the llm-bench results; push plans, litellm installs and all skills/research to both Macs. (Hub part: semantic_ops/llm.py gains the HUB_LLM_URL mesh path.)
+
+## Prompt v114 - 2026-10-21T03:30:55+00:00
+- User request:
+  - Keep every concept run reflected in the llms-explorer website. Audit trees, llms files and research. Then start the ranked queue in cohorts that share source-library pages.
+
+## Prompt v115 - 2026-10-23T19:25:56.567475+00:00
+- User request:
+  - Deliver the verified Apple Intelligence full-suite packs, categorical family index and scoped concept-tree/score/queue changes to the private Hub through a clean worktree and green merged PR. Preserve concurrent live Hub work, private research evidence and the embeddings pause. Port the reviewed topical graph-serving repair after its source PR merges.
+
+## Prompt v116 - 2026-10-29
+- User request:
+  - Resolve the issues, sync the site here and also the tree in .global-ai-hub then commit push pr
+- Scope: preserve unrelated hub work while reconciling queue identities/outcomes, restoring historical evidence, correcting existing research with fresh gates, and synchronizing qualified tree/site projections.
+
+## Prompt v117 - 2026-10-29
+- User request:
+  - Disable all Delta hooks
+- Scope: user-level Delta plugin disabled; other hooks/plugins preserved.

@@ -1,0 +1,220 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "SHARDING_FILTER stage internals and orphaned-document filtering",
+  "slug": "sharding-filter-stage-internals-and-orphaned-document-filtering",
+  "canonical_concept_id": "concept:a90fd6059b88fd0e5a65df54747e6d68232a4fa8f0167b827a114e7d5baede3f",
+  "canonical_artifact_sha256": "a337947d8513af2c8929a02cec556c117e29fc6dfb028e2c3a6c3dd74f6c5fc9",
+  "claims": [
+    {
+      "id": "clm:2e1fc7a1759bf7a2eeb2fdb8438f7af116e5ab0c3273c4ed36a7ec56d2c8c08a",
+      "text": "SHARDING_FILTER is a query execution stage that removes orphan documents from shard results; SHARD_MERGE combines shard results and performs a different job. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+      "also": [
+        "https://www.mongodb.com/community/forums/t/shard-merge-shard-filter-fetch-stages-of-execution-plan/203587"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:e7bcfc8367500a44f044068ad14407434b00044098b61510fc91d2d419436942",
+      "text": "Do not assume that every read path excludes orphans. SERVER-91030 explains that the analyzed internal aggregate uses readConcern available to skip shard-version checking and shard filtering for performance; the replication design README also warns that available reads can return orphan documents when routing metadata is stale. This exception must not be treated as a safe performance workaround for ordinary queries. (medium confidence) (verified as of 2025-08-08)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-91030",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:42cc98259c83d01548e861451724cd59f2df30e29711ea48e9026a32a5ad5808",
+        "ev:6696d357bbd8b9813374347fbff12cdca78b820b3ab2b26c07e0a16dd0bee370"
+      ]
+    },
+    {
+      "id": "clm:f655946a7e7793b4f79c55acce299552f6122084c0d300a6b0aeae60b9425d11",
+      "text": "Huawei's unrestricted secondary/local explain procedure scans the collection across all shard nodes and can create substantial query pressure. Its guide advises against running the diagnostic when the data volume makes the scan expensive. (low confidence) (verified as of 2025-07-24)",
+      "source_url": "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9ed5398de4fc40a33f79ab4f880b715fec87fbb23022e5609c43f08d1ee9cb1a"
+      ]
+    },
+    {
+      "id": "clm:422d76e33586224f62de10b9375e4b2dc95700af267d881ebb569e1a81cb6cc9",
+      "text": "In the inspected master implementation, ShardFiltererImpl extracts the shard key from a fetched document when available, or from WorkingSetMember index-key data otherwise, then tests ownership. Consequently, SHARDING_FILTER alone does not prove a FETCH occurred; inspect the full plan for FETCH and collection-document examination when assessing coverage. (high confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/shard_filterer_impl.cpp",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp",
+        "https://www.mongodb.com/docs/manual/reference/explain-results/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0583d8d5342fb18b135d92cd7679ed2a8352ebf08e6d77dc926f2415a748c2cf",
+        "ev:b7e8f1e3a2f3ad72111af9f4927d102a94577975e20beedde3d95567f914b058"
+      ]
+    },
+    {
+      "id": "clm:791c5a39b49a60c40da8147d63a5973f6c3a548dcd9a47c44a658c157be1326b",
+      "text": "In that classic implementation, chunkSkips also increments for a kNoShardKey result. That path asserts that the member has a fetched object and logs a warning about a document possibly inserted manually into a shard. Therefore the counter is technically rejected working-set members, rather than an unconditional count of ordinary migration orphans. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b7e8f1e3a2f3ad72111af9f4927d102a94577975e20beedde3d95567f914b058"
+      ]
+    },
+    {
+      "id": "clm:b5d7d021106e6707a418168ada41bc0edd19c42895ee7afcf53eaf880cc31930",
+      "text": "SHARDING_FILTER alone does not establish whether a query is covered. MongoDB defines coverage by satisfying the query entirely from index keys, with no document examination; the documented example that places FETCH below SHARDING_FILTER has already fetched documents. Inspect the underlying stages and execution statistics instead of treating the filtering stage name as proof of coverage. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/v8.3/reference/explain-results/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/explain-results/",
+        "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:82f88fae2c01af52084e1bd70626f13f9eeda8cb9dad7062d14c4300acff1aee",
+      "text": "SHARDING_FILTER removes candidate documents that are physically present on a shard but do not logically belong to it according to the collection filtering metadata; it is an ownership check rather than an application predicate. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.h",
+        "https://www.mongodb.com/docs/manual/reference/explain-results/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:76a11b9801d61f4a12ba5f9cac3f7bb9de81d1eda47922ae96b8446d2348a830",
+        "ev:b7e8f1e3a2f3ad72111af9f4927d102a94577975e20beedde3d95567f914b058"
+      ]
+    },
+    {
+      "id": "clm:96c84c708132b1b537e6c6547e31930dd28fccd730d2d00b0bc33b83dcdd1182",
+      "text": "Orphaned documents can result from failed migration or incomplete migration cleanup. Their physical presence differs from logical ownership, so a read-stage ownership filter can suppress results while those copies remain stored. (high confidence)",
+      "source_url": "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b7e8f1e3a2f3ad72111af9f4927d102a94577975e20beedde3d95567f914b058",
+        "ev:ffa48c6b82516bcf4c32e0b2594c907757772a535d772555706cb59815791b34"
+      ]
+    },
+    {
+      "id": "clm:e694083a68d43725a51f6bed20dd836620f0ef6b3c9155ee1fe1e49687737186",
+      "text": "In the classic implementation inspected on 2026-10-30, ShardFilterStage::doWork asks its child for a result, checks documentBelongsToMe for a sharded collection, frees rejected working-set members, increments chunkSkips, and returns NEED_TIME. The implementation explicitly includes pending documents from in-progress migrations and orphans from aborted migrations among data that must not escape. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b7e8f1e3a2f3ad72111af9f4927d102a94577975e20beedde3d95567f914b058"
+      ]
+    },
+    {
+      "id": "clm:d51509f7cda1df33ae9738ab5785c2eb175c09804e83acf33777422ac10a77c5",
+      "text": "For the executed plan, a nonzero chunkSkips at SHARDING_FILTER identifies documents rejected on that shard. Alibaba's example has 102 FETCH results, two skips, and 100 filter results. A filtered or limited explain is not a collection-wide orphan inventory; that conclusion follows from the per-input counter and the guides' use of an unrestricted find for a collection-wide check. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp",
+      "also": [
+        "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster",
+        "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6587e887f2701908bb71a04ec5a60bcf7344bedc97fda1e0fe462c1cc59dd929",
+        "ev:ae1f6999dffa5bb5d7b2791792b779f59f8e2817b653447efefec6ca792b377b",
+        "ev:b7e8f1e3a2f3ad72111af9f4927d102a94577975e20beedde3d95567f914b058"
+      ]
+    },
+    {
+      "id": "clm:9730b91f0e7d8cbe0d2b363c7455e8b304e163b26d514fecac31682d8b8e2407",
+      "text": "Orphan filtering suppresses results without deleting their stored documents. This follows from the stage freeing its working-set result while the operational guide separately prescribes cleanupOrphaned for physical cleanup. (medium confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp",
+      "also": [
+        "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:f723d9bac5ab7e32464232161f4550c3b20e49458febbbef1c98ee63b47589ba",
+      "text": "Treat explain stage details and internal counters as version-sensitive diagnostics. Both the current manual and the versioned 8.3 explain reference say that internal fields may be undocumented and listed output fields can change. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+      "also": [
+        "https://www.mongodb.com/docs/v8.3/reference/explain-results/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:16cf3a18ba1e9a030babb391df92bf87eac25198ac83f2da0b30022756e41481",
+        "ev:803a75ad73526de8cfd936f7c4d7fa4923a724b895158543572f50ea54895e51"
+      ]
+    },
+    {
+      "id": "clm:3e24c292e238e1d6f06feb4c26e299c81695dd7e153ab1f096821edcb5e27944",
+      "text": "SERVER-19643 is historical evidence that direct, unversioned shard connections had different filtering behavior from routed reads: the report reproduced an aggregation/find inconsistency in 3.0.4 and lists fix version 3.3.2. It does not establish behavior for a modern deployment. (low confidence) (verified as of 2016-03-07)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-19643",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:f89399aacfdf27a8a28e86204f1505b9e9b6b2aa4b55ee9862687d47bfc9ff99"
+      ]
+    },
+    {
+      "id": "clm:5d0478fae5c233b189e83526673feca54fbb1f0e93f471ff9f40dedbeaa94b9f",
+      "text": "Treat chunkSkips as a statistic for the executed scan, not automatically a collection-wide orphan census. The classic implementation increments it for both non-owned candidates and candidates for which shard-key extraction fails; Huawei obtains a collection check by scanning the whole collection. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp",
+      "also": [
+        "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:00fba8d3fbc56580411d92b47930d680ddec85f9a4925c5eb80ac7386aefc08e",
+      "text": "The inspected master ShardFilterStage retains a ScopedCollectionFilter for the query lifetime. Its header explains that this prevents cleanup from deleting migrated-away data still needed by an active query using the associated metadata. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.h",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:76a11b9801d61f4a12ba5f9cac3f7bb9de81d1eda47922ae96b8446d2348a830",
+        "ev:b399ce3a127756aa3998707efc75dd4b89eee410caa353cb4dbe5feee7adeee9"
+      ]
+    },
+    {
+      "id": "clm:ed8fc65daf86758697d43de38e4e3791c70b74fc8b06791bdf9fb60647622533",
+      "text": "Read concern available can return orphaned documents during migration and does not guarantee authoritative shard routing. MongoDB 8.0 documentation explicitly scopes secondary orphan protection to reads that do not use available; therefore orphan filtering must not be described as universal for all reads. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/read-concern-available.md",
+      "also": [
+        "https://www.mongodb.com/docs/v8.0/core/distributed-queries/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3a9679352d3f9859e52fd3197aad775edd22b1664b09fa75b7eabece302b3a52",
+        "ev:cfdacb7312d4ebd1cd2c344fd08795e769d3d0e148500112340844efed462431"
+      ]
+    },
+    {
+      "id": "clm:b1b41aa6fbdaf3ba188fa7b96fc0b702779f025dc9dbc6c3c463a8a6ba665098",
+      "text": "MongoDB 8.0 documentation says all shard replica-set members maintain chunk metadata for orphan protection, including secondaries. Huawei documents an operational orphan check through mongos using readPref(\"secondary\"), readConcern(\"local\"), and explain(\"executionStats\"). Older secondary-read reports must be version-scoped. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/core/distributed-queries/",
+      "also": [
+        "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3a9679352d3f9859e52fd3197aad775edd22b1664b09fa75b7eabece302b3a52",
+        "ev:ae1f6999dffa5bb5d7b2791792b779f59f8e2817b653447efefec6ca792b377b"
+      ]
+    },
+    {
+      "id": "clm:c8afd6212cde293c34b90a4028ca68ebedb116363f73d1e39e307991559e5e3f",
+      "text": "The inspected master ShardFilterer interface is shared by find, aggregation execution trees, and slot-based execution. This establishes a shared ownership abstraction, not a guarantee that every engine exposes an identically named explain stage. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/shard_filterer.h",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:46bf26ad46c53b8afbd67453556ab97ed0aa86dabb14bee40fe9cdb82f19971d"
+      ]
+    }
+  ],
+  "projection_sha256": "3c0d67194cfd531e342bd467121ee7863d92fdd76b0211f3f956a4bebf757006"
+}

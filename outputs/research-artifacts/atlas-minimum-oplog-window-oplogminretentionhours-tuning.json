@@ -1,0 +1,130 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Atlas minimum oplog window (oplogMinRetentionHours) tuning",
+  "slug": "atlas-minimum-oplog-window-oplogminretentionhours-tuning",
+  "canonical_concept_id": "concept:be881bc5825ec9025596dd68c30f8784c3d3c5335a7ca3d0f8843f3593cdf5cd",
+  "canonical_artifact_sha256": "b87e5027c3bba9826724bb971172a4abd74936a3e8071b2e2d9889b0126213db",
+  "claims": [
+    {
+      "id": "clm:e4f79b115a74682416dbdde01c4c04b8b4922d39c80a439574a17834c34c6c69",
+      "text": "The observed oplog window is the timestamp difference between the newest and oldest retained entries. Inspect it with db.getReplicationInfo() or rs.printReplicationInfo(); it is not the configured minimum retention value. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/replica-set-oplog.md",
+      "also": [
+        "https://livebook.manning.com/learn/concepts/oplog-minimum-retention-period--config/mongodb-in-action-third-edition",
+        "https://www.mongodb.com/docs/atlas/cluster-additional-settings/?interface=atlas-ui"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:20e109bc0228228237776b7045180d75db06dcfcb4206c3fcd99c575f3c35c1c",
+        "ev:3cd019b77fa32addfdbb1d987b77f556abdd11ebd041af1b0be32ff7587659bd",
+        "ev:59a9bced924cfe7bfc07b7b2dce29af231d68911fb56b7789efa2d87effd7ba5"
+      ]
+    },
+    {
+      "id": "clm:3d738b3c3c2165962e57ed271186616044d19f7b0436550bd2f116b707a3dd36",
+      "text": "Minimum oplog retention is age based: mongod removes an entry only when the configured oplog size has been reached and the entry is older than the configured retention hours, measured against the host system clock. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/replica-set-oplog.md",
+      "also": [
+        "https://livebook.manning.com/learn/concepts/oplog-minimum-retention-period--config/mongodb-in-action-third-edition"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:62259ce1e9c99a2f956ae9193493d8afd92330f5a228b3e3c7d3dc2b14cc0a39"
+      ]
+    },
+    {
+      "id": "clm:7a0bbc05e3611c2f4d6c5c8740dcd535f8747162d251aa0d0d8d3c9f6177fe4c",
+      "text": "Budget disk space when increasing minimum retention. A Percona operator discussion specifically warns that bursty writes can exhaust disk without volume expansion; the general concern is retention-induced oplog growth, not a guarantee that Atlas auto-scaling always completes in time. (medium confidence)",
+      "source_url": "https://forums.percona.com/t/feature-proposal-oplog-management/40411",
+      "also": [
+        "https://www.mongodb.com/docs/atlas/customize-storage.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:be753874f4cac064f4bdfe2baefa8165a2d68685c3e501500f877a71b1a4ffa9"
+      ]
+    },
+    {
+      "id": "clm:da701c7466a43f613bbad0a661fa4fef3e19313932b81b3dfa391eb7d6e216f5",
+      "text": "A fixed byte-size oplog can cover much less time when writes spike. Percona's illustrative scenario changes from 500 MB/hour to 100 times that rate, reducing a 20 GB oplog's coverage below 30 minutes; this is a hypothetical sizing example, not an observed Atlas incident. (medium confidence)",
+      "source_url": "https://www.percona.com/blog/mongodb-4-4-coming-out-soon-what-does-the-code-tell-us/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/replica-set-oplog.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9cbc84986b5b4f27b4210d6e5e22ba741d286edf5b936c6b3648c1949e5393b2"
+      ]
+    },
+    {
+      "id": "clm:edd8a5341b42ee204c0180731e710ae3330864f9afe5d139ce8ff5067e734631",
+      "text": "A September 2023 report using Atlas Terraform provider v1.11.0 records OPLOG_MIN_RETENTION_HOURS_NO_DISK_AUTO_SCALING when disabling disk auto-scaling after configuring retention. The report says null did not reset the setting, and changing retention to zero in the same apply also failed. This is historical evidence of an update-order pitfall, not proof that current provider versions still behave identically. (low confidence) (verified as of 2023-09-19)",
+      "source_url": "https://github.com/mongodb/terraform-provider-mongodbatlas/issues/1481",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:237a2d0fd0b3a966af6ad5aabe88b3bdde1a6b8da896be944b83f1abad06abe2",
+        "ev:8d1600a0015db3e4ec2c8f1610ecf82ec4372c986c8828bae343214ff08a81d3"
+      ]
+    },
+    {
+      "id": "clm:59a11ef9a9d20b055f4f44b19286b26a72ef38e8a983124c2ee5177018e0a5a6",
+      "text": "Reducing Atlas oplog size does not release its allocated storage for other collections; only local.oplog.rs can reuse the saved space. Atlas also warns that oplog entries removed during reduction cannot be restored. (low confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/atlas/cluster-additional-settings.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6c994c5be219ba664a31dc30ee4714624ca256d5cf29ae46207dd7327952c5af"
+      ]
+    },
+    {
+      "id": "clm:9f335da25db12bd55d1e833bd727a911f29a468500ac30b49627d252acbb2b75",
+      "text": "Atlas does not support replSetResizeOplog. Its fixed Oplog Size control requires opting out of storage auto-scaling and setting Minimum Oplog Window to zero; use the Atlas retention setting for an auto-scaling deployment rather than a self-managed resize command. (low confidence) (verified as of 2026-10-27)",
+      "source_url": "https://www.mongodb.com/docs/atlas/cluster-additional-settings/?interface=atlas-ui",
+      "also": [
+        "https://www.mongodb.com/docs/atlas/cluster-additional-settings.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1f3157489f013c411a17700df2270106016e279290d9e12cf1bbe386e6d0556a"
+      ]
+    },
+    {
+      "id": "clm:35b828817e8077d6cd6a44f68c78c0d05c7c748447f54a4304b4d822b38b47ff",
+      "text": "Atlas's Minimum Oplog Window setting maps to storage.oplogMinRetentionHours on each mongod. For Atlas Core with storage auto-scaling enabled, the documented default is 24 hours; configure the desired duration in the Atlas UI. (high confidence) (verified as of 2026-10-27)",
+      "source_url": "https://www.mongodb.com/docs/atlas/cluster-additional-settings/?interface=atlas-ui",
+      "also": [
+        "https://www.mongodb.com/docs/atlas/customize-storage.md",
+        "https://livebook.manning.com/learn/concepts/oplog-minimum-retention-period--config/mongodb-in-action-third-edition",
+        "https://www.mongodb.com/docs/atlas/cluster-additional-settings.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:93f4780891c5a1f482e5f91d0b1f907e3fdff7cdd1efe5f3c2bee8b77e33b428",
+        "ev:c19d570a90a85a3cd8081a42fd14d4446b566ef70b55ec565fcffc8a8fc60c05"
+      ]
+    },
+    {
+      "id": "clm:a19a8aac4a46640cb535ced5620d9f180b4ecdfd12b32fe26c0cc8f00efa1ed8",
+      "text": "Atlas warns that some high-volume bulk-write scenarios, including migrations, can prevent the cluster from maintaining its configured minimum oplog retention window. Treat the configured value as insufficient evidence of actual retained history under those workloads. (low confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/atlas/customize-storage.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:e6114adafa4af81e582b9bff62a33e446e68248e8cd7422b42ee2d37cf8a0ffa"
+      ]
+    },
+    {
+      "id": "clm:cc63d525fedc219001e54ec4f40f4a4c915b0d1f09d1a6718bd3f10666c7b0ff",
+      "text": "Atlas Core delays an auto-scaling event until oplog history covers its estimated scaling time. The storage guide says the minimum window must be up to 60 seconds multiplied by configured disk GB for storage auto-scaling to complete; this wording is a storage constraint, not a workload-specific retention recommendation. Atlas Infinite's window does not affect auto-scaling. (low confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/atlas/customize-storage.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:035592ab281b707f598820d5c250a7461185a72ca99ea62bff959aa29be2b0dc",
+        "ev:b9c165c647cda75dd0e281a4bdf9fb7101799c9869976b409b2c97f719ed13c9"
+      ]
+    }
+  ],
+  "projection_sha256": "0db472bf812e54a2a4430cb08ec12ffdb1922acb98e9b6cb2f91f14e6ebb79a0"
+}
