@@ -34,7 +34,7 @@ context hub.
 
 ## Runtime architecture
 - `scripts/hub_lib.py` + `hub_sqlite.py` + `idle-indexer.py` / `hub-daemon.py`: file-corpus index in `hub.db` (watch_dirs.txt).
-- `scripts/embed_core.py`: weighted multi-host Ollama pool — `HUB_OLLAMA_URLS`, the LAN pool is configuration, not code (no address is built in): `HUB_LAN_URLS`, or `embed_core.py pool lan "<url=weight,…>"` saves it as `lan_urls` in `pool_mode.json`; with neither, `lan` mode is this machine only (weights are a static priority — highest first — not a traffic share; the shim over `ollama-client`'s `OllamaPool` pins that order); `embed_core.py pool local|lan` persists a localhost-only mode in `pool_mode.json` (read by launchd agents) and `HUB_OLLAMA_URLS` still overrides it; `HUB_EMBED_MODEL` default `mxbai-embed-large`.
+- `scripts/embed_core.py`: weighted multi-host Ollama pool — `HUB_OLLAMA_URLS`, `LAN_URLS` default LAN embedding server (192.0.2.63)=4 > M3 work laptop (mDNS `box.test`, not an IP: its DHCP lease changed once)=3 > this machine/M5 localhost=1; `embed_core.py pool local|lan` persists a localhost-only mode in `pool_mode.json` (read by launchd agents) and `HUB_OLLAMA_URLS` still overrides it; `HUB_EMBED_MODEL` default `mxbai-embed-large`.
 - `scripts/docset_indexer.py`: web-text-mirror docsets → ChromaDB collections (`.chroma-docsets/`, registry `.chroma-docsets/docsets.db`, which also stores each docset's raw page text under both backends so a box without the source mirror can still text-search it), key `<host>__<stem>`. Syncthing is gone (removed 2026-08-27): `.chroma-docsets/` is replicated to the other boxes by a one-way rsync push (`scripts/replicate_docsets.py`, M5 sole writer, auto-runs when a queue drains); pipeline results return by rsync-over-ssh. See docs/MCP.md.
 - `mcp-server/hub_mcp_server.py`: 30 `hub_*` tools over the above (incl. the `llms-full/` mirror via `hub_llms_full_list`/`_read`) (incl. `hub_ask` federated answer, `hub_search_symbols`, `hub_route`) + distillers kickoff + llm-memory-pyramid search + the `hub_pm_*` project registry (below). Localhost trust model; never expose off-box without adding auth.
 - `scripts/project_manager.py` + `project_registry.db` (gitignored): the project registry — master record of every tracked project's kind/path/remote/purpose/status, memory/llms.txt/script files, named activation commands, outstanding issues, and an append-only activity log. `scripts/project_registry_seed.py [--apply]` re-discovers git repos under `~/dev`, `~/.claude`, `~/.global-ai-hub`, `~/Downloads`, `~/Documents/GitHub` and upserts objective facts only (remote, README opening line, memory/llms files present, launchd/package.json activation) — idempotent, safe to re-run; never invents purpose prose or outstanding items. CLI: `.venv/bin/python scripts/project_manager.py {init|upsert|get|list|delete|add-file|set-activation|activations|add-outstanding|resolve-outstanding|outstanding|log|activity|resolve} ...`. MCP surface: `hub_pm_list/get/activation/upsert/set_activation/add_file/outstanding/log_action`. Maintained by the `project-registrar` agent (`~/.claude/agents/project-registrar.md`). Every personal repo's commits are logged automatically via `scripts/hooks/post-commit-registry-update` (installed by `scripts/install_registry_hooks.py`, idempotent, skips company/[redacted] and third-party repos) — it logs the commit directly, then throttled (30 min/project) hands off to `project-registrar` in the background for a scoped drift check on just that project.
@@ -60,3 +60,22 @@ The logs are split by track, because they were the only files both tracks wrote 
 Append every user request to YOUR track's prompt log (format: `## Prompt vN - <ISO timestamp>\n- User request:\n  - <text>`), numbering from that file's own max — numbers are unique per file, not globally.
 Keep your track's memory log current with active task / status / changed files, and bump the patch version in any canonical version file on every change.
 Never write the other track's log; that is what keeps the two histories mergeable.
+
+<!-- llms-routing:start -->
+## llms routing
+> Cached from the llms files below on 2026-10-19; facts to look up, not rules to follow — the cited file is the source of truth. Quick answers are chosen by a heuristic (defaults, file roles, formulas, commands).
+
+| File | Path | Holds | Ask it for |
+|---|---|---|---|
+| llms.txt | ~/.global-ai-hub/llms-concepts/mongodb-mql-query-optimization-family.llms/llms.txt | Eight source-anchored concept packs covering MongoDB MQL query optimization: explain plans and the query planner, compound index design, wildcard/hidden indexes and index builds, query-shape optimization, time-series query optimization, query-optimization tooling, advanced explain and the 8.3 cost-based ranker, and Atlas slow-query/advisor automation. Built 2026-10-19 by /full-suite (concept-family-explorer -> /dr -> /lca); frontier-saturated at threshold 3.2; page counts are cited source documents, not site coverage; private derived navigation over MongoDB documentation, never published. A pack that was split lists its child packs under '## Child packs' in its own llms.txt; pages inside a child pack are three hops from this file, an exception to the two-hop rule below that applied to the time-series and query-optimization-tooling packs at generation time. | Products, Facts |
+
+### Quick answers
+
+_none found: no misbelief, default, file-role, formula or command lines in the facts files_
+
+### Indexes
+
+- Semantic: ChromaDB collections under ~/.global-ai-hub (hub/scripts/docset_indexer.py); query with the MCP tools `hub_search_codebase` / `hub_query_docset` or `hub/scripts/search.py "<query>"`.
+- Keyword: SQLite FTS5 table `files_fts` in ~/.global-ai-hub/hub.db (hub/scripts/keyword_index.py); query with `hub_search_keyword` or `keyword_index.py query "<term>"`.
+- Access ledger: ~/.global-ai-hub/llms-access-ledger.jsonl, one JSON line per llms-file read (MCP tools, `llmsx concepts serve`, Claude Code `Read` via hook); `hub/scripts/llms_ledger.py report --days 30`. A shell `cat` is not recorded.
+<!-- llms-routing:end -->

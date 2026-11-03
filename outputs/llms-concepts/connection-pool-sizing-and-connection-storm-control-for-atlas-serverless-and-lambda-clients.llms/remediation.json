@@ -1,0 +1,956 @@
+{
+ "schema": "claim-remediation/v1",
+ "applications": [
+  {
+   "slug": "connection-pool-sizing-and-connection-storm-control-for-atlas-serverless-and-lambda-clients",
+   "at": "2026-11-02T14:10:25Z",
+   "pack": "outputs/llms-concepts/connection-pool-sizing-and-connection-storm-control-for-atlas-serverless-and-lambda-clients.llms",
+   "packSha256Before": "b0ffe686195f3b5e5c97d81c727cce870ddb0998e96cd171e11c22b862c50f3a",
+   "edits": [
+    {
+     "claim_id": "clm:01cf168e069c97e266fa15865f0b89b63316ab849f88edb17b96c623099f4912",
+     "unit_id": "clm:2affd2f6f328d1fad70c0bdb5bfc4295657951f333c1773a295f500b1b5a4559",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "MongoDB driver pool caps apply per MongoClient and server endpoint, not across all endpoints or Lambda environments. The Ruby driver documentation says each client has a pool per server and may also open up to two monitoring connections per server, so max_pool_size alone can undercount that driver's total sockets; check the target language driver's own monitoring behavior. (high confidence) (verified as of 2026-10-22)",
+     "new": "MongoDB driver pool caps apply per MongoClient and server endpoint, not across all endpoints or Lambda environments. The Ruby driver documentation says each client has a pool per server and may also open up to two monitoring connections per server, so max_pool_size alone can undercount that driver's total sockets; check the target language driver's own monitoring behavior. (high confidence) (verified as of 2026-10-22) Sources: https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md ; https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md ; https://www.mongodb.com/docs/ruby-driver/current/reference/connection-pools.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md",
+       "quote": "Single Owner: A Pool MUST be associated with exactly one Endpoint, and MUST NOT be shared between Endpoints.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md",
+       "quote": "Each `MongoClient` instance manages its own connection pool to the MongoDB cluster or node specified when the `MongoClient` is created.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/ruby-driver/current/reference/connection-pools.md",
+       "quote": "each `Mongo::Client` instance opens up to two connections per server in your MongoDB topology for monitoring the server's state.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Driver pool caps apply per MongoClient and per server endpoint, not across all endpoints or Lambda environments.",
+       "outcome": "VERIFIED",
+       "note": "One pool per Endpoint, and one pool set per MongoClient.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "mongodb connection pool per MongoClient per server endpoint"
+        ],
+        "urls": [
+         "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md",
+         "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md"
+        ]
+       }
+      },
+      {
+       "statement": "The Ruby driver documentation says each client opens up to two monitoring connections per server, so max_pool_size alone undercounts total sockets.",
+       "outcome": "VERIFIED",
+       "note": "The Ruby docs give the example of 106 or 306 total connections against max_pool_size 100.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "ruby driver connection pools monitoring connections per server"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/ruby-driver/current/reference/connection-pools.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "mongodb connection pool per MongoClient per server endpoint",
+       "ruby driver connection pools monitoring connections per server"
+      ],
+      "urls": [
+       "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md",
+       "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md",
+       "https://www.mongodb.com/docs/ruby-driver/current/reference/connection-pools.md"
+      ]
+     },
+     "rationale": "The CMAP spec requires each pool to belong to exactly one Endpoint, and the MongoDB manual says each MongoClient manages its own pool, so the caps are per client and per server, not fleet-wide. The Ruby driver docs state each Mongo::Client opens up to two monitoring connections per server on top of the pool, so max_pool_size alone undercounts sockets."
+    },
+    {
+     "claim_id": "clm:1778d1b02c4f3d55ae96af180ad6835ce5dc621f3f3e307e865d0878325592f9",
+     "unit_id": "clm:e79e40dc332a9fbca90843d13c21e91e1b808ed200f977a5e78c0aba87d51fcc",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Use layered storm controls: set a finite maxPoolSize to cap each endpoint pool, use maxConnecting to limit simultaneous connection establishment within each pool, and use Lambda reserved concurrency to cap the number of execution environments. maxConnecting and maxPoolSize are per-pool controls, not cluster-wide limits across a Lambda fleet. (high confidence)",
+     "new": "Use layered storm controls: set a finite maxPoolSize to cap each endpoint pool, use maxConnecting to limit simultaneous connection establishment within each pool, and use Lambda reserved concurrency to cap the number of execution environments. maxConnecting and maxPoolSize are per-pool controls, not cluster-wide limits across a Lambda fleet. (high confidence) Sources: https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md ; https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html ; https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md",
+       "quote": "Capped: a pool is capped if maxPoolSize is set to a non-zero value.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md",
+       "quote": "Rate-limited: A Pool MUST limit the number of Connections being\nestablished concurrently via the maxConnecting\npool option.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html",
+       "quote": "while also preventing it from scaling beyond that limit.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md",
+       "quote": "Each `MongoClient` instance manages its own connection pool to the MongoDB cluster or node specified when the `MongoClient` is created.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "A finite maxPoolSize caps each endpoint pool.",
+       "outcome": "VERIFIED",
+       "note": "Spec: a pool is capped when maxPoolSize is non-zero.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "lambda reserved concurrency limit execution environments"
+        ],
+        "urls": [
+         "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md"
+        ]
+       }
+      },
+      {
+       "statement": "maxConnecting limits simultaneous connection establishment within each pool.",
+       "outcome": "VERIFIED",
+       "note": "Spec rate-limit requirement.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "maxConnecting connection pool rate limit"
+        ],
+        "urls": [
+         "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md"
+        ]
+       }
+      },
+      {
+       "statement": "Lambda reserved concurrency caps the number of execution environments.",
+       "outcome": "VERIFIED",
+       "note": "AWS says reserved concurrency prevents scaling beyond the limit.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "lambda reserved concurrency limit execution environments"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html"
+        ]
+       }
+      },
+      {
+       "statement": "maxConnecting and maxPoolSize are per-pool controls, not cluster-wide limits across a Lambda fleet.",
+       "outcome": "VERIFIED",
+       "note": "Each MongoClient has its own pool; the caps apply per pool.",
+       "evidence_index": [
+        3
+       ],
+       "searched": {
+        "queries": [
+         "mongodb connection pool per MongoClient"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "lambda reserved concurrency limit execution environments",
+       "maxConnecting connection pool rate limit",
+       "mongodb connection pool per MongoClient"
+      ],
+      "urls": [
+       "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md",
+       "https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html",
+       "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md"
+      ]
+     },
+     "rationale": "The CMAP spec defines maxPoolSize as a cap on a pool and requires pools to rate-limit establishment via maxConnecting, with one pool per Endpoint. AWS documents that reserved concurrency prevents a function from scaling beyond its limit, which caps execution environments. Because each pool and each MongoClient is separate, these caps are not cluster-wide across a fleet."
+    },
+    {
+     "claim_id": "clm:1ffa163fb6ae0a0047d256b67521703a25af5caa54bf033e0b4cb5e2ab703e35",
+     "unit_id": "clm:4d72cda9fe7f638d1a068a153b2023b774fb28a43c5c3f92933ef57af1a6a269",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "maxConnecting limits how many new connections each pool establishes concurrently. The current default is 2; raising it speeds pool growth but increases connection-storm risk, while setting it too low can throttle checkouts and raise tail latency. (high confidence) (verified as of 2026-10-22)",
+     "new": "maxConnecting limits how many new connections each pool establishes concurrently. The current default is 2; raising it speeds pool growth but increases connection-storm risk, while setting it too low can throttle checkouts and raise tail latency. (high confidence) (verified as of 2026-10-22) Sources: https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md ; https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md",
+       "quote": "Raising the value of `maxConnecting` allows the client to establish connection to the server faster, but increases the chance of",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md",
+       "quote": "If the value of `maxConnecting` is too low, your connection pool may experience heavy throttling and increased tail latency for clients checking out connections. *Default:* `2`",
+       "supports": "claim"
+      },
+      {
+       "url": "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md",
+       "quote": "The maximum number of Connections a Pool may be establishing concurrently.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "maxConnecting limits how many new connections each pool establishes concurrently.",
+       "outcome": "VERIFIED",
+       "note": "Per-pool limit.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB driver maxConnecting too low connection checkout latency raise connection storm"
+        ],
+        "urls": [
+         "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md"
+        ]
+       }
+      },
+      {
+       "statement": "The default is 2.",
+       "outcome": "VERIFIED",
+       "note": "Manual and spec both say 2. The Rust driver does not support the option.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB driver maxConnecting default 2"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md"
+        ]
+       }
+      },
+      {
+       "statement": "Raising it speeds pool growth but increases connection-storm risk; too low throttles checkouts and raises tail latency.",
+       "outcome": "VERIFIED",
+       "note": "Stated directly in the manual.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB driver maxConnecting too low connection checkout latency raise connection storm"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB driver maxConnecting too low connection checkout latency raise connection storm",
+       "MongoDB driver maxConnecting default 2"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md",
+       "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools/",
+       "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md"
+      ]
+     },
+     "rationale": "The MongoDB manual's connection pool overview describes maxConnecting as the maximum number of connections a pool may establish concurrently, with default 2. It says raising it speeds connection establishment but raises storm risk, and too low a value causes throttling and tail latency. The CMAP spec also gives a default of 2."
+    },
+    {
+     "claim_id": "clm:7f271d533a65fe653337d9c89e624d883fb445bc4ff1db192ba1bd24e400fccd",
+     "unit_id": "clm:538c8c2be9b5c5d1a1b63f87a5a7ecc8b9ccefb1a216dce449b7e8ab92796b03",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Self-reported serverless threads show that module-level reuse is not a fleet-wide connection cap. A 2025 MongoDB Community report describes maxPoolSize 5, minPoolSize 0, and a global cached Mongoose connection alongside 3–4.5K peak connections; a 2021 Serverless Forums report describes 250–450 connections despite caching. These reports do not establish root cause or a generally safe pool value. (low confidence) (verified as of 2025-09-29)",
+     "new": "Self-reported serverless threads show that module-level reuse is not a fleet-wide connection cap. A 2025 MongoDB Community report describes maxPoolSize 5, minPoolSize 0, and a global cached Mongoose connection alongside 3–4.5K peak connections; a 2021 Serverless Forums report describes 250–450 connections despite caching. These reports do not establish root cause or a generally safe pool value. (low confidence) (verified as of 2025-09-29) Sources: https://www.mongodb.com/community/forums/t/aws-lambda-invocations-trigger-mongodb-connection-spikes/329196 ; https://forum.serverless.com/t/database-connection-limit/15096",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/community/forums/t/aws-lambda-invocations-trigger-mongodb-connection-spikes/329196",
+       "quote": "Despite following this pattern, we are still observing a very high number of concurrent connections (3–4.5K) at peak times.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/community/forums/t/aws-lambda-invocations-trigger-mongodb-connection-spikes/329196",
+       "quote": "The connection objects (mainConnection and clientConnectionCache) are declared in the global scope**, outside the Lambda handler.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://forum.serverless.com/t/database-connection-limit/15096",
+       "quote": "Without high-traffic hours, the connections vary between 250-450 connections but it doesn’t go back to lower than 100.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://forum.serverless.com/t/database-connection-limit/15096",
+       "quote": "My issue is that I have cached my connection (code attached, it seems to reuse sometimes based on the logs)",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "A 2025 MongoDB Community report describes maxPoolSize 5, minPoolSize 0, and a global cached Mongoose connection alongside 3–4.5K peak connections.",
+       "outcome": "VERIFIED",
+       "note": "Thread dated September 2025.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "AWS Lambda invocations trigger MongoDB connection spikes"
+        ],
+        "urls": [
+         "https://www.mongodb.com/community/forums/t/aws-lambda-invocations-trigger-mongodb-connection-spikes/329196"
+        ]
+       }
+      },
+      {
+       "statement": "A 2021 Serverless Forums report describes 250–450 connections despite caching.",
+       "outcome": "VERIFIED",
+       "note": "Thread dated May 23, 2021.",
+       "evidence_index": [
+        2,
+        3
+       ],
+       "searched": {
+        "queries": [
+         "Serverless Forums 2021 MongoDB Lambda connections 250 450 despite caching connection"
+        ],
+        "urls": [
+         "https://forum.serverless.com/t/database-connection-limit/15096"
+        ]
+       }
+      },
+      {
+       "statement": "These reports do not establish root cause or a generally safe pool value.",
+       "outcome": "VERIFIED",
+       "note": "Neither thread gives a diagnosis or a recommended pool value.",
+       "evidence_index": [
+        0,
+        2
+       ],
+       "searched": {
+        "queries": [
+         "Serverless Forums 2021 MongoDB Lambda connections 250 450 despite caching connection"
+        ],
+        "urls": [
+         "https://forum.serverless.com/t/database-connection-limit/15096"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "Serverless Forums 2021 MongoDB Lambda connections 250 450 despite caching connection",
+       "AWS Lambda invocations trigger MongoDB connection spikes"
+      ],
+      "urls": [
+       "https://www.mongodb.com/community/forums/t/aws-lambda-invocations-trigger-mongodb-connection-spikes/329196",
+       "https://forum.serverless.com/t/database-connection-limit/15096"
+      ]
+     },
+     "rationale": "The 2025 MongoDB Community thread shows maxPoolSize 5, minPoolSize 0, a global connection cache and 3-4.5K peak connections. The 2021 Serverless Forums thread shows a cached mongoose connection on Netlify Functions (AWS Lambda) with 250-450 connections. Neither thread establishes a root cause or a safe pool value; the 2025 thread's first post also says no global connection exists, which the user later contradicts."
+    },
+    {
+     "claim_id": "clm:8c726163ffbbb203e06b3766cc72d3c5e4de887358c31b1d458ced9f30258195",
+     "unit_id": "clm:d763cb1ee6dbd09f0b37f27b54b9505e041526e2dfb3b4d9a864121ff96a5e98",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "MongoDB recommends creating the MongoClient outside the Lambda handler and reusing it across invocations. AWS independently recommends initializing database connections outside the handler so a warm execution environment can reuse them. Creating a client for every invocation creates additional pools and can raise Atlas connection counts. (high confidence)",
+     "new": "MongoDB recommends creating the MongoClient outside the Lambda handler and reusing it across invocations. AWS independently recommends initializing database connections outside the handler so a warm execution environment can reuse them. Creating a client for every invocation creates additional pools and can raise Atlas connection counts. (high confidence) Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda/ ; https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html ; https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda/",
+       "quote": "Store the object so your function can reuse the client across function invocations.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
+       "quote": "Static initialization is also often the best place to open database connections to allow a function to reuse connections over multiple invocations to the same execution environment.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md",
+       "quote": "Each `MongoClient` instance manages its own connection pool to the MongoDB cluster or node specified when the `MongoClient` is created.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "MongoDB recommends creating the MongoClient outside the Lambda handler and reusing it across invocations.",
+       "outcome": "VERIFIED",
+       "note": "The Atlas page states this directly.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "atlas manage connections aws lambda client outside handler"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda/"
+        ]
+       }
+      },
+      {
+       "statement": "AWS independently recommends initializing database connections outside the handler so warm environments can reuse them.",
+       "outcome": "VERIFIED",
+       "note": "AWS Lambda execution environment docs.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "AWS Lambda initialize database connection outside handler reuse"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html"
+        ]
+       }
+      },
+      {
+       "statement": "Creating a client for every invocation creates additional pools and can raise Atlas connection counts.",
+       "outcome": "VERIFIED",
+       "note": "Each MongoClient has its own pool.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "mongodb connection pool per MongoClient"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "atlas manage connections aws lambda client outside handler",
+       "AWS Lambda initialize database connection outside handler reuse",
+       "mongodb connection pool per MongoClient"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda/",
+       "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
+       "https://www.mongodb.com/docs/manual/administration/connection-pool-overview.md"
+      ]
+     },
+     "rationale": "The Atlas Lambda guide says to define the client outside the handler and reuse it across invocations. The AWS Lambda docs say static initialization outside the handler is the best place to open database connections for reuse across invocations. Because each MongoClient manages its own pool, a client created per invocation adds pools and connections."
+    },
+    {
+     "claim_id": "clm:de7a3bf13182ee1312c3c7d39e7e2bfe2696c45d8854eac6506d7f69c2bbb355",
+     "unit_id": "clm:04c6f03f6e63a3979321417476cb8189ef4a3c3110772c929a02c12abed5bc9f",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Warm client reuse is best effort, not a guarantee that every idle socket remains usable. AWS says Lambda purges idle connections and warns that reuse can fail; its guidance recommends runtime keep-alive, while MongoDB drivers expose maxIdleTimeMS to remove idle pool sockets according to workload needs. (high confidence) (verified as of 2026-10-14)",
+     "new": "Warm client reuse is best effort, not a guarantee that every idle socket remains usable. AWS says Lambda purges idle connections and warns that reuse can fail; its guidance recommends runtime keep-alive, while MongoDB drivers expose maxIdleTimeMS to remove idle pool sockets according to workload needs. (high confidence) (verified as of 2026-10-14) Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html ; https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+       "quote": "Lambda purges idle connections over time. Attempting to reuse an idle connection when invoking a function will result in a connection error. To maintain your persistent connection, use the keep-alive direc",
+       "supports": "claim"
+      },
+      {
+       "url": "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+       "quote": "Lambda purges idle connections over time. Attempting to reuse an idle connection when invoking a function will result in a connection error. To maintain your persistent connection, use the keep-alive direc",
+       "supports": "claim"
+      },
+      {
+       "url": "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+       "quote": "To maintain your persistent connection, use the keep-alive directive associated with your runtime. For an example, see [Reusing Connections with Keep-Alive in N",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+       "quote": "| `maxIdleTimeMS` | The maximum number of milliseconds that a connection can remain idle in the pool. Set this value higher than your application's expected idle period but lower than firewall or proxy connection timeouts to prevent unexpected disconnections.**Default**: `0` (no limit) |\n| `waitQueueTimeoutMS` | The maximum",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Warm client reuse does not guarantee idle socket usability.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+        ]
+       }
+      },
+      {
+       "statement": "Lambda purges idle connections and idle reuse can fail.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+        ]
+       }
+      },
+      {
+       "statement": "AWS recommends runtime keep-alive for persistent connections.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+        ]
+       }
+      },
+      {
+       "statement": "MongoDB maxIdleTimeMS controls idle pool socket lifetime according to workload.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        3
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+       "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+      ],
+      "urls": [
+       "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+       "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+      ]
+     },
+     "rationale": "AWS directly warns about purged idle connections and recommends keep-alive. The MongoDB driver reference supplies the separate configurable idle lifetime, so the combined advice is supported."
+    },
+    {
+     "claim_id": "clm:e3c8667ac313d363c0fc8b32e59776b488c9d61ef7628fbc4a77c4932eada137",
+     "unit_id": "clm:82be2c3a68def37db8c3c188a3becbbab67ec8d25e0fc5bef99aa6d0f539c691",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "minPoolSize is workload-dependent: MongoDB's Node.js guide describes minPoolSize 0 with maxIdleTimeMS as suitable for sustained low activity, while its connection-storm guide recommends raising minPoolSize toward maxPoolSize when measured demand or restarts create pool ramp-up spikes. In Lambda, account for per-environment multiplication before prewarming pools. (medium confidence) (verified as of 2026-10-23)",
+     "new": "minPoolSize is workload-dependent: MongoDB's Node.js guide describes minPoolSize 0 with maxIdleTimeMS as suitable for sustained low activity, while its connection-storm guide recommends raising minPoolSize toward maxPoolSize when measured demand or restarts create pool ramp-up spikes. In Lambda, account for per-environment multiplication before prewarming pools. (medium confidence) (verified as of 2026-10-23) Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md ; https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md ; https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+       "quote": "A `MongoClient` configured with `maxIdleTimeMS` and `minPoolSize` set to `0` is optimal for workloads with sustained periods of low activity. This configuration allows the connection pool to close unused connections during periods of inactivity.\n\nIn versions earlier tha",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+       "quote": "A `MongoClient` configured with `maxIdleTimeMS` and `minPoolSize` set to `0` is optimal for workloads with sustained periods of low activity. This configuration allows the connection pool to close unused connections during periods of inactivity.\n\nIn versions earlier tha",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+       "quote": "If you notice a high `connections.active` value and elevated query latency, set `minPoolSize` to a value closer to `maxPoolSize` in your driver connection string. This pre-warms the connection pool and reduces the need to open many new connections under load.\n\n#### Increased Operational Load\n\nA sudden increase in application traffic can e",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+       "quote": "Under heavy workloads or after a restart, the driver must rapidly open many new connections to reach the working pool size, which can cause a spike in new connections.\n\n#### High Server or Query Latency\n\nIf server or que",
+       "supports": "claim"
+      },
+      {
+       "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+       "quote": "For each concurrent request, Lambda provisions a separate instance of your execution\nenvironment. As your Event Functions receive more requests, Lambda automatically handles scaling the number of execution\nenvironments until you reach your accou",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+       "quote": "Every `MongoClient` instance has a built-in connection pool for each server in your MongoDB topology. If you do not configure the `minPoolSize` option, connection pools open sockets on demand to support concurrent reques",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "minPoolSize should depend on workload.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+         "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+        ]
+       }
+      },
+      {
+       "statement": "Node guide recommends minPoolSize 0 with maxIdleTimeMS for prolonged low activity.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+         "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+        ]
+       }
+      },
+      {
+       "statement": "The storm guide recommends raising minPoolSize toward maxPoolSize for measured active demand and latency.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+         "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+        ]
+       }
+      },
+      {
+       "statement": "Heavy load or restart can cause rapid pool ramp-up.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        3
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+         "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+        ]
+       }
+      },
+      {
+       "statement": "Lambda pool prewarming must account for multiplied execution environments.",
+       "outcome": "VERIFIED",
+       "note": "Sizing inference combined with separately sourced per-client/per-server pools.",
+       "evidence_index": [
+        4
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+         "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+        ]
+       }
+      },
+      {
+       "statement": "MongoDB pools exist for each client and server.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        5
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+         "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+       "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+       "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+       "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+      ]
+     },
+     "rationale": "The two MongoDB guides address different workload patterns rather than giving a universal minPoolSize. Lambda concurrent environment creation and per-client pools support considering multiplication before prewarming."
+    },
+    {
+     "claim_id": "clm:ed01e48da759e6008b8f4a37f8c7890bfe8b7995759500b51c7f02392c42bdb1",
+     "unit_id": "clm:e2acf9ebfbb3f879be677cc4ecb43fdc5875d95ee600aefa3c0af9093a479092",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Sizing inference: estimate the potential application connection count from the number of live Lambda execution environments multiplied by the per-environment pool capacity for each server the client uses, then add monitoring sockets per client and server. AWS can provision separate environments for in-flight requests, while MongoDB maintains pools per client and server, so maxPoolSize alone is not a deployment-wide connection cap. (medium confidence)",
+     "new": "Sizing inference: estimate the potential application connection count from the number of live Lambda execution environments multiplied by the per-environment pool capacity for each server the client uses, then add monitoring sockets per client and server. AWS can provision separate environments for in-flight requests, while MongoDB maintains pools per client and server, so maxPoolSize alone is not a deployment-wide connection cap. (medium confidence) Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md ; https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+       "quote": "Every `MongoClient` instance has a built-in connection pool for each server in your MongoDB topology. If you do not configure the `minPoolSize` option, connection pools open sockets on demand to support concurrent reques",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+       "quote": "In addition to the sockets needed to support your application's requests, each `MongoClient` instance opens up to two connections per server in your MongoDB topology for monitoring the server's state.\n\nFor example, a client connected to a t",
+       "supports": "claim"
+      },
+      {
+       "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+       "quote": "For each concurrent request, Lambda provisions a separate instance of your execution\nenvironment. As your Event Functions receive more requests, Lambda automatically handles scaling the number of execution\nenvironments until you reach your accou",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+       "quote": "Every `MongoClient` instance has a built-in connection pool for each server in your MongoDB topology. If you do not configure the `minPoolSize` option, connection pools open sockets on demand to support concurrent reques",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
+       "quote": "| `maxPoolSize` | The maximum number of concurrent connections that the pool maintains. If the number of in-use connections to a server reaches the specified value, the next request to that server waits until a connectio",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Estimate potential application connections as environments times per-environment pool capacity per used server.",
+       "outcome": "VERIFIED",
+       "note": "Explicit capacity inference from per-client/server pools and separately documented environment multiplication; not current occupancy.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+        ]
+       }
+      },
+      {
+       "statement": "Include per-client/server monitoring sockets.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+        ]
+       }
+      },
+      {
+       "statement": "AWS provisions a separate environment per concurrent in-flight request.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+        ]
+       }
+      },
+      {
+       "statement": "MongoDB maintains per-client and per-server pools.",
+       "outcome": "VERIFIED",
+       "note": "Pinned text supports this statement.",
+       "evidence_index": [
+        3
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+        ]
+       }
+      },
+      {
+       "statement": "maxPoolSize is not a deployment-wide connection cap.",
+       "outcome": "VERIFIED",
+       "note": "Derived from pool-local maximum and multiple independent clients/servers; monitoring sockets are additional.",
+       "evidence_index": [
+        4
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+         "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+        ],
+        "urls": [
+         "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+         "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB Node connection pools minPoolSize maxIdleTimeMS 0 two monitoring per server",
+       "MongoDB connection storms increase minPoolSize maxPoolSize restarts Lambda concurrency"
+      ],
+      "urls": [
+       "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+       "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md"
+      ]
+     },
+     "rationale": "AWS supplies environment multiplication and MongoDB supplies per-client/server pools plus monitoring connections. Together they justify the explicitly labeled upper-capacity estimate and explain why one maxPoolSize setting cannot cap the whole deployment."
+    }
+   ],
+   "skipped": [],
+   "changed": [
+    "llms-facts.txt",
+    "llms-full.txt",
+    "llms-small.txt",
+    "units.jsonl"
+   ]
+  }
+ ],
+ "publication": {
+  "schema": "remediation-public-projection/v1",
+  "source_record_sha256": "1dad153ae6c127c5dffe3cb50176c9f907e40928a9400e28a096b2dcaf68abe4",
+  "redactions": [
+   "operator-specific pack path"
+  ]
+ }
+}

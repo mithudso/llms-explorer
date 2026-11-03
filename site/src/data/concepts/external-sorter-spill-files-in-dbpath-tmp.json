@@ -1,0 +1,231 @@
+{
+  "slug": "external-sorter-spill-files-in-dbpath-tmp",
+  "concept": "External sorter spill files in dbpath/_tmp",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for External sorter spill files in dbpath/_tmp. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "When an index build reaches its memory budget, MongoDB spills sorted-key data to temporary files in the _tmp subdirectory of dbpath; sorted keys are subsequently bulk-loaded into the storage-engine index. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
+          "note": null,
+          "claimId": "clm:d2174109aa0697e168e85c758a38333f3e1155d7991f60cb384fd2fb2c83adf1",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": [],
+          "also": [
+            "https://www.mongodb.com/docs/manual/reference/command/createIndexes.md"
+          ]
+        },
+        {
+          "text": "The inspected master startup_recovery.cpp removes temporary files when no builds will resume or the prior shutdown was unclean. Otherwise it preserves files associated with resumable builds and removes unrelated files. The cleanup implementation skips subdirectories in both cases. This is an observation of development-branch code, not a guarantee for every released version. (low confidence) (verified as of 2026-10-31)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/startup_recovery.cpp",
+          "note": null,
+          "claimId": "clm:fe53ca592f86047475627e38608791241a4ad3f7489c8ba6fd79c14e8f0ee71a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e211aceed1041d8a3097f2603bde5d44571007fd0134cbe26dc86c48b22f38c5",
+            "ev:e3f00f4c8095b7bf66b582b51b5376b792f7d29380d8cbd97c0f99e3fc7d4fca"
+          ]
+        },
+        {
+          "text": "SERVER-86648 documented missing fsync of external-sorter files: a machine hard reset after a clean mongod shutdown could lose sorter data and later trigger an assertion before index completion. The opened issue lists fixes including 5.0.27, 6.0.16 and 7.0.9; this describes a historical defect, not all later releases. (low confidence) (verified as of 2024-04-19)",
+          "source": "https://jira.mongodb.org/browse/SERVER-86648",
+          "note": null,
+          "claimId": "clm:99a9a2ce54c8f506ba12090f17cd3286de49583f9ae404285168e15e57804724",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:bdf3f9d755980e99a79f229c6a823a9527157c992fafd90253996f9b5e33fe31"
+          ]
+        },
+        {
+          "text": "SERVER-50644 identified that an encryption key unstable across process restarts prevents reuse of encrypted sorter files during startup recovery, and requested a persistent key. Its historical fix label is 4.9.0; that label alone does not establish resumability eligibility for every encrypted deployment today. (low confidence) (verified as of 2023-10-29)",
+          "source": "https://jira.mongodb.org/browse/SERVER-50644",
+          "note": null,
+          "claimId": "clm:4add6defd401c21a64b43397a217cb02d5394400acd56b81ed1bfe2274f8e54a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:353af8ab3f06e1ff7f2fa444966fac8a461dec4edea90918b9cba2692f74ca41"
+          ]
+        },
+        {
+          "text": "In the documented file-based resumable path, clean shutdown preserves build phase and sorter state. Startup recovery preserves the files referenced by resumable-build metadata so that the interrupted work can continue. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
+          "note": null,
+          "claimId": "clm:fdab585e15206b3fa2067d06fba27660bdfd7006f2af674e989592bbbbc64ec0",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": [],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/startup_recovery.cpp"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "The current createIndexes documentation specifies a default 200 MB budget per command for self-hosted deployments, shared equally among indexes in that command, with overflow written under dbpath/_tmp. It separately states that Atlas defaults vary by tier; the self-hosted default should not be presented as universal. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/createIndexes.md",
+          "note": null,
+          "claimId": "clm:87ed4098d2137849ecb14ad1c3df9176444fc6b6c23371a07550025155f24ead",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:bb98f08557f006c4d4c62fc47b9f9a895c685aa819b70e518f691f8b8c1b3161"
+          ]
+        },
+        {
+          "text": "The createIndexes manual documents a self-hosted default memory budget of 200 MB per command, shared equally among its indexes. Reaching the budget creates temporary files in the _tmp subdirectory within dbPath to complete the build. (low confidence) (verified as of 2026-10-31)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/createIndexes.md",
+          "note": null,
+          "claimId": "clm:bcc682b62adb159f546ad1c16c61a211b62fd3634482ac0c5295db69697ecf0f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:bb98f08557f006c4d4c62fc47b9f9a895c685aa819b70e518f691f8b8c1b3161"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "SERVER-51107 documented a historical collision between an existing resumed file such as extsort-index.0 and a new build whose filename counter restarted at zero; failure to parse resume metadata could also orphan the file. The ticket marks the defect fixed in development version 4.8.0. (low confidence) (verified as of 2023-10-29)",
+          "source": "https://jira.mongodb.org/browse/SERVER-51107",
+          "note": null,
+          "claimId": "clm:9f08d5ce8fa16343b580b4130c2eabf1db087401e8a8fe4c5fafa39f7857093a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:eba2111283ee405863aff011c555a988e6339bc63b42b4ef18e8aa1ec4e7200b"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "The master-branch design also describes primary-driven builds that spill to a replicated storage-engine table instead of local sorter files. Therefore dbpath/_tmp file behavior must be scoped to the file-based two-phase implementation, not generalized to every index-build mode. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
+          "note": null,
+          "claimId": "clm:270c2a96b8675a34d6a8ba67482eb799d85f95427eab74442ac16b134e709a74",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:56dd3b6229d0b734694b41eb60063b93bcb7ec41158a4eb20c33e47a311c9d16"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "In the documented simultaneous replica-set build design, each node scans its own collection and produces local, unreplicated sorter spill files; those spill files are not replicated from the primary. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
+          "note": null,
+          "claimId": "clm:ea0859907313f699659dd0bb6558959727c30cb327afc1cb1f9c617f2f5383b3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0cb1c36285d019c6dfccc939ded878f5ba5dbacc77503833d902aeee340adb20"
+          ]
+        },
+        {
+          "text": "A resumable build saves phase-specific state, including external-sorter state, on clean shutdown. Startup can reconstruct that state, and a build resumed during collection scan or bulk load can reuse its existing external sort file. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
+          "note": null,
+          "claimId": "clm:945307afa21f68a865811632c8b5721e242fcbf8bb9b0575a2692fc324064173",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a1ec5237e45299d6f0954766499afc251399f419e4ed86520693e0ca0ee8ff69",
+            "ev:c25d5b8f3e2558f62b66338dcdb62d6da8266a338ff1646c9a384f772ae754a5"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-51107"
+          ]
+        },
+        {
+          "text": "Operational inference: preserve files needed by an eligible resumable build across clean shutdown and restart. Deleting those files, or placing them on a RAM disk that loses its contents, defeats the persisted-sorter recovery dependency. The 2018 RAM-disk discussion measured aggregation only and does not establish safety or performance for resumable index builds. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
+          "note": null,
+          "claimId": "clm:20c52421bebe2827d3bad515b8b50e21d824e7eb360f163a1b5621724c82efcb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2acf93581419bc37dee29ec1f1a41a30736530de1f3421b96dbe76f67d3f565f",
+            "ev:3f6595c5688255a60f0b39f61f2988f9ee766d1fa2d826d88cb7b02db8faeb51",
+            "ev:c25d5b8f3e2558f62b66338dcdb62d6da8266a338ff1646c9a384f772ae754a5"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-86648",
+            "https://stackoverflow.com/questions/49220778/advantages-and-downsides-of-moving-the-tmp-directory-to-ram-disk-in-order-to-in"
+          ]
+        },
+        {
+          "text": "During a two-phase index build, collection scanning generates index keys for an external sorter; sorted keys are subsequently loaded into the index. Percona demonstrates these stages with collection-scan and sorter-to-index log messages. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
+          "note": null,
+          "claimId": "clm:2788648302c103145e693947b953ab4174517277a1d1a89a2113e394d4fdc2ad",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0cb1c36285d019c6dfccc939ded878f5ba5dbacc77503833d902aeee340adb20",
+            "ev:e9cce0cc90c9be83bea77c31bf4c211565ac25c9697011b7b7ee4e454a48f21f"
+          ],
+          "also": [
+            "https://www.percona.com/blog/stages-of-index-build-in-mongodb/"
+          ]
+        },
+        {
+          "text": "In startup_recovery.cpp on master, cleanup retains referenced resumable filenames and subdirectories, and removes other ordinary files. After an unclean shutdown, or with no resumable builds, cleanup receives an empty preservation set; it still skips subdirectories. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/startup_recovery.cpp",
+          "note": null,
+          "claimId": "clm:71f70a0583cbc278f38a534acbf311e2b416f84cd4d7dd23c997fa5cc636c7df",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e211aceed1041d8a3097f2603bde5d44571007fd0134cbe26dc86c48b22f38c5",
+            "ev:e3f00f4c8095b7bf66b582b51b5376b792f7d29380d8cbd97c0f99e3fc7d4fca"
+          ]
+        },
+        {
+          "text": "Operational inference: do not manually empty dbpath/_tmp to reclaim space while a file-based build may resume. Startup explicitly preserves referenced files, and losing the saved work can require rebuilding from the beginning. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/startup_recovery.cpp",
+          "note": null,
+          "claimId": "clm:4d2bb1be5deb0be4f82271ecb51d2a0909a7e05a19f5eff57e856b055a7d02c9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b5b29a4f1566bf96f16ac45ccd5b703f64f6d3e0d2842f36aa4d67b804c77ea4",
+            "ev:e211aceed1041d8a3097f2603bde5d44571007fd0134cbe26dc86c48b22f38c5",
+            "ev:e3f00f4c8095b7bf66b582b51b5376b792f7d29380d8cbd97c0f99e3fc7d4fca"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/manual/core/index-creation.md"
+          ]
+        },
+        {
+          "text": "For the manual’s clean-shutdown checkpoint path, a crash prevents checkpoint resumption and the build restarts from the beginning. Startup source correspondingly stops preserving file-based resume files after an unclean shutdown. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-creation.md",
+          "note": null,
+          "claimId": "clm:2cc7d7c0b1c6a09a564cbc22008c188424fac0e485b1c6cab403597876bae712",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b5b29a4f1566bf96f16ac45ccd5b703f64f6d3e0d2842f36aa4d67b804c77ea4",
+            "ev:e211aceed1041d8a3097f2603bde5d44571007fd0134cbe26dc86c48b22f38c5"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/startup_recovery.cpp"
+          ]
+        },
+        {
+          "text": "OneUptime publishes a shell loop using du to track growth of dbpath/_tmp. This supplies an independent monitoring technique, not independent validation of MongoDB’s resumability implementation or attribution of every file to an index build. (low confidence)",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-monitor-manage-temporary-storage/view",
+          "note": null,
+          "claimId": "clm:2a2d63931af5afa9c3b39b83a65b5a62bc2b43d881a1d204a0ece68d9ee5c161",
+          "validationStatus": "NOT-SAMPLED",
+          "evidenceIds": []
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "37e7891336feba582a665ade09d882503b7c3f26a765b7a1fdc63b4847491a09",
+  "canonicalConceptId": "concept:6ee861556bda24d5439ce72fc82a8fb3c4ab26734cad34fcacf0224fec8b5dd2"
+}

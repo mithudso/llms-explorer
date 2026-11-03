@@ -8,15 +8,29 @@
       "title": "Definitions",
       "facts": [
         {
-          "text": "A supported pattern is an index-compatible $sort followed by $group using $first/$last. The optimizer can replace grouping with a DISTINCT_SCAN cursor and a document transformation; the performance gain comes from skipping repeated group-key entries. (high confidence)",
+          "text": "A supported pattern is an index-compatible $sort followed by $group using $first/$last. The optimizer can replace grouping with a DISTINCT_SCAN cursor and a document transformation; the performance gain comes from skipping repeated group-key entries. (high confidence) Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/pipeline_d.cpp ; https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d ; https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md",
           "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/pipeline_d.cpp",
           "note": null,
           "claimId": "clm:3f4bccb26bb8853aa25690c32ea90966fb91dc2fb95a517ebf631734db0533c7",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+            "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/",
+            "https://stackoverflow.com/questions/77197237/mongodb-aggregation-group-stage-top-vs-first-efficiency-over-a-large-data-set",
+            "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:01483eeaf1d5d708cbaa653cf6a7b588e08fcd741b12a82168854a4f78c4ad9a",
             "ev:35e80ee9c4dfe4043ee5dbc71437f3f2f5c9ab7a2d8d97041efa84e70cdb72fc"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "036b08a973d0b49aa72fe4b0941c7fbb68914d8a8b42c9d86aebe23dc80cf185"
+          }
         }
       ]
     },
@@ -31,6 +45,9 @@
           "validationStatus": "SUPPORTED",
           "evidenceIds": [
             "ev:01483eeaf1d5d708cbaa653cf6a7b588e08fcd741b12a82168854a4f78c4ad9a"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/timeseries/README.md"
           ]
         }
       ]
@@ -39,15 +56,29 @@
       "title": "How-to and procedures",
       "facts": [
         {
-          "text": "Check explain('executionStats') for DISTINCT_SCAN, totalKeysExamined and totalDocsExamined. Index coverage is separate from duplicate skipping: a covered distinct plan can examine zero documents, while a first-document-per-group plan can include FETCH. (high confidence)",
-          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/",
+          "text": "Check explain('executionStats') for DISTINCT_SCAN, totalKeysExamined and totalDocsExamined. In MongoDB's published first/last-per-group example, the DISTINCT_SCAN plan reads one document per group (a FETCH stage sits above the DISTINCT_SCAN), so index use and document reads should be checked separately. Sources: https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md ; https://www.mongodb.com/docs/manual/reference/explain-results.md ; https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md",
           "note": null,
           "claimId": "clm:a2bbc4bcf8f022af145755302efbe82b61499896ede8c1e5b7871a9a30015715",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://www.devadvisor.io/blog/08-2026_mongodb-distinct-scan-covered-index/",
+            "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+            "https://stackoverflow.com/questions/77362995/mongodb-match-against-a-field-and-get-the-first-records-which-have-distinct-v",
+            "https://www.mongodb.com/docs/manual/reference/explain-results.md"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:35e80ee9c4dfe4043ee5dbc71437f3f2f5c9ab7a2d8d97041efa84e70cdb72fc",
             "ev:b423beddf9b9c3888115974a90f53d90f3a5943662b6169fa04cfcc337e7cb75"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "a69dd29c74f2edfafd302039fc30e3763a90167f2f2c1d64c78eb72c2a2b479b"
+          }
         }
       ]
     },
@@ -112,6 +143,9 @@
           "evidenceIds": [
             "ev:01483eeaf1d5d708cbaa653cf6a7b588e08fcd741b12a82168854a4f78c4ad9a",
             "ev:1e16ace92529387b43526d878b270093892ed8e0b07750792c6086b8b8664dfb"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/timeseries/README.md"
           ]
         },
         {
@@ -126,15 +160,26 @@
           ]
         },
         {
-          "text": "DISTINCT_SCAN does not imply a covered query: the published first/last example uses FETCH above DISTINCT_SCAN, while an independent reproduced example removes FETCH after adding the requested metadata field to the index. Check document reads separately from duplicate skipping. (high confidence)",
+          "text": "DISTINCT_SCAN does not imply a covered query: the published first/last example uses FETCH above DISTINCT_SCAN and examines one document per group. Check document reads separately from duplicate skipping. Sources: https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
           "source": "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
           "note": null,
           "claimId": "clm:f013c31e48dd84d0b1f8ce34270237a6b267eb4b3564162f0c068bede1542014",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://stackoverflow.com/questions/77362995/mongodb-match-against-a-field-and-get-the-first-records-which-have-distinct-v"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:35e80ee9c4dfe4043ee5dbc71437f3f2f5c9ab7a2d8d97041efa84e70cdb72fc",
             "ev:4513a9164a5ce98622757ed1268535d2e8e7fd8a4ba84618123ff98bb85d9901"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "94ed87d494d66ea0a9db8352f5056be17c43c114ff658cddca314f703e48a47e"
+          }
         },
         {
           "text": "The min/max tickets do not establish released support. SERVER-94159 proposes extending the optimization; SERVER-108834 explains that naively taking the first sorted value for $min returns null for values [2,null,1], whereas $min should ignore null and return 1. (medium confidence)",
@@ -145,6 +190,9 @@
           "evidenceIds": [
             "ev:23df65b6c3642a9fed1c68d1f8857b474936447b4f5fa271eed5927da5896d51",
             "ev:f230c5f42c7c2a6ea8480378f036235aed4f970602e6b040dfa70e4df1707068"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-94159"
           ]
         },
         {
@@ -156,6 +204,9 @@
           "evidenceIds": [
             "ev:0651c057d42626980b127f3ee5e895af879d886697eb02ee99c8648e62e84f89",
             "ev:17e0fec123642a2f152db7cea97272d71fa2ec8fca0e54d486a5d90061ce4b31"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/"
           ]
         },
         {

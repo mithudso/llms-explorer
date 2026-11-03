@@ -44,16 +44,24 @@
     },
     {
       "id": "clm:0841088f2e9fe3c75abfb75100306b8283d186a2a73e6be002693fa0db453446",
-      "text": "Do not identify every no-works/no-reads entry as pinned. MongoDB's Jira distinguishes a special rooted $or branch entry for SBE subplanning, which also stores neither metric because rooted-$or replanning is unsupported. The current executor source still has a TODO to investigate removing that restriction. (medium confidence) (verified as of 2026-10-20)",
+      "text": "Do not identify every no-works/no-reads entry as pinned. MongoDB's Jira distinguishes a special rooted $or branch entry for SBE subplanning, which also stores neither metric because rooted-$or replanning is unsupported. The current executor source still has a TODO to investigate removing that restriction. (medium confidence) (verified as of 2026-10-20) Sources: https://jira.mongodb.org/browse/SERVER-91095 ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/get_executor.cpp",
       "source_url": "https://jira.mongodb.org/browse/SERVER-91095",
       "also": [
         "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/get_executor.cpp"
       ],
-      "validation_status": "SUPPORTED",
-      "evidence_ids": [
+      "validation_status": "REMEDIATED-PROJECTION",
+      "origin_validation_status": "SUPPORTED",
+      "evidence_ids": [],
+      "origin_evidence_ids": [
         "ev:9cdcd35f5f5856a64bc77eef55bc8a2202f6d32bb21c9aa3ee207582ba0e0d61",
         "ev:fe411fe8d87bc2bc9b31a7377f060e9f5444b24cdc867a586e4a16235669f1f6"
-      ]
+      ],
+      "remediation": {
+        "schema": "claim-remediation-projection/v1",
+        "record": "remediation.json",
+        "requires_revalidation": true,
+        "claim_text_sha256": "15489f09970d8dbd4748fa89b9a3dc0268a42eb419f3c1f8d9efe8c1b48ada35"
+      }
     },
     {
       "id": "clm:3ac32c6cd453ed8014ed698c5bd7cf327daa5ea7b4b84d4575dd28391584baed",
@@ -79,20 +87,29 @@
     },
     {
       "id": "clm:d4de3c1f65f70f32e889b019959f43176c1108a8c62595bca0999b13356b1c51",
-      "text": "For a nonpinned SBE-cache entry with `decisionReads`, `attemptToUsePlan` runs an SBE trial with a read budget of `internalQueryCacheEvictionRatio` times `decisionReads`; SERVER-85238 defines the cached read count as total keys examined plus total documents examined. Entries without `decisionReads` bypass this trial. The SBE-cache path can replan a cached foreign `$lookup` hash join before the trial if that join is no longer eligible. This differs from the classic-engine works feedback described by Percona. (medium confidence) (verified as of 2026-10-20)",
-      "source_url": "https://jira.mongodb.org/browse/SERVER-85238",
+      "text": "For a nonpinned SBE-cache entry with `decisionReads`, `attemptToUsePlan` runs an SBE trial with a read budget of `internalQueryCacheEvictionRatio` times `decisionReads`; SERVER-85238 defines the total reads of a plan as totalKeysExamined plus totalDocsExamined. Entries without `decisionReads` (pinned entries) bypass this trial. When recovering a plan from the SBE cache, the planner replans a cached foreign `$lookup` hash join before any trial if the foreign collection is no longer eligible for hash join. The classic runtime planner tracks 'works' for its budget, whereas SBE tracks reads. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp ; https://jira.mongodb.org/browse/SERVER-85238",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
       "also": [
         "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
-        "https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/"
+        "https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/",
+        "https://jira.mongodb.org/browse/SERVER-85238"
       ],
-      "validation_status": "SUPPORTED",
-      "evidence_ids": [
+      "validation_status": "REMEDIATED-PROJECTION",
+      "origin_validation_status": "SUPPORTED",
+      "evidence_ids": [],
+      "origin_evidence_ids": [
         "ev:3f8035505a22fd3eb495bd32cc13ccbcee1bff99a0f4de8da145744e154e5720",
         "ev:7b8a340912450568f63eccc5bbeacf3650682a544051328cadea3931679cb85b",
         "ev:8fd647d47ccc5030e5966bdbb184dcde5c15ebc4c32b604df5c524e938b8bcac",
         "ev:c499644baa016939e436f328f44f3e1bb8a41c3aef98519f2d56de13d11aeeac",
         "ev:f53ed1b790a2d513d0f1a93eed02e2d1a8755d0ceb3d40dbdffbc8c276cc3601"
-      ]
+      ],
+      "remediation": {
+        "schema": "claim-remediation-projection/v1",
+        "record": "remediation.json",
+        "requires_revalidation": true,
+        "claim_text_sha256": "88520803c5989d2a56425a92f81e237249c55fb76e6982adad4c79e74fd9b79a"
+      }
     },
     {
       "id": "clm:7af0c53bbf9d2976a7995b0aaadf3cbfe3d7e40a6aa379de4c76e4ee5d9bf0bc",
@@ -111,33 +128,49 @@
     },
     {
       "id": "clm:af8d7f71aa2bd214af4e011e7e13fbb5cba4da0905d21904e0e88f79da57724f",
-      "text": "In classic_runtime_planner_for_sbe, attemptToUsePlan treats a missing decisionReads value as a pinned-entry signal and returns SingleSolutionPassthroughPlanner before building the normal TrialRunTracker read-budget trial. MongoDB's README names single-solution and rooted $or queries as pinned examples and says standard cache eviction can still remove pinned plans. (high confidence) (verified as of 2026-10-20)",
-      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+      "text": "In classic_runtime_planner_for_sbe, attemptToUsePlan treats a missing decisionReads value as a pinned-entry signal and returns SingleSolutionPassthroughPlanner before building the normal TrialRunTracker read-budget trial. Per SERVER-91095, a pinned entry has no reads or works value, so the cached plan trial period does not run and replanning never occurs for it. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp ; https://jira.mongodb.org/browse/SERVER-91095",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
       "also": [
         "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/plan_cache/README.md",
         "https://jira.mongodb.org/browse/SERVER-91095"
       ],
-      "validation_status": "SUPPORTED",
-      "evidence_ids": [
+      "validation_status": "REMEDIATED-PROJECTION",
+      "origin_validation_status": "SUPPORTED",
+      "evidence_ids": [],
+      "origin_evidence_ids": [
         "ev:8fd647d47ccc5030e5966bdbb184dcde5c15ebc4c32b604df5c524e938b8bcac",
         "ev:c499644baa016939e436f328f44f3e1bb8a41c3aef98519f2d56de13d11aeeac",
         "ev:fb1907a67835b4b92254ccad0e3384879ae7df1bb8a80da0598f0e66dc107223"
-      ]
+      ],
+      "remediation": {
+        "schema": "claim-remediation-projection/v1",
+        "record": "remediation.json",
+        "requires_revalidation": true,
+        "claim_text_sha256": "93cdb099e6be6c3745e9deb9a98da199789ba087f93b4820550ba1c9fbe2353f"
+      }
     },
     {
       "id": "clm:52c6c0de2853157c8818a9b81d960528e5621ade32fb05f690c263c0c2dfb2bc",
-      "text": "For a nonpinned SBE cache hit with decisionReads, the SBE classic runtime planner sets the trial read budget to internalQueryCacheEvictionRatio multiplied by decisionReads; it deactivates the entry and replans if TrialRunTracker exhausts that budget. SERVER-85238 defines the cached decision read count as totalKeysExamined plus totalDocsExamined. (high confidence) (verified as of 2026-10-20)",
-      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+      "text": "For a nonpinned SBE cache hit with decisionReads, the SBE classic runtime planner sets the trial read budget to internalQueryCacheEvictionRatio multiplied by decisionReads; it deactivates the entry and replans if TrialRunTracker exhausts that budget. SERVER-85238 defines the cached decision read count as totalKeysExamined plus totalDocsExamined. (high confidence) (verified as of 2026-10-20) Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp ; https://jira.mongodb.org/browse/SERVER-85238",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
       "also": [
         "https://jira.mongodb.org/browse/SERVER-85238"
       ],
-      "validation_status": "SUPPORTED",
-      "evidence_ids": [
+      "validation_status": "REMEDIATED-PROJECTION",
+      "origin_validation_status": "SUPPORTED",
+      "evidence_ids": [],
+      "origin_evidence_ids": [
         "ev:3f8035505a22fd3eb495bd32cc13ccbcee1bff99a0f4de8da145744e154e5720",
         "ev:8fd647d47ccc5030e5966bdbb184dcde5c15ebc4c32b604df5c524e938b8bcac",
         "ev:c499644baa016939e436f328f44f3e1bb8a41c3aef98519f2d56de13d11aeeac",
         "ev:f53ed1b790a2d513d0f1a93eed02e2d1a8755d0ceb3d40dbdffbc8c276cc3601"
-      ]
+      ],
+      "remediation": {
+        "schema": "claim-remediation-projection/v1",
+        "record": "remediation.json",
+        "requires_revalidation": true,
+        "claim_text_sha256": "c563f5736c6fb1763eefe60c7dd494dda6ba4d0678ac9983f8fb56e2bbf3c076"
+      }
     },
     {
       "id": "clm:aedc459394aed36ed15e70ef40b73cb25540d965c8ae042ad468a442d8c0f5c4",
@@ -154,16 +187,24 @@
     },
     {
       "id": "clm:04139bfcd665415254b16151e0cadd3a3b305125e782089bc3442982494e7aae",
-      "text": "The supplied canonical_query_encoder.cpp commit uses separate legacy key tags for classic plans, SBE-compatible non-subplanner plans, and SBE $or subplanner entries. The distinct subplanner tag means that an entry without ordinary reads or works should not automatically be classified as a pinned entry. (high confidence)",
-      "source_url": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/canonical_query_encoder.cpp",
+      "text": "The supplied canonical_query_encoder.cpp commit uses separate legacy key tags for classic plans, SBE-compatible non-subplanner plans, and SBE $or subplanner entries. The distinct subplanner tag means that an entry without ordinary reads or works should not automatically be classified as a pinned entry. (high confidence) Sources: https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/canonical_query_encoder.cpp ; https://jira.mongodb.org/browse/SERVER-91095",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/canonical_query_encoder.cpp",
       "also": [
         "https://jira.mongodb.org/browse/SERVER-91095"
       ],
-      "validation_status": "SUPPORTED",
-      "evidence_ids": [
+      "validation_status": "REMEDIATED-PROJECTION",
+      "origin_validation_status": "SUPPORTED",
+      "evidence_ids": [],
+      "origin_evidence_ids": [
         "ev:ab37b083bfa772ff6d82c7d0505ffe49dd08ca681ebd5da1aff8e55b6221ba55",
         "ev:fe411fe8d87bc2bc9b31a7377f060e9f5444b24cdc867a586e4a16235669f1f6"
-      ]
+      ],
+      "remediation": {
+        "schema": "claim-remediation-projection/v1",
+        "record": "remediation.json",
+        "requires_revalidation": true,
+        "claim_text_sha256": "1dc42f54fe558c5fab6ba400fb14002085a6aa68fab33e836d8070dd93d035b7"
+      }
     },
     {
       "id": "clm:993b15b541ec12b5502bd79dfb90af73aad6900bf8ed556da2ac6a1592797ee5",
@@ -179,20 +220,29 @@
     },
     {
       "id": "clm:7129aea6435e6e2fbf7f6c1a1d274b6b595b9e25177c14cbafb2df99f1221492",
-      "text": "The plan-cache README identifies single-solution and rooted `$or` plans as pinned examples in the SBE cache. Pinned entries lack ordinary `works` or `reads` feedback and bypass the normal read-budget trial, although standard cache eviction can still remove them. The pinned `cached_planner.cpp` path checks whether a cached foreign `$lookup` hash join remains eligible before `attemptToUsePlan` checks `decisionReads` for the pinned-entry bypass; if that join is no longer eligible, the planner replans immediately. The sources therefore support skipping threshold-based cached-plan validation for pinned entries, but not a guarantee that every replan path is bypassed. (high confidence) (verified as of 2026-10-20)",
-      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/plan_cache/README.md",
+      "text": "Pinned SBE plan cache entries have no reads or works value. The plan can be retrieved from the cache, but the cached plan trial period does not run and replanning never occurs for them (SERVER-91095). In cached_planner.cpp, makePlanner checks whether a cached foreign `$lookup` hash join is still eligible before calling `attemptToUsePlan`, which checks `decisionReads` for the pinned-entry bypass. If the join is no longer eligible, the planner replans immediately without a trial. So the pinned bypass skips only the read-budget trial, not every replan path. Sources: https://jira.mongodb.org/browse/SERVER-91095 ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-91095",
       "also": [
         "https://jira.mongodb.org/browse/SERVER-91095",
-        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp"
+        "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+        "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp"
       ],
-      "validation_status": "SUPPORTED",
-      "evidence_ids": [
+      "validation_status": "REMEDIATED-PROJECTION",
+      "origin_validation_status": "SUPPORTED",
+      "evidence_ids": [],
+      "origin_evidence_ids": [
         "ev:3f8035505a22fd3eb495bd32cc13ccbcee1bff99a0f4de8da145744e154e5720",
         "ev:8fd647d47ccc5030e5966bdbb184dcde5c15ebc4c32b604df5c524e938b8bcac",
         "ev:fb1907a67835b4b92254ccad0e3384879ae7df1bb8a80da0598f0e66dc107223",
         "ev:fe411fe8d87bc2bc9b31a7377f060e9f5444b24cdc867a586e4a16235669f1f6"
-      ]
+      ],
+      "remediation": {
+        "schema": "claim-remediation-projection/v1",
+        "record": "remediation.json",
+        "requires_revalidation": true,
+        "claim_text_sha256": "23e49dedfbc31eb8efb142eaf814b069c21ec5b573e385047bb2cab9b8ebeb09"
+      }
     }
   ],
-  "projection_sha256": "0f7a93d83c5e8b452d33849bf5a6f231f6a7e31c3e12b5c8e51670d80e1d58fd"
+  "projection_sha256": "2cf18c76b8a49497148f6af6a4baea9828f7a802c30c234ebbea8e5a690c6918"
 }

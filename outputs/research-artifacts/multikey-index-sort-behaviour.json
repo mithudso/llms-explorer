@@ -1,0 +1,156 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "multikey index sort behaviour",
+  "slug": "multikey-index-sort-behaviour",
+  "canonical_concept_id": "concept:cfaf3c95ae5713c364171b51104594a6437858ecce65be016347724e71a9f276",
+  "canonical_artifact_sha256": "72f6e9ff7a9fc1e6e687839e950db20f700351e48d0c8a034168ff56ae9315ec",
+  "claims": [
+    {
+      "id": "clm:5de6c0ba222e992d100405ace21ce0973c412d80423cf9403e85f457fce3cdb2",
+      "text": "When sorting on an array field indexed by a multikey index, MongoDB requires a separate sort unless every sort field has [MinKey, MaxKey] index bounds and no bounded multikey-indexed field shares a path prefix with the sort pattern. These are additional restrictions, not a replacement for ordinary compound-index sort compatibility. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+        "https://jira.mongodb.org/browse/SERVER-31898"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:7593124e9a9385689c267195403059f95ef1d1eeafd75b85a95a285145cc7dd6",
+      "text": "SERVER-32525 records a historical MongoDB 3.4.10 inconsistency: filtering a.b and sorting a.c returned different orders with and without a compound multikey index. This historical example explains why predicate-bounded index order cannot automatically stand in for array sort semantics; it is not evidence of a current unfixed defect. (medium confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-32525",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:fb1d3af2253e97e40f51bb3ee1eced4281ad3f119a99653240c74dc7491c1eeb"
+      ]
+    },
+    {
+      "id": "clm:985a635bd21d0af40660a6e29de59f432c2ef66c66405b611f374e081bccd3e7",
+      "text": "A firsthand October 2019 report describes a sharded MongoDB 3.6.3 deployment failing an array-field descending sort with a 33554432-byte sort-memory error despite an index on transfers.amount. This is historical incident evidence, not a current memory limit or a benchmark reproduced here. (low confidence)",
+      "source_url": "https://stackoverflow.com/questions/58314180/mongodb-multikey-index-seems-like-not-being-used-when-sort",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4b2ff4e5566eafc2d60cf8be91f10f067e1c15d09e91806c2f9bfac13ab32f2a"
+      ]
+    },
+    {
+      "id": "clm:3fdd3dac3035f016985c03d0d7e652d2fb27c5f8dcfa72e35cbef21e163cf5e8",
+      "text": "An IXSCAN can coexist with a blocking SORT. To assess a multikey sort, inspect the complete explain plan, including SORT, indexBounds and multiKeyPaths, rather than treating index use alone as proof that the index supplied order. Pachot demonstrates both full-bound scans without SORT and bounded scans with SORT. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+      "also": [
+        "https://dev.to/mongodb/mongodb-arrays-sort-order-and-comparison-d9d"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7326639d0686db541af50b25c431f7c2fee3f169c7d5514a23c40deddf017e29"
+      ]
+    },
+    {
+      "id": "clm:be6470e2464861e1b168bd95e8796c6d3577606c50c37f8ca2c169bf9d94463e",
+      "text": "A document sorted by an array field uses the lowest array value for ascending order and the highest for descending order. A query predicate selects documents but does not restrict sort-key selection to matching array elements. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-31898",
+        "https://www.thecandidstartup.org/2023/07/24/mongodb-database-grid-view.html",
+        "https://dev.to/mongodb/mongodb-arrays-sort-order-and-comparison-d9d"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:cd3251b6df7bfee52e6da5da579b260483286c94bbf10a19ac26a51a76ccf6cd",
+      "text": "Filtering custom_fields.attribute and sorting custom_fields.value is a concrete shared-prefix trap: both paths traverse custom_fields, so an equality bound on the attribute does not make the requested value sort eligible for index-provided ordering. The Candid Startup describes this application design in its July 2023 grid-view investigation. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md",
+      "also": [
+        "https://www.thecandidstartup.org/2023/07/24/mongodb-database-grid-view.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:24b468b9e024d3c14ce5daebe5807c9f8722cf0311c4d8129c1cd8bc2d6006fb",
+        "ev:63bc64e01b9417b7888a66912dbdb5252e85311d34f608b19a64bb530718bc7f",
+        "ev:ed8df157e4d94f5ca510aba10e3a115f57bc49f734fc9bb3a9d73ba6047be5c9"
+      ]
+    },
+    {
+      "id": "clm:39dcb23d1218e7a426b171284cde68e296b2745f21620ee6e800a038af7b8c02",
+      "text": "A predicate on an array does not invariably force a blocking sort: a planner can scan full array index bounds to preserve sort order and apply the predicate during FETCH. Pachot shows this candidate as a rejected alternative to a narrower IXSCAN followed by SORT; plan choice therefore involves filtering cost as well as sorting cost. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md",
+      "also": [
+        "https://dev.to/mongodb/mongodb-arrays-sort-order-and-comparison-d9d"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6c24191ad54e035808c3a775425787b4416a9b46447ead740cb26bef83a10ae3"
+      ]
+    },
+    {
+      "id": "clm:9585979560a9c646cca428edfba6f525dc41bcb147cd14fe80c52829c94176c5",
+      "text": "If the requirement is to sort only on matched array values, MongoDB documents generating a new field with $addFields and $filter and sorting that field. This changes the sort input and should not be assumed to preserve index-provided ordering. (low confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:52f9b53ab5c2c3c051c0d1e9d18b435df52fac96f7b50962f1450fbf26824dc6",
+        "ev:5daca9f8afd1a2562bc7d253a5aace95c2c7d3a35c4d102ad68d2092579a5a4a"
+      ]
+    },
+    {
+      "id": "clm:9db805faeef89f0ad65d28d15745e8f36940d8b2cf41c9428e03660431bdb3dd",
+      "text": "SERVER-31898 illustrates why a bounded scan can be incorrect: for find({myArray: {$gte: 5}}).sort({myArray: 1}), [1,6,7] must precede [3,4,5], although scanning only keys at least 5 encounters 5 before 6. Filtering keys can hide the actual document sort key. (high confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-31898",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0ebd836e5ece26bec7dfca7c0d15848624da3b802f10f094a32a3b596abc7b71"
+      ]
+    },
+    {
+      "id": "clm:ed062a683d9a09c30e429b586eea2f9c173fe57419819a4ac1e3c9b2d1b10a64",
+      "text": "With index {\"a.b\":1,\"a.c\":1} over an array a, filtering \"a.b\" while sorting \"a.c\" can require a separate sort even if \"a.c\" has full bounds. The shared prefix a lets the filter hide the element whose c value should determine document order. The Candid Startup describes the same problem for custom_fields.attribute and custom_fields.value. (high confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-31898",
+      "also": [
+        "https://www.thecandidstartup.org/2023/07/24/mongodb-database-grid-view.html",
+        "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:37509b1d42fcf9a716f33df47a6889d5a606aaa60b57c7596b929f67d00d0d82",
+        "ev:ed8df157e4d94f5ca510aba10e3a115f57bc49f734fc9bb3a9d73ba6047be5c9"
+      ]
+    },
+    {
+      "id": "clm:6120c0329c529cb4ec5fd674be39089efb9e2ba035996a003a086a0e443e4dfc",
+      "text": "Historical blanket advice that multikey array sorts always block is too broad for the documented behavior. The 2019 Stack Overflow answer reports no workaround, whereas SERVER-31898 records implementation of eligible nonblocking sorts with fix version 4.3.4; the manual now documents the full-bounds and path-prefix conditions. (high confidence)",
+      "source_url": "https://stackoverflow.com/questions/58314180/mongodb-multikey-index-seems-like-not-being-used-when-sort",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-31898",
+        "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:364fcf295e06ea2706eb952389179fa7de07efeea3e2dab7beda1412722f9cbe",
+        "ev:63bc64e01b9417b7888a66912dbdb5252e85311d34f608b19a64bb530718bc7f",
+        "ev:b30fd7da5e3debbcd052aedb6244356532658ca0924d8c29ff1ceeb1f833fafc"
+      ]
+    },
+    {
+      "id": "clm:c70373ae19995c19d4b851a97c0a84b7bf3d93e690cf7d3a0b84d994980f2435",
+      "text": "Inference for compound-index design: satisfying equality-prefix and sort-direction rules does not by itself prove an array sort is index-provided. Evaluate the multikey full-bounds and shared-path restrictions separately; an index useful for filtering can still leave a separate sort. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md",
+        "https://jira.mongodb.org/browse/SERVER-31898"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    }
+  ],
+  "projection_sha256": "31e4e220e6689e3448becaa0cc6fcb831c6e22c801843147dc9c72e40505bb77"
+}

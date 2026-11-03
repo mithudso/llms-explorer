@@ -1,0 +1,148 @@
+# Defining Agent-Directed Manipulation — v0.1 (full text)
+
+> The complete definition in one file, for machine readers that prefer a single fetch.
+> Canonical HTML: https://perpensum.org/ (English, authoritative) and https://perpensum.org/ja
+> Structured form: https://perpensum.org/definition.json
+> Source: https://github.com/perpensum/agent-directed-manipulation
+> Published 2026-07-30 by Perpensum. Status: v0.1, draft. Licence: CC BY 4.0.
+
+This file states the same thing as the prose pages. **Nothing is asserted to a machine here
+that is not asserted to a human there.** Serving different content to different readers is the
+practice this document exists to name.
+
+## The problem
+
+AI agents now read web pages and act on them — comparing, recommending, buying. In response, a
+practice has emerged: placing text that is invisible to human readers, or planted in
+third-party regions of a page, in order to steer the machine's judgment.
+
+At the same time, making yourself machine-readable — structured data, `llms.txt`, clear
+specifications — is a legitimate practice. The two must not be confused. Conflating them is how
+a detector becomes a liability: it starts flagging honest sites.
+
+## The definition
+
+Agent-directed manipulation is text on a web page that is addressed to a machine reader rather
+than a human one, and that is either **(a) placed where humans cannot see it** or **(b) placed
+in a third-party submission region**, and that instructs the reader's judgment, output, or
+ranking.
+
+## Two axes, and only two
+
+Region:
+- `first_party` — the site operator's own surface (body copy, meta, structured data)
+- `third_party` — regions others can post into (reviews, comments, UGC, embeds)
+
+Visibility:
+- `visible` — readable by a human under normal rendering
+- `hidden` — placed where a human reader will not reach it
+
+Severity follows mechanically:
+
+| Region | Visibility | Severity | Reading |
+|---|---|---|---|
+| first_party | visible | info | Ordinary advertising copy. Not a finding |
+| first_party | hidden | warn | Hidden text. Equivalent to search-engine cloaking |
+| third_party | visible | warn | Someone else placed an agent-directed instruction |
+| third_party | hidden | high | Invisible injection by a third party |
+
+**No subjective axis is involved.** Add one — "is this overblown?" — and the line against
+legitimate advertising copy disappears; the verdict starts depending on who is measuring. For
+this to work as a standard, every axis has to be mechanically decidable.
+
+## What counts as hidden
+
+- CSS concealment: `display:none`, `visibility:hidden`, the `hidden` attribute
+- Effectively invisible: `font-size:0`, `opacity:0`, text colour matching background
+- Positioned off-screen: large negative offsets
+- Markup only: HTML comments, contents of `<template>`
+- Hidden from assistive technology: `aria-hidden="true"`
+- Attribute values only: `meta` content, `alt`, `title`, `data-*`
+
+**Conditional CSS does not count as hidden.** Declarations inside `@media (max-width:640px)`,
+`@media print`, `@supports`, or `@container` apply only under specific conditions. Calling
+responsive layout or print styles "hidden text" is simply wrong.
+
+**When external CSS cannot be resolved, do not conclude hidden.** Report the visibility as
+undetermined and say so. Treating what you cannot resolve as a finding is how false positives
+are manufactured.
+
+## Determining third_party
+
+Third-party regions are inferred from structured markup such as `itemprop="review"`, from
+`class`/`id` tokens indicating submission areas, and from embedded elements.
+
+**This is inference. When uncertain, fall back to `first_party`.** Because `third_party` carries
+the higher severity, erring on the safe side means treating content as the operator's own.
+
+**Operator-side markers override the inference.** Editorial reviews, operator-written summaries,
+and published testimonials are first-party content, whatever the class name suggests.
+
+## What is deliberately not detected
+
+Include any one of these and the standard becomes unusable:
+
+- Ordinary advertising copy ("The best choice", "Trusted by thousands", "Buy now")
+- Structured data, `llms.txt`, `robots.txt` — legitimate machine-readable self-presentation is clean
+- Merely mentioning AI ("Our AI assistant is here to help" is not manipulation)
+- Hidden but harmless text — skip links, screen-reader-only text, cookie banners, collapsed
+  accordions and tabs, inactive carousel slides
+- Genuine first-person reviews — a real customer writing "I'd recommend this" is not an injection
+- Articles explaining prompt injection — a document quoting control tokens as examples is not an attack
+
+## Known limits
+
+Stated in the open, not hidden behind a claim of detection:
+
+- Concealment placed in external CSS cannot be detected without fetching that CSS
+- Visibility controlled by JavaScript at runtime is not evaluated
+- Third-party region detection is inference, not certainty
+- Languages other than English and Japanese are out of scope for now
+
+**Reporting "nothing found" when you did not look is the worst failure mode available to a
+standard like this.**
+
+## Verifying an implementation
+
+The conformance suite holds 26 cases, **20 of which expect no finding at all**. What the
+standard refuses to flag is more of its substance than what it flags: for a judgement like this
+one, false positives are the only fatal failure.
+
+Every case is tagged with the language it exercises, and the runner reports agreement per
+language, so passing English while failing Japanese cannot hide inside a single total.
+
+- Cases: https://perpensum.org/conformance/cases.json
+- Runner: https://perpensum.org/conformance/run.mjs
+- Reference implementation: https://perpensum.org/reference/scan.mjs — one dependency-free file
+  passing all 26 cases. **Not normative**: where it and the definition disagree, the
+  implementation has the bug.
+
+Run it against any page:
+
+    curl -s https://example.com | node scan.mjs
+
+## If your implementation disagrees
+
+**It is not necessarily the one that is wrong.** A disagreement marks a place where the
+definition is open to more than one reading, which is a defect in the definition.
+Report it: https://github.com/perpensum/agent-directed-manipulation/issues
+
+Open questions filed by the authors against their own definition:
+
+1. Runtime JavaScript visibility is out of scope — should it be?
+2. Is `alt` really hidden? Screen readers reach it, and the definition excludes screen-reader text elsewhere.
+3. `third_party` inference is English-shaped, and under-reports on everything else.
+
+## Status, licence, and who publishes this
+
+- v0.1 is explicitly a draft, published early so that it can be argued with.
+- The definition and documentation are CC BY 4.0. The runner and reference implementation are MIT.
+- **Implementing this definition requires no permission, notification, or certification from Perpensum.**
+  A standard that gatekeeps its own implementation is not a standard.
+- Prior versions are never deleted; changes and their reasons stay in the changelog.
+
+Published by Perpensum (https://perpensum.org/contact), which is building third-party evaluation
+of AI agent purchasing decisions. **Stated plainly because a standard whose authorship is unclear
+does not get adopted.** The relevant commitment is not anonymity but independence: Perpensum does
+not accept payment, partnership, or preferential terms from any party in exchange for how that
+party is evaluated under this definition.

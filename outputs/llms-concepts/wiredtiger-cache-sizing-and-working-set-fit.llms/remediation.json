@@ -1,0 +1,240 @@
+{
+ "schema": "claim-remediation/v1",
+ "applications": [
+  {
+   "slug": "wiredtiger-cache-sizing-and-working-set-fit",
+   "at": "2026-11-02T13:25:21Z",
+   "pack": "outputs/llms-concepts/wiredtiger-cache-sizing-and-working-set-fit.llms",
+   "packSha256Before": "bdddb58c670a4f827debd5674939010a48122aeaec2004f30c43dea1040616e6",
+   "edits": [
+    {
+     "claim_id": "clm:a7e97c12428412e4486c5a35a0adf569f25252e5d60f81bfa74527ee27665470",
+     "unit_id": "clm:28439b155737e85927d2e0184d0e050d3b12d23c4d8f7b0c4582a0c30b63559a",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "serverStatus.wiredTiger.cache exposes current and configured cache bytes, bytes read into cache, dirty bytes, and eviction counters. A sustained high Read into rate means WiredTiger is loading pages frequently, but it does not prove physical disk reads because the OS filesystem cache may serve those reads. Correlate cache and eviction counters with host cached and available memory and disk read metrics. (high confidence)",
+     "new": "serverStatus.wiredTiger.cache exposes current and configured (maximum) cache bytes, pages read into cache, dirty bytes, and eviction counters. A high pages-read-into-cache rate means WiredTiger is loading pages into its internal cache, but it does not by itself prove physical disk reads, because MongoDB also uses the operating system filesystem cache, which holds data in the on-disk format and reduces disk I/O. Sources: https://www.mongodb.com/docs/manual/reference/command/serverStatus.md ; https://www.mongodb.com/docs/manual/faq/diagnostics.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md",
+       "quote": "Size in bytes of the data currently in cache. This value should not be greater than the `maximum bytes configured` value.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md",
+       "quote": "Size in bytes of the dirty data in the cache. This value should be less than the `bytes currently in the cache` value.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/faq/diagnostics.md",
+       "quote": "With WiredTiger, MongoDB utilizes both the WiredTiger internal cache and the filesystem cache.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/faq/diagnostics.md",
+       "quote": "Data in the filesystem cache is the same as the on-disk format, including benefits of any compression for data files. The filesystem cache is used by the operating system to reduce disk I/O.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "serverStatus.wiredTiger.cache exposes current and configured cache bytes, bytes read into cache, dirty bytes, and eviction counters.",
+       "outcome": "VERIFIED",
+       "note": "Fields exist: bytes currently in the cache, maximum bytes configured, pages read into cache, tracked dirty bytes, pages evicted by application threads. Read-into is counted in pages.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "WiredTiger eviction application threads evict pages cache eviction_trigger 95% MongoDB"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md"
+        ]
+       }
+      },
+      {
+       "statement": "A sustained high Read into rate does not prove physical disk reads because the OS filesystem cache may serve those reads.",
+       "outcome": "VERIFIED",
+       "note": "Docs describe the filesystem cache as a separate layer that reduces disk I/O; the conclusion is a direct inference from that.",
+       "evidence_index": [
+        2,
+        3
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB WiredTiger internal cache and filesystem cache compressed data pages read from OS file system cache",
+         "Percona MongoDB WiredTiger cache pages read into cache disk reads page faults eviction troubleshooting"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/faq/diagnostics.md"
+        ]
+       }
+      },
+      {
+       "statement": "Correlate cache and eviction counters with host cached and available memory and disk read metrics.",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "Only vendor blogs suggest this; no primary MongoDB source states it as guidance.",
+       "evidence_index": [],
+       "searched": {
+        "queries": [
+         "IBM MongoDB WiredTiger cache eviction monitoring disk reads page faults swap latency",
+         "Percona MongoDB WiredTiger cache pages read into cache disk reads page faults eviction troubleshooting"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/faq/diagnostics.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "WiredTiger eviction application threads evict pages cache eviction_trigger 95% MongoDB",
+       "Percona MongoDB WiredTiger cache pages read into cache disk reads page faults eviction troubleshooting",
+       "MongoDB WiredTiger internal cache and filesystem cache compressed data pages read from OS file system cache",
+       "IBM MongoDB WiredTiger cache eviction monitoring disk reads page faults swap latency"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md",
+       "https://www.mongodb.com/docs/manual/faq/diagnostics.md"
+      ]
+     },
+     "rationale": "The serverStatus reference documents the cache fields (current bytes, maximum bytes configured, dirty bytes, pages read into cache, pages evicted by application threads). MongoDB documents a second cache layer, the OS filesystem cache, that reduces disk I/O, so the inference that read-into does not prove physical disk reads follows from the docs. No primary source was found for the explicit advice to correlate with host cached/available memory and disk read metrics, so it is left out."
+    },
+    {
+     "claim_id": "clm:cc8879bbabb3b9f713694584ac97e4044a496a0311b8bb1f29a171b0e01e22db",
+     "unit_id": "clm:4d1dd4817518147a1b8135600c35d9bfef44a51f994025f87eafa13b8c81e5d1",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "Diagnose cache fit with correlated trends rather than cache occupancy alone. MongoDB exposes current and maximum cache bytes, pages read into cache, dirty bytes, and pages evicted by application threads through serverStatus().wiredTiger.cache. Its WiredTiger integration notes that reaching an eviction trigger can recruit application threads, and Percona and IBM guidance pairs cache and eviction indicators with disk reads, page faults, swap, or disk latency when investigating pressure. (medium confidence)",
+     "new": "MongoDB exposes current and maximum cache bytes, pages read into cache, dirty bytes, and pages evicted by application threads through serverStatus().wiredTiger.cache. In WiredTiger, application threads start to perform eviction once cache usage reaches eviction_trigger (default 95%), and are also tasked with eviction if eviction worker threads cannot keep up, which can throttle operations and cause latency spikes. Sources: https://www.mongodb.com/docs/manual/reference/command/serverStatus.md ; https://source.wiredtiger.com/3.0.0/tune_cache.html",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md",
+       "quote": "Size in bytes of the data currently in cache. This value should not be greater than the `maximum bytes configured` value.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md",
+       "quote": "Size in bytes of the dirty data in the cache. This value should be less than the `bytes currently in the cache` value.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://source.wiredtiger.com/3.0.0/tune_cache.html",
+       "quote": "The eviction_trigger configuration value (default 95%) is the level at which application threads start to perform eviction. This will throttle application operations, increasing operation latency",
+       "supports": "claim"
+      },
+      {
+       "url": "https://source.wiredtiger.com/3.0.0/tune_cache.html",
+       "quote": "if the Wiredtiger eviction threads are unable to keep up with application demand for cache space, application threads will be tasked with eviction as well, potentially resulting in latency spikes.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "MongoDB exposes current and maximum cache bytes, pages read into cache, dirty bytes, and pages evicted by application threads through serverStatus().wiredTiger.cache.",
+       "outcome": "VERIFIED",
+       "note": "All named fields appear in the serverStatus wiredTiger.cache output.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "WiredTiger eviction application threads evict pages cache eviction_trigger 95% MongoDB"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md"
+        ]
+       }
+      },
+      {
+       "statement": "Reaching an eviction trigger can recruit application threads.",
+       "outcome": "VERIFIED",
+       "note": "Stated in WiredTiger tuning docs (version 3.0.0 page; the mechanism is WiredTiger's, which MongoDB embeds).",
+       "evidence_index": [
+        2,
+        3
+       ],
+       "searched": {
+        "queries": [
+         "WiredTiger eviction application threads evict pages cache eviction_trigger 95% MongoDB"
+        ],
+        "urls": [
+         "https://source.wiredtiger.com/3.0.0/tune_cache.html"
+        ]
+       }
+      },
+      {
+       "statement": "Percona and IBM guidance pairs cache and eviction indicators with disk reads, page faults, swap, or disk latency when investigating pressure.",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "No Percona or IBM document found stating this; only third-party blogs surfaced.",
+       "evidence_index": [],
+       "searched": {
+        "queries": [
+         "Percona MongoDB WiredTiger cache pages read into cache disk reads page faults eviction troubleshooting",
+         "IBM MongoDB WiredTiger cache eviction monitoring disk reads page faults swap latency"
+        ],
+        "urls": []
+       }
+      },
+      {
+       "statement": "Diagnose cache fit with correlated trends rather than cache occupancy alone.",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "Advice not stated in a primary source; MongoDB docs only say read-into plus written-from pages give an overview of I/O activity.",
+       "evidence_index": [],
+       "searched": {
+        "queries": [
+         "IBM MongoDB WiredTiger cache eviction monitoring disk reads page faults swap latency"
+        ],
+        "urls": []
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "WiredTiger eviction application threads evict pages cache eviction_trigger 95% MongoDB",
+       "Percona MongoDB WiredTiger cache pages read into cache disk reads page faults eviction troubleshooting",
+       "IBM MongoDB WiredTiger cache eviction monitoring disk reads page faults swap latency"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md",
+       "https://source.wiredtiger.com/3.0.0/tune_cache.html",
+       "https://www.mongodb.com/docs/manual/faq/diagnostics.md"
+      ]
+     },
+     "rationale": "The serverStatus reference and WiredTiger tuning docs support the field list and the application-thread eviction behavior. The attributions to Percona and IBM guidance and the general advice to correlate trends with disk reads, page faults, swap, or disk latency were not found in any primary or Percona/IBM source, so they are omitted."
+    }
+   ],
+   "skipped": [],
+   "changed": [
+    "llms-facts.txt",
+    "llms-full.txt",
+    "llms-small.txt",
+    "units.jsonl"
+   ]
+  }
+ ],
+ "publication": {
+  "schema": "remediation-public-projection/v1",
+  "source_record_sha256": "19c712139d45870f998b1ce680053f351a2c28af87776a5c47e50b52ae262a4f",
+  "redactions": [
+   "operator-specific pack path"
+  ]
+ }
+}

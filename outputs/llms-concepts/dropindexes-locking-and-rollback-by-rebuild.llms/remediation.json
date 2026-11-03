@@ -1,0 +1,398 @@
+{
+ "schema": "claim-remediation/v1",
+ "applications": [
+  {
+   "slug": "dropindexes-locking-and-rollback-by-rebuild",
+   "at": "2026-11-02T09:40:10Z",
+   "pack": "outputs/llms-concepts/dropindexes-locking-and-rollback-by-rebuild.llms",
+   "packSha256Before": "1bb5c1d6760b053a2cebf5203798f6c3d2bc8b0fbda23d1bc9a733c8cadcfea6",
+   "edits": [
+    {
+     "claim_id": "clm:541bf9e62f4bd2484ef04cbaa276d0c90e2c4c4a8673472089cbd71386830d9a",
+     "unit_id": "clm:23f9f0ec9978e54ef1fac29dcf4fe6bd42f31466de5840832bca72624be98491",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "A rebuild after a drop is a new createIndex operation on the current collection data, not an immediate reversal of dropIndexes. MongoDB documents that index builds on populated collections hold an exclusive collection lock briefly at the start and end, while yielding to reads and writes during the rest of the build; this build-lock behavior differs from dropIndexes holding its lock for the full removal operation. (high confidence) (verified as of 2026-10-23)",
+     "new": "A rebuild after a drop is a new createIndex operation on the current collection data, not an immediate reversal of dropIndexes. MongoDB documents that index builds on populated collections hold an exclusive collection lock briefly at the start and end, while yielding to reads and writes during the rest of the build; this build-lock behavior differs from dropIndexes holding its lock for the full removal operation. (high confidence) (verified as of 2026-10-23) Sources: https://www.mongodb.com/docs/manual/core/index-creation/ ; https://www.mongodb.com/docs/manual/reference/method/db.collection.dropIndex/",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/index-creation/",
+       "quote": "Index builds use an optimized build process that holds an exclusive lock on the collection briefly at the beginning and end of the index build. The rest of the build process yields to interleaving read and write operations.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.dropIndex/",
+       "quote": "obtains an exclusive lock on the specified collection for the duration of the operation. All subsequent operations on the collection must wait until",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "A rebuild after a drop is a new createIndex operation on the current collection data, not an immediate reversal of dropIndexes.",
+       "outcome": "VERIFIED",
+       "note": "Following from the index build and drop pages: a dropped index is gone and rebuilding means running a new build. No page states this in those words; it is an inference.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB dropIndexes lock database to collection level 4.2 exclusive lock"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/index-creation/"
+        ]
+       }
+      },
+      {
+       "statement": "Index builds on populated collections hold an exclusive collection lock briefly at the start and end, yielding to reads and writes during the rest.",
+       "outcome": "VERIFIED",
+       "note": "Stated directly by the index-creation page.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB dropIndexes lock database to collection level 4.2 exclusive lock"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/index-creation/"
+        ]
+       }
+      },
+      {
+       "statement": "dropIndexes holds its exclusive lock for the full removal operation, unlike the build.",
+       "outcome": "VERIFIED",
+       "note": "The dropIndex page says the exclusive lock is held for the duration of the operation.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB dropIndexes lock database to collection level 4.2 exclusive lock"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/reference/method/db.collection.dropIndex/"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB dropIndexes lock database to collection level 4.2 exclusive lock"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/manual/core/index-creation/",
+       "https://www.mongodb.com/docs/manual/reference/method/db.collection.dropIndex/"
+      ]
+     },
+     "rationale": "The index-creation page says builds hold an exclusive lock briefly at the beginning and end and yield to reads and writes for the rest. The dropIndex page says the drop holds an exclusive collection lock for the whole operation. A rebuild is a fresh createIndex build, which is the plain meaning of the two pages together."
+    },
+    {
+     "claim_id": "clm:a62ae5499ac89a8af52d2b4cccb67d5185ff716871aeb507689d0cfb1baa102e",
+     "unit_id": "clm:6c38fd4fb1c0057ba017478f2daea16e5516023345ded8bd057f57b846d045f2",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "dropIndexes kills queries that use the index being removed, including queries still considering it during planning. After the drop, the planner cannot use that index; reads can regress if the remaining plan is slower, so validate critical query shapes and representative traffic before and after removal. (medium confidence)",
+     "new": "dropIndexes only kills queries that are using the index being dropped, which may include queries considering the index as part of query planning. After the drop, the planner cannot use that index; the optimizer may choose a different existing index, so verify critical query shapes with explain() before and after removal. Sources: https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/ ; https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/",
+       "quote": "The dropIndexes operation only kills queries that are using the index being dropped. This may include queries considering the index as part of query planning.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+       "quote": "Query plan changes. After removal, the optimizer may choose a different existing index. A query that used a dropped index might switch to another index rather than a COLLSCAN. Verify with explain() on critical query shapes.",
+       "supports": "correction"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "dropIndexes kills queries that use the index being removed, including queries considering it during planning.",
+       "outcome": "VERIFIED",
+       "note": "Stated in the 8.0 manual.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB dropIndexes lock database to collection level 4.2 exclusive lock"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/"
+        ]
+       }
+      },
+      {
+       "statement": "After the drop the planner cannot use that index; reads can regress if the remaining plan is slower, so validate critical query shapes and representative traffic before and after removal.",
+       "outcome": "CORRECTED",
+       "note": "Netdata says the optimizer may choose a different index and advises explain() on critical query shapes. It does not say reads regress, and it does not mention representative traffic. The regression statement is an unsourced inference.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "Percona MongoDB indexes improve read performance cost writes storage unused indexes"
+        ],
+        "urls": [
+         "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB dropIndexes lock database to collection level 4.2 exclusive lock",
+       "Percona MongoDB indexes improve read performance cost writes storage unused indexes"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/",
+       "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/"
+      ]
+     },
+     "rationale": "The MongoDB manual supports the kill-queries statement. The Netdata guide, not MongoDB, supports the plan-change and explain() validation advice. The wording that reads can regress if the remaining plan is slower is an inference, and Netdata only says the optimizer may pick a different index."
+    },
+    {
+     "claim_id": "clm:bfa20fe470c2743873906c098173d66ce3a5331432b52b0937d3050a51100cdc",
+     "unit_id": "clm:cfa6dddf8ea0edde12cfb7471c6dcbd35521d333e263236a7b551e0a881dfdda",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "The MongoDB 7.0 and 8.0 command manuals describe the same dropIndexes locking behavior: it holds an exclusive lock on the target collection for the command's duration, and subsequent operations on that collection wait for release. The manuals do not describe this as an 8.0 change or as a database-wide lock; an independent operations guide dates the move from database to collection lock scope to MongoDB 4.2. (high confidence) (verified as of 2026-10-23)",
+     "new": "The MongoDB 7.0 and 8.0 command manuals describe the same dropIndexes locking behavior: it holds an exclusive lock on the target collection for the command's duration, and subsequent operations on that collection wait for release. The manuals do not describe this as a database-wide lock. Sources: https://www.mongodb.com/docs/v7.0/reference/command/dropindexes/ ; https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/v7.0/reference/command/dropindexes/",
+       "quote": "dropIndexes obtains an exclusive lock on the specified collection for the duration of the operation. All subsequent operations on the collection must wait until dropIndexes releases the lock.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/",
+       "quote": "dropIndexes obtains an exclusive lock on the specified collection for the duration of the operation. All subsequent operations on the collection must wait until dropIndexes releases the lock.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "The 7.0 and 8.0 manuals describe the same exclusive collection lock for the command's duration, with subsequent operations waiting.",
+       "outcome": "VERIFIED",
+       "note": "Identical sentence on both pages.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB dropIndexes lock database to collection level 4.2 exclusive lock"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/v7.0/reference/command/dropindexes/",
+         "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/"
+        ]
+       }
+      },
+      {
+       "statement": "The manuals do not describe this as an 8.0 change or a database-wide lock.",
+       "outcome": "VERIFIED",
+       "note": "Both pages say collection lock with no 8.0 change note; the quoted text shows the collection scope.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB dropIndexes lock database to collection level 4.2 exclusive lock"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/v7.0/reference/command/dropindexes/",
+         "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/"
+        ]
+       }
+      },
+      {
+       "statement": "An independent operations guide dates the move from database to collection lock scope to MongoDB 4.2.",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "The Netdata guide has no mention of 4.2, and the 4.4 command and method pages as pinned have no 4.2 text. Two searches did not turn up a pinned page with this.",
+       "evidence_index": [],
+       "searched": {
+        "queries": [
+         "MongoDB dropIndexes lock database to collection level 4.2 exclusive lock",
+         "Percona MongoDB indexes improve read performance cost writes storage unused indexes"
+        ],
+        "urls": [
+         "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+         "https://www.mongodb.com/docs/v4.4/reference/command/dropindexes/",
+         "https://www.mongodb.com/docs/v4.4/reference/method/db.collection.dropindexes/"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB dropIndexes lock database to collection level 4.2 exclusive lock",
+       "Percona MongoDB indexes improve read performance cost writes storage unused indexes"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/v7.0/reference/command/dropindexes/",
+       "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/",
+       "https://www.mongodb.com/docs/v4.4/reference/command/dropindexes/",
+       "https://www.mongodb.com/docs/v4.4/reference/method/db.collection.dropindexes/",
+       "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/"
+      ]
+     },
+     "rationale": "Both the 7.0 and 8.0 pages carry the identical sentence. The pinned pages (7.0, 8.0, 4.4) do not date the database-to-collection lock change, and I found no pinned independent guide that dates it to 4.2. That statement is therefore removed. The web search summary mentioned a 4.2 note but I could not confirm it in pinned text."
+    },
+    {
+     "claim_id": "clm:ee42bef4453e35eaa7fb222936257d73f4d1cc570b47f2c77527fe24169f1c9c",
+     "unit_id": "clm:413eb1548dccfd7c546f5bfc121f240d185991d859696d18d30ee65c3d3399bc",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Dropping an unused index can reduce write and storage overhead, but removing an index used by read queries can change plans and cause slower scans. Netdata advises dropping during lower traffic and monitoring lock waits and query plans afterward; Percona describes the read benefit and write and storage costs of indexes, supporting workload-specific validation rather than treating every unused-index result as safe for removal. (medium confidence)",
+     "new": "Dropping an unused index can reduce write and storage overhead, but removing an index used by read queries can change plans and cause slower scans. Netdata advises dropping during lower traffic and monitoring lock waits and query plans afterward; Percona describes the read benefit and write and storage costs of indexes, supporting workload-specific validation rather than treating every unused-index result as safe for removal. (medium confidence) Sources: https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/ ; https://www.percona.com/blog/want-mongodb-performance-you-will-need-to-add-and-remove-indexes/",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+       "quote": "Write latency. Removing an unnecessary index should reduce per-write overhead.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+       "quote": "Perform the operation during a maintenance window or low-traffic period. The lock can stall concurrent writes.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+       "quote": "Query plan changes. After removal, the optimizer may choose a different existing index.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.percona.com/blog/want-mongodb-performance-you-will-need-to-add-and-remove-indexes/",
+       "quote": "Over-indexing, where excessive indexes are created, can burden write operations and increase storage requirements, while under-indexing can result in slow query execution.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Dropping an unused index can reduce write and storage overhead.",
+       "outcome": "VERIFIED",
+       "note": "Netdata says removal reduces per-write overhead. Percona says excess indexes burden writes and storage.",
+       "evidence_index": [
+        0,
+        3
+       ],
+       "searched": {
+        "queries": [
+         "Percona MongoDB indexes improve read performance cost writes storage unused indexes"
+        ],
+        "urls": [
+         "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+         "https://www.percona.com/blog/want-mongodb-performance-you-will-need-to-add-and-remove-indexes/"
+        ]
+       }
+      },
+      {
+       "statement": "Removing an index used by read queries can change plans.",
+       "outcome": "VERIFIED",
+       "note": "Netdata states the optimizer may choose a different index after removal. The page does not use the phrase slower scans, but it does mention COLLSCAN as a possible outcome.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [
+         "Percona MongoDB indexes improve read performance cost writes storage unused indexes"
+        ],
+        "urls": [
+         "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/"
+        ]
+       }
+      },
+      {
+       "statement": "Netdata advises dropping during lower traffic and monitoring lock waits and query plans afterward.",
+       "outcome": "VERIFIED",
+       "note": "Netdata says to use a maintenance window or low-traffic period and to watch lock waits.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "Percona MongoDB indexes improve read performance cost writes storage unused indexes"
+        ],
+        "urls": [
+         "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/"
+        ]
+       }
+      },
+      {
+       "statement": "Percona describes the read benefit and write and storage costs of indexes.",
+       "outcome": "VERIFIED",
+       "note": "Stated in the Percona blog.",
+       "evidence_index": [
+        3
+       ],
+       "searched": {
+        "queries": [
+         "Percona MongoDB indexes improve read performance cost writes storage unused indexes"
+        ],
+        "urls": [
+         "https://www.percona.com/blog/want-mongodb-performance-you-will-need-to-add-and-remove-indexes/"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "Percona MongoDB indexes improve read performance cost writes storage unused indexes"
+      ],
+      "urls": [
+       "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+       "https://www.percona.com/blog/want-mongodb-performance-you-will-need-to-add-and-remove-indexes/"
+      ]
+     },
+     "rationale": "Netdata covers write overhead, plan changes, low-traffic timing and lock-wait monitoring. The Percona blog, pinned separately, covers index read benefit with write and storage cost. The final clause about workload-specific validation is a synthesis of those two sources."
+    }
+   ],
+   "skipped": [],
+   "changed": [
+    "llms-facts.txt",
+    "llms-full.txt",
+    "llms-small.txt",
+    "units.jsonl"
+   ]
+  }
+ ],
+ "publication": {
+  "schema": "remediation-public-projection/v1",
+  "source_record_sha256": "2e71ee7dd33eb47484afea7e6880fef9e0fafdb5e7ae2fb566db20140d6cc034",
+  "redactions": [
+   "operator-specific pack path"
+  ]
+ }
+}

@@ -1,0 +1,160 @@
+{
+  "slug": "shard-aware-distinct-scan-prefix-eligibility-and-seek-progression",
+  "concept": "Shard-aware DISTINCT_SCAN prefix eligibility and seek progression",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Shard-aware DISTINCT_SCAN prefix eligibility and seek progression. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "For an orphan with a next owned chunk, the skipper preserves the leading index values and shard-key components equal to the boundary, then replaces the remaining contiguous shard-key components with boundary values. Forward chunk-map traversal targets the owned chunk minimum inclusively; backward traversal targets its maximum exclusively at lastShardKeyPos. Index fields after the shard-key block are omitted from that boundary seek. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper.cpp",
+          "note": null,
+          "claimId": "clm:1379ae2ffedf00676e805a2d2e5d847f3bd105a8f5e905cbcbfb9773fd88b009",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8d2bb2133090aaaa051978f70f0d534633b30ee5607304ec56a7e3a20d4a97ad"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper_test.cpp"
+          ]
+        },
+        {
+          "text": "In r8.2.0, DistinctScan constructs a skipper only when shard filtering is active and fetching is disabled. SERVER-94491 explains that fetching otherwise precedes shard filtering, even if index keys contain shard-key information; merely adding those fields does not enable chunk skipping for a fetching plan. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/distinct_scan.cpp",
+          "note": null,
+          "claimId": "clm:09434c89d716914fba44dae9bda362c75a941bfe598335462312d2ba598c7b9c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8afc8abde39fb3b732b0b0129e85ebf4892eb451b28ec87db5715c8296921cc3",
+            "ev:debd49afc4d255548d33c15d72d22a1babe39640622f680e6bd34270130ade8e"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-94491"
+          ]
+        },
+        {
+          "text": "The r8.2.0 factory requires numeric ordering specifications for matched fields and a consistent product shardKeyDirection * indexDirection * scanDirection across all shard-key components. The product selects forward or backward traversal of the chunk map. Mixed relative directions reject the skipper; hashed matched fields also reject it in this implementation, despite the helper comment describing hashed-ness matching more generally. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper.cpp",
+          "note": null,
+          "claimId": "clm:dd977abdb59d22d5fd883a771f2308e221e5ae82bd9cfe569dc9c04d5681d575",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:585bae7f149c4ea80c4fdf3976b6a236e64fdbe913338c27b015c21cb9a89de6"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper_test.cpp"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "When no owned chunk remains in the chunk-map scan direction and the shard-key block starts after index position zero, the skipper returns NoMoreOwnedForThisPrefix. DistinctScan frees the orphan and returns NEED_TIME after setting keyPrefix=current key, prefixLen=fieldNo+1, firstExclusive=fieldNo. Exhausting owned shard-key values under one leading index prefix therefore does not terminate the entire distinct scan. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/distinct_scan.cpp",
+          "note": null,
+          "claimId": "clm:79ec0396c9e50e33ca8f26d0d892f21af1775cae8f7f463ce82613d789add722",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6af3e480cdc3d9112ff300b2c427771c4ee97cf2370729c225a8572cbd93db42",
+            "ev:8d06b422d77e235759a3c6e02eaca4ba9957e136edba6290bdec98447a564e89"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper.cpp",
+            "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper.h"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "In r8.2.0, chunk skipping accepts a contiguous block of shard-key fields inside the index, including after non-shard-key fields. All shard-key components must occur in shard-key order. For example, shard key {b:1,c:1} can match index {a:1,b:1,c:1,d:1}; shard key {a:1,c:1} cannot match index {a:1,b:1,c:1} because its components are separated. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper.cpp",
+          "note": null,
+          "claimId": "clm:4396051c0ae7631312fe9420a439c9161be31d74c88e946629f54e986444b3b0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:585bae7f149c4ea80c4fdf3976b6a236e64fdbe913338c27b015c21cb9a89de6"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper_test.cpp"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "CanSkipOrphans means the skipper has installed a seek point for the next owned chunk boundary. DistinctScan frees the current orphan working-set member, increments orphanChunkSkips, and returns NEED_TIME; the next work call seeks to that boundary rather than returning this orphan or immediately skipping the whole distinct value. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/distinct_scan.cpp",
+          "note": null,
+          "claimId": "clm:2a7c161285126ec113a1457142ff29eff5aaa009d862b9626389794c0fbe60a2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:543374b156abd53f320863d181bfcc4da62d70e8889e179a8dbac2a57091e19b",
+            "ev:f7bdfab5c69d81a7ceeb7ff9ce9a8f33eed4a025b0f85cb184ef18ffccee6ef7",
+            "ev:f801d3c0784784d1bb47bfbca46a227486de9a66aab5eaddf282438659949ebf"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper.h"
+          ]
+        },
+        {
+          "text": "If no owned chunk remains and the contiguous shard-key block starts at index position zero, the skipper returns NoMoreOwned. DistinctScan frees the working-set member, increments orphanChunkSkips, and returns IS_EOF immediately. The terminal return differs from NoMoreOwnedForThisPrefix because later leading non-shard-key prefixes cannot restart the owned shard-key range. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/distinct_scan.cpp",
+          "note": null,
+          "claimId": "clm:09d78dee18103b926caac9e630a25fe60b13687a5ca6b2b1260575bf15961b9b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6ab8ec24c7f97896c0fec46bab23afc8acbf452c50ad93c3ba440d7e4de9d1be",
+            "ev:6af3e480cdc3d9112ff300b2c427771c4ee97cf2370729c225a8572cbd93db42"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper.cpp",
+            "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper.h"
+          ]
+        },
+        {
+          "text": "Without a usable chunk skipper, an orphan encountered by the shard-filtering distinct executor sets _needsSequentialScan. The next work call uses cursor.next() instead of seek(), preserving the opportunity to find an owned entry with the same distinct value. This fallback increments chunkSkips for each filtered orphan; successful chunk jumps use orphanChunkSkips. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/distinct_scan.cpp",
+          "note": null,
+          "claimId": "clm:829e188d3b4c6795633ad37ba7af2abdd7b7063e6e55352340b84e44b9dab349",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:543374b156abd53f320863d181bfcc4da62d70e8889e179a8dbac2a57091e19b",
+            "ev:78c66a43cfe4907da48536bb4386a45c639de7cb3a8b4efde80d2f9dd6bda876",
+            "ev:f801d3c0784784d1bb47bfbca46a227486de9a66aab5eaddf282438659949ebf"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "NotOrphan leaves the boundary seek unchanged inside the skipper. DistinctScan then returns the owned entry with ADVANCED and prepares the next distinct seek using keyPrefix=current key, prefixLen=fieldNo+1, and firstExclusive=fieldNo. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/distinct_scan.cpp",
+          "note": null,
+          "claimId": "clm:7bb610bcaa78099f0e7e5b6a18c44b7baf91d09d51853cfc37ebcce3c30aaf7b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a43f0ebcff4582cc5f9f37324087b9bc87dac7507d9067046dc77adfc6c4f1ab",
+            "ev:f7bdfab5c69d81a7ceeb7ff9ce9a8f33eed4a025b0f85cb184ef18ffccee6ef7"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/r8.2.0/src/mongo/db/exec/orphan_chunk_skipper.h"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "38f39087b95f50ad67f04fdcd716f8bd9682d6456a9c52b21263fdc4beb3f655",
+  "canonicalConceptId": "concept:871a4ef7da7d518e53af26b068195148d63f8e7ffb93598d8acb1be503973004"
+}

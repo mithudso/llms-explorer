@@ -167,6 +167,6 @@ def public_projection(files):
     result = {'schema': 'research-public-artifact/v1', 'concept': manifest['concept'], 'slug': manifest['slug'],
               'canonical_concept_id': manifest.get('canonical_concept_id'),
               'canonical_artifact_sha256': manifest.get('canonical_artifact_sha256'),
-              'claims': [{key: row[key] for key in ('id', 'text', 'source_url', 'also', 'validation_status', 'origin_validation_status', 'evidence_ids', 'temporal') if key in row} for row in rows]}
+              'claims': [{key: row[key] for key in ('id', 'text', 'source_url', 'also', 'validation_status', 'origin_validation_status', 'evidence_ids', 'origin_evidence_ids', 'remediation', 'publication_redacted', 'temporal') if key in row} for row in rows]}
     result['projection_sha256'] = digest(result)
     return result

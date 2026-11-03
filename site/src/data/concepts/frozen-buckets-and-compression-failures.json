@@ -1,0 +1,198 @@
+{
+  "slug": "frozen-buckets-and-compression-failures",
+  "concept": "Frozen buckets and compression failures",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Frozen buckets and compression failures. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Frozen state retains registry bookkeeping: the registry interface forbids unfreezing or untracking a frozen bucket, and SERVER-86087 describes that state lasting while the process runs. Retained state is relevant to catalog-memory investigation, but these sources do not quantify bytes retained per bucket or prove a production memory leak. (high confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_state_registry.h",
+          "note": null,
+          "claimId": "clm:76719a2f1d32f62a29b4f0c3704b5902e3016ca75acae58af5e61a7f2a9e8188",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8e245ff39797cd8ec25b57b3ade7c04aaebed3b54e48a44fc64c2cb04cbd6fbd",
+            "ev:fff2e551f0f020eae04026fd9c0c5d9f39f778ce77d33d16a204425323cffd05"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-86087"
+          ]
+        },
+        {
+          "text": "A frozen state is not an ordinary transient write conflict. SERVER-86085 explains that retrying a write conflict is inappropriate because frozen state will not change; the registry interface separately lists TimeseriesBucketFrozen for initialization against frozen state and WriteConflict for a direct-write counter. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-86085",
+          "note": null,
+          "claimId": "clm:be2c11d9f1bcc25ea1837c95dad6e89aed3b41afa6db7b85410a67839df83c7c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2b2bb4ddf3cd29f84a0396b84d6d3d9b7018085a3465f801949f399c1c28ff65",
+            "ev:f46bf43cd9f4d7ddf15e7a44f0a9b35c94842bd80c37d91d3ba3e966464cee5f"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_state_registry.h"
+          ]
+        },
+        {
+          "text": "SERVER-86087 proposed eventually stopping tracking of frozen buckets but was resolved Won't Do on February 29, 2024. Its description scopes retention to the running process; the registry interface still prohibits unfreezing and untracking frozen entries. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://jira.mongodb.org/browse/SERVER-86087",
+          "note": null,
+          "claimId": "clm:63763dfb84f136696a18a8b864e646480c62f31ad7d0cf77abb889f226686c9e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7711c9f709d5aa5b94c9716407e733f490aaf465dc9c6e1e18ba9875e24ce754",
+            "ev:fff2e551f0f020eae04026fd9c0c5d9f39f778ce77d33d16a204425323cffd05"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_state_registry.h"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A frozen bucket cannot accept further measurement inserts. MongoDB's implementation README describes freezing after compression failure, while the registry interface defines kFrozen as continuously unable to accept inserts. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:c6c75c7d8eb70c90905dbbe9d636958baa771c331745beb9dcebf278f625e6ef",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:555904a0bfd7cb5afc512d2dac4caabc28524e2820d21f08021f0247fefb0a3e",
+            "ev:e04c8e82e7e8e22e412c45bf8692c57b49ea7c10dc4e19e947bdbd177bf59d9d"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_state_registry.h"
+          ]
+        },
+        {
+          "text": "The protective rationale is to avoid further writes to a potentially corrupt bucket: SERVER-80653 warns of possible data loss from continued writes after compression failure, and the serverStatus documentation describes freezing when compression would corrupt contents. This does not establish that every frozen bucket has already lost data. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-80653",
+          "note": null,
+          "claimId": "clm:a3a5fea09373b2a2a8ec4ef76f63f20075065e44a615ba53ba2a5ab6db9ec0ce",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:89cbb9ac94efb1ee233265665ae5ef293e6a8af61aca6130506b636c7b008a1c",
+            "ev:fa5b5f806854654d1f69a4de74fbdaa5a2f89bc611d114f37335d6da0777c83e"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/"
+          ]
+        },
+        {
+          "text": "Freezing covers decompression failures as well as compression failures in the engineering history: SERVER-86073 explicitly names both, and SERVER-86072 says SERVER-80653 added decompression-failure handling for ordered and unordered inserts. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-86073",
+          "note": null,
+          "claimId": "clm:7f9857bc0a501dc51dea38cebd7d0e5852b54fd068689958a75f9f061046a699",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1b59e5692958fee90b2ec1af37126fe90beda43ad775eaac748913f568719b58",
+            "ev:a0ec5883d7772dcd331fe1245548bc1cb196c2aafbdb0a383adc2ca69f7b8167"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-86072"
+          ]
+        },
+        {
+          "text": "MongoDB's time-series implementation documentation defines a frozen bucket as ineligible for additional measurements after compression failure; the insert fails and the documentation tells the caller to retry. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:d4e73c9b8e9b8880f2cbd5cfd7398948788806cb322963204a053349dee7a8cd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9072ea90f59227581f1223653011264739b2e3b95d53e1ec0cee6e280289a849"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-80653"
+          ]
+        },
+        {
+          "text": "The bucket-state registry interface specifies that a frozen bucket cannot become unfrozen or untracked. Its stopTrackingBucketState transition table leaves Frozen and PreparedAndFrozen entries tracked, so ordinary state untracking does not release these entries. (medium confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/bucket_catalog/bucket_state_registry.h",
+          "note": null,
+          "claimId": "clm:0ed47743dec8897866108b28a4737303ad76d040230216ccc8a41e2490282637",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:fff2e551f0f020eae04026fd9c0c5d9f39f778ce77d33d16a204425323cffd05"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-86073"
+          ]
+        },
+        {
+          "text": "MongoDB 8.0 serverStatus.bucketCatalog exposes numBucketsFrozen as the number of frozen buckets. SERVER-86073 introduced observability for increasing frozen-bucket counts and described compression or decompression failure as the trigger. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/",
+          "note": null,
+          "claimId": "clm:b7605c3c5570dda6cb23b64bf6ce1aef666bfe4643ad82800761db092e744e15",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a0ec5883d7772dcd331fe1245548bc1cb196c2aafbdb0a383adc2ca69f7b8167",
+            "ev:fa5b5f806854654d1f69a4de74fbdaa5a2f89bc611d114f37335d6da0777c83e"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-86073"
+          ]
+        },
+        {
+          "text": "The inspected master write utility checks compressed-column integrity by comparing decompressed measurements with expected values. It raises BucketCompressionFailure on verification failure and logs warning 8807500 with the bucket identifier, collection UUID, and failure reason. (low confidence) (verified as of 2026-10-30)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/write_ops/timeseries_write_ops_utils_internal.cpp",
+          "note": null,
+          "claimId": "clm:1fd10dbe1aaa937463c1fb5b71c5ad8f7614a1d706ef86f4e32623592007780d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:15679ab97a702eb48f810b1b15529201e546d99f464659ae67e3a6e9152c80cb"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "The MongoDB 8.0 serverStatus bucketCatalog output includes numBucketsFrozen. SERVER-86073 motivates observing whether frozen buckets increase and says their number should almost always be zero; it provides no universal alert threshold. (high confidence)",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/command/serverstatus/",
+          "note": null,
+          "claimId": "clm:8c390c067ed9652bcfe2cd5ce46b053d27976548ed4436d386edef6132d3094a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a0ec5883d7772dcd331fe1245548bc1cb196c2aafbdb0a383adc2ca69f7b8167",
+            "ev:fa5b5f806854654d1f69a4de74fbdaa5a2f89bc611d114f37335d6da0777c83e"
+          ],
+          "also": [
+            "https://jira.mongodb.org/browse/SERVER-86073"
+          ]
+        },
+        {
+          "text": "The February 2024 description of SERVER-86072 records an intermediate asymmetry: ordered inserts handled compression failures, both insert modes handled decompression failures, and unordered compression failures still needed consistent handling. Its recorded fix version is 8.0.0-rc0; this historical ticket alone does not establish behavior on older patch releases. (low confidence) (verified as of 2024-02-13)",
+          "source": "https://jira.mongodb.org/browse/SERVER-86072",
+          "note": null,
+          "claimId": "clm:2d5f895c248dd6ce18f7ed3cfc1a540aef447ba5d71b1d7f4bcfe9886be50df5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1b59e5692958fee90b2ec1af37126fe90beda43ad775eaac748913f568719b58"
+          ]
+        },
+        {
+          "text": "Treat SERVER-80653's retry proposal as historical design context: it calls for bounded retries that avoid selecting the failing bucket again, while the implementation README describes failing the insert and prompting the user to retry. These passages do not establish automatic retry behavior for every insert path. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-80653",
+          "note": null,
+          "claimId": "clm:d9b40fd146169a3beeff8e25cfbd17f967b7d517ed70be4e77c5da5db31c83b8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:89cbb9ac94efb1ee233265665ae5ef293e6a8af61aca6130506b636c7b008a1c",
+            "ev:9072ea90f59227581f1223653011264739b2e3b95d53e1ec0cee6e280289a849"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "588cc18a22076d16999f82a5d3dc518f084e8dd1e33b0ac93f9dc055c90b0dc1",
+  "canonicalConceptId": "concept:221116a2cef1521a7f9652f362b3a014c3e560155e96a3dba15f3336bbfba7c6"
+}

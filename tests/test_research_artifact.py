@@ -268,3 +268,41 @@ def test_compiler_cannot_drop_secondary_citations(tmp_path, monkeypatch):
         compiler.compile_claims(lca, out, 'C', 'c', [{'concept': 'C', 'claims': [
             {'text': 'An original sourced statement.', 'confidence': 'high',
              'sources': ['https://primary.test', 'https://secondary.test']}]}], 'COMPLETED')
+
+
+def test_remediated_projection_retains_historical_proof_without_reclaiming_support(tmp_path, monkeypatch):
+    root = Path(__file__).resolve().parents[1]
+    monkeypatch.setenv('LLMS_EXPLORER_REPO', str(root))
+    def load(name, relative):
+        spec = importlib.util.spec_from_file_location(name, root / relative)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    compiler = load('remediated_compiler', 'scripts/codex_dr_artifacts.py')
+    lca = load('remediated_lca', '.claude/skills/llms-concept-abstractor/scripts/concept_abstract.py')
+    reader = load('remediated_reader', 'site/tools/gen_concepts.py')
+    row = lca._unit('clm:lineage', 'statement', 'The corrected scoped claim.',
+                    'https://example.test/source', keywords=['C'], origin='dr')
+    row.update(facet='facts', relation='about', score=1.0, canonical_concept_id='concept:c',
+               validation_status='REMEDIATED-PROJECTION', evidence_ids=[],
+               origin_validation_status='SUPPORTED', origin_evidence_ids=['ev:historical'],
+               remediation={'schema': 'claim-remediation-projection/v1', 'requires_revalidation': True})
+    out = tmp_path / 'c.llms'
+    compiler.compile_rows(lca, out, 'C', 'c', [row],
+                          {'canonical_artifact_sha256': 'a' * 64, 'canonical_concept_id': 'concept:c'})
+    unit = json.loads((out / 'units.jsonl').read_text().splitlines()[0])
+    files = {name: (out / name).read_text() for name in ('manifest.json', 'units.jsonl')}
+    public = artifact.public_projection(files)
+    projected = public['claims'][0]
+    assert projected['text'] == row['text']
+    assert projected['validation_status'] == 'REMEDIATED-PROJECTION'
+    assert projected['evidence_ids'] == []
+    assert projected['origin_evidence_ids'] == ['ev:historical']
+    assert projected['remediation']['requires_revalidation'] is True
+    assert public['canonical_artifact_sha256'] == 'a' * 64
+    fact = reader.canonical_facets([{**unit, 'text': '/Users/example/private corrected claim.'}])[0]['facts'][0]
+    assert fact['validationStatus'] == 'REMEDIATED-PROJECTION'
+    assert fact['publicationRedacted'] is True
+    assert fact['originValidationStatus'] == 'SUPPORTED'
+    assert fact['originEvidenceIds'] == ['ev:historical']
+    assert fact['evidenceIds'] == []

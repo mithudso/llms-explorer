@@ -501,3 +501,30 @@ def test_literal_prose_redaction_preserves_original_validation_status():
     assert projected['originValidationStatus'] == 'SUPPORTED'
     assert projected['evidenceIds'] == ['ev:example']
     assert 'RestrictedReference' in fact['text']
+
+
+def test_publication_scrub_keeps_remediation_history_separate_from_current_support():
+    spec = importlib.util.spec_from_file_location('remediation_scrub', REPO / 'scripts/publish_scrub.py')
+    scrub = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(scrub)
+    value = {'facets': [{'facts': [{'text': '/Users/example/qualified wording',
+        'source': 'https://example.test/source', 'validationStatus': 'REMEDIATED-PROJECTION',
+        'originValidationStatus': 'SUPPORTED', 'originEvidenceIds': ['ev:historical'],
+        'evidenceIds': []}]}]}
+    result = website.publication_pack(value, scrub, [])['facets'][0]['facts'][0]
+    assert result['validationStatus'] == 'REMEDIATED-PROJECTION'
+    assert result['originValidationStatus'] == 'SUPPORTED'
+    assert result['originEvidenceIds'] == ['ev:historical']
+    assert result['evidenceIds'] == []
+    assert result['publicationRedacted'] is True
+
+
+def test_repeated_redaction_retains_earliest_origin_validation_status():
+    spec = importlib.util.spec_from_file_location('repeat_scrub', REPO / 'scripts/publish_scrub.py')
+    scrub = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(scrub)
+    value = {'text': '/Users/example/redacted again', 'source': 'https://example.test',
+             'validationStatus': 'REDACTED-PROJECTION', 'originValidationStatus': 'SUPPORTED'}
+    result = website.publication_pack(value, scrub, [])
+    assert result['originValidationStatus'] == 'SUPPORTED'
+    assert result['validationStatus'] == 'REDACTED-PROJECTION'
