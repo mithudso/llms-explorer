@@ -4768,3 +4768,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [x] Concept: `Pinned pipelined oplog applier multikey catalog publication ordering` | Parent: `Pinned pipelined oplog applier in-flight backpressure and publication boundaries` | Mode: `dr` | CVS: `4.15`
 - [x] Concept: `Pinned MongoDB 7.0.22 session-history transfer and commit-drain boundaries` | Parent: `Chunk migration commit, range deleter and orphan cleanup internals` | Mode: `dr` | CVS: `3.95`
 - [x] Concept: `Pinned layered WiredTiger page-delta denominator and full-image fallback boundaries` | Parent: `WiredTiger checkpoints and dirty-page write cost` | Mode: `dr` | CVS: `3.50`
+- [x] Concept: `Pinned secondary packed-container expansion and writer-key routing boundaries` | Parent: `Pinned pipelined oplog applier in-flight backpressure and publication boundaries` | Mode: `dr` | CVS: `3.95`
+- [x] Concept: `Pinned secondary retry-image batch rectification and delete ordering boundaries` | Parent: `Retryable Writes` | Mode: `dr` | CVS: `3.95`
+- [x] Concept: `Pinned secondary transaction-table derived updates and coalescing boundaries` | Parent: `Retryable Writes` | Mode: `dr` | CVS: `3.95`
+- [x] Concept: `Pinned layered WiredTiger page-delta read reconstruction and corruption boundaries` | Parent: `WiredTiger checkpoints and dirty-page write cost` | Mode: `dr` | CVS: `3.65`

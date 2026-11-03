@@ -1,0 +1,309 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Pinned secondary transaction-table derived updates and coalescing boundaries",
+  "slug": "pinned-secondary-transaction-table-derived-updates-and-coalescing-boundaries",
+  "canonical_concept_id": "concept:d75c77d948474beed1428343955ee51c68ab0be69214e045953a51f49dcd82e5",
+  "canonical_artifact_sha256": "362d1e9b6f21505a056ee134ac385acd9d370170beea9d86e3e912e8532a4106",
+  "claims": [
+    {
+      "id": "clm:89ae58f52086ef4cde274a409974ae82fbd15ddd558f71dba3f32f1add485120",
+      "text": "The derived transaction-table operation is an update with upsert enabled, targets the session-transactions namespace, and uses the originating operation time and wall-clock time. It has empty operation session information. The constructor is createOplogEntryForTransactionTableUpdate. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:267d13d75fc3ede525bc045bccf308152e2d1aa1c3ca8fe988ca0e7065b5238a"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:6a1414a56929ce40811e392c09fe1366de1dfe08b1476e36eab1aa5a1320ed90",
+      "text": "When coalescing is enabled, the tracker buffers the first eligible entry per session and replaces it for the same transaction number. For a higher transaction number, it emits the previously buffered record and retains the new entry; for a lower number it takes LOGV2_FATAL_NOTRACE with identifier 50843. In the higher-number branch, the code constructs the old derived update, replaces the buffered entry, and then returns the old update for emission. The fatal diagnostic includes the session ID, both transaction numbers and both oplog entries. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/oplog_applier_impl_test.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:a257bae64ff665d765a2fed457393ec7882f395b5b112e9ff57dac187feebb39"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:72c91acec66dca395786168bade5855027a10f4252e41a3e8b11190d89a19f47",
+      "text": "Selective flush parses the query predicate _id as a logical session identifier, emits and removes only that buffered session, and returns an empty vector when that session is absent. Full flush emits every buffered record and clears the map. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:092991e89e0ebe1d136ed5bfca7be3becc9a615054dc514a5e0d3e860e39a32f"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:28416227363e447206bdf953553e8ad6540b60547ae00fc490cf6b494081d8e4",
+      "text": "updateSession classifies transaction entries using entry.isInTransaction(). When a transaction operation generates a table update, the tracker erases any queued retryable-write update for the same session and returns the transaction update immediately. The source explains that retryable writes need the final session record, whereas multi-statement transactions require the timestamps and states of their individual table updates. (high confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.h"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:c4c94080a09e178084408ce83ade89ae7d8a6399981578aae4b1804a8248e88e"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:2a031ff3657b02c47c22314739b13674589be84f31fae2aabea27ce1994017cd",
+      "text": "In deriveOpsAndFillWriterVectors, operations at or before beginApplyingOpTime are skipped. When a tracker exists, addSessionUpdateOps passes the entry and optional prepared fields to updateSession, stores emitted records in derivedOps, and routes them with addDerivedOps using serial=false. The secondary prepare branch derives inner-operation fields and routes inner operations before invoking this lambda, then continues. The ordinary path invokes the lambda with boost::none before deferring partial transaction operations. In the direct terminal extraction branch, extracted child operations go to addDerivedOps; the source comment states that nested entries cannot have different session updates. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/oplog_applier_dispatch.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:06c2f267f0df3e1d2c0854ad88138e3c6317b683deb98bf0130c6b2d69623925",
+        "ev:9f9a45443eb2f2cf642d431807cf2fe601b9dd4d7f08e20e8eb52ad1d1eeefa6"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:0027b6057bda3512fe19c329e63e0ece99aa5896f82a407194d0c4e5938c304d",
+      "text": "For a preparing kApplyOps entry, the derived state is kPrepared. If its previous-write operation time is null, the record sets its start operation time to the prepare entry\u2019s operation time. Otherwise it returns a delta oplog update containing the new record fields, preserving the existing start operation time instead of overwriting it. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:a8956f4ed75f76cdea2efde2d23e2c2753d08100e6caf9404a3096c765e929a3"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:e6950f3090f45c83410a17ef519cdb82005021090edb7bdd7cc851793f643573",
+      "text": "PreparedTxnDerivedFields contains optional affectedNamespaces and sizeMetadata derived from inner transaction operations, rather than from the outer prepare entry. When supplied for a preparing entry, the tracker canonicalizes supplied namespaces into the transaction record and copies supplied size metadata. The secondary prepare dispatch computes namespaces only when the persistence provider supports preserving prepared transactions in precise checkpoints, and aggregates size metadata only when replicated fast count is enabled. (high confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.h",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/oplog_applier_dispatch.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:06c2f267f0df3e1d2c0854ad88138e3c6317b683deb98bf0130c6b2d69623925",
+        "ev:5b38701a638b8a1629b5384b48a6ef9e24a6c91c2d48f46f9d32bc9df9ed0641",
+        "ev:7d553ed6c3adeec18b38746183567f1ba7538c4bc21839997adfa574aaacfb3c"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:99354885326dc3184057125e6e3f9e64aa67fd0d7b5dd3b06e127a7b9891d577",
+      "text": "The retryable-write record uses the full session identifier as its record identity and query predicate. It copies transaction number, optional transaction retry counter, last-write operation time and last-write date. For an internal session for a retryable write, it also sets the parent session identifier. createMatchingTransactionTableUpdate serializes the replacement SessionTxnRecord. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3aeed997f73867dbb61d5a8e14b6fd75af209800eaa7168a1996c93374a9f146"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:643e7e0b4e61aac381860c2b4a87eaba737ced846c7aca584b3008f130a1a323",
+      "text": "The retryable-write path returns without tracking an entry that lacks a transaction number, asserts that an eligible entry has a session identifier, and excludes partial transaction entries so only a terminal entry advances the session last-write operation time. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:f2d14867b04061977b77cbdd738bc2650e0d162114c261f119cab6bedf3ea56b"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:6a26bd0aed500e0353687bf11c61b3b2a112df9fc63c47a2ff538765a01f336c",
+      "text": "On the retryable-write path, a no-op is ignored unless the migration marker is present and true; it is also ignored if object2 is absent, or empty without being the would-change-owning-shard sentinel. The code identifies this filtering as exclusion of pre/post image no-op entries. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:36bbf348bbd1a282c427c8a02fa6da71aa5ade5d89de1eef9049b43dcb556aa4"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:6047850d5fa1f49e853db31bc10eea74410850b8326416a266e44b789337093e",
+      "text": "The disableTransactionUpdateCoalescing constructor option controls immediate emission of one derived record for each eligible retryable-write entry, bypassing the buffer after eligibility filtering. The constructor parameter has a false default; this declaration does not establish deployment feature-flag state. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.h",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/oplog_applier_impl_test.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:532146ea3cdd1bc39b34f0eb1aa2b5cfcd3261766bde186a7b3fd987ff06d2b7",
+        "ev:a71e94192145832776c8031c4a0d9a2ec01ab61feb0b6dbca3210cb620986f0c"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:30a46e6569a39a70c64bb4538ba9ec809123823c95957993fef600b9d2c52e24",
+      "text": "An explicit session-transactions-table entry or a config-database command goes through the flush path. An update uses object2 as the query predicate; a delete uses object. A command flushes the whole buffer. In _flush, inserts, container insert/update/delete operations, no-ops, key-material operations and CMK-rotation operations do not flush pending records. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0dfd2a8511c0925b28d25cfa1daaca1e42347ed7bc64aedbe8c245551beaaa20",
+        "ev:7be025cbb91f68349568ac963c770ea854d4c7e5d34e0f6cde896e0f9550d40c"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:52726253cdd6ee1c69a2b871464fc0178b5fb34e3167c3e0205c558b727cc07f",
+      "text": "The transaction-state builder returns no update for a partial entry whose previous transaction operation time is non-null. The first partial entry sets in-progress state and sets the start operation time to its operation time. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.h"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:71e2a5a4b8d4772b9d2ce2af9a5102a0760b4da10dab3dd2ad4ffc9e42362f80"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:c0df6d37a21310a390d9056bb7f07579e42cf27cf5363619fc596ed0b7dc9345",
+      "text": "Transaction-state records copy session identity, conditional parent-session identity, transaction number, retry counter, last-write operation time and date. A transaction-classified no-op maps to committed state. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.h"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:71e2a5a4b8d4772b9d2ce2af9a5102a0760b4da10dab3dd2ad4ffc9e42362f80"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:c2946119dd67aaede47728ea10cc00cf09c007aefff8fa5077eed204c3f6c3d9",
+      "text": "For a non-partial transaction entry that reaches the command switch in the transaction-state builder, a non-preparing kApplyOps and a kCommitTransaction command set committed state. A kAbortTransaction command reaching that switch sets aborted state. Partial entries return before the switch: later partial entries return no update, while the first partial entry returns an in-progress record. The builder passes the committed or aborted records to createOplogEntryForTransactionTableUpdate. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/oplog_applier_dispatch.cpp",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/oplog_applier_impl_test.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2168ff7d50df37cdea4fd4ac193802ecb48799df29a39c097c42d2437a9cf996"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:f3aec027d2fe905f4708b16964674ba30a9f87d4b6a98fb4c3d90f14c2b2e3a5",
+      "text": "fillWriterVectors constructs a tracker using disableTransactionUpdateCoalescing, derives operations, then calls flushAll at batch end. If that returns writes, coalescing must be enabled; the caller stores them as derived operations and dispatches them with a null session tracker and null checkpoint validator, so these derived session-table writes are not checkpoint-preprocessed as replicated entries. The flushAll implementation converts each buffered entry through createMatchingTransactionTableUpdate, clears the session map, and returns the derived vector. (high confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/oplog_applier_dispatch.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0712fd92b361a70968773a38cc106735a78034a236db238bdafcb970760901e2",
+        "ev:266fbf331b65dcd324e1d9dba8619d6508307a2ecdae8143f8ab173f4e3ceee8",
+        "ev:a71e94192145832776c8031c4a0d9a2ec01ab61feb0b6dbca3210cb620986f0c",
+        "ev:ecef1a2bfc406931d09ad441c73d2a7d654f5d2ed5eb40e4e61d1a6603804b9c"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:0f368a924bac7c806c5c1ad171c7a47e724fe44c5da18ba28633144fd8acbcc6",
+      "text": "TxnTableUpdatesGetCoalescedForRetryableWritesWithSameTxnNumber supplies two writes with the same session and transaction number and asserts one derived update with the second write\u2019s lastWriteOpTime. TxnTableUpdatesDoNotGetCoalescedForRetryableWritesAcrossDifferentTxnNumbers supplies transaction numbers 3 and 4 and asserts two derived updates with their respective numbers and timestamps. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/oplog_applier_impl_test.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3352c60cbe16cbbad30ae55f14d8fd8e919cc4c26f3c3a2ba8bfbccace500957"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:dde5412fe4c3d88165584dfdb6a42cbc634dc5f073e5cc88ab247dbe5bd25977",
+      "text": "The disabled-coalescing fixture enables featureFlagDisableTransactionUpdateCoalescing with a ServerParameterGuard and asserts two derived records for two writes with the same session and transaction number, retaining each write timestamp. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/oplog_applier_impl_test.cpp",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/session_update_tracker.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:15fcec44748773ac372f6767bd066ccd1051d1cbf4789d77fcbee5ac400f9222"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    },
+    {
+      "id": "clm:cdc36309f0cb536ec8037bba5af3c791471b0f9f8aa391285badcddb62770b3f",
+      "text": "The mixed-history fixtures cover both directions on one session: retryable write followed by a multi-statement transaction expects the committed transaction record; multi-statement transaction followed by a higher-number retryable write expects the retryable-write record without transaction state. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/mongo/db/repl/oplog_applier_impl_test.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:52631def0ccdaa92782b040f910688ad8977691dc500a93828e636d193144951",
+        "ev:b7b6ad1cbaa6c0b1795a72f0003a9dd4f8e8ad74a90dd23bd2533d2d711ed573"
+      ],
+      "temporal": {
+        "applicability_version": "development commit e37ae17db503703515d2ec35f6793dee7651655f",
+        "recorded_at": "2026-11-03T01:44:32.336095+00:00"
+      }
+    }
+  ],
+  "projection_sha256": "2f9d98bd5f79e58615634f8d11771b55cb6e1c463f1c43f2d2a2c491693dce77"
+}
