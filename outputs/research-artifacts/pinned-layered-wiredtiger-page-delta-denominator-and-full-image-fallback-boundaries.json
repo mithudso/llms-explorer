@@ -1,0 +1,252 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Pinned layered WiredTiger page-delta denominator and full-image fallback boundaries",
+  "slug": "pinned-layered-wiredtiger-page-delta-denominator-and-full-image-fallback-boundaries",
+  "canonical_concept_id": "concept:657614fed08d2d0a0ddaa6db99b559a78ef048fc8832dd4fbe34709781e2a22c",
+  "canonical_artifact_sha256": "31a109d6325d8a920e0aa9b9c5c8f65dd4b3b047b5372bae3cfc4b5f28feae6a",
+  "claims": [
+    {
+      "id": "clm:6b27b950a585a6ad2e0763fd18e543ff1680160ab0c00976f4a50d4a35130df0",
+      "text": "For a built, nonempty candidate, the first size check rejects when the integer quotient `r->delta.size * 100 / delta_base_size` is greater than `conn->page_delta.delta_pct`. If that check passes and the target flag is set, a second check rejects when `r->delta.size * 100 / chunk->image.size` is greater than `(100 + conn->page_delta.delta_pct) / 2`. Both divisions use integer arithmetic, so equality of a computed integer quotient to its bound passes that check; these are not exact real-valued percentage cutoffs. The image-denominator mode does not run the second check. Each size rejection increments `rec_page_delta_rejected_size_threshold` and clears `build_delta`. The extra image-relative check can reject a near-image delta even when the larger target denominator admits it. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_write.c",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/conn/conn_layered.c",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/include/wiredtiger.h.in",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/reconcile_private.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/include/connection.h"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:930f5aabfa01770f8ba7695e23d10b5d6ab1d49e87d41fb724dc1afa23b4951a",
+        "ev:a183b87728a794d3b5c317466d829dd8800b1f2ab81115c6fbe968551616e70c",
+        "ev:b67de0f22aa6c30fb6d198941b90cad1b20fb54a88a597e0bd2e8fc1ae4ac957",
+        "ev:ec5bbf84712831cd08da7ae36520682b63b720e8b8f5d156f74445e756e9fcbc",
+        "ev:edd3a93b1f50a611ed6468f970f2d4bb7216fc91528a92d37de56aacf5208c3a"
+      ],
+      "temporal": {
+        "applicability_version": "mongodb/mongo@e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:fa33d2fc95d3c2bfd29aef71509b9096b966021570c2afeedce48300e529d47f",
+      "text": "The size checks occur inside a branch requiring `page->disagg_info != NULL`, `last_block`, `r->multi_next == 1`, a `block_meta->page_id` unequal to `WT_BLOCK_INVALID_PAGE_ID`, `WT_REC_RESULT_SINGLE_PAGE` and a false `__rec_proxy_cell_orphaned` result. A delta attempt also requires `delta_enabled`. When delta writing is enabled but the structural branch is unavailable, the diagnostic alternatives identify multiblock results, invalid page IDs or non-single-page results. These alternatives do not exhaust every failed prerequisite. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_write.c",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:930f5aabfa01770f8ba7695e23d10b5d6ab1d49e87d41fb724dc1afa23b4951a"
+      ],
+      "temporal": {
+        "applicability_version": "e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:f88656157c6c14535fe3286b58318e33209a0a6c84b74ebf6a8d00dd1666ffad",
+      "text": "A proxy-only page for which `__rec_proxy_cell_orphaned` is true must write a full image to provide a replacement parent address. The helper returns false when `mod->instantiated` is true, or when `mod->rec_result` equals `WT_PM_REC_REPLACE` and `mod->mod_replace.block_cookie` is nonnull. Otherwise it calls `__rec_ref_addr_is_deleted`, whose return requires a nonnull on-page address with cell type `WT_CELL_ADDR_DEL`. The final selection block excludes an orphaned proxy from both delta creation and its unchanged-page skip path. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_write.c",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:03fa454f60d7d92ee327ac348344194b36a4a2678eb854e8e0ec9b301b262752",
+        "ev:930f5aabfa01770f8ba7695e23d10b5d6ab1d49e87d41fb724dc1afa23b4951a",
+        "ev:a6ab2a3d1fb337988eab3b6365c746722501643bbc5dcbbfa97638c2bea20e33"
+      ],
+      "temporal": {
+        "applicability_version": "e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:f465da2b35cbf660c2724aa5424de7d57bab8c05e33e2fb35451eaec40627cd5",
+      "text": "`__rec_build_delta` initializes `*build_deltap` to false. For a leaf it requires `WT_BUILD_DELTA_LEAF`. It rejects when `total_keys` is positive and the integer removed-key percentage exceeds `conn->page_delta.delete_pct`; otherwise it builds the leaf delta. The source computes `total_keys` as the header entry count plus removed keys with `WT_PAGE_EMPTY_V_ALL`, and as half the entry count plus removed keys otherwise. Its comment says the mixed-value case underestimates key count, so this is an approximate deletion threshold. For an internal page, the builder accepts an already-built delta only when `r->delta.size > 0`. A successful return without selecting a delta reaches the caller\u2019s build-failed counter and full-image write choice. These checks precede the denominator-based size checks. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_write.c",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:03fa454f60d7d92ee327ac348344194b36a4a2678eb854e8e0ec9b301b262752",
+        "ev:2c4bd12c69c77ed709a348560515630d49e4bb0b8d8d8952138dc1efb46b36e4",
+        "ev:930f5aabfa01770f8ba7695e23d10b5d6ab1d49e87d41fb724dc1afa23b4951a"
+      ],
+      "temporal": {
+        "applicability_version": "e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:b971f7ad879eba31770db91c2cd727ef9a17c5f88a8a2f4b80fb1d1ba2cb53c1",
+      "text": "The internal row-store loop stops building its delta when `build_delta` is true and any of these conditions holds: `r->multi_next > 0`, a child has `WT_REF_FLAG_REC_MULTIPLE`, or the first key is dirty (`r->cell_zero && prev_dirty`). `__rec_stop_build_delta_int` clears both the build flag and `r->delta.size`. This split/key-representation boundary precedes the final multiblock and size checks; target-denominator selection does not bypass it. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_row.c",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_write.c"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2c4bd12c69c77ed709a348560515630d49e4bb0b8d8d8952138dc1efb46b36e4",
+        "ev:4ddf21c1a6d92a844ef080b7252ad0ead598674bde6208bf47267d502f413921",
+        "ev:81a41a451ba6cbb1145d9fb08431ae125fa637d7cdf3b9c20ab783e72d5d8101",
+        "ev:930f5aabfa01770f8ba7695e23d10b5d6ab1d49e87d41fb724dc1afa23b4951a",
+        "ev:cdf6fb400b8c0376cfd4f9728e9ea223a6952c89185c763354ea964ee81daecf"
+      ],
+      "temporal": {
+        "applicability_version": "e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:8526be2bd95904bcdaf09d60c437239314b7c32aa5ef053a8e633b5d7a97997f",
+      "text": "The accepted-delta write path calculates `delta_pct = (r->delta.size * 100) / chunk->image.size`. This statistic remains relative to the built full-image byte size even when eligibility uses the larger target denominator; it is a delta-to-image size ratio. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_write.c",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/include/wiredtiger.h.in",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/reconcile_private.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/include/connection.h"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:930f5aabfa01770f8ba7695e23d10b5d6ab1d49e87d41fb724dc1afa23b4951a",
+        "ev:a183b87728a794d3b5c317466d829dd8800b1f2ab81115c6fbe968551616e70c",
+        "ev:ec5bbf84712831cd08da7ae36520682b63b720e8b8f5d156f74445e756e9fcbc",
+        "ev:edd3a93b1f50a611ed6468f970f2d4bb7216fc91528a92d37de56aacf5208c3a",
+        "ev:f9168751f565a76f039be8ce64552c0afaf8a3e684a87935ef1f411edca5e87e"
+      ],
+      "temporal": {
+        "applicability_version": "mongodb/mongo@e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:0336e7b0cbb5bf54a1009bfa707673092171e9a912dbf5059378037733c7a403",
+      "text": "In `__wti_disagg_conn_config`, the page-delta parsing follows the early exit that jumps to `err` when `reconfig` is true, and occurs inside the `__wt_conn_is_disagg(session)` branch. It reads `page_delta.delta_pct` into `conn->page_delta.delta_pct`, sets `WT_DELTA_PCT_OF_TARGET_PAGE_SIZE` when `page_delta.delta_pct_of_target_page_size` is true, and reads the internal/leaf enable switches, deletion threshold and consecutive-delta limit. This is initialization parsing; this block skips these options during reconfiguration and does not establish runtime toggling of the flag. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/conn/conn_layered.c",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:519c387974deba7e28b0e0c01a4ab2b842730ea74e05ec2c8878ead71ca41db6",
+        "ev:9aac7d6a417204ed62d84f5459b279b9086bbde183fb2f4359a0b614cd05de92"
+      ],
+      "temporal": {
+        "applicability_version": "e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:c7d4860bd2029d8f7f97919c05e647853619baa9c4501df6ab9ebccdb5a5398b",
+      "text": "Within the eligible single-page branch, a leaf with no newer selected updates and no `WT_PAGE_INMEM_SPLIT` sets `skip_write` before any delta attempt. Otherwise an enabled delta can be built only while `block_meta->delta_count` is less than `conn->page_delta.max_consecutive_delta`; equality or a larger count increments `rec_page_delta_rejected_max_consecutive_exceeded`. The declaration defaults that limit to `32` and restricts it to `1` through `32`. A successful builder return without a delta increments `rec_page_delta_rejected_build_failed`. Both `build_delta` and `skip_write` start false. If execution reaches the final write choice, `skip_write` takes precedence and copies the previous address; otherwise a surviving `build_delta` calls `__rec_write_delta`, and the remaining case calls `__rec_write_image`. Failed or rejected candidates therefore select the full-image branch when no skip path was selected. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/dist/api_data.py",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_write.c"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:03fa454f60d7d92ee327ac348344194b36a4a2678eb854e8e0ec9b301b262752",
+        "ev:3fc2c4b54d62b7342f8c6b8188406d3f6c827414174fb98787d79a75fecef244",
+        "ev:930f5aabfa01770f8ba7695e23d10b5d6ab1d49e87d41fb724dc1afa23b4951a"
+      ],
+      "temporal": {
+        "applicability_version": "mongodb/mongo@e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:5db01aa46a66bf708c2b6f6bf823f809c1c1a37f46134d5713b33e3dbac2e6da",
+      "text": "The fixture inserts rows at timestamp `10`, checkpoints, reopens with its selected configuration, modifies the selected rows at timestamp `20`, evicts and checkpoints again. It reads `stat.dsrc.rec_page_delta_leaf` and `stat.dsrc.rec_page_delta_rejected_size_threshold`. It uses the fixed estimates `DELTA_PCT_OF_IMAGE = {20: 33, 40: 66}` and `limit = (100 + self.delta_pct) // 2 if self.use_target else self.delta_pct`. When its estimate is strictly below that limit, it asserts positive delta count and zero size rejections; otherwise it asserts zero deltas and positive size rejections. In target mode this expected matrix accepts the smaller modification at both percentages and the larger modification only at the higher percentage. In image mode it accepts only the smaller modification at the higher percentage. These are fixture-defined counter assertions, using approximate fixed size estimates. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/test/suite/test_layered_delta18.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:984465e924428fa0451c48a855472b4c22b36b23e88e91cfca17da327b7bf1ad"
+      ],
+      "temporal": {
+        "applicability_version": "e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:e548186f7d7a0268363ab5b61ef6c8e4621a49814acb3ca0540bc9403b71fa54",
+      "text": "At the pinned source, the page_delta category contains the undocumented boolean `delta_pct_of_target_page_size`, whose default is `true`. Its declaration selects the configured-maximum-page-size policy instead of the just-built-image policy; the parser maps `page_delta.delta_pct_of_target_page_size` to `WT_DELTA_PCT_OF_TARGET_PAGE_SIZE`. The same declaration gives `delta_pct` a default of `20` and an integer range from `1` to `1000`. Its description permits deltas larger than full pages for measurement and testing; the actual write choice remains subject to the size and eligibility checks below. (high confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/dist/api_data.py",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/conn/conn_layered.c"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3fc2c4b54d62b7342f8c6b8188406d3f6c827414174fb98787d79a75fecef244",
+        "ev:60ecf081e0dfed474f5b88d09f6f7c4cd704c73148ef2ef51cea4dac23b04f41",
+        "ev:abe685d72c128f88932010e8821f386d77bd155070449f50fd936ccf4d1218b4"
+      ],
+      "temporal": {
+        "applicability_version": "e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:a304bc46e31c944140ef8c5268c890d92c93bcd420eec045953d1cccbd61f9f1",
+      "text": "In `__rec_split_write`, `delta_base_size` starts at `chunk->image.size`. With `WT_DELTA_PCT_OF_TARGET_PAGE_SIZE` set, it becomes `WT_MAX(delta_base_size, r->page_size)`; without the flag it remains the built-image size. The enabled denominator is therefore the larger of the built image and reconciliation target, and never less than the image. These are byte sizes: `image` and `delta` are `WT_ITEM` buffers, whose `size` is a `size_t` count of bytes, while `page_size` is the integer reconciliation target. `__wti_rec_split_init` assigns `primary_size` to `r->page_size`, with a salvage override. The row-store internal and leaf callers pass `btree->maxintlpage_precomp` and `btree->maxleafpage_precomp`, respectively; the operative target is this field rather than a direct read of a user configuration string. (high confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_write.c",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_row.c",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/include/wiredtiger.h.in",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/reconcile_private.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/include/connection.h"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:03fa454f60d7d92ee327ac348344194b36a4a2678eb854e8e0ec9b301b262752",
+        "ev:627e76feb70247b58d5ba0b865f14eee0afac11742cc8d4d23ce8add4cec03f6",
+        "ev:930f5aabfa01770f8ba7695e23d10b5d6ab1d49e87d41fb724dc1afa23b4951a",
+        "ev:9c406b516c4e23d7542759e44ae4ecb73023d0688a682e0051884bb5af35e635",
+        "ev:a183b87728a794d3b5c317466d829dd8800b1f2ab81115c6fbe968551616e70c",
+        "ev:cdf6fb400b8c0376cfd4f9728e9ea223a6952c89185c763354ea964ee81daecf",
+        "ev:d095eda218a7fdb2cd8bef60ca849cbc1519dec1e9e03cdc51df8491cb3a4c42",
+        "ev:ec5bbf84712831cd08da7ae36520682b63b720e8b8f5d156f74445e756e9fcbc",
+        "ev:edd3a93b1f50a611ed6468f970f2d4bb7216fc91528a92d37de56aacf5208c3a"
+      ],
+      "temporal": {
+        "applicability_version": "mongodb/mongo@e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:334c8dd67590535d528087fe606a5b1d513e816645f1ea8d53accc601376b0af",
+      "text": "A built delta with `header->u.entries == 0` is handled before the size comparisons: it increments `rec_page_delta_rejected_zero_entries` and sets `skip_write`. The preceding assertion allows this only for an internal page. The write-choice branch then copies the previous address with `__rec_copy_prev_addr`, sets `WT_MULTI_SKIP_WRITE`, increments `rec_skip_write` and jumps to `copy_image`. Zero entries therefore select reuse of the existing block, rather than the full-image size-rejection path. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_write.c",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:930f5aabfa01770f8ba7695e23d10b5d6ab1d49e87d41fb724dc1afa23b4951a"
+      ],
+      "temporal": {
+        "applicability_version": "e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:f6ccb35e4ef2cd84b0b4c414ea29e3852615b0a84ac8c91c510d70385c5a6681",
+      "text": "The API description says the extra bound reaches the whole image and stops applying at `delta_pct` of `100`. The code has no condition disabling its target-mode comparison at that value. If execution reaches the second check with `conn->page_delta.delta_pct` equal to `100`, substitution in `(100 + conn->page_delta.delta_pct) / 2` gives `100`; an image-relative integer quotient greater than `100` is still rejected, while equality passes that check. This is a direct reading of the expression, retained alongside the attributed API wording. (medium confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/dist/api_data.py",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/rec_write.c",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/conn/conn_layered.c",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/include/wiredtiger.h.in",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/reconcile/reconcile_private.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/src/include/connection.h"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3fc2c4b54d62b7342f8c6b8188406d3f6c827414174fb98787d79a75fecef244",
+        "ev:930f5aabfa01770f8ba7695e23d10b5d6ab1d49e87d41fb724dc1afa23b4951a",
+        "ev:a183b87728a794d3b5c317466d829dd8800b1f2ab81115c6fbe968551616e70c",
+        "ev:b67de0f22aa6c30fb6d198941b90cad1b20fb54a88a597e0bd2e8fc1ae4ac957",
+        "ev:ec5bbf84712831cd08da7ae36520682b63b720e8b8f5d156f74445e756e9fcbc",
+        "ev:edd3a93b1f50a611ed6468f970f2d4bb7216fc91528a92d37de56aacf5208c3a"
+      ],
+      "temporal": {
+        "applicability_version": "mongodb/mongo@e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    },
+    {
+      "id": "clm:87dc3299eb216ba7268459d17a4f9addcbdece3cdb40f290802330863c20ba60",
+      "text": "The denominator fixture is decorated with `@disagg_test_class`, uses `gen_disagg_storages(disagg_only=True)`, a `layered:` URI and `block_manager=disagg`, and enables leaf deltas while disabling internal deltas. It defines denominator scenarios using `use_target=False` and `use_target=True`, modifications of `20` or `40` out of `NKEYS = 60`, and `delta_pct` values of `20` or `50`. Its table uses `leaf_page_max=131072`, `allocation_size=4096` and `VALUE_SIZE = 500`; comments describe the page size and delta fractions approximately. (low confidence)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/e37ae17db503703515d2ec35f6793dee7651655f/src/third_party/wiredtiger/test/suite/test_layered_delta18.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:937356a53bc6820e3336a2e983ccf02584f6b39fdf46cc38e8f31e8f063b3434"
+      ],
+      "temporal": {
+        "applicability_version": "e37ae17db503703515d2ec35f6793dee7651655f"
+      }
+    }
+  ],
+  "projection_sha256": "a2d456894889d4a0f7262f0d83bf9152a4174232cdbd6773d583f22400b7af34"
+}

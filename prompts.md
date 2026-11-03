@@ -1,5 +1,24 @@
 # Prompts Log
 
+## Prompt v97 - 2026-11-02
+
+Continue researching the MongoDB queue in /Users/mitch/dev/llms-explorer.
+
+Read and execute the complete continuation prompt at:
+/Users/mitch/.global-ai-hub/research/.ranked/mongodb-unheld-20261030/continuation-20261031/next-session-prompt-20261102.md
+
+Verify current state before acting. Resume accepted checkpoints and saved R3 work; attach to existing processes without launching duplicate writers. Preserve paid research, held reservations, concurrent edits and paused services.
+
+Use the current /dr, concept-family-explorer and rabbithole skills with the merged research-gate/v4 evidence requirements. Repair failed claim/source pairs, reuse validated unchanged judgments, and avoid repeating completed discovery or unchanged failed paid calls.
+
+Reconcile TASK-971: its completion record establishes scouting coverage, while research saturation remains unassessed. Continue checking new scout leads, primary sources and viable concepts at cohort boundaries.
+
+Continue autonomously until two evidence-grounded empty frontier rounds and an independent saturation review establish completion, or a genuine external blocker prevents useful progress. Verify and deliver qualified site/hub changes. Record exact remaining work without claiming exhaustion prematurely.
+
+Latest user steering: Please continue.
+
+Checkpoint: Deliver three complete bounded R12 source questions: pipelined oplog-applier multikey publication, historical session-history transfer and drain, and layered WiredTiger delta size/fallback policy. Preserve attributed contradictions and source-defined fixture limits. Record67 facts and73 accepted assertions, consolidate27 true duplicate rows without losing clauses, repair only two actual failed assertion versions and reuse56 validated unchanged judgments. Verify the merged attribution transport in the loaded runtime before POA acceptance. Continue four source-feasible R13 questions with fresh guards. Zero grounded empty rounds. Delta: prompt96 to97; memory0.22.110 to0.22.111.
+
 ## Prompt v96 - 2026-11-02
 
 Continue researching the MongoDB queue in /Users/mitch/dev/llms-explorer.
