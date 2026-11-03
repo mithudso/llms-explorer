@@ -4765,3 +4765,6 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [x] Concept: `Pinned Aspire MongoDB client configuration and observability registration boundaries` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `3.35`
 - [x] Concept: `Pinned Aspire MongoDB advanced replica-set reconciliation and lifecycle boundaries` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `3.50`
 - [x] Concept: `Pinned Aspire MongoDB single-member initialization and primary-readiness boundaries` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `3.35`
+- [x] Concept: `Pinned pipelined oplog applier multikey catalog publication ordering` | Parent: `Pinned pipelined oplog applier in-flight backpressure and publication boundaries` | Mode: `dr` | CVS: `4.15`
+- [x] Concept: `Pinned MongoDB 7.0.22 session-history transfer and commit-drain boundaries` | Parent: `Chunk migration commit, range deleter and orphan cleanup internals` | Mode: `dr` | CVS: `3.95`
+- [x] Concept: `Pinned layered WiredTiger page-delta denominator and full-image fallback boundaries` | Parent: `WiredTiger checkpoints and dirty-page write cost` | Mode: `dr` | CVS: `3.50`
