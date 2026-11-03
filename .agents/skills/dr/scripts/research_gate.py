@@ -9,6 +9,7 @@ import importlib.util
 import json
 import re
 from collections import Counter
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -59,6 +60,13 @@ def auxiliary_rows(slug: str, document: dict) -> list[dict]:
             continue
         identity = {'concept_slug': slug, 'assertion_kind': kind, 'index': index,
                     'text': text, 'sources': sorted(set(sources))}
+        if kind == 'disagreement':
+            authored = document['disagreements'][index]
+            if authored.get('conflict') is not None:
+                # Bind explicit attribution and its evidence to this prose version.
+                # Leave ordinary and accepted legacy prose identities unchanged.
+                identity['conflict'] = deepcopy(authored['conflict'])
+                identity['evidence'] = deepcopy(authored.get('evidence'))
         fingerprint = digest(identity)
         rows.append({'claim_id': 'prose:' + fingerprint, 'claim_sha256': fingerprint,
                      **identity, 'risk': ['auxiliary-prose']})
@@ -204,7 +212,8 @@ def check_spans(packet, claim, spans, root, *, authored=False):
 def preflight(packet, root):
     failures = []
     for row in packet['claims']:
-        if row.get('assertion_kind'):
+        if row.get('assertion_kind') and not (
+                row['assertion_kind'] == 'disagreement' and row.get('conflict') is not None):
             continue
         try:
             conflict = row.get('conflict')
