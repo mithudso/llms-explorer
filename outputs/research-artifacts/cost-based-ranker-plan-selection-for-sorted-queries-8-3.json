@@ -1,0 +1,191 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Cost-based ranker plan selection for sorted queries (8.3+)",
+  "slug": "cost-based-ranker-plan-selection-for-sorted-queries-8-3",
+  "canonical_concept_id": "concept:987db1d720a91bb9cf7bed4589a912e30792d52daf7e5b57ff5333e1e90b4e9c",
+  "canonical_artifact_sha256": "d3cc1a8ca798525c9b132a4eb4ea05931bb11df94f464879c7287838b4b5cb6c",
+  "claims": [
+    {
+      "id": "clm:f72f5aab90c6e5d42ebd83d0f59412e3228a4120ae40c1d5f3b18b794b16814a",
+      "text": "When CBR selects a plan, it evaluates plan nodes using cost functions and cardinality estimates and chooses the lowest overall estimated cost. The winning plan has the lowest top-level costEstimate; these are abstract cost units, not a promise of measured runtime. (high confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-plans/",
+      "also": [
+        "https://www.mongodb.com/docs/v8.3/reference/explain-results/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:22b8fcff7f6012ef0288c5ac5fd95c8367d09207b4f89c0ba22ebbb61eaf1daf",
+        "ev:3596b1ecc13c3c626d4512baa3cbfdb53e4ae66051660f7985bb66ec81f97b9e"
+      ]
+    },
+    {
+      "id": "clm:5093b46f3dad7d34325281b4c79f6750712022ba64172215b5c48c404ac12327",
+      "text": "SERVER-136521 describes regressions when zero-cardinality-estimate fallback sends blocking-sort plans to multi-planning: the trial can exhaust its budget without results and tie-breaking can choose a worse plan. Its fix versions are 9.1.0 release candidates, not evidence of an 8.3 fix. (low confidence) (verified as of 2026-10-20)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-136521",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:af365eae2ad1e3abd94ed53d20092df396b9e4537e2e78af50745878a6c013f7"
+      ]
+    },
+    {
+      "id": "clm:23e8494206fa0e7e4505093b6d1dea7e79b400fba28199bb821eaede9fd1fb27",
+      "text": "The r8.3.3 mixed ranker returns the multi-planner result when the short trial reaches EOF or a full batch. Its comment explicitly warns that full-batch early exit can miss good plans because of data skew or blocking plans. Sorting therefore does not automatically force CBR. (low confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/r8.3.3/src/mongo/db/query/plan_ranking/cost_based_plan_ranking.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:df28d4a075d6406388fb883eb401fc2ea04c816e986cab516627d325f3313c76"
+      ]
+    },
+    {
+      "id": "clm:3ad323e3dabadbe4b49de850d51779b14257a1ad78e8e90ac0fcf4c9fd4b39e1",
+      "text": "An index-ordered plan and a selective-filter plan followed by a blocking sort remain meaningful alternatives: MongoDB recommends ESR when avoiding an in-memory sort matters, or ERS for a very selective range. Inspect both the query-plan SORT stage and aggregation-level $sort entries; absence of query-plan SORT alone does not rule out an aggregation sort. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/",
+      "also": [
+        "https://www.mongodb.com/docs/v8.3/reference/explain-results/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:c937c4895439989204cc1420379501224c90b70be804241fd8fc8a4c17d5d2c9",
+        "ev:f55ac5dedba4042fd150a90033318e7c94bdb237862405f2f90a3a654fa10283"
+      ]
+    },
+    {
+      "id": "clm:4566786c60da0c0d457c936151e1e340ffb416491c2e084247bb58fad3cc0736",
+      "text": "MongoDB 8.3 introduces multi-planning with a cost-based ranker (CBR) backup as the default for eligible queries. A short trial runs first; failure to settle during that trial triggers rules that can either continue multi-planning or invoke CBR. This does not mean every sorted query uses pure cost-based selection. (high confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-plans/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/release-notes/8.3.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:22b8fcff7f6012ef0288c5ac5fd95c8367d09207b4f89c0ba22ebbb61eaf1daf",
+        "ev:3400fadbaccedf680e11ccc3110e774e01b214ac1a948d0caa25788b67bdf74e"
+      ]
+    },
+    {
+      "id": "clm:92a3abc2ec730444b54cecd38732827ddc8e963a98360f9319b50961a71de9f5",
+      "text": "SERVER-128761 reports an 8.3.3 sorted limit query with competing indexes and alleges incorrect CBR plan choice. It was resolved Works as Designed on June 12, 2026 with no fix version; its bug title must not be presented as a confirmed optimizer defect. (low confidence) (verified as of 2026-06-12)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-128761",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4c5e2028c1674db48e5f040a705266d1c9368ed60c72e6ae365ccb7ce63c104e"
+      ]
+    },
+    {
+      "id": "clm:3edea1841929ee639dac61d0e713391abe498e5b9527b36958b6c76c5ef8e0d4",
+      "text": "For $in with sort, the current ESR guideline describes expansion into ordered streams combined by SORT_MERGE below 201 elements and range-like treatment at 201 or more, while warning that the boundary can change across versions. Inference: CBR ranking should not be presented as abolishing expansion eligibility rules or guaranteeing that an eligible SORT_MERGE candidate wins. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/query-plans/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:22b8fcff7f6012ef0288c5ac5fd95c8367d09207b4f89c0ba22ebbb61eaf1daf",
+        "ev:ebaf7c8fd2459f7f3fcd604edbac8e59482cba79f7d8b3e43c66a8cb5e8741ae"
+      ]
+    },
+    {
+      "id": "clm:95c567139fa9a217a6146d199d8e4f89cb6f2a1332a1ee61f6be835711125b6c",
+      "text": "The 8.3 explain reference marks costEstimate, cardinalityEstimate, numKeysEstimate, numDocsEstimate and estimatesMetadata.ceSource as new in 8.3.3. ceSource distinguishes sampling, heuristics, mixed, metadata and code; these describe estimates rather than measured execution time. (low confidence) (verified as of 2026-10-27)",
+      "source_url": "https://www.mongodb.com/docs/v8.3/reference/explain-results/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3596b1ecc13c3c626d4512baa3cbfdb53e4ae66051660f7985bb66ec81f97b9e"
+      ]
+    },
+    {
+      "id": "clm:dab46654bc261de188f47cde74b8297160758274e528b9ee57b4c3df5689553c",
+      "text": "The query-plans documentation limits current CBR invocation to a small subset of queries. A sort alone therefore does not establish that CBR selected the plan. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-plans/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:22b8fcff7f6012ef0288c5ac5fd95c8367d09207b4f89c0ba22ebbb61eaf1daf"
+      ]
+    },
+    {
+      "id": "clm:2be4d0be7f15a949b2d70bffdec7baec5dfd6e92eb7ddd73d50b934303a90b7f",
+      "text": "SERVER-115301 explains a sorted-query weakness of trial execution: streaming index scans can look productive regardless of predicate selectivity, while selective plans with a blocking sort may return no trial results. The ticket proposes broader CBR switching after 10000 works unless a plan reaches EOF; it remained unresolved in its September 7 update, so the proposal is not proof of shipped behavior. (low confidence) (verified as of 2026-09-07)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-115301",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:33be6e3d547d88c827b60d5804a386e5cff51e5dfd4e428d124bbab769d1d897"
+      ]
+    },
+    {
+      "id": "clm:38d8f8890dc89148e21d3f7fd759bff94888e62c102cbcbc3c515a68ac01c410",
+      "text": "Both classic multi-planning and CBR can cache their chosen plan. explain ignores existing plan-cache entries and does not create a new entry, so an explain run alone does not demonstrate which cached plan an application reused. (low confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-plans/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:22b8fcff7f6012ef0288c5ac5fd95c8367d09207b4f89c0ba22ebbb61eaf1daf"
+      ]
+    },
+    {
+      "id": "clm:8608405fea53b6004760c0a9d74e6a03c6bbab6a17673f828f799ad46da9e013",
+      "text": "The 2024 First Past the Post study reports index-scan preference bias and sometimes more than twice optimal runtime for MongoDB 7.0.1. It supplies historical motivation to validate plan selection, but it does not benchmark MongoDB 8.3 CBR or establish that the same regression persists there. (low confidence)",
+      "source_url": "https://arxiv.org/abs/2409.16544",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0d4e483ecdc5fcb0b3ecb1043becb831e552328879c5ec5eacd07fd5a0cc8b40"
+      ]
+    },
+    {
+      "id": "clm:d7d75ef810d51e3e90f96ab663885a515e3a2c34af1eb3cae41ef2999cb87c24",
+      "text": "MinervaDB recommends recording plan shapes before an upgrade and comparing them afterward, then checking CBR explain fields and keys/documents examined for a regressed sorted query. This is an operational recommendation with illustrative examples, not an independently measured 8.3 performance guarantee. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://minervadb.com/mongodb-performance-troubleshooting/",
+      "also": [
+        "https://www.mongodb.com/docs/v8.3/reference/explain-results/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3596b1ecc13c3c626d4512baa3cbfdb53e4ae66051660f7985bb66ec81f97b9e",
+        "ev:86b1d656da62e7d09104f0cc88946735ae3134c91f310e1213b039542b53ce2d",
+        "ev:f7167b60d58f1e5846abe41ebc8e5760eb197279ebf817dd659b83e0775393e0"
+      ]
+    },
+    {
+      "id": "clm:7e73e474919cee60d29dc887120feada40481094d9524c5e673868c101bf9497",
+      "text": "Percona's July 30, 2026 announcement describes the short multi-planner trial and CBR fallback in its own MongoDB 8.3 Technical Preview distribution. This corroborates distribution behavior but does not supply an independent benchmark of upstream CBR. (low confidence) (verified as of 2026-07-30)",
+      "source_url": "https://www.percona.com/blog/percona-server-for-mongodb-8-3-technical-preview-is-now-available/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:bb9d38b9b379691eccac4be7c77c7fbc695d290171c820f1e94b62a29aa12c5d",
+        "ev:ee01e25e1174b333c8df658571e586834088daee63c638dfd6372c18abba074c"
+      ]
+    },
+    {
+      "id": "clm:931d55a76bccd85a001138337b1d5fb56c1fc7d752ab6402ccf069cef3becc6b",
+      "text": "In r8.3.3, after the short trial, a failed estimate of remaining multi-planning work keeps multi-planning; sufficiently low productivity selects CBR. Otherwise, the implementation compares estimated remaining multi-planning effort with estimated CBR sampling-and-estimation effort and requires an improvement ratio. This choice of ranker is separate from comparing candidate execution-plan costs. (low confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/r8.3.3/src/mongo/db/query/plan_ranking/cost_based_plan_ranking.cpp",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:aeecfde319fc2aa4a202c00622430499b8e2497c215741583c32f4cce2c2c928",
+        "ev:e98d7d60a68bf48df315fbbd545791b9e0972d833d3a9c0d1a61c750cdf536de"
+      ]
+    },
+    {
+      "id": "clm:211205a01e8a1c004180f55ea3e45d560dc97c13a22faa70bbef676d37300b59",
+      "text": "For sorted-query diagnosis on the documented 8.3 branch, inspect costEstimate, cardinalityEstimate and estimatesMetadata.ceSource to understand CBR estimates. The field descriptions mark these additions as new in 8.3.3, so do not assume this exact explain surface exists in every 8.3 patch. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://www.mongodb.com/docs/v8.3/reference/explain-results/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/release-notes/8.3.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3400fadbaccedf680e11ccc3110e774e01b214ac1a948d0caa25788b67bdf74e",
+        "ev:3596b1ecc13c3c626d4512baa3cbfdb53e4ae66051660f7985bb66ec81f97b9e"
+      ]
+    }
+  ],
+  "projection_sha256": "cb5e73182344614606637a7752ab3ff6756086ba65faa34f87654cf80eefbae3"
+}

@@ -8,15 +8,26 @@
       "title": "Definitions",
       "facts": [
         {
-          "text": "Periodic per-key sensor summaries are a practical Atlas pattern: group measurements inside each window and compute averages, minima and maxima. A public smart-grid demo uses daily tumbling windows, while MongoDB's tutorial illustrates minute-scale rollups. (medium confidence)",
+          "text": "Periodic per-key summaries are a practical Atlas Stream Processing pattern: a $group inside a $tumblingWindow computes per-key averages, minima and maxima for each window. MongoDB's tutorial illustrates this with one-minute rollups grouped by stock symbol (the sensor framing is an analogy, not what the tutorial shows). Sources: https://dev.to/mongodb/aggregate-streaming-data-within-windows-of-time-using-atlas-stream-processing-1lm1",
           "source": "https://dev.to/mongodb/aggregate-streaming-data-within-windows-of-time-using-atlas-stream-processing-1lm1",
           "note": null,
           "claimId": "clm:eb24cfbdf3a1142e1a35fc45a28ade1b14b544c421d68e06e62afd25ff0e0318",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://github.com/ramonfnasc12/smart-grid-kafka-atlas"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:1d0b25375babdb9a5444af4f92a578b789a0c6355feba9a1d87b0326759cd06d",
             "ev:dbc9fa59ca285be8d0b16b9843910f0c8001311b496d58ec69c39fc62174d405"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "6a956c00d4f96aaaa264dbff2768ee958a5062491a17bcbdebcd7511683fd434"
+          }
         }
       ]
     },
@@ -24,28 +35,51 @@
       "title": "Structure and components",
       "facts": [
         {
-          "text": "For event-time tumbling windows, interval duration alone does not establish wall-clock output latency. Watermark progress controls closure, and allowedLateness delays closure relative to that watermark while permitting newer windows to open. (high confidence)",
-          "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-tumbling.md",
+          "text": "For event-time tumbling windows, interval duration alone does not establish wall-clock output latency. Watermark progress controls closure, and allowedLateness delays closure relative to that watermark while permitting newer windows to open. (high confidence) Sources: https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
           "note": null,
           "claimId": "clm:848172cd975b15e03400d448ff301fd90d9d611b6a50b6939ac199e0a4cf2786",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:0da6542a9705bbfa653fb3f5f3700b52ddc27a8eb735e40c9085d916e6ffccf9",
             "ev:42a66ccbf1a0626a39ab6e9ebcbfe5332289a9b4cd08f07dd3451e60a3f89091"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "cb5699eb6f78c37f900979c2f40f96b653ef0d02d4f9450a469ffa290dde710b"
+          }
         },
         {
-          "text": "Non-overlap describes window membership. It does not establish exactly-once end-to-end delivery, guarantee inclusion of arbitrarily late events, or guarantee an output every interval of wall-clock time. (medium confidence)",
+          "text": "Tumbling-window intervals don't overlap; that describes window membership. In Atlas Stream Processing, event-time windows close on watermark progress rather than at the wall-clock end of the interval, so output is not guaranteed every wall-clock interval. Documents that arrive after their window has closed are treated as late-arriving and sent to the Dead Letter Queue if one is configured. allowedLateness only delays closing by a set interval, so inclusion of arbitrarily late events is not guaranteed. Sources: https://www.mongodb.com/docs/atlas/atlas-stream-processing/windows.md ; https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
           "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/windows.md",
           "note": null,
           "claimId": "clm:9b8be3f0e1c1a2775380c4afc62fbfb1d7f74de17105d060e72325c9eba28f71",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
+            "https://scotty.stream/paper/verwiebe_vldbj2023.pdf"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:0da6542a9705bbfa653fb3f5f3700b52ddc27a8eb735e40c9085d916e6ffccf9",
             "ev:2673743bebea3d13a78ff33842266f7f5db219dd7fbb43a6addbe556d39d6fe6",
             "ev:626f6ac15e8539f636762e55242fbb339e2a01e8df2ca47ca24252cadffdca06",
             "ev:81543876fd1bf60fab9c75a5d5e4def73ca129f63339d709cc10363ae5d1961a"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "fb55eb613d84b3760ddc2ce5dc754ae9c8b29f96c094695744b9b1919888f052"
+          }
         }
       ]
     },
@@ -53,25 +87,48 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Atlas supports event-time and processing-time boundaries. Event time uses document timing; processing time uses the server clock when the processor consumes a document. A delayed event can therefore fall into different windows under the two modes. (high confidence)",
+          "text": "Atlas supports event-time and processing-time boundaries. Event time uses document timing; processing time uses the server clock when the processor consumes a document. A delayed event can therefore fall into different windows under the two modes. (high confidence) Sources: https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-tumbling.md ; https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
           "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-tumbling.md",
           "note": null,
           "claimId": "clm:4ebc0898c318b624991452d139e8766803ec0ac07e1d868a6261a9020eb70e99",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:81543876fd1bf60fab9c75a5d5e4def73ca129f63339d709cc10363ae5d1961a"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "4a50f1f1cc96928d83dcc58d4e27efadc4de6e1e43b3679e22e31637ca37f8dd"
+          }
         },
         {
-          "text": "An idle source can leave an event-time window waiting for watermark progress. Atlas provides idleTimeout to allow windows to close during source inactivity; the stage reference and architecture guide disagree about exactly when its timer begins. (high confidence)",
-          "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-tumbling.md",
+          "text": "An idle source can leave an event-time window waiting for watermark progress. Atlas provides idleTimeout to allow windows to close during source inactivity; the stage reference and architecture guide disagree about exactly when its timer begins. (high confidence) Sources: https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md ; https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-tumbling.md",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
           "note": null,
           "claimId": "clm:38a268f010336c5b15b11e9b6aba37e3f29f7cda0d4f2212112b4615b8f0bad0",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-tumbling.md"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:8202f69e0f030a6479bdc637c3a4304cf48804dbeee97b730fc4a901fa117f93",
             "ev:c0dc8182e8d5088d2aff5c242eaad27118074f153de25f3095df956c6f7f6778"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "418600aa12956bacd67ba6c39352efe180f2f74da3d10ea6f62c0b43ef6dd713"
+          }
         }
       ]
     },
@@ -86,18 +143,32 @@
           "validationStatus": "SUPPORTED",
           "evidenceIds": [
             "ev:2f85ee49602340992c69dd38fea5b5feccacef8713dd06cde7cc462f9b651b4e"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md"
           ]
         },
         {
-          "text": "A record that arrives after its Atlas window closes cannot be assumed to update that aggregate. MongoDB documents routing late-arriving documents to a dead letter queue when one is configured. (high confidence)",
-          "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/windows.md",
+          "text": "A record that arrives after its Atlas window closes cannot be assumed to update that aggregate. MongoDB documents routing late-arriving documents to a dead letter queue when one is configured. (high confidence) Sources: https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
           "note": null,
           "claimId": "clm:1923ccff2d28bf429ebfdae42093ebb8b2417db514f434f040f8685e77b3f684",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:81543876fd1bf60fab9c75a5d5e4def73ca129f63339d709cc10363ae5d1961a",
             "ev:8a4eafb8fee4d91c52a3c0d9220680dfcbfd0d40e8f8c7e060f60fef2a3088d9"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "5dee343fa294f3c9c4836072b6606dc46faa57234b684aa1b8aa3298a9d17091"
+          }
         }
       ]
     },
@@ -114,6 +185,9 @@
             "ev:015db7822d965fa1b12879549256de2bc2a557cbc726e43b8c8be335825a6003",
             "ev:8202f69e0f030a6479bdc637c3a4304cf48804dbeee97b730fc4a901fa117f93",
             "ev:db16a41ea79928b28d6a67489fe9418351813f9cb07dfd88569e647a3e7054d0"
+          ],
+          "also": [
+            "https://github.com/mongodb/agent-skills/blob/main/skills/mongodb-atlas-stream-processing/references/output-diagnostics.md"
           ]
         },
         {
@@ -132,16 +206,31 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "Tumbling windows partition time into fixed-duration, contiguous intervals without overlap. Each event timestamp maps to one interval; this describes assignment, not a guarantee that arbitrarily late events will be accepted. MongoDB, Apache Spark, and Confluent independently document this window model. (high confidence)",
+          "text": "Tumbling windows partition time into fixed-duration, contiguous intervals without overlap. Each event timestamp maps to one interval; this describes assignment, not a guarantee that arbitrarily late events will be accepted. MongoDB, Apache Spark, and Confluent independently document this window model. (high confidence) Sources: https://www.mongodb.com/docs/atlas/atlas-stream-processing/windows.md ; https://spark.apache.org/docs/latest/streaming/apis-on-dataframes-and-datasets.html ; https://docs.confluent.io/cloud/current/flink/reference/queries/window-tvf.html ; https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
           "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/windows.md",
           "note": null,
           "claimId": "clm:d0da8a4df68619aba299ad5c904590a47ba5e8af9ae46094210203f7e29f213d",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://spark.apache.org/docs/latest/streaming/apis-on-dataframes-and-datasets.html",
+            "https://docs.confluent.io/platform/current/ksqldb/concepts/time-and-windows-in-ksqldb-queries.html",
+            "https://scotty.stream/paper/verwiebe_vldbj2023.pdf",
+            "https://docs.confluent.io/cloud/current/flink/reference/queries/window-tvf.html",
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:065d6d2fe8e1ce840dc3edf5743b55dbac73f796bca1fff087ab68b8af05213b",
             "ev:2673743bebea3d13a78ff33842266f7f5db219dd7fbb43a6addbe556d39d6fe6",
             "ev:7df5ba68e15c84e62d89c4cdc788eb195fdea3f29ff230b935da05e8b8499960"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "e4a04106b1028c77d45b82a64780e3ec797a011b684a213358b89be7651bb0aa"
+          }
         },
         {
           "text": "In Atlas Stream Processing, $tumblingWindow supplies a finite set of streaming documents to its nested aggregation pipeline. This enables per-interval grouping and statistics such as averages, minima, and maxima. (high confidence)",
@@ -152,6 +241,10 @@
           "evidenceIds": [
             "ev:0febfc0114dd16ac7c43612e5f9fa6e12852b9e2b91033e06c73b9efe9da80e2",
             "ev:a213ccdb3bcce5465c957d221e8ef75296d461e904eac19cab76a3cad0a8ad18"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/windows.md",
+            "https://dev.to/mongodb/aggregate-streaming-data-within-windows-of-time-using-atlas-stream-processing-1lm1"
           ]
         },
         {
@@ -192,18 +285,33 @@
           "validationStatus": "SUPPORTED",
           "evidenceIds": [
             "ev:0da6542a9705bbfa653fb3f5f3700b52ddc27a8eb735e40c9085d916e6ffccf9"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md"
           ]
         },
         {
-          "text": "Atlas preserves stateful window processing through checkpoints. After interruption, a processor resumes from its last committed checkpoint; this does not establish end-to-end exactly-once delivery to every possible sink. (high confidence)",
-          "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-tumbling.md",
+          "text": "Atlas preserves stateful window processing through checkpoints. After interruption, a processor resumes from its last committed checkpoint; this does not establish end-to-end exactly-once delivery to every possible sink. (high confidence) Sources: https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md ; https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-tumbling.md",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
           "note": null,
           "claimId": "clm:1715a58081a720f7955944f5eab6a544687779008c69c57fbebdd6a68b038b29",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture.md",
+            "https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-tumbling.md"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:626f6ac15e8539f636762e55242fbb339e2a01e8df2ca47ca24252cadffdca06",
             "ev:d7d3558dd06a6094c0c4cc054296bc8ad38795a44001201a6268d0f42763302b"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "a549f613d280b5eb094dcd73841fa217265e700a6af7a3420efd161474505b7f"
+          }
         }
       ]
     }

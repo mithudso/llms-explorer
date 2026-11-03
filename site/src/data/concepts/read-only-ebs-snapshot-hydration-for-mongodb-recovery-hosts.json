@@ -1,0 +1,193 @@
+{
+  "slug": "read-only-ebs-snapshot-hydration-for-mongodb-recovery-hosts",
+  "concept": "Read-only EBS snapshot hydration for MongoDB recovery hosts",
+  "generated": "2026-10-31",
+  "summary": "Source-anchored research for Read-only EBS snapshot hydration for MongoDB recovery hosts. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The public zph warming script runs read-only-pattern direct fio reads with rate=200m and records the EBS volume ID on completion. It skips a later scan only when the marker matches that ID. This is an inspectable automation example, not a tested recommendation for arbitrary MongoDB layouts. (low confidence)",
+          "source": "https://gist.github.com/zph/5935caeeebc001e2af38f087da19d5af",
+          "note": null,
+          "claimId": "clm:91523803593a4e989e741ae36926806b65236136cfdff457c311efd7881607a7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:888f33a0221d137447b1f4b12c3fae23ec133a90799321afcb8fe875a472a643"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Hydration does not establish backup consistency. MongoDB requires a valid database at snapshot time; its filesystem-snapshot guidance requires suspending writes when data and journal reside on separate volumes. Inference: a successfully initialized EBS volume cannot repair a snapshot that omitted required writes. (medium confidence)",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
+          "note": null,
+          "claimId": "clm:4ac82b6c4e72cba5827648cda6c6923cc2d96bfca157c903920c8da580dd68ea",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:11f1a3f9e5a3ccd0f18d8af9070d0c56a96a3b4a8e33285acd25852902be53ac",
+            "ev:3a997a2dbb06169aa9c71cde019f67423beaeabe72e2c25c8fc153278b4930cb",
+            "ev:d11b73e793202fbe0f7e6ccc4fb62864bd021087ada285f49f40cac3c78d60e7"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/manual/tutorial/backup-and-restore-with-filesystem-snapshots/"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "A short benchmark is not a full hydration pass: AWS requires reading every block. fio uses the full existing device size when size is omitted, but runtime or smaller size/io_size settings can stop or constrain coverage. Let the full sequential read complete successfully rather than treating elapsed time or a sampled region as completion. (medium confidence)",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
+          "note": null,
+          "claimId": "clm:def8265c4228758b840d976e5dace0180ecfc79ffb483ef71c360152dbe52fcf",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:95fc09162bf5d0a4d2461174ee84a92885fcca373f4fa28fd06e8da68ed03dbe",
+            "ev:c00848dab0bd0886ebf8dde01928f5e564fbbd3ab0f37b51baf048397a863a78",
+            "ev:c7ff8f914f240c7a0a6d8339249122e3bc66ab9cfa92170f37dd90defb05debc",
+            "ev:e65f4993c1e7c46c783a0ac72ee9edaa9d73a7710b12b2089857966efd389aa1"
+          ],
+          "also": [
+            "https://fio.readthedocs.io/en/latest/fio_doc.html"
+          ]
+        },
+        {
+          "text": "The documented EventBridge completion notification uses source aws.ec2, detail-type EBS Volume Notification, detail.event initializeVolume, and detail.result succeeded. Delivery is best effort and can lag five minutes; polling is a reasonable fallback rather than treating a missing event as failure. (low confidence) (verified as of 2026-10-31)",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-initialize-monitor.html",
+          "note": null,
+          "claimId": "clm:8a77bbef1f2dc8af118d3be80392206fce7ff88809e0bcddbc30c8a10a629069",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:71e8beacc3f09610fef570c6b20da5bcfc67268e0d74e631a761c0a5076cd175",
+            "ev:ae26a49a3a4ba5913e6634dd6276ca4f1f3cd9f6d98f5781919ef55bb3f3091e"
+          ]
+        },
+        {
+          "text": "AWS’s April 18, 2022 experiment reports approximately seven hours with fio versus 35 hours with dd for its specific 1.5 TB gp3 configuration. Treat the fivefold difference as that experiment’s result, not a recovery-time guarantee or universal fio multiplier. (low confidence)",
+          "source": "https://aws.amazon.com/blogs/storage/addressing-i-o-latency-when-restoring-amazon-ebs-volumes-from-ebs-snapshots/",
+          "note": null,
+          "claimId": "clm:2628010527f7ca6f5b2e0affecb21b08d204d3a66190acc2765908eda0e1f106",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7b48399c8fe42cc42b205897358152582f1692486791c9cf7c1702ebab741d2a",
+            "ev:e4bba7ea40573065a9697aa372a2fc1bc186f4497251eb2498190a05eebd5221"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "AWS documents aws ec2 describe-volume-status --volume-ids VOL_ID for initialization monitoring: progress is 0–100 and initialization state is initializing or completed. EstimatedTimeToCompleteInSeconds is supplied only for provisioned-rate initialization; updates can lag by five minutes. (low confidence) (verified as of 2026-10-31)",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-initialize-monitor.html",
+          "note": null,
+          "claimId": "clm:3e46c11a42bd4b01be66d2e57b313b44babd7f2d66398865c81aab50423be553",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:36db183fdebddddd8f5cd9fc3811762cd49b1d185a2537d770581451db4c240b"
+          ]
+        },
+        {
+          "text": "A historical MongoDB restore report records about 804 seconds of oplog processing after an EBS snapshot restore; the author identifies MongoDB 3.6. A respondent distinguishes old-version oplog marking from EBS hydration. This is an anecdote, not proof that hydration alone explains startup delays. (low confidence)",
+          "source": "https://www.reddit.com/r/mongodb/comments/xe3qrw",
+          "note": null,
+          "claimId": "clm:cbb1b239c755282b266e8f5be18436b112a084fb1c8d20f22046a6df86162df8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0491a74f71ec16588a3a1ebceb23f007304fb921b26635323d545e4496676e36",
+            "ev:b77a1d8fd2edb1f7d15e9b13985571f2a15708a7a875a557f99e84051caeb0ca"
+          ]
+        },
+        {
+          "text": "In the COLD CACHE forum thread, an operator initially attributes a self-managed MongoDB secondary’s lag to cold cache and snapshot lazy loading. A reply recommends the AWS-style fio read scan before starting mongod, preferably unmounted. The operator later reports IOPS/index-related changes and a ten-minute synchronization using rewritten scripts. This multi-change anecdote is not a controlled before/after validation of the hydration diagnosis. (low confidence)",
+          "source": "https://www.reddit.com/r/mongodb/comments/1vxs3if/cold_cache/",
+          "note": null,
+          "claimId": "clm:3bca30aa56c31950b90683a0b26e7c2f82207b0bfe9b4af54632554c1776b612",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4adf5d3e36bbb0bb9ae2e5d28fe3c4c591c0abf663d8efc72290c5107d911403",
+            "ev:a0ed7a7f43c1f947387d463c22cec88197936fc62465e31630364ffd5d3b506d",
+            "ev:ba59705b7b915b05217151313c956fa34b6ee58f064225f087f67792e55a0c95"
+          ]
+        },
+        {
+          "text": "AWS’s dd initialization example reads the verified restored device as input and writes to /dev/null; a 2024 Windows walkthrough uses fio rw=read. AWS warns that incorrect dd use can destroy volume data and says only the verified input-device parameter should vary from its example. (medium confidence)",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
+          "note": null,
+          "claimId": "clm:cf5bba91f71f6645a8d22715cabed013c228665ba70a57cacca2f67fa497d268",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:68cdd08f706c864fc538c7a6884bf8e88b895bb046f0dab9382525474bc33ca2",
+            "ev:758e923187829e402b28e43dd1b82875b01e55ef2d8e537ab60b9ebe112a0441"
+          ],
+          "also": [
+            "https://jeremypedersen.com/posts/2024-04-08-warming-ebs-volumes/"
+          ]
+        },
+        {
+          "text": "Restoring EBS snapshot data requires downloading blocks from S3 and writing them to the restored volume; initialization can increase I/O latency until all required blocks are present. This provides a storage-level explanation for cold reads on a self-managed recovery host, not proof of any particular MongoDB incident. (low confidence)",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
+          "note": null,
+          "claimId": "clm:4b39e99ee9ec67c6e12e59b1b0bf5f241365deb814dcadb1527cabaf4c833294",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d11b73e793202fbe0f7e6ccc4fb62864bd021087ada285f49f40cac3c78d60e7"
+          ]
+        },
+        {
+          "text": "On Linux, identify the restored device with lsblk. AWS illustrates an attached, unmounted device and a full-device command: sudo fio --filename=/dev/DEVICE --rw=read --bs=1M --iodepth=32 --ioengine=libaio --direct=1 --name=volume-initialize. Add --readonly as an upstream fio safety guard that rejects write and trim workloads; replace DEVICE only after identifying the intended restored volume. The added --readonly guard comes from fio; it is not present in the AWS example quoted here. (medium confidence)",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
+          "note": null,
+          "claimId": "clm:392f2054a0611e40e33b00a316e99269eb89660263bfe209bad3529d4afeec65",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:291b647ad75e96c2e4a6a354d757733bdb408b2ca1b5c31be3d64cd92ccdb050",
+            "ev:a43bd9a99e377b1400ad21641277c79f296a9974f98cc429bc40e9196a3a5986"
+          ],
+          "also": [
+            "https://fio.readthedocs.io/en/latest/fio_doc.html"
+          ]
+        },
+        {
+          "text": "For Linux libaio, fio warns that buffered I/O may prevent the requested asynchronous queue depth from being achieved. Its documentation recommends checking the reported I/O-depth distribution; specifying iodepth=32 alone does not demonstrate that 32 operations were in flight. (low confidence)",
+          "source": "https://fio.readthedocs.io/en/latest/fio_doc.html",
+          "note": null,
+          "claimId": "clm:d5f420fff51901a58fa9e7ae675ecb1d6beb7fe525b909556bbc37ad86ecbc1d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b859004f85ee81e5696abfd6669a592662802e98485255046fceab31655dec26"
+          ]
+        },
+        {
+          "text": "Treat storage initialization and MongoDB cache readiness separately. fio direct=1 uses non-buffered I/O; MongoDB distinguishes the filesystem cache from WiredTiger’s internal cache, whose collection data is uncompressed. Inference: completing raw-device fio reads neither loads MongoDB’s internal cache nor proves representative query latency. Measure application readiness after MongoDB starts with a workload-specific latency check. Raw-device fio reads do not execute MongoDB queries; record storage initialization and application readiness as separate observations. (medium confidence)",
+          "source": "https://fio.readthedocs.io/en/latest/fio_doc.html",
+          "note": null,
+          "claimId": "clm:8e377b046c2eda55c8133b33f7e214d78dc261d377092b7ae27260f207527cde",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8646b32908c12d2a666f0ae1f41a0c7fb90e5354fcc4dc114f80cddfdd169d0e",
+            "ev:969db7109c8f1782015a2c1d30b0a28c9ce0c99c31529467c5bac8c42cc35df8",
+            "ev:b5256f3d77622728a77b81e7a412b5f0e8ef24017583a62d3acf754c0a309c73",
+            "ev:cb1fd81898fee643f3e12f963a7fe14b2d130964fff5253fd268045fc6bccdc8",
+            "ev:cb73372095d0da603ff862398637087781a3f584845c16f1ffefd37013284c50"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+            "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-initialize-monitor.html"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "dc179ccfd9d84afdf9e4d068aa778339e586d857ee4c9022e988774df7daa237",
+  "canonicalConceptId": "concept:a36afa0638951f7c3facc2d4b9cf8c905da578b43e720e84e30dbb9302ee0452"
+}

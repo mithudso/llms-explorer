@@ -235,10 +235,19 @@ def canonical_facets(units: list[dict[str, Any]]) -> list[dict[str, Any]]:
             fact["also"] = [scrub_home_path(source) for source in unit["also"]]
         if unit.get("origin_validation_status"):
             fact["originValidationStatus"] = unit["origin_validation_status"]
+        if "origin_evidence_ids" in unit:
+            fact["originEvidenceIds"] = unit["origin_evidence_ids"]
+        if unit.get("remediation"):
+            fact["remediation"] = unit["remediation"]
+        if unit.get("publication_redacted"):
+            fact["publicationRedacted"] = True
         if (fact["text"] != unit["text"] or fact["source"] != unit["source_url"]
                 or fact.get("also", []) != (unit.get("also") or [])):
             fact.setdefault("originValidationStatus", fact["validationStatus"])
-            fact["validationStatus"] = "REDACTED-PROJECTION"
+            if fact["validationStatus"] == "REMEDIATED-PROJECTION":
+                fact["publicationRedacted"] = True
+            else:
+                fact["validationStatus"] = "REDACTED-PROJECTION"
         by_section.setdefault(unit.get("section", "facts"), []).append(fact)
     sections = [*FACET_TITLES, *(key for key in by_section if key not in FACET_TITLES)]
     return [{"title": FACET_TITLES.get(key, key), "facts": by_section[key]}

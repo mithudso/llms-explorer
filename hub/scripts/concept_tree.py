@@ -79,6 +79,8 @@ SKILLS_DIRS = (Path.home() / ".claude" / "skills", HUB_DIR / "skills",
 _QUEUE_RE = re.compile(
     r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*"
     r"(?P<ticks>`+)(?!`)(?P<concept>.+?)(?<!`)(?P=ticks)(?!`)(?=\s*(?:\||$))(?P<tags>.*)$")
+
+
 _QUEUE_TAG_RE = re.compile(
     r"\|\s*(?P<tag>[^:|]+):\s*(?P<ticks>`+)(?!`)"
     r"(?P<value>.*?)(?<!`)(?P=ticks)(?!`)(?=\s*(?:\||$))")

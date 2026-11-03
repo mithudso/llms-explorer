@@ -1,0 +1,404 @@
+{
+ "schema": "claim-remediation/v1",
+ "applications": [
+  {
+   "slug": "multiplanner-scoring-and-tie-breakers",
+   "at": "2026-11-02T14:10:27Z",
+   "pack": "outputs/llms-concepts/multiplanner-scoring-and-tie-breakers.llms",
+   "packSha256Before": "308f02a5f51f5bbc6433fe062466018fd9504c25f090b07b2eb044eaf89a3f1c",
+   "edits": [
+    {
+     "claim_id": "clm:2eac71e26673c9802e3e83add888b1b873c90fcba64901d0c37097a1094216b3",
+     "unit_id": "clm:f6f647602ee7a089cc928bb1447a8395554d62c076be726b3910bcb2fd784f64",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "The same scorer has a separate groupByDistinctBonus for qualifying aggregation DISTINCT_SCAN plans, derived from productivity and potentially larger than epsilon. When forceIntersectionPlans is enabled, it adds 3 to matching index-intersection scores, overriding the ordinary no-intersection preference. (medium confidence) (verified as of 2026-10-20)",
+     "new": "The same scorer has a separate groupByDistinctBonus for qualifying aggregation DISTINCT_SCAN plans, derived from productivity and potentially larger than epsilon. When forceIntersectionPlans is enabled, it adds 3 to matching index-intersection scores, overriding the ordinary no-intersection preference. (medium confidence) (verified as of 2026-10-20) Sources: https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+       "quote": "// Apply a large bonus to DISTINCT_SCAN plans in an aggregation context, as the",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+       "quote": "std::min(1 - productivity, productivity * (productivityRatio - 1));",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+       "quote": "const double kBonusEpsilon = 1e-4;",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+       "quote": "if (cq.getExpCtx()->getQueryKnobConfiguration().getForceIntersectionPlans()) {",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "The scorer has a separate groupByDistinctBonus for qualifying aggregation DISTINCT_SCAN plans, derived from productivity and potentially larger than epsilon.",
+       "outcome": "VERIFIED",
+       "note": "Bonus = min(1 - productivity, 4*productivity), up to 0.8, vs epsilon <= 1e-4.",
+       "evidence_index": [
+        0,
+        1,
+        2
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h"
+        ]
+       }
+      },
+      {
+       "statement": "When forceIntersectionPlans is enabled, it adds 3 to matching index-intersection scores, overriding the ordinary no-intersection preference.",
+       "outcome": "VERIFIED",
+       "note": "+3 for AND_HASH/AND_SORTED plans when the knob is set.",
+       "evidence_index": [
+        3,
+        4
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [],
+      "urls": [
+       "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h"
+      ]
+     },
+     "rationale": "plan_ranker.h at revision 35647d07 contains both behaviours. groupByDistinctBonus = min(1 - productivity, productivity * 4) applies to DISTINCT_SCAN plans in aggregations (max 0.8), far above kBonusEpsilon (1e-4). With forceIntersectionPlans, AND_HASH/AND_SORTED plans get +3. The earlier failure was caused by checking the wrong (r8.0.0) file; the pinned raw file at the cited commit has it."
+    },
+    {
+     "claim_id": "clm:3b7e68efdb614ec6e1092448720d73cc601aa02d6dd846140e1332d9e22038c9",
+     "unit_id": "clm:0631e5bc6ead01f2aa9c23d048e0fab0a1340ce3a36c0e72bfcf617a5013a6fa",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Trial productivity can mis-rank candidates when an ordered scan's early sample does not represent the full data distribution: SERVER-20616 describes correlated values making a less selective index plan look productive during the trial. A 2024 study of MongoDB 7.0.1 also found test cases where FPTP chose an index scan over a faster collection scan, with some chosen plans over three times slower in that test space. (high confidence) (verified as of 2024-09-26)",
+     "new": "Trial productivity can mis-rank candidates when an ordered scan's early sample does not represent the full data distribution: SERVER-20616 describes correlated values making a less selective index plan look productive during the trial. A 2024 study of MongoDB 7.0.1 also found test cases where FPTP chose an index scan over a faster collection scan, with some chosen plans over three times slower in that test space. (high confidence) (verified as of 2024-09-26) Sources: https://jira.mongodb.org/browse/SERVER-20616 ; https://arxiv.org/html/2409.16544",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-20616",
+       "quote": "This can spuriously make p1 look as good as p2!",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-20616",
+       "quote": "Suppose that there is a correlation between the \"a\" and \"b\" fields so that all of the documents where \"b\" is \"selectiveString\" also have an \"a\" value of 0.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://arxiv.org/html/2409.16544",
+       "quote": "a preference bias, choosing index scans even in many cases where collection scans would run faster.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://arxiv.org/html/2409.16544",
+       "quote": "with some chosen plans more than three times slower than a collection scan.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://arxiv.org/html/2409.16544",
+       "quote": "identify situations where the MongoDB 7.0.1 query optimizer chooses suboptimal query plans",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "SERVER-20616 describes correlated values making a less selective index plan look productive during the trial.",
+       "outcome": "VERIFIED",
+       "note": "Ordered scan of {a:1} meets the correlated documents first.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-20616"
+        ]
+       }
+      },
+      {
+       "statement": "A 2024 study of MongoDB 7.0.1 found test cases where FPTP chose an index scan over a faster collection scan.",
+       "outcome": "VERIFIED",
+       "note": "arXiv 2409.16544, Sept 2024.",
+       "evidence_index": [
+        2,
+        4
+       ],
+       "searched": {
+        "queries": [
+         "2024 study MongoDB 7.0.1 query optimizer first past the post plan selection index scan slower than collection scan"
+        ],
+        "urls": [
+         "https://arxiv.org/abs/2409.16544",
+         "https://arxiv.org/html/2409.16544"
+        ]
+       }
+      },
+      {
+       "statement": "Some chosen plans were over three times slower in that test space.",
+       "outcome": "VERIFIED",
+       "note": "Stated for the paper's two-predicate experiment.",
+       "evidence_index": [
+        3
+       ],
+       "searched": {
+        "queries": [
+         "2024 study MongoDB 7.0.1 query optimizer first past the post plan selection index scan slower than collection scan"
+        ],
+        "urls": [
+         "https://arxiv.org/html/2409.16544"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "2024 study MongoDB 7.0.1 query optimizer first past the post plan selection index scan slower than collection scan"
+      ],
+      "urls": [
+       "https://jira.mongodb.org/browse/SERVER-20616",
+       "https://arxiv.org/pdf/2409.16544 (pin failed, PDF)",
+       "https://arxiv.org/abs/2409.16544",
+       "https://arxiv.org/html/2409.16544"
+      ]
+     },
+     "rationale": "SERVER-20616 describes correlated data making an in-order index scan plan look as good as a better plan during the trial. The 2024 FPTP paper (arXiv 2409.16544) tested MongoDB 7.0.1, found FPTP choosing index scans where collection scans are faster, and reports some chosen plans more than three times slower than a collection scan. The second source was missing from the cited page but exists on arXiv."
+    },
+    {
+     "claim_id": "clm:520cfe0c8fce29bf39f68f1f1e6ca4ba0c2e407eff4de5264baf13e9b8c89734",
+     "unit_id": "clm:3da74ad9ecdbb1bce194eda76a9256cfc6c2e4252b1fca05b7ef3bd40436b28e",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "At source revision 35647d07, MongoDB stores the final adjusted ranking score separately from QuerySolution::score, which explain displays. Tie-break bonuses can therefore affect winner ordering without appearing in the displayed trial score. (high confidence) (verified as of 2026-10-20)",
+     "new": "At source revision 35647d07, MongoDB stores the final adjusted ranking score separately from QuerySolution::score, which explain displays. Tie-break bonuses can therefore affect winner ordering without appearing in the displayed trial score. (high confidence) (verified as of 2026-10-20) Sources: https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+       "quote": "// The plan's final ranking score - the trial score (QuerySolution::score) plus any",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+       "quote": "// QuerySolution::score, which explain displays: the bonuses participate in the ranking but are",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+       "quote": "boost::optional<double> adjustedScore;",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "At source revision 35647d07, MongoDB stores the final adjusted ranking score separately from QuerySolution::score, which explain displays.",
+       "outcome": "VERIFIED",
+       "note": "adjustedScore field.",
+       "evidence_index": [
+        0,
+        1,
+        2
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h"
+        ]
+       }
+      },
+      {
+       "statement": "Tie-break bonuses can therefore affect winner ordering without appearing in the displayed trial score.",
+       "outcome": "VERIFIED",
+       "note": "Per code comment.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [],
+      "urls": [
+       "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h"
+      ]
+     },
+     "rationale": "In plan_ranker.h at revision 35647d07, BaseCandidatePlan::adjustedScore holds the final ranking score (trial score plus tie-breaking bonuses), kept separate from QuerySolution::score, which explain displays. The comment states the bonuses affect ranking but are not part of the displayed trial score."
+    },
+    {
+     "claim_id": "clm:8f49e25ca572c2fe43181a5d4afc169ef4ba08ce513dddd86bf8562e14c6e2b3",
+     "unit_id": "clm:8a9e91b317ec1a6e45a2d1cc87fa19e00d5a82d7fa13e401a5e8a1a1d6da2f37",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "The classic multiplanner runs candidates in a bounded round-robin trial and chooses the highest trial score. MongoDB's documented classic formula is base 1 + advanced / works + EOF bonus + tie-break bonuses; works count logical execution steps, not elapsed milliseconds. (high confidence) (verified as of 2026-10-20)",
+     "new": "The classic multiplanner runs candidates in a bounded round-robin trial (each round works every candidate once, up to a per-plan works limit, stopping when a plan hits EOF or returns enough results) and prefers the plan with the highest trial score. At source revision 35647d07 the score is base 1 + productivity (advanced / works) + tie-break bonuses (noFetch, noSort, noIxisect), plus special-case bonuses; works count calls to work(), one unit each, not elapsed milliseconds. Sources: https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/exec/classic/multi_plan.cpp ; https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.cpp ; https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h ; https://www.mongodb.com/docs/manual/core/query-plans.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/exec/classic/multi_plan.cpp",
+       "quote": "// Work the plans, stopping when a plan hits EOF or returns some fixed number of results.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/exec/classic/multi_plan.cpp",
+       "quote": "for (; ix < trialConfig.maxNumWorksPerPlan && moreToDo; ++ix) {",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.cpp",
+       "quote": "which the plan performed. Each call to work(...) counts as one unit.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+       "quote": "double score = baseScore + productivity + tieBreakers + groupByDistinctBonus.value_or(0.0);",
+       "supports": "correction"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+       "quote": "In the classic multi-planner, the winning plan is the query plan that produces the most results during the trial period while performing the least amount of work.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "The classic multiplanner runs candidates in a bounded round-robin trial.",
+       "outcome": "VERIFIED",
+       "note": "workAllPlans loop bounded by maxNumWorksPerPlan, stops at EOF or target results.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [
+         "MongoDB classic multi-planner trial works round-robin score formula 1 + advanced/works EOF bonus tie-breaker"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/exec/classic/multi_plan.cpp"
+        ]
+       }
+      },
+      {
+       "statement": "It chooses the highest trial score.",
+       "outcome": "VERIFIED",
+       "note": "Docs describe the winner as most results for least work; scorer says higher score is better.",
+       "evidence_index": [
+        4
+       ],
+       "searched": {
+        "queries": [
+         "mongo repo README classic runtime planner multi planner works productivity EOF bonus plan ranking score documentation"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/query-plans.md"
+        ]
+       }
+      },
+      {
+       "statement": "The classic formula is base 1 + advanced / works + EOF bonus + tie-break bonuses.",
+       "outcome": "CORRECTED",
+       "note": "At 35647d07 score = baseScore + productivity + tieBreakers (+ groupByDistinctBonus); no EOF bonus term in calculateScore. Documented only in code, not a README.",
+       "evidence_index": [
+        3,
+        2
+       ],
+       "searched": {
+        "queries": [
+         "plan_ranker.cpp eofBonus OR isEOF score mongo classic plan scorer productivity advanced works"
+        ],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+         "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.cpp"
+        ]
+       }
+      },
+      {
+       "statement": "Works count logical execution steps, not elapsed milliseconds.",
+       "outcome": "VERIFIED",
+       "note": "Each work() call is one unit.",
+       "evidence_index": [
+        2
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.cpp"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "MongoDB classic multi-planner trial works round-robin score formula 1 + advanced/works EOF bonus tie-breaker",
+       "mongo repo README classic runtime planner multi planner works productivity EOF bonus plan ranking score documentation",
+       "plan_ranker.cpp eofBonus OR isEOF score mongo classic plan scorer productivity advanced works"
+      ],
+      "urls": [
+       "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/exec/runtime_planners/classic_runtime_planner/README.md (replication content)",
+       "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/exec/classic/multi_plan.cpp",
+       "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.cpp",
+       "https://raw.githubusercontent.com/mongodb/mongo/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_ranker.h",
+       "https://www.mongodb.com/docs/manual/core/query-plans.md"
+      ]
+     },
+     "rationale": "The cited README is not about the multiplanner. The code at 35647d07 confirms the bounded trial loop, the productivity = advanced/works definition, and works as logical units. However, calculateScore at this revision has no EOF bonus term (only a stale comment mentions an eof bonus), and the formula is in code comments, not a 'documented' README formula. So the EOF bonus part is not supported."
+    }
+   ],
+   "skipped": [],
+   "changed": [
+    "llms-facts.txt",
+    "llms-full.txt",
+    "llms-small.txt",
+    "units.jsonl"
+   ]
+  }
+ ],
+ "publication": {
+  "schema": "remediation-public-projection/v1",
+  "source_record_sha256": "451c368f17ceb3e251ed29d0f57c9016c0dcc1dd1c2b8f46ba6c09678c02aea4",
+  "redactions": [
+   "operator-specific pack path"
+  ]
+ }
+}

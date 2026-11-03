@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.113 - 2026-11-03
+
+- TASK-1120 inventories all pending primary changes and dirty companion worktrees. Exact originals, index state and binary patches are preserved in a private recovery snapshot. Integration uses a clean worktree based on current remote main and retains newer remote research.
+- Publish corrected projection text with honest proof status. Historical source-bound proofs do not validate changed text. Private evidence bodies, runtime caches and operator identity remain outside public commits.
+- Remaining: reconcile tree/pack/site projections, privacy and appropriate tests; commit, push, verify PR checks, merge and synchronize. Delta: memory 0.22.112 to 0.22.113; prompt 99.
+
 ## v0.22.112 - 2026-11-02
 
 - R12 site270/hub95 are merged with reviewed-tree equality. Independent production LIVEPASS verifies69 research routes,23 readers,351 full fact/citation sets,46 byte-exact downloads and23 canonical identities. Its graph reconciliation is complete. The failed automatic private-library build and ancillary cached robots policy difference remain separate recorded limits. No global served revision marker is inferred.

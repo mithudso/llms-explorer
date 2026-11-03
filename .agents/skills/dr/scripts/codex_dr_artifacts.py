@@ -102,7 +102,7 @@ def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], statu
                             keywords=[doc["concept"]], origin="dr", also=urls[1:])
             row.update(matched=[name], relations=["about"], relation="about", score=1.0,
                        facet=lca.heuristic_facet(row), keep=True)
-            row.update({key: claim[key] for key in ("validation_status", "evidence_ids", "temporal") if key in claim})
+            row.update({key: claim[key] for key in ("validation_status", "origin_validation_status", "evidence_ids", "origin_evidence_ids", "remediation", "publication_redacted", "temporal") if key in claim})
             if doc.get("canonical_concept_id"):
                 row["canonical_concept_id"] = doc["canonical_concept_id"]
             rows.append(row)
@@ -148,7 +148,7 @@ def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadat
         source = by_id[unit["id"]]
         if any(unit.get(key) != source.get(key) for key in ("text", "source_url", "also", "anchor")):
             raise ValueError(f"{name}: llms compilation changed canonical text or citations for {unit['id']}")
-        unit.update({key: source[key] for key in ("canonical_concept_id", "validation_status", "origin_validation_status", "evidence_ids", "temporal") if key in source})
+        unit.update({key: source[key] for key in ("canonical_concept_id", "validation_status", "origin_validation_status", "evidence_ids", "origin_evidence_ids", "remediation", "publication_redacted", "temporal") if key in source})
     (out / "units.jsonl").write_text("".join(json.dumps(unit, ensure_ascii=False) + "\n" for unit in compiled_units))
     # The compiler lists undefined terms twice: as unsourced bold entries and
     # in its explicit research-gap section. Keep the gap section, so a missing
@@ -227,8 +227,11 @@ def public_pack_files(repo: Path, hub: Path, files: dict, lca, withheld=()) -> d
     for row in rows:
         original = originals[row["id"]]
         if any(row.get(key) != original.get(key) for key in ("text", "source_url", "also")) and "validation_status" in row:
-            row["origin_validation_status"] = row["validation_status"]
-            row["validation_status"] = "REDACTED-PROJECTION"
+            if row["validation_status"] == "REMEDIATED-PROJECTION":
+                row["publication_redacted"] = True
+            else:
+                row.setdefault("origin_validation_status", row["validation_status"])
+                row["validation_status"] = "REDACTED-PROJECTION"
     if not rows or any(row.get("origin") != "dr" for row in rows):
         raise ValueError("Repository claim export requires authored DR units")
     with tempfile.TemporaryDirectory(prefix="public-dr-pack-") as temporary:

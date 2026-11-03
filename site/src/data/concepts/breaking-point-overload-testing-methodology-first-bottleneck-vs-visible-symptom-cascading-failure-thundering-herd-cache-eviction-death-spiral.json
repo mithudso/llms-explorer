@@ -8,15 +8,26 @@
       "title": "Structure and components",
       "facts": [
         {
-          "text": "Test components separately and end to end: reducing fleet capacity at constant traffic reveals per-instance limits, but does not reproduce the dependency load of increasing total traffic. (high confidence)",
-          "source": "https://sre.google/sre-book/addressing-cascading-failures/",
+          "text": "Test components separately and end to end: reducing fleet capacity at constant traffic reveals per-instance limits, but does not reproduce the dependency load of increasing total traffic. (high confidence) Sources: https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/",
+          "source": "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/",
           "note": null,
           "claimId": "clm:bd6b879ee4756139da03f6083cb21f55b2143f44e1b3ecf3d0c25674476e1e38",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:682ebf7bf167292f44dc4c45a7b232dc63e8517345a335927371da85bb50615a",
             "ev:8f1bc29b0b30905c3277845a70fc7c345468e44135b1a9939b4b12dd941370cf"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "c6e87f7df17f6045530c5e6e61159f39dd898d87fe00334654b8541409054023"
+          }
         },
         {
           "text": "Exercise gradual ramps, sudden load steps, and the return to nominal load. Caching can change the breaking point, and overloaded components may require load to fall substantially before recovery. Stateful tests must also check correctness. (low confidence)",
@@ -39,6 +50,9 @@
           "evidenceIds": [
             "ev:682ebf7bf167292f44dc4c45a7b232dc63e8517345a335927371da85bb50615a",
             "ev:71a1ce8b797d1b7ae3ceff265dcdb96967e650e3b540b4c49e2d44366a5c8865"
+          ],
+          "also": [
+            "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/"
           ]
         }
       ]
@@ -47,15 +61,26 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "WiredTiger eviction is a separate mechanism from application-cache regeneration. Its 11.3.1 documentation says application threads assist eviction when configured triggers are reached, increasing operation latency. MongoDB’s storage README also describes this recruitment; rising eviction work can therefore precede visible request timeouts. (high confidence)",
+          "text": "WiredTiger 11.3.1 documents that application threads start performing eviction once cache usage reaches eviction_trigger (default 95%), which throttles application operations and increases operation latency; if eviction threads cannot keep up with demand for cache space, application threads are tasked with eviction, potentially causing latency spikes. Sources: https://source.wiredtiger.com/11.3.1/tune_cache.html",
           "source": "https://source.wiredtiger.com/11.3.1/tune_cache.html",
           "note": null,
           "claimId": "clm:b2159bd9bc3ac6672ad7e5b0ee487144f0b2c0d56bae1b7bc927c368777b42c7",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/README.md"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:1f33bb83323b20b3f8d586807f6d947525f9050d8eb32c1080e09ea8801daee5",
             "ev:5c6b163d17e1cc19b8f4c0e9caf00f9a9e025531c4b8fa0450fb0758c50b562e"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "b7d1efebf3c7cf92e785c09a11ceec4dc8cbdadf22579b980013a58365d5e59b"
+          }
         }
       ]
     },
@@ -72,6 +97,9 @@
             "ev:682ebf7bf167292f44dc4c45a7b232dc63e8517345a335927371da85bb50615a",
             "ev:b9b61a3c6ec3a8de94ec8de0febc599d011706417f5d0b117600465e60564067",
             "ev:cc1119273742a60180bf59a81be51a8e55ee87a7daa13d4206b5fd789852e5f5"
+          ],
+          "also": [
+            "https://slack.engineering/slacks-incident-on-2-22-22/"
           ]
         },
         {
@@ -82,6 +110,9 @@
           "validationStatus": "SUPPORTED",
           "evidenceIds": [
             "ev:69fbdf8474e1cb8c6c3b493ed2b1406f65c13f37d615c9868a73286484fd04fd"
+          ],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/README.md"
           ]
         }
       ]
@@ -98,19 +129,34 @@
           "evidenceIds": [
             "ev:69fbdf8474e1cb8c6c3b493ed2b1406f65c13f37d615c9868a73286484fd04fd",
             "ev:8b8e756f2eb2dd29584607cd16f7bc40677cf73d86d6a688cefeb384046bd8f7"
+          ],
+          "also": [
+            "https://discuss.circleci.com/t/postmortem-march-26-april-10-workflow-delay-incidents/30060"
           ]
         },
         {
-          "text": "Exercise real retry behavior and dependency failure under load. Delayed responses waste work after deadlines, and retries amplify demand; backoff and jitter reduce synchronization but do not guarantee recovery from global overload. (high confidence)",
+          "text": "Exercise real retry behavior and dependency failure under load. Work finished after the client has timed out is wasted, and retries multiply offered load (exponentially across deep call graphs). Randomized backoff keeps retries from synchronizing, but when retries keep an overloaded backend overloaded, recovery requires dramatically reducing or eliminating load until the retries stop. Sources: https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/ ; https://sre.google/sre-book/addressing-cascading-failures/",
           "source": "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/",
           "note": null,
           "claimId": "clm:a2613471cab2ee1411d42654bb4bd7bd5a996f80a799f3386f4d21bf7fca95b9",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://slack.engineering/slacks-incident-on-2-22-22/",
+            "https://sre.google/sre-book/addressing-cascading-failures/"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:71a1ce8b797d1b7ae3ceff265dcdb96967e650e3b540b4c49e2d44366a5c8865",
             "ev:8f1bc29b0b30905c3277845a70fc7c345468e44135b1a9939b4b12dd941370cf",
             "ev:b9b61a3c6ec3a8de94ec8de0febc599d011706417f5d0b117600465e60564067"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "60cab0f48e2a374adea82be2686db36a53a478db87543a92812e3d6c60ebb72d"
+          }
         },
         {
           "text": "A cache-miss feedback loop can sustain failure: misses increase database reads, overloaded reads time out, cache refill fails, and misses persist. Slack documented this mechanism in its 2022 incident; it is evidence for an application-cache test scenario, not proof of an intrinsic MongoDB eviction defect. (high confidence)",
@@ -120,6 +166,9 @@
           "validationStatus": "SUPPORTED",
           "evidenceIds": [
             "ev:b9b61a3c6ec3a8de94ec8de0febc599d011706417f5d0b117600465e60564067"
+          ],
+          "also": [
+            "https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf"
           ]
         },
         {
@@ -133,16 +182,28 @@
           ]
         },
         {
-          "text": "As a diagnostic synthesis, correlate load and client latency with cache occupancy, eviction activity, application-thread eviction time, storage I/O, and commit progress. High cache occupancy alone does not demonstrate a death spiral: eviction is normal, while lost progress and falling goodput identify a more serious failure. (medium confidence)",
+          "text": "WiredTiger evicts normally as cache fills (eviction_target default 80%, with application threads joining at eviction_trigger default 95%); application-thread eviction throttles operations and raises latency. Correlating load and client latency with cache occupancy, eviction activity and application-thread eviction is reasonable diagnostics; treating lost progress and falling goodput, rather than high occupancy alone, as the sign of a serious failure is a synthesis not stated in WiredTiger documentation. Sources: https://source.wiredtiger.com/11.3.1/tune_cache.html",
           "source": "https://source.wiredtiger.com/11.3.1/tune_cache.html",
           "note": null,
           "claimId": "clm:c2cca24093f70e8fd21810a546a9fe0057f81a691577a4c48206f66aa4889294",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/README.md",
+            "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:1f33bb83323b20b3f8d586807f6d947525f9050d8eb32c1080e09ea8801daee5",
             "ev:411d036eadf09d597ac00025f06c03943ad621ca4bad74eae13cdd909e43b0c5",
             "ev:5c6b163d17e1cc19b8f4c0e9caf00f9a9e025531c4b8fa0450fb0758c50b562e"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "80cce1f409c0b5b81eb7a05af1d1071117d922192c49a6d4efcdae178d5cb82f"
+          }
         }
       ]
     },
@@ -158,6 +219,9 @@
           "evidenceIds": [
             "ev:1f33bb83323b20b3f8d586807f6d947525f9050d8eb32c1080e09ea8801daee5",
             "ev:bf0419e99196f20320725d7842cec27aa8c7e04ad916b36a82c14dec83b1a656"
+          ],
+          "also": [
+            "https://source.wiredtiger.com/11.3.1/tune_cache.html"
           ]
         },
         {
@@ -170,19 +234,33 @@
             "ev:682ebf7bf167292f44dc4c45a7b232dc63e8517345a335927371da85bb50615a",
             "ev:8b8e756f2eb2dd29584607cd16f7bc40677cf73d86d6a688cefeb384046bd8f7",
             "ev:8f1bc29b0b30905c3277845a70fc7c345468e44135b1a9939b4b12dd941370cf"
+          ],
+          "also": [
+            "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/"
           ]
         },
         {
-          "text": "As a test-design synthesis, compare bounded, jittered retries and early rejection against the unprotected baseline. Measure useful completions, retry volume, and recovery; protection should reduce wasted work rather than merely move failures between layers. (medium confidence)",
+          "text": "Google's SRE guidance supports using randomized exponential backoff, limiting retries per request, and having overloaded servers reject requests; retries reduce the fraction of useful work the backend performs. Comparing these protections against an unprotected baseline and measuring useful completions, retry volume and recovery is a test-design suggestion, not stated by the source. Sources: https://sre.google/sre-book/addressing-cascading-failures/",
           "source": "https://sre.google/sre-book/addressing-cascading-failures/",
           "note": null,
           "claimId": "clm:92ba2f5b6f1c91a5dc0e0a8f2e5950784c332e2fcd38c5abef636c49f8a3c98b",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:682ebf7bf167292f44dc4c45a7b232dc63e8517345a335927371da85bb50615a",
             "ev:71a1ce8b797d1b7ae3ceff265dcdb96967e650e3b540b4c49e2d44366a5c8865",
             "ev:8f1bc29b0b30905c3277845a70fc7c345468e44135b1a9939b4b12dd941370cf"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "fe3a48f1e33acff6a01e3ff2968e1e5b05df92c496a354a9928d2e6377387c5c"
+          }
         }
       ]
     },
@@ -198,6 +276,9 @@
           "evidenceIds": [
             "ev:411d036eadf09d597ac00025f06c03943ad621ca4bad74eae13cdd909e43b0c5",
             "ev:995c7ba5d9315eb09ec4e0a9057e0aed97b9fb6e908e231c8bffbb835355c975"
+          ],
+          "also": [
+            "https://sre.google/sre-book/addressing-cascading-failures/"
           ]
         },
         {
@@ -210,18 +291,33 @@
             "ev:3303da060e3e063c17653a4c3086771a7828c30264f4531ffff386014c164b8d",
             "ev:582fc285e39f234c905da5071c7482e2cb1e3b5fa79c0d2e84964d44b7eb4666",
             "ev:87628afd11464d557445e46b9368b93c4bd344a1c0ace55abdb9af9bc0661c30"
+          ],
+          "also": [
+            "https://slack.engineering/slacks-incident-on-2-22-22/"
           ]
         },
         {
-          "text": "Distinguish application-cache stampedes from WiredTiger page eviction. WiredTiger normally evicts pages to free cache space; under pressure application threads can perform eviction, diverting time from operations and increasing latency. Eviction activity alone does not establish a self-sustaining death spiral. (high confidence)",
+          "text": "WiredTiger continuously evicts pages to free cache space. When its eviction threads cannot keep up with demand for cache space, application threads are tasked with eviction as well, throttling operations and increasing latency (default trigger 95% of cache). Whether eviction activity alone indicates a self-sustaining death spiral is an interpretive judgment, not stated by WiredTiger documentation. Sources: https://source.wiredtiger.com/develop/eviction.html ; https://source.wiredtiger.com/11.3.1/tune_cache.html",
           "source": "https://source.wiredtiger.com/develop/eviction.html",
           "note": null,
           "claimId": "clm:24361645952cc999ef19b1f4bcb9b53e8fee7288aa4b148b826c2a7fc6424e5b",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://source.wiredtiger.com/11.3.1/tune_cache.html",
+            "https://discuss.circleci.com/t/postmortem-march-26-april-10-workflow-delay-incidents/30060"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:36799c6b7e3aa743f00b33992facb6ef83dbf4f7ae81e6f0684cf07fed6dfff8",
             "ev:5c6b163d17e1cc19b8f4c0e9caf00f9a9e025531c4b8fa0450fb0758c50b562e"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "a1e34c4d22d69af9ecc3bd209d452cd53f5a6bb6acfb6f3050d8ac5553069098"
+          }
         },
         {
           "text": "Current manual guidance says low available execution tickets alone do not indicate overload; queued reads and writes are the relevant signal. Do not carry the fixed ticket defaults quoted in the 2019 CircleCI postmortem into a current test baseline. (medium confidence) (verified as of 2026-10-23)",
@@ -232,27 +328,49 @@
           "evidenceIds": [
             "ev:88ad1ebd553c9959adb6946045cb9d25be1a001d352316d9d8451c93e363e81f",
             "ev:ce765726e24ba51443209386eee2ebd431deeab06f4f4f8180d598ddaef12029"
+          ],
+          "also": [
+            "https://discuss.circleci.com/t/postmortem-march-26-april-10-workflow-delay-incidents/30060"
           ]
         },
         {
-          "text": "Increase offered load beyond the capacity knee and plot goodput: successful responses completed before client deadlines. A healthy overload response approaches a plateau; collapsing goodput reveals overload instability even if request throughput stays high. (high confidence)",
-          "source": "https://sre.google/sre-book/addressing-cascading-failures/",
+          "text": "Increase offered load beyond the capacity knee and plot goodput: successful responses completed before client deadlines. A healthy overload response approaches a plateau; collapsing goodput reveals overload instability even if request throughput stays high. (high confidence) Sources: https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/",
+          "source": "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/",
           "note": null,
           "claimId": "clm:2a6baee43dbe18182a0eaf36bed6881a92310c704eee6bdb6b65812f6fce92d5",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "also": [
+            "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/"
+          ],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:411d036eadf09d597ac00025f06c03943ad621ca4bad74eae13cdd909e43b0c5"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "b35c8309e284c36b9bcdae842ac473651401e72f5f0d0379cff5ca515f6b9c95"
+          }
         },
         {
-          "text": "Cheap rejection has finite capacity. AWS reports that shedding itself eventually consumes enough resources to reduce goodput, and isolated fault injection does not replace an end-to-end load test that stresses dependencies. (low confidence)",
+          "text": "Cheap rejection has finite capacity. AWS reports that shedding load is not free, so eventually the server falls prey to Amdahl's law and goodput drops. Artificially raising per-instance load by shrinking the fleet is useful for testing a service in isolation but is not a complete substitute for a full end-to-end load test, which also loads the service's dependencies and can uncover other bottlenecks. Sources: https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/",
           "source": "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/",
           "note": null,
           "claimId": "clm:5984d6c3e6ef4c678814d929e58a4685fadc93b570c5522d507fe59d68a88d77",
-          "validationStatus": "SUPPORTED",
-          "evidenceIds": [
+          "validationStatus": "REMEDIATED-PROJECTION",
+          "evidenceIds": [],
+          "originValidationStatus": "SUPPORTED",
+          "originEvidenceIds": [
             "ev:daada44fbc6a8e1d71ec264d693aef76f7c2ab54c9d7c2cac9a95ce4972af330"
-          ]
+          ],
+          "remediation": {
+            "schema": "claim-remediation-projection/v1",
+            "record": "remediation.json",
+            "requires_revalidation": true,
+            "claim_text_sha256": "7cadc0452c26c473e4b8d30a332d1d05850e9d1463582159e507bbe19f11c324"
+          }
         },
         {
           "text": "Alex Bevilacqua’s incident describes MongoDB 3.0.15 and reports improvement after an upgrade. His June 2018 updates qualify the explanation: cache-management and checkpoint improvements were more likely contributors than the initially suggested write-ahead-log optimization. Treat this as historical diagnostic evidence, not a current-release defect or a controlled attribution. (low confidence)",

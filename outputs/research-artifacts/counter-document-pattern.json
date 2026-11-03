@@ -1,0 +1,124 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Counter-document pattern",
+  "slug": "counter-document-pattern",
+  "canonical_concept_id": "concept:b229e8aaa52233bf4cf5316b9c63e14a6e26fc0fa7cef91b6380ffcb25373a5b",
+  "canonical_artifact_sha256": "3e31f4898b5f947dc5eee2270416891c62d8872d793c4c39529748905270a08c",
+  "claims": [
+    {
+      "id": "clm:2b3e6e4c957e066fc97abf0ec13f2b8554b75f4621d502c3d01bc9a13d8ef221",
+      "text": "Replace a repeatedly requested count with a maintained summary-document value, updating it at write time and reading it through an indexed lookup. This trades additional write work for cheaper repeated reads and is particularly appropriate when reads substantially outnumber writes. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/data-modeling/design-patterns/computed-values/computed-schema-pattern/",
+      "also": [
+        "https://www.percona.com/sites/default/files/presentations/Running-MongoDB-Production-Webinar-Pt-III.pdf"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:21c34dfd192dc212adcb20f062a5f2fad28eba01447a58157fa7bfb7dcef5063",
+        "ev:801684b1495f044afc02108a9d5cd56f2fb0ea0239b44664d1a46ee2cdf0d912"
+      ]
+    },
+    {
+      "id": "clm:142376aa47dd57a93307801c255de219265efdc20fac866fe4e4840ea566d2c9",
+      "text": "Atomic increments do not guarantee unlimited throughput on one global counter. MongoDB storage documentation describes conflicts and transaction restarts under optimistic concurrency; a practitioner reports poor performance from many threads incrementing one document. Treat the hot-document risk as workload-dependent, without deriving a universal throughput ceiling from that report. (high confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/README.md",
+      "also": [
+        "https://www.reddit.com/r/mongodb/comments/nb96ew/",
+        "https://github.com/mongodb/agent-skills/blob/main/skills/mongodb-schema-design/references/pattern-approximation.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:81ce17d40ad9340b29d0713d86fed2c15794480114d7b5dab164b7762672bdea",
+        "ev:f5e4460f8bd99f6452966e55e8fc35b8da2a93e869461f90704f8371be363adf"
+      ]
+    },
+    {
+      "id": "clm:93505fbda779010d6ffa3e9eca81051bf657ba929a392d7d514c4c699a3f8ff8",
+      "text": "One practitioner proposal spreads increments across documents keyed by thread and time window, then aggregates older windows into a central total. This is an unbenchmarked contention-reduction design lead, not a verified exactly-once algorithm: the proposed update-then-delete steps need their own failure handling before production use. (low confidence)",
+      "source_url": "https://www.reddit.com/r/mongodb/comments/nb96ew/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:04085bc0c68af864eabc193a032819b3b26714ec0c8115c0b213d8a19404f322"
+      ]
+    },
+    {
+      "id": "clm:cbcb685ec4655fc4cb66dd48a528a83de4253556226abe2c90eb41ad57dbbefd",
+      "text": "Use server-side $inc for concurrent increments to an existing counter document. Unlike clients reading a number and writing a replacement with $set, concurrent increments do not overwrite one another; the atomicity guarantee covers the single counter document. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/write-operations-atomicity/",
+      "also": [
+        "https://www.percona.com/sites/default/files/presentations/Running-MongoDB-Production-Webinar-Pt-III.pdf",
+        "https://github.com/mongodb/agent-skills/blob/main/skills/mongodb-schema-design/references/pattern-approximation.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1eaa970086ed6d1ec75de3b0a66d1c3eb087cc224a7828edf302227730cca408"
+      ]
+    },
+    {
+      "id": "clm:ee8d3ee49aa2d4b380ea00a175bee755add719bf3c8cb19c44bb75e62870dcfa",
+      "text": "Periodic recomputation of stored totals permits stale results between refreshes. An approximation policy can additionally reduce update frequency when exact values are unnecessary; choose and document the tolerated accuracy instead of presenting such a counter as an exact current count. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/data-modeling/design-patterns/computed-values/computed-schema-pattern/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/data-modeling/design-patterns/computed-values/approximation-schema-pattern.md",
+        "https://github.com/mongodb/agent-skills/blob/main/skills/mongodb-schema-design/references/pattern-approximation.md"
+      ],
+      "validation_status": "NOT-SAMPLED",
+      "evidence_ids": []
+    },
+    {
+      "id": "clm:b254cebbbbaecdb6341d4873ecd14ba418638fd025916bd1a8dd7c2de42c9dad",
+      "text": "Batching increments in local memory reduces database writes but leaves unsynchronized events vulnerable to process restart. This is an explicit approximation tradeoff and is unsuitable when exact real-time counts are required. (high confidence)",
+      "source_url": "https://github.com/mongodb/agent-skills/blob/main/skills/mongodb-schema-design/references/pattern-approximation.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/data-modeling/design-patterns/computed-values/computed-schema-pattern/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:18a3964a931919373dfb8252a629f46734195b5a4cff51961f05d7af4959ff75"
+      ]
+    },
+    {
+      "id": "clm:bc45219af8951ecf9ded3638a9cd7796b97d597fb7ec11e6c96e5b9cd35d8143",
+      "text": "The mongoose-sequence README documents a separate counters collection, global and scoped sequences, and atomic sequence allocation. It also warns that insertMany bypasses the hooks needed to increment its counter. Sequence allocation is not a maintained live-document count, so this library is implementation evidence rather than a general count-query replacement. (medium confidence) (verified as of 2026-10-30)",
+      "source_url": "https://github.com/ramiel/mongoose-sequence",
+      "also": [
+        "https://www.percona.com/sites/default/files/presentations/Running-MongoDB-Production-Webinar-Pt-III.pdf"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:27d7b25090f0248d1a5475bd0170794a2c0d6ff102fa0a971ffb6302c59b438a",
+        "ev:909dceb3679a642dd5b96fc0e23ec44942466469b4cfcbaf63bbc1f1c8c9e6e0",
+        "ev:b47f32b4f331b235584e4478915fe89da1d9a2329863ce7388d0498898cf0d8e",
+        "ev:e4bf5700b54eda6b382c88e8b50ba099e272707daa37a20ced195b5a7ca100be"
+      ]
+    },
+    {
+      "id": "clm:8f4e3761cc1bde1b79d2228496e450ac0f966724234fdb3f122bef581ad16489",
+      "text": "Maintain the counter for the exact population being queried: inserts and deletes require corresponding adjustments, and a document moving into or out of that population changes its count. This is an application-design implication of write-time summaries, rather than automatic behavior supplied by the counter field. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/data-modeling/design-patterns/computed-values/computed-schema-pattern/",
+      "also": [
+        "https://www.percona.com/sites/default/files/presentations/Running-MongoDB-Production-Webinar-Pt-III.pdf"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:21c34dfd192dc212adcb20f062a5f2fad28eba01447a58157fa7bfb7dcef5063",
+        "ev:801684b1495f044afc02108a9d5cd56f2fb0ea0239b44664d1a46ee2cdf0d912"
+      ]
+    },
+    {
+      "id": "clm:b45755d5bee8ca76161e40a98ad2b0afc0a636b396c7a5f4c2b1589ae82a0fd0",
+      "text": "A separate source-document insert or delete and its counter adjustment are not automatically atomic together. For an all-or-nothing change across those documents, MongoDB supports multi-document transactions, which generally cost more than single-document writes. This is a design implication of maintaining computed data separately. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/write-operations-atomicity/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/data-modeling/design-patterns/computed-values/computed-schema-pattern/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4f58b9cbcd8006756f036e1dd3652e98dd89b4f8f3e7354ce9fec96a7a067be0",
+        "ev:801684b1495f044afc02108a9d5cd56f2fb0ea0239b44664d1a46ee2cdf0d912"
+      ]
+    }
+  ],
+  "projection_sha256": "7f799dd8dce7fa0e4099bce1624d892ca6a88b1aa9a9a6016c14be3fc330a5a9"
+}

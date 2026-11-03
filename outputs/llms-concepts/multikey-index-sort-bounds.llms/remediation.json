@@ -1,0 +1,513 @@
+{
+ "schema": "claim-remediation/v1",
+ "applications": [
+  {
+   "slug": "multikey-index-sort-bounds",
+   "at": "2026-11-02T14:10:27Z",
+   "pack": "outputs/llms-concepts/multikey-index-sort-bounds.llms",
+   "packSha256Before": "c03bce3994d809c268729a9b521bfb590de79a23e8efcb78c914b97d3d796bdf",
+   "edits": [
+    {
+     "claim_id": "clm:01277355807d8f303db6aaec3c88d515a2abb2a544a49ed24e24c5de84e9316e",
+     "unit_id": "clm:6875897467e5343c7452e5147423425f667dd4692b3fc8efaf7a5dbdb695435d",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "To investigate multikey sort performance, inspect how the actual query plan uses the index and check whether a separate sort remains. Index use for document selection alone does not establish index-provided ordering. This verification method follows from explain's purpose and the documented multikey exception. (medium confidence)",
+     "new": "To investigate multikey sort performance, inspect how the actual query plan uses the index and check whether a separate sort remains. Index use for document selection alone does not establish index-provided ordering. This verification method follows from explain's purpose and the documented multikey exception. (medium confidence) Sources: https://www.mongodb.com/docs/manual/reference/explain-results.md ; https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/manual/reference/explain-results.md",
+       "quote": "If MongoDB cannot use an index or indexes to obtain the sort order, the results include a `SORT` stage indicating an in-memory sort operation.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+       "quote": "the query plan includes an [in-memory sort](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-in-memory-sort) stage unless both of the following are true:",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "To investigate multikey sort performance, inspect the actual query plan (explain) for a remaining separate sort stage.",
+       "outcome": "VERIFIED",
+       "note": "A SORT stage in explain indicates an in-memory sort; its absence means an index provided the order.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [
+         "mongodb explain results SORT stage blocking sort index provides sort multikey"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/reference/explain-results.md"
+        ]
+       }
+      },
+      {
+       "statement": "Index use for document selection alone does not establish index-provided ordering for multikey indexes.",
+       "outcome": "VERIFIED",
+       "note": "For array sort fields with a multikey index, the plan includes an in-memory sort unless the bounds conditions hold.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [
+         "mongodb explain results SORT stage blocking sort index provides sort multikey"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "mongodb explain results SORT stage blocking sort index provides sort multikey"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/manual/reference/explain-results.md",
+       "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md"
+      ]
+     },
+     "rationale": "MongoDB's explain docs say an explicit SORT stage means an in-memory sort, and its absence means an index supplied the order. The sort-with-indexes page says a multikey index on an array sort field still yields an in-memory sort unless the bounds conditions hold, so index use for selection alone does not establish index-provided ordering."
+    },
+    {
+     "claim_id": "clm:1b4c141429e485f54e67235854b6a611cd132f89ab9b4fc2f228cfcf031c0af3",
+     "unit_id": "clm:a2c2a87e3355b4fc093d99a7be1df08c48baf49ffd29087dddb270655d8a80c4",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "Changing independent array comparisons to $elemMatch changes query meaning as well as enabling bound intersection. Codevra's worked example contrasts scores [70,100] with [92]: independent >=90 and <=95 predicates match both documents, while the same-element condition matches only [92]. Treat this as a semantic decision before optimizing an array filter that precedes sorting. (high confidence)",
+     "new": "Changing independent array comparisons to $elemMatch changes query meaning as well as enabling bound intersection. Without $elemMatch, the same element need not satisfy both conditions and MongoDB cannot intersect the bounds; with $elemMatch, the array must contain at least one single element matching all conditions. Treat this as a semantic decision before optimizing an array filter that precedes sorting. Sources: https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md",
+       "quote": "If the query does not join the conditions on the array field with `$elemMatch`, MongoDB cannot intersect the multikey index bounds.",
+       "supports": "correction"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md",
+       "quote": "The same element can satisfy both criteria.",
+       "supports": "correction"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md",
+       "quote": "to return documents where the `grades` array contains at least one element that matches *both* of the specified conditions.",
+       "supports": "correction"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Changing independent array comparisons to $elemMatch changes query meaning as well as enabling bound intersection.",
+       "outcome": "VERIFIED",
+       "note": "Supported by the MongoDB docs.",
+       "evidence_index": [
+        0,
+        1,
+        2
+       ],
+       "searched": {
+        "queries": [
+         "Codevra MongoDB multikey index $elemMatch scores [70,100] [92] bounds"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md"
+        ]
+       }
+      },
+      {
+       "statement": "Codevra's worked example contrasts scores [70,100] with [92] under >=90 and <=95.",
+       "outcome": "NO-SOURCE-FOUND",
+       "note": "No Codevra source found; the docs use grades [70,85] and [92,84] with $gte 90, $lte 99.",
+       "evidence_index": [],
+       "searched": {
+        "queries": [
+         "Codevra MongoDB multikey index $elemMatch scores [70,100] [92] bounds"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md"
+        ]
+       }
+      },
+      {
+       "statement": "Treat this as a semantic decision before optimizing an array filter that precedes sorting.",
+       "outcome": "VERIFIED",
+       "note": "Advice follows from the semantic difference documented.",
+       "evidence_index": [
+        1,
+        2
+       ],
+       "searched": {
+        "queries": [
+         "Codevra MongoDB multikey index $elemMatch scores [70,100] [92] bounds"
+        ],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [
+       "Codevra MongoDB multikey index $elemMatch scores [70,100] [92] bounds"
+      ],
+      "urls": [
+       "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md",
+       "https://dev.to/mongodb/elemmatch-and-multi-key-indexes-i6e"
+      ]
+     },
+     "rationale": "The MongoDB docs support the semantic difference and the bound-intersection behavior. The specific Codevra example (scores [70,100] vs [92]) was not found in any source, so the attribution and example are dropped."
+    },
+    {
+     "claim_id": "clm:252604cf0765c9de75b7f970e0ba94ed833eaa4f6d298098fcacaf3eafa5022a",
+     "unit_id": "clm:e212f5b2abfbd19b6d3cd34a5ad291a883990bd9245d9bf5979e815ac246f45a",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Ascending array sorts use the lowest array element; descending sorts use the highest. A predicate restricting matching array elements does not redefine the document's sort key. SERVER-31898 illustrates why scanning only myArray >= 5 would misorder arrays [1,6,7] and [3,4,5]. (high confidence)",
+     "new": "Ascending array sorts use the lowest array element; descending sorts use the highest. A predicate restricting matching array elements does not redefine the document's sort key. SERVER-31898 illustrates why scanning only myArray >= 5 would misorder arrays [1,6,7] and [3,4,5]. (high confidence) Sources: https://jira.mongodb.org/browse/SERVER-19402 ; https://jira.mongodb.org/browse/SERVER-31898",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-19402",
+       "quote": "The new behavior is to sort documents according to the lowest-valued element of the array for ascending sorts, and according to the highest-valued element of the array for descending sorts.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-31898",
+       "quote": "If we were to use an index scan with bounds [5, Infinity] to answer this query, then these documents would sort incorrectly---the second document would use 5 as its sort key and the first document would use 6.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-19402",
+       "quote": "Prior to this change, the find command's behavior was similar to the above, except the smallest in-bounds element was selected as the sort key.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Ascending array sorts use the lowest array element; descending sorts use the highest.",
+       "outcome": "VERIFIED",
+       "note": "Since 3.5.11.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-19402"
+        ]
+       }
+      },
+      {
+       "statement": "A predicate restricting matching array elements does not redefine the document's sort key.",
+       "outcome": "VERIFIED",
+       "note": "Pre-3.5.11 the in-bounds element was used; now it is not.",
+       "evidence_index": [
+        0,
+        2
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-19402"
+        ]
+       }
+      },
+      {
+       "statement": "SERVER-31898 illustrates why scanning only myArray >= 5 would misorder [1,6,7] and [3,4,5].",
+       "outcome": "VERIFIED",
+       "note": "Stated in SERVER-31898.",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-31898"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [],
+      "urls": [
+       "https://jira.mongodb.org/browse/SERVER-19402",
+       "https://jira.mongodb.org/browse/SERVER-31898"
+      ]
+     },
+     "rationale": "SERVER-19402 states the lowest/highest element rule (from 3.5.11). SERVER-31898 gives the myArray >= 5 example with [1,6,7] and [3,4,5]; the rule that the predicate does not redefine the sort key follows from the new semantics replacing predicate-dependent selection."
+    },
+    {
+     "claim_id": "clm:c128c4ebf6251770ada65c30e5feae26fba95f1794bc797795cd22829d47d2eb",
+     "unit_id": "clm:2e7cd9fd154ade07aa3d1a0e964ca1692238b3cfaeb0b177549e7329031fd2fd",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "A multikey index creates separate entries for distinct array values, so one document can have multiple index entries. For array sorting, MongoDB generates the set of keys for the sort pattern and uses the minimum key by index ordering as the document-level sort key; an individual entry is therefore not generally the document's sort key. (medium confidence)",
+     "new": "A multikey index creates separate entries for distinct array values, so one document can have multiple index entries. For array sorting, MongoDB generates the set of keys for the sort pattern and uses the minimum key by index ordering as the document-level sort key; an individual entry is therefore not generally the document's sort key. (medium confidence) Sources: https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md ; https://jira.mongodb.org/browse/SERVER-19402",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md",
+       "quote": "For each distinct value in the array, MongoDB creates a separate entry in the index, and each entry points back to the same document.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-19402",
+       "quote": "To determine the sort key for a document d given sort pattern p, we generate the set of index keys K for d by treating p as an index key pattern. The sort key is min(K), where min is determined by the index ordering.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "A multikey index creates separate entries for distinct array values, so one document can have multiple index entries.",
+       "outcome": "VERIFIED",
+       "note": "Documented.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md"
+        ]
+       }
+      },
+      {
+       "statement": "For array sorting, MongoDB generates the set of keys for the sort pattern and uses the minimum key by index ordering as the document's sort key.",
+       "outcome": "VERIFIED",
+       "note": "Per SERVER-19402 (3.5.11+).",
+       "evidence_index": [
+        1
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-19402"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [],
+      "urls": [
+       "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md",
+       "https://jira.mongodb.org/browse/SERVER-19402"
+      ]
+     },
+     "rationale": "The multikey docs state one document can have multiple entries. SERVER-19402 states the sort key is min(K) of the keys generated from the sort pattern, by index ordering, so a single entry is not generally the sort key."
+    },
+    {
+     "claim_id": "clm:d347f02ce9869b07b2c80f1e0c8f1cb8959ed73387932c9c965ad749ea2b66ad",
+     "unit_id": "clm:f564218015476481391cfcbfa101084a27ede3a6f5d2c1185879997bded941be",
+     "outcome": "CORRECTED",
+     "action": "rewrite",
+     "old": "Full bounds on a.c do not by themselves permit an index-provided sort when a is an array: bounding a.b in index {'a.b':1,'a.c':1} can hide the a.c element that should determine order. SERVER-31898 explains this shared-prefix constraint; SERVER-32525 supplies an older reproduction of index-dependent ordering. (high confidence)",
+     "new": "Full bounds on a.c do not by themselves permit an index-provided sort when a is an array: bounding a.b in index {'a.b':1,'a.c':1} can hide the a.c element that should determine order. SERVER-31898 explains this shared-prefix constraint; SERVER-32525 (opened later, January 2018) reproduces index-dependent ordering for the same query shape. Sources: https://jira.mongodb.org/browse/SERVER-31898 ; https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md ; https://jira.mongodb.org/browse/SERVER-32525",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-31898",
+       "quote": "The problem is that the bounds on \"a.b\" constrain which keys along the path \"a.c\" we scan, even though the index bounds for \"a.c\" are [MinKey, MaxKey].",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+       "quote": "- No boundaries for any multikey-indexed field have the same path prefix as the sort pattern.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-32525",
+       "quote": "For queries with a predicate over a multikey field and a subsequent sort, the result set is ordered differently depending on whether an index is present.",
+       "supports": "correction"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-32525",
+       "quote": "Jan 03 2018 03:05:26 PM UTC",
+       "supports": "correction"
+      },
+      {
+       "url": "https://jira.mongodb.org/browse/SERVER-31898",
+       "quote": "Nov 09 2017 07:53:13 PM UTC",
+       "supports": "correction"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "Full bounds on a.c do not by themselves permit an index-provided sort when a is an array; bounding a.b in index {'a.b':1,'a.c':1} can hide the a.c element that should determine order.",
+       "outcome": "VERIFIED",
+       "note": "SERVER-31898 constraint #2.",
+       "evidence_index": [
+        0,
+        1
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-31898",
+         "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md"
+        ]
+       }
+      },
+      {
+       "statement": "SERVER-31898 explains this shared-prefix constraint.",
+       "outcome": "VERIFIED",
+       "note": "Yes.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-31898"
+        ]
+       }
+      },
+      {
+       "statement": "SERVER-32525 supplies an older reproduction of index-dependent ordering.",
+       "outcome": "CORRECTED",
+       "note": "It reproduces index-dependent ordering but is newer (Jan 2018) than SERVER-31898 (Nov 2017).",
+       "evidence_index": [
+        2,
+        3,
+        4
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://jira.mongodb.org/browse/SERVER-32525",
+         "https://jira.mongodb.org/browse/SERVER-31898"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [],
+      "urls": [
+       "https://jira.mongodb.org/browse/SERVER-31898",
+       "https://jira.mongodb.org/browse/SERVER-32525",
+       "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md"
+      ]
+     },
+     "rationale": "SERVER-31898 and the sort-with-indexes docs support the shared-prefix constraint. SERVER-32525 does show index-dependent ordering with the same a.b/a.c shape, but it was created Jan 2018, after SERVER-31898 (Nov 2017), so it is not an 'older' reproduction."
+    },
+    {
+     "claim_id": "clm:e70e1e714af104bcacb887d27ea4f70e00ba1144049b65b82d6b44f33a0c2c0d",
+     "unit_id": "clm:a28868a63dc6680f28450a5b5567116147cb87f354560385d5df15e6e0f533c4",
+     "outcome": "VERIFIED",
+     "action": "rewrite",
+     "old": "Tighter multikey filter bounds are not evidence that a sort is index-provided. For example, $elemMatch can intersect two array predicates into narrower bounds, but an array sort must still satisfy the separate full-bounds and path-prefix restrictions. This is an inference from the documented filtering and sorting rules. (medium confidence)",
+     "new": "Tighter multikey filter bounds are not evidence that a sort is index-provided. For example, $elemMatch can intersect two array predicates into narrower bounds, but an array sort must still satisfy the separate full-bounds and path-prefix restrictions. This is an inference from the documented filtering and sorting rules. (medium confidence) Sources: https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md ; https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+     "hits": {
+      "llms-facts.txt": 1,
+      "llms-full.txt": 1,
+      "llms-small.txt": 1,
+      "llms.txt": 0,
+      "units.jsonl": 1
+     },
+     "evidence": [
+      {
+       "url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md",
+       "quote": "Because the query uses `$elemMatch` to join these predicates, MongoDB intersects the bounds to:",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+       "quote": "for all sort fields are `[MinKey, MaxKey]`.",
+       "supports": "claim"
+      },
+      {
+       "url": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+       "quote": "No boundaries for any multikey-indexed field have the same path prefix as the sort pattern.",
+       "supports": "claim"
+      }
+     ],
+     "statements": [
+      {
+       "statement": "$elemMatch can intersect two array predicates into narrower bounds on a multikey index.",
+       "outcome": "VERIFIED",
+       "note": "Documented on the multikey bounds page.",
+       "evidence_index": [
+        0
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md"
+        ]
+       }
+      },
+      {
+       "statement": "An array sort must still satisfy the full-bounds ([MinKey, MaxKey]) and path-prefix restrictions to be index-provided, so tighter filter bounds are not evidence of an index-provided sort.",
+       "outcome": "VERIFIED",
+       "note": "The sort page states both conditions; the conclusion is the author's inference from them, as the claim says.",
+       "evidence_index": [
+        1,
+        2
+       ],
+       "searched": {
+        "queries": [],
+        "urls": [
+         "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md"
+        ]
+       }
+      }
+     ],
+     "searched": {
+      "queries": [],
+      "urls": [
+       "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds.md",
+       "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+       "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md"
+      ]
+     },
+     "rationale": "The multikey bounds page documents that $elemMatch makes MongoDB intersect bounds. The sort-with-indexes page states that sorting on a multikey-indexed array field needs an in-memory sort unless the bounds for all sort fields are [MinKey, MaxKey] and no multikey field's bounds share the sort pattern's path prefix. The claim joins these two documented rules and says it is an inference. The sources support it, and narrowed bounds on a sort field would actually work against the full-bounds condition."
+    }
+   ],
+   "skipped": [],
+   "changed": [
+    "llms-facts.txt",
+    "llms-full.txt",
+    "llms-small.txt",
+    "units.jsonl"
+   ]
+  }
+ ],
+ "publication": {
+  "schema": "remediation-public-projection/v1",
+  "source_record_sha256": "9ca0df325cf6eeec2cd3f6da162c99390c20301aec5bcabed94640497947cfe4",
+  "redactions": [
+   "operator-specific pack path"
+  ]
+ }
+}

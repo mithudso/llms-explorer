@@ -234,8 +234,11 @@ def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
                           and scrub._matches(item, terms) else clean(item))
                     for key, item in value.items()}
             if value.get("validationStatus") and any(result.get(k) != value.get(k) for k in ("text", "source")):
-                result["originValidationStatus"] = value["validationStatus"]
-                result["validationStatus"] = "REDACTED-PROJECTION"
+                if value["validationStatus"] == "REMEDIATED-PROJECTION":
+                    result["publicationRedacted"] = True
+                else:
+                    result.setdefault("originValidationStatus", value["validationStatus"])
+                    result["validationStatus"] = "REDACTED-PROJECTION"
             return result
         if not isinstance(value, str):
             return value

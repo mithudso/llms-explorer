@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v99 - 2026-11-03
+
+> Commit all of the untracked files, concepts, etc. merge pull, pr. Make sure no change gets forgotten.
+
+Scope: TASK-1120. Preserve and inventory every pending path and companion worktree; integrate all publication-safe changes with current main, verify privacy and proof labels, then commit, push, PR, merge and synchronize. Retain private originals and explicit dispositions for excluded files. Delta: prompt v98 to v99.
+
 ## Prompt v98 - 2026-11-02
 
 Continue researching the MongoDB queue in /Users/mitch/dev/llms-explorer.
