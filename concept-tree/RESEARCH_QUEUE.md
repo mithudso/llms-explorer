@@ -573,8 +573,8 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Straight-to-8 jump pattern` | Parent: `MongoDB Upgrade Paths` | Mode: `revisit` | Cluster: `MongoDB Upgrade Paths (4 of 4)` | Queue-state: `held-review`
 - [ ] Concept: `Version upgrade paths (4.4 → 5.0 → 6.0 → 7.0 → 8.0)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)` | Queue-state: `held`
 - [ ] Concept: `WiredTiger cache warm-up` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)` | Queue-state: `held`
-- [ ] Concept: `allowDiskUse-100MB-stage` | Parent: `mongodb-aggregation-stages-deep` | Mode: `dr` | Cluster: `mongodb-aggregation-stages-deep` | Queue-state: `held`
-- [ ] Concept: `explain-executionStats-usedDisk` | Parent: `mongodb-aggregation-stages-deep` | Mode: `dr` | Cluster: `mongodb-aggregation-stages-deep` | Queue-state: `held`
+- [ ] Concept: `allowDiskUse-100MB-stage` | Parent: `Aggregation stages in depth` | Mode: `dr` | Cluster: `mongodb-aggregation-stages-deep` | Queue-state: `held`
+- [ ] Concept: `explain-executionStats-usedDisk` | Parent: `Aggregation stages in depth` | Mode: `dr` | Cluster: `mongodb-aggregation-stages-deep` | Queue-state: `held`
 - [ ] Concept: `Pipeline Stages Reference` | Parent: `MongoDB Aggregation Pipeline` | Mode: `revisit` | Cluster: `MongoDB Aggregation Pipeline` | Queue-state: `held-review`
 - [ ] Concept: `Pipeline Optimization` | Parent: `MongoDB Aggregation Pipeline` | Mode: `revisit` | Cluster: `MongoDB Aggregation Pipeline` | Queue-state: `held-review`
 - [ ] Concept: `Window Functions ($setWindowFields)` | Parent: `MongoDB Aggregation Pipeline` | Mode: `revisit` | Cluster: `MongoDB Aggregation Pipeline` | Queue-state: `held-review`
@@ -733,9 +733,9 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `heartbeat-configuration` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector` | Queue-state: `held`
 - [ ] Concept: `startup-mode-copy-existing` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector` | Queue-state: `held`
 - [ ] Concept: `bulk-write-ordering` | Parent: `kafka-sink-connector` | Mode: `dr` | Cluster: `kafka-sink-connector` | Queue-state: `held`
-- [ ] Concept: `outbox-pattern` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns` | Queue-state: `held`
-- [ ] Concept: `exactly-once-semantics` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns` | Queue-state: `held`
-- [ ] Concept: `debezium-handlers` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns` | Queue-state: `held`
+- [ ] Concept: `outbox-pattern` | Parent: `Kafka connector CDC patterns` | Mode: `dr` | Cluster: `CDC-patterns` | Queue-state: `held`
+- [ ] Concept: `exactly-once-semantics` | Parent: `Kafka connector CDC patterns` | Mode: `dr` | Cluster: `CDC-patterns` | Queue-state: `held`
+- [ ] Concept: `debezium-handlers` | Parent: `Kafka connector CDC patterns` | Mode: `dr` | Cluster: `CDC-patterns` | Queue-state: `held`
 - [ ] Concept: `OAuth2 Token Exchange` | Parent: `Atlas Service Accounts` | Mode: `revisit` | Cluster: `Atlas Service Accounts` | Queue-state: `held-review`
 - [ ] Concept: `Secret Rotation` | Parent: `Atlas Service Accounts` | Mode: `revisit` | Cluster: `Atlas Service Accounts` | Queue-state: `held-review`
 - [ ] Concept: `Service Account Roles` | Parent: `Atlas Service Accounts` | Mode: `revisit` | Cluster: `Atlas Service Accounts` | Queue-state: `held-review`
@@ -4660,7 +4660,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [x] Concept: `Query-settings representative-query backfill and FCV boundaries` | Parent: `MongoDB query planner, plan cache, query settings and hints` | Mode: `dr` | CVS: `3.90`
 - [x] Concept: `BinData subtype-aware aggregation dispatch and invalid inputs` | Parent: `BSON BinData vector ingestion` | Mode: `dr` | CVS: `3.40`
 - [x] Concept: `Concurrent multi-document transaction admission limits` | Parent: `MongoDB Transactions` | Mode: `dr` | CVS: `4.65`
-- [x] Concept: `Constraint validation adoption and existing-document guarantees` | Parent: `mongodb-schema-design` | Mode: `dr` | CVS: `4.65`
+- [x] Concept: `Constraint validation adoption and existing-document guarantees` | Parent: `MongoDB Schema Design` | Mode: `dr` | CVS: `4.65`
 - [x] Concept: `Overload-aware remote targeting and read-preference fallback` | Parent: `Read Preference` | Mode: `dr` | CVS: `4.65`
 - [x] Concept: `Pre-authentication message and buffer resource limits` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.65`
 - [x] Concept: `Shard draining cancellation, status and commit protocol` | Parent: `Sharded Cluster Cost Economics` | Mode: `dr` | CVS: `4.65`

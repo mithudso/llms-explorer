@@ -18,7 +18,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "- **One pool per server, per client.** Each `MongoClient` owns a separate pool for each server. If an application creates a client per request, the connection count multiplies. https://www.mongodb.com/docs/v8.0/troubleshooting/connection-storms/ - **Connection storms.** Storms follow restarts, failovers, and traffic spikes when `minPoolSize` is far below `maxPoolSize`. The manual advises raising `minPoolSize` toward `maxPoolSize` to pre-warm the pool. https://www.mongodb.com/docs/v8.0/troubleshooting/connection-storms/ CMAP's own brakes are `maxConnecting`, pausing on clear, and dropping the W",
+          "text": "- One pool per server, per client. Each MongoClient owns a separate pool for each server. If an application creates a client per request, the connection count multiplies. - Connection storms. The manual says a minPoolSize far below maxPoolSize can cause a spike of new connections after a restart or under heavy workloads, and advises setting minPoolSize closer to maxPoolSize to pre-warm the pool. For network outages and rolling restarts it advises limiting maxPoolSize. CMAP's own brakes are maxConnecting, pausing on clear, and dropping the WaitQueue on clear. - Unbounded wait by default. With w",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/mechanism.md#limits-and-failure-modes",
           "note": null
         },
@@ -58,7 +58,7 @@
           "note": null
         },
         {
-          "text": "1. The CMAP spec aims to unify connection-pool options and behaviour across MongoDB drivers. Before CMAP, users were confused because drivers supported different subsets of pooling options. — https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 2. The spec also names a second goal: drivers pooled differently, which made cross-driver pool functionality hard to design. — https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 3. The spec excludes drivers that cannot multit",
+          "text": "1. The CMAP spec aims to unify connection-pool options and behaviour across MongoDB drivers. Before CMAP, users were confused because drivers supported different subsets of pooling options. — 2. The spec also names a second goal: drivers pooled differently, which made cross-driver pool functionality hard to design. — 3. The spec excludes drivers that cannot multitask. — 4. The spec's status is \"Accepted\". Its minimum server version is \"N/A\". — 5. daprahamian created the spec file on 2019-01-25 in commit 81e13ad, \"Adding Connection Monitoring and Pooling Spec\". — 6. Early follow-up commits in 2",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/history.md#origin-and-purpose",
           "note": null
         },
@@ -68,7 +68,7 @@
           "note": null
         },
         {
-          "text": "30. Outside load-balanced mode, a clear increments the pool generation, so every existing connection becomes stale. The clear also pauses the pool and clears the WaitQueue at once. Each waiting request fails with a retryable error. https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 31. The error that a paused pool raises (`PoolClearedError`) \"MUST be considered a retryable error and MUST NOT be an error that marks the SDAM state unknown\". https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connectio",
+          "text": "30. Outside load-balanced mode, a clear increments the pool generation, so every existing connection becomes stale. The clear also pauses the pool and clears the WaitQueue at once. Each waiting request fails with a retryable error. https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 31. The error that a paused pool raises (`PoolClearedError`) \"MUST be considered a retryable error and MUST NOT be an error that marks the SDAM state unknown\".",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/mechanism.md#generations-clearing-and-interruption",
           "note": null
         },
@@ -98,22 +98,22 @@
           "note": null
         },
         {
-          "text": "22. The spec says available connections SHOULD go to waiters in FIFO order. The hard MUST is weaker: the pool must not intentionally favour newer waiters over older ones. The 2024-11-27 changelog entry records this relaxation. https://raw.githubusercontent.com/mongodb/specifications/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md 23. `waitQueueTimeoutMS` is optional for drivers and deprecated in favour of the single client-side timeout, `timeoutMS`. The requirement to apply CSOT to the pool dates from 2021-01-19. https://raw.githubusercontent.com/mongodb/sp",
+          "text": "22. The spec says available connections SHOULD go to waiters in FIFO order. The hard MUST is weaker: the pool must not intentionally favour newer waiters over older ones. The 2024-11-27 changelog entry records this relaxation. https://raw.githubusercontent.com/mongodb/specifications/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md 23. `waitQueueTimeoutMS` is optional for drivers and deprecated in favour of the single client-side timeout, `timeoutMS`. The requirement to apply CSOT to the pool dates from 2021-01-19.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/edge-cases.md#waitqueue-fairness-and-timeouts",
           "note": null
         },
         {
-          "text": "25. If a background thread fails to create a connection while filling the pool to `minPoolSize`, the pool does not handle the error itself. It passes the error to SDAM's application-error handling. https://raw.githubusercontent.com/mongodb/specifications/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md 26. If a network error or timeout happens during connection establishment or `hello`, the current SDAM text says the client MUST NOT change the server description. Two renderings of the spec agree on this. https://raw.githubusercontent.com/mongodb/specificatio",
+          "text": "25. If an error occurs while populating a connection in the background, the pool does not handle it itself; it is handled via SDAM's application-error machinery. 26. If a network error or timeout happens during connection establishment or hello, the client MUST NOT change the server's description. 27. If a network error or timeout happens during authentication, the client MUST mark the server Unknown, except in a LoadBalanced topology. 28. If a network timeout happens after the handshake completes, the client MUST NOT mark the server Unknown (a timeout may indicate a slow operation); any other",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/edge-cases.md#establishment-errors-sdam-handoff-and-backpressure",
           "note": null
         },
         {
-          "text": "34. In FaaS environments such as AWS Lambda, a paused process can miss heartbeats. On resume, one heartbeat timeout would clear the pool even though the network was fine. The Go driver (GODRIVER-2577) now retries a timed-out heartbeat once and clears the pool only after a second consecutive timeout. https://github.com/mongodb/mongo-go-driver/commit/ed484bec9c7ef0b7f1d4e6598b69e236e53a038b 35. If an application creates a `MongoClient` per request, it multiplies whole pools. Every client can open up to `maxPoolSize` connections per server. https://www.mongodb.com/docs/manual/troubleshooting/conn",
+          "text": "34. In FaaS environments such as AWS Lambda, a paused process can miss heartbeats. On resume, one heartbeat timeout would clear the pool even though the network was fine. The Go driver (GODRIVER-2577) now retries a timed-out heartbeat once and clears the pool only after a second consecutive timeout. https://github.com/mongodb/mongo-go-driver/commit/ed484bec9c7ef0b7f1d4e6598b69e236e53a038b 35. If an application creates a `MongoClient` per request, it multiplies whole pools. Every client can open up to `maxPoolSize` connections per server.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/edge-cases.md#real-world-boundary-conditions",
           "note": null
         },
         {
-          "text": "- **D1. Does a \"not primary\" error clear the pool?** - A third-party guide lists primary failover and \"not primary\" errors as causes of pool clearing: https://oneuptime.com/blog/post/2026-03-31-mongodb-fix-mongoerror-connection-pool-was-cleared/view - The current SDAM spec clears the pool only for \"node is shutting down\". Pre-4.2 behaviour was removed from the spec on 2026-06-17: https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md - Both can be true. The guide may describe old servers, old drivers or a shutdo",
+          "text": "D1. The current SDAM spec says that when handling a \"not writable primary\" or \"node is recovering\" error, the client clears the server's connection pool if and only if the error is \"node is shutting down\". The SDAM changelog entry of 2026-06-17 reads \"Remove pre-4.2 version references.\" D2. The CMAP spec allows minPoolSize equal to maxPoolSize (minPoolSize must be <= maxPoolSize when maxPoolSize > 0), while the server manual says minPoolSize must be less than maxPoolSize. D3. The connection-storms guide recommends setting minPoolSize closer to maxPoolSize for two of its causes (high server or",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/edge-cases.md#unresolved-disagreements-kept-side-by-side",
           "note": null
         },
@@ -128,7 +128,7 @@
           "note": null
         },
         {
-          "text": "15. A pool is in one of three states: paused, ready, or closed. A new pool starts paused. https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 16. While the pool is paused, it allows no checkOuts and no background connection creation. https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 17. The pool leaves the paused state when SDAM marks it ready. After each successful server check, \"the server's pool (even if it already existed) MUST be marked as 'ready'\". https://s",
+          "text": "15. A pool is in one of three states: paused, ready, or closed. A new pool starts paused. https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 16. While the pool is paused, it allows no checkOuts and no background connection creation. https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 17. The pool leaves the paused state when SDAM marks it ready. After each successful server check, \"the server's pool (even if it already existed) MUST be marked as 'ready'\".",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/mechanism.md#pool-states",
           "note": null
         },
@@ -148,7 +148,7 @@
           "note": null
         },
         {
-          "text": "19. The spec defines 4 pool events: Created, Ready, Cleared, and Closed. It defines 7 connection events: Created, Ready, Closed, CheckOutStarted, CheckOutFailed, CheckedOut, and CheckedIn. — https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md 20. `ConnectionClosedEvent.reason` is one of `stale`, `idle`, `error`, or `poolClosed`. `ConnectionCheckOutFailedEvent.reason` is one of `poolClosed`, `timeout`, or `connectionError`. These values let an operator tell pool churn apart from a pool that has run dry. — https://gi",
+          "text": "19. The spec defines 4 pool events: Created, Ready, Cleared, and Closed. It defines 7 connection events: Created, Ready, Closed, CheckOutStarted, CheckOutFailed, CheckedOut, and CheckedIn. — https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md 20. `ConnectionClosedEvent.reason` is one of `stale`, `idle`, `error`, or `poolClosed`. `ConnectionCheckOutFailedEvent.reason` is one of `poolClosed`, `timeout`, or `connectionError`. These values let an operator tell pool churn apart from a pool that has run dry.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/practice.md#b-observability-and-evaluation",
           "note": null
         }
@@ -158,7 +158,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "27. The C driver does not implement CMAP: \"Unlike other MongoDB drivers, the C driver does not implement the CMAP specification for connection pooling. In the context of the C driver, connection pooling refers to the driver's cache of client objects, not database connections.\" — https://www.mongodb.com/docs/languages/c/c-driver/v1.x/connect/connection-options/connection-pools/ 28. The server manual's connection-storm troubleshooting page never mentions `maxConnecting`. It recommends `minPoolSize` close to `maxPoolSize`, a bounded `maxPoolSize`, and one shared MongoClient. That weakens the clai",
+          "text": "27. The C driver does not implement CMAP: \"Unlike other MongoDB drivers, the C driver does not implement the CMAP specification for connection pooling. In the context of the C driver, connection pooling refers to the driver's cache of client objects, not database connections.\" — 28. The server manual's connection-storm troubleshooting page never mentions `maxConnecting`. It recommends `minPoolSize` close to `maxPoolSize`, a bounded `maxPoolSize`, and one shared MongoClient. That weakens the claim that `maxConnecting` is the main defence against connection storms. —",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/history.md#disconfirming-evidence-limits-of-unified-across-all-drivers",
           "note": null
         },
@@ -168,12 +168,12 @@
           "note": null
         },
         {
-          "text": "54. The Go driver's 1.8.0 release (GODRIVER-2038, resolved 2021-10-20) changed connection establishment. Connections now use a dedicated connect timeout rather than the operation's context, and the driver establishes them in separate goroutines. GODRIVER-2038 links to rate-limited creation (GODRIVER-1826), the paused state (GODRIVER-1827), and connection storms (GODRIVER-1799). https://jira.mongodb.org/browse/GODRIVER-2038 55. DRIVERS-1943 (created 2021-10-05, resolved 2024-11-27) records that the CMAP spec had originally *required* `maxConnecting = 2`. It calls that value \"not optimal\" in som",
+          "text": "54. The Go driver's 1.8.0 release (GODRIVER-2038, resolved 2021-10-20) changed connection establishment: a separate connection timeout is used when creating new connections, and new connections are created in a separate goroutine. GODRIVER-2038 links to GODRIVER-1826 (rate limiting, maxConnecting), GODRIVER-1827 (paused state) and GODRIVER-1799 (avoiding connection storms). 55. DRIVERS-1943 (created 2021-10-05, resolved 2024-11-27) records that the CMAP spec required maxConnecting = 2, which is not optimal in some scenarios and degrades application performance; the option was made configurable",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/mechanism.md#history-and-implementations",
           "note": null
         },
         {
-          "text": "26. Connection count multiplies at two levels. Outgoing connections per app server equal `maxPoolSize` × the number of members the app talks to (100 × 3 = 300). Incoming connections per `mongod` equal `maxPoolSize` × the number of app servers (100 × 4 = 400). — https://www.mongodb.com/docs/manual/tutorial/connection-pool-performance-tuning/ 27. The Node driver also opens up to 2 monitoring connections per server. Monitoring connections sit outside the pool. A 3-node set therefore needs up to 106 sockets for primary-only reads, and up to 306 when reads go to secondaries. — https://www.mongodb.c",
+          "text": "26. Connection count multiplies at two levels. Outgoing connections per app server equal maxPoolSize × the number of members the app talks to (100 × 3 = 300). Incoming connections per mongod equal maxPoolSize × the number of app servers (100 × 4 = 400). 27. The Node driver also opens up to 2 monitoring connections per server. Monitoring connections sit outside the pool. A 3-node set therefore needs up to 106 sockets for primary-only reads, and up to 306 when reads go to secondaries. 28. MongoDB's tuning rule: if the database load is low and few connections are active, increase maxPoolSize. If",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/practice.md#c-operational-sizing-and-tuning",
           "note": null
         },
@@ -188,17 +188,17 @@
           "note": null
         },
         {
-          "text": "- **Date of the \"connectionError\" reason.** The spec changelog dates it 2019-06-06. The git history shows the SPEC-1298 commit on 2019-07-04. Both sources are listed side by side. Neither is chosen. — https://raw.githubusercontent.com/mongodb/specifications/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md vs https://github.com/mongodb/specifications/commits/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.rst?after=f5ba7f7aaa0417e35671a3ed7a8cd26be3a8e5ba+34 - **Scope of \"all drivers\".** The Abstract frames CMAP as unifying a",
+          "text": "- **Date of the \"connectionError\" reason.** The spec changelog dates it 2019-06-06. The git history shows the SPEC-1298 commit on 2019-07-04. Both sources are listed side by side. Neither is chosen. — vs - **Scope of \"all drivers\".** The Abstract frames CMAP as unifying all drivers, excluding only drivers that cannot multitask. The C driver supports multithreading through `mongoc_client_pool_t` but still opts out (claim 27). The spec text does not explain whether that is a sanctioned exemption. - **Fairness: MUST or SHOULD.** The 2020-era rationale describes strict FIFO fairness. Since 2024-11",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/history.md#unresolved-disagreements",
           "note": null
         },
         {
-          "text": "9. A connection is in one of four states: pending, available, in use, or closed. https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 10. A pending connection has been created but not yet established. It counts toward both `totalConnectionCount` and `pendingConnectionCount`. https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 11. Each connection has the fields `id`, `address`, `generation`, and `state`. https://specifications.readthedocs.io/en/latest/connection-monit",
+          "text": "9. A connection is in one of four states: pending, available, in use, or closed. https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 10. A pending connection has been created but not yet established. It counts toward both `totalConnectionCount` and `pendingConnectionCount`. https://specifications.readthedocs.io/en/latest/connection-monitoring-and-pooling/connection-monitoring-and-pooling/ 11. Each connection has the fields `id`, `address`, `generation`, and `state`.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/mechanism.md#connection-model",
           "note": null
         },
         {
-          "text": "1. **Does the pool create connections at startup?** The manual says that \"the pool creates connections at startup\". https://www.mongodb.com/docs/manual/administration/connection-pool-overview/ The spec says that a pool starts paused, that `minPoolSize` defaults to 0, and that population waits for ready (claims 2, 15, 45). With default options, the pool opens no application connections until SDAM marks it ready and a checkOut or population needs one. The manual's sentence holds only when `minPoolSize` > 0. 2. **Is `waitQueueTimeoutMS` a real bound?** The manual lists it as a live option with de",
+          "text": "1. **Does the pool create connections at startup?** The manual says that \"the pool creates connections at startup\". The spec says that a pool starts paused, that `minPoolSize` defaults to 0, and that population waits for ready (claims 2, 15, 45). With default options, the pool opens no application connections until SDAM marks it ready and a checkOut or population needs one. The manual's sentence holds only when `minPoolSize` > 0. 2. **Is `waitQueueTimeoutMS` a real bound?** The manual lists it as a live option with default 0. The spec deprecates it in favor of CSOT. The Ruby driver uses a 10-s",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/mechanism.md#unresolved-disagreements",
           "note": null
         }
@@ -213,7 +213,7 @@
           "note": null
         },
         {
-          "text": "24. Node.js driver 3.5.0 was the first to emit CMAP pool events. They work only with the \"Unified Topology\". The ten events are connectionPoolCreated, connectionPoolClosed, connectionCreated, connectionReady, connectionClosed, connectionCheckOutStarted, connectionCheckOutFailed, connectionCheckedOut, connectionCheckedIn and connectionPoolCleared. — https://mongodb.github.io/node-mongodb-native/3.5/reference/management/cmap-monitoring/ 25. PyMongo 4.0 added the `maxConnecting` URI option and MongoClient keyword. It removed `waitQueueMultiple` and `ExceededMaxWaiters`. Its changelog says pooling",
+          "text": "24. Node.js driver 3.5.0 was the first to emit CMAP pool events. They work only with the \"Unified Topology\". The ten events are connectionPoolCreated, connectionPoolClosed, connectionCreated, connectionReady, connectionClosed, connectionCheckOutStarted, connectionCheckOutFailed, connectionCheckedOut, connectionCheckedIn and connectionPoolCleared. — 25. PyMongo 4.0 added the `maxConnecting` URI option and MongoClient keyword. It removed `waitQueueMultiple` and `ExceededMaxWaiters`. Its changelog says pooling was \"Enhanced... to create connections more efficiently and avoid connection storms.\"",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/cmap-connection-pooling/reports/history.md#driver-adoption-independent-release-artifacts",
           "note": null
         },

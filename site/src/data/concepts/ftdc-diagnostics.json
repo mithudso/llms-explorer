@@ -18,7 +18,7 @@
           "note": null
         },
         {
-          "text": "31. Keyhole and its split-out `mongo-ftdc` package decode FTDC into Grafana. They score metrics 0–100 using only the 5th–95th percentile of points, with watermarks such as 80%/95% WiredTiger cache used. https://www.mongodb.com/blog/post/peek-your-clusters-like-pro-with-keyhole-part-3 32. Practitioner guides recommend the `mongo-ftdc` Docker+Grafana stack for self-service analysis. https://www.mydbops.com/blog/mongodbs-ftdc-a-powerful-tool-for-performance-monitoring-and-troubleshooting 33. Percona points to a browser-only decoder (zelmario/Big-hole) as an option that sends no data off the machi",
+          "text": "31. Keyhole and its split-out `mongo-ftdc` package decode FTDC for Grafana. Keyhole scores metrics 0–100 using only data points between the 5th and 95th percentile, with watermarks such as 80%/95% WiredTiger cache used. 32. A practitioner guide (Mydbops) walks through running the `mongo-ftdc` Docker+Grafana stack to analyse FTDC files. 33. Percona points to a browser-only decoder (zelmario/Big-hole) as an option that uploads nothing and decodes on your machine. Sources: https://www.mongodb.com/blog/post/peek-your-clusters-like-pro-with-keyhole-part-3",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/practice.md#evaluation-analysis-tooling",
           "note": null
         }
@@ -28,12 +28,12 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "22. A `mongod` writes FTDC data to `<dbPath>/diagnostic.data`. A `mongos` writes to `<logpath minus extension>.diagnostic.data`, for example `/var/log/mongodb/mongos.diagnostic.data`. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture.md 23. The files are BSON documents named `metrics.*` of two types: metadata (type 0) and metric chunks (type 1). Metric chunks are zlib-compressed behind a 4-byte header. https://alexbevi.com/blog/2020/01/26/what-is-mongodb-ftdc-aka-diagnostic-dot-data/ 24. The compressor delta-encodes each numeric field against the previous sam",
+          "text": "A mongod writes FTDC data to <dbPath>/diagnostic.data. A mongos writes to <logpath minus extension>.diagnostic.data, for example /var/log/mongodb/mongos.diagnostic.data. FTDC files hold BSON documents of two main types: metadata (type 0) and metric chunks (type 1); newer versions also have a periodic metadata type 2. A metric chunk starts with a 4-byte little-endian uncompressed-length header followed by zlib-compressed data. The compressor delta-encodes each numeric field against the previous sample, stores the deltas as int64, VarInt-encodes them, run-length-encodes zeros as <Count, Zero> pa",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/history.md#mechanism-and-format",
           "note": null
         },
         {
-          "text": "21. `mongod` writes FTDC data to `<storage.dbPath>/diagnostic.data`. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 22. `mongos` strips the extension from `systemLog.path` and appends `diagnostic.data`. For example, `/var/log/mongodb/mongos.log` becomes `/var/log/mongodb/mongos.diagnostic.data`. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 23. Archive files are named `metrics.<%Y-%m-%dT%H-%M-%SZ>-<5-digit uniquifier>`. The uniquifier increments when several files are created in the same second and resets when the t",
+          "text": "21. `mongod` writes FTDC data to `<storage.dbPath>/diagnostic.data`. 22. `mongos` strips the extension from `systemLog.path` and appends `diagnostic.data`. For example, `/var/log/mongodb/mongos.log` becomes `/var/log/mongodb/mongos.diagnostic.data`. 23. Archive files are named `metrics.<%Y-%m-%dT%H-%M-%SZ>-<5-digit uniquifier>`. The uniquifier increments when several files are created in the same second and resets when the timestamp changes. 24. Each archive file is an append-only BSON sequence, so `bsondump` can read it. It holds three document types: type 0 metadata (full collector output)",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/mechanism.md#on-disk-layout",
           "note": null
         }
@@ -48,7 +48,7 @@
           "note": null
         },
         {
-          "text": "8. FTDC compression keeps only numeric fields. String fields are excluded from the compressed metric chunks. — https://github.com/mongodb/mongo/blob/master/src/mongo/db/ftdc/README.md 9. The compression is lossy for doubles. `NaN` is stored as 0, and doubles outside the int64 range are clamped to `MIN_INT64` / `MAX_INT64`. — https://github.com/mongodb/mongo/blob/master/src/mongo/db/ftdc/README.md 10. If the number of numeric fields changes between samples, FTDC closes the current chunk and opens a new one. The README says compression is poor when the field count keeps changing. Workloads whose",
+          "text": "8. FTDC compression extracts only numeric fields (double, int64, int32, boolean, datetime, decimal128 and timestamp). String fields are excluded from the compressed metric chunks. 9. The compression is lossy for some types, because numbers are cast to uint64. `NaN` is encoded as 0, and doubles outside the int64 range are stored as `MIN_INT64` / `MAX_INT64`. 10. If the number of numeric fields changes between samples, FTDC closes the current chunk and opens a new one. The README says compression is poor when the field count changes, so workloads whose `serverStatus` shape keeps shifting compres",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/edge-cases.md#encoding-and-storage-limits",
           "note": null
         },
@@ -58,17 +58,17 @@
           "note": null
         },
         {
-          "text": "16. In 4.4 and 7.0 the defaults were a 1-second capture interval and a 200 MB maximum `diagnostic.data` directory. https://www.mongodb.com/docs/v7.0/administration/full-time-diagnostic-data-capture.md 17. The 8.0 docs say that in 8.0.10 the default rose to 250 MB (500 MB for sharded clusters), from 200 MB (400 MB for sharded clusters). https://www.mongodb.com/docs/v8.0/administration/full-time-diagnostic-data-capture.md 18. The current manual says that in 8.3 the default rose to 500 MB, from 250 MB (500 MB sharded). https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-c",
+          "text": "16. In 4.4 and 7.0 the defaults were a 1-second capture interval and a 200 MB maximum `diagnostic.data` directory. 17. The 8.0 docs say that in 8.0.10 the default rose to 250 MB (500 MB for sharded clusters), from 200 MB (400 MB for sharded clusters). 18. The current manual says that in 8.3 the default rose to 500 MB, from 250 MB (500 MB sharded). 19. Server source on `master` sets `kMaxDirectorySizeBytesDefault = 500 MB`, `kMaxFileSizeBytesDefault = 10 MB`, 300 samples per archive metric chunk, and 10 samples per interim chunk. 20. The tunable parameters are `diagnosticDataCollectionEnabled`",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/history.md#defaults-and-their-drift",
           "note": null
         },
         {
-          "text": "38. The writer checks `sampleCount % maxSamplesPerInterimMetricChunk == 0` (default 10). When it is true, it writes the in-progress compressed chunk as a type-1 document to `metrics.interim`. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/file_writer.cpp · https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/config.h 39. The interim write opens a temp file with truncate, writes it, then renames it over `metrics.interim`. The rename makes the replacement atomic. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/file_writer.cpp",
+          "text": "38. The writer checks `sampleCount % maxSamplesPerInterimMetricChunk == 0` (default 10). When true, it writes the in-progress compressed chunk as a metric-chunk document (type 1) to the interim file. 39. The interim write opens a temp file with truncate, writes it, closes it, then renames it to `metrics.interim`. 40. On startup, `recoverInterimFile()` reads any leftover interim documents and appends them to the new archive file. Because the interim file is rewritten every 10 samples by default, at most about 10 samples can be lost in a crash (about 10 s at the default 1 s period). 41. On a cle",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/mechanism.md#interim-file-and-crash-recovery",
           "note": null
         },
         {
-          "text": "9. `mongod` writes to `<dbPath>/diagnostic.data`. `mongos` writes to `<systemLog.path minus extension>.diagnostic.data`, for example `/var/log/mongodb/mongos.diagnostic.data`. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 10. The default sampling interval is 1 second. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 11. In current source, the defaults are: 500 MiB directory cap, 10 MiB per-file cap, 300 samples per archive chunk, and 10 samples per interim chunk. https://raw.githubusercontent.com/mongodb/mongo/master/",
+          "text": "9. `mongod` writes to `<dbPath>/diagnostic.data`. `mongos` writes to `<systemLog.path minus extension>.diagnostic.data`, for example `/var/log/mongodb/mongos.diagnostic.data`. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 10. The default sampling interval is 1 second. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 11. In current source, the defaults are: 500 MiB directory cap, 10 MiB per-file cap, 300 samples per archive chunk, and 10 samples per interim chunk.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/practice.md#storage-layout-and-parameters",
           "note": null
         },
@@ -113,12 +113,12 @@
           "note": null
         },
         {
-          "text": "1. FTDC samples every 1 second by default. It periodically collects `serverStatus`, `replSetGetStatus` (`mongod` only), `collStats` on `local.oplog.rs` (`mongod` only), `connPoolStats`, `getParameter`, and `getClusterParameter`. — https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 2. FTDC collects `getCmdLineOpts`, `buildInfo`, and `hostInfo` only at startup and at file rotation, not every second. — https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 3. FTDC never contains query samples, query predicates, query results, user",
+          "text": "1. FTDC samples every 1 second by default. It periodically collects `serverStatus`, `replSetGetStatus` (`mongod` only), `collStats` on `local.oplog.rs` (`mongod` only), `connPoolStats`, `getParameter`, and `getClusterParameter`. 2. FTDC collects `getCmdLineOpts`, `buildInfo`, and `hostInfo` only on file rotation or startup, not every second. 3. FTDC never contains query samples, query predicates, query results, data sampled from end-user collections or indexes, or system or MongoDB user credentials or security certificates. It does contain hostnames, OS information and the startup options. 4.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/edge-cases.md#boundaries-of-what-ftdc-records",
           "note": null
         },
         {
-          "text": "16. SERVER-30961 (opened 2017-09-06, unresolved) reports that if the `dbPath` filesystem fills, even for a few seconds, FTDC shuts down. The log reads \"Failed to write to interim file buffer for full-time diagnostic data capture\". FTDC therefore loses data around disk-full events, exactly when that data matters most. — https://jira.mongodb.org/browse/SERVER-30961 17. The same ticket reports that after a restart, a leftover `metrics.interim.temp` file can shut FTDC down again (`boost::filesystem::filesystem_error: No such file or directory`). The proposed fix is to preallocate `metrics.interim`",
+          "text": "16. SERVER-30961 (opened 2017-09-06, unresolved) reports that if the `dbPath` filesystem fills, even briefly for a few seconds, FTDC shuts down. The log reads \"Failed to write to interim file buffer for full-time diagnostic data capture\". FTDC therefore cannot record details immediately before and after the disk fills. 17. The same ticket reports that after a restart, a leftover `metrics.interim.temp` file can shut FTDC down again (`boost::filesystem::filesystem_error: ... No such file or directory`). Its suggested fix is to preallocate the `metrics.interim` file. 18. Percona reports that on O",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/edge-cases.md#failure-modes",
           "note": null
         },
@@ -138,12 +138,12 @@
           "note": null
         },
         {
-          "text": "33. SERVER-30961 (opened 2017-09-06, still unresolved) records FTDC shutting down on a full disk with `FileStreamFailed: Failed to write to interim file buffer`. Stale temp files can stop it again after a restart. Once stopped, FTDC restarts only with the process. https://jira.mongodb.org/browse/SERVER-30961 34. Percona (Vinicius Grippa, 2025-04-22) diagnosed an FTDC freeze on MongoDB 6/7. The FTDC thread hung in uninterruptible D-state inside `statfs()` on an autofs mount (`autofs_wait`). The `uptime` metric and `getDiagnosticData` stopped advancing while user queries were unaffected. https:/",
+          "text": "33. SERVER-30961 (opened 2017-09-06, still unresolved) records FTDC shutting down on a full disk with `FileStreamFailed: Failed to write to interim file buffer`. A leftover interim temp file can stop it again after a restart. Once stopped, FTDC cannot be restarted without restarting mongod. 34. Percona (Vinicius Grippa, 2025-04-22) diagnosed an FTDC freeze on MongoDB 6/7. The FTDC thread hung in uninterruptible D-state inside `statfs()` on an autofs mount (`autofs_wait`). Metrics such as `uptime` and `getDiagnosticData` stopped updating while user queries were unaffected. 35. That case showe",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/history.md#failure-modes-disconfirming-evidence",
           "note": null
         },
         {
-          "text": "- **Storage capacity.** The official docs say \"FTDC does not include data related to storage capacity\" (https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture.md). Percona's captured output includes `systemMetrics.mounts.<path>.available`, which is a capacity figure (https://www.percona.com/blog/behind-the-scenes-how-percona-support-diagnosed-a-mongodb-ftdc-freeze/). Both are kept. The doc sentence may mean capacity *planning* data, but it does not say so. - **The pre-8.0.10 sharded default.** The 8.0 docs say the old default was \"200 MB (400 MB for sharded cluste",
+          "text": "- **Storage capacity.** The official docs say \"FTDC does not include data related to storage capacity\" (). Percona's captured output includes `systemMetrics.mounts.<path>.available`, which is a capacity figure (). Both are kept. The doc sentence may mean capacity *planning* data, but it does not say so. - **The pre-8.0.10 sharded default.** The 8.0 docs say the old default was \"200 MB (400 MB for sharded clusters)\" (). The 7.0 docs list only a flat 200 MB with no sharded variant (). It is unclear whether the 400 MB sharded default existed before 8.0.10 or was documented only in hindsight. - **",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/history.md#unresolved-disagreements",
           "note": null
         },
@@ -153,17 +153,17 @@
           "note": null
         },
         {
-          "text": "1. `mongod` and `mongos` include FTDC, and it is enabled by default. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 2. FTDC was introduced in MongoDB 3.2 (SERVER-19585). https://alexbevi.com/blog/2020/01/26/what-is-mongodb-ftdc-aka-diagnostic-dot-data/ 3. Periodically, FTDC collects the output of `serverStatus`, `replSetGetStatus` (mongod only), `collStats` on `local.oplog.rs` (mongod only), `connPoolStats`, `getParameter` and `getClusterParameter`. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 4. On startup and on",
+          "text": "mongod and mongos include FTDC, and it is enabled by default. Periodically, FTDC collects serverStatus, replSetGetStatus (mongod only), collStats on local.oplog.rs (mongod only), connPoolStats, getParameter and getClusterParameter. On startup and file rotation it collects getCmdLineOpts, buildInfo and hostInfo. In current source the on-rotate collectors also include getDefaultRWConcern, and the periodic set includes a TransportLayerFTDCCollector. FTDC also records CPU, memory, performance-related disk stats and network stats; it does not include storage capacity data and does not capture or in",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/mechanism.md#what-it-is-and-what-it-collects",
           "note": null
         },
         {
-          "text": "42. When the current file exceeds `maxFileSizeBytes` (default 10 MB), the file manager rotates. Both sample writes and metadata writes trigger the check. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/file_manager.cpp · https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/config.h 43. A server restart also starts a new archive file. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/README.md 44. After a rotation, the rotate collectors write a fresh type-0 metadata document, so every file records which instance produced it. ht",
+          "text": "42. When the current file exceeds `maxFileSizeBytes` (default 10 MB), the file manager rotates. Both sample writes and periodic-metadata writes trigger the check. 43. A server restart also starts a new archive file. 44. After a rotation, the rotate collectors write a fresh type-0 metadata document, so every file records which server instance produced it. 45. `trimDirectory()` sums file sizes from newest to oldest and deletes files once the running total reaches `maxDirectorySizeBytes`, so the oldest files go first. 46. The default period is 1 s. `diagnosticDataCollectionPeriodMillis` requires",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/mechanism.md#rotation-trimming-and-defaults",
           "note": null
         },
         {
-          "text": "54. Per the docs, if the FTDC thread fails, the failure is fatal and stops the parent `mongod`/`mongos`. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 55. In source, an exception in the controller loop is rethrown and terminates the process with \"Exception thrown in full-time diagnostic data capture subsystem\". The one exception: if the discard flag is on, oversized-BSON samples are counted and skipped. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/controller.cpp 56. If the dbPath filesystem fills even briefly, FTDC shuts down.",
+          "text": "54. Per the docs, if the FTDC thread fails, the failure is fatal and stops the parent `mongod`/`mongos`. 55. In source, an exception in the controller loop is process-fatal: the loop's catch block logs \"Exception thrown in full-time diagnostic data capture subsystem\" and terminates the process. The one exception: if the discard-large-samples setting is on, oversized-BSON samples are counted and skipped. 56. If the dbPath filesystem fills even briefly, FTDC shuts down (SERVER-30961). The ticket says `metrics.interim` is appended gradually and suggests preallocating its space, and that leftover",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/mechanism.md#failure-modes-and-limits",
           "note": null
         },
@@ -178,7 +178,7 @@
           "note": null
         },
         {
-          "text": "21. FTDC files are compressed, not human-readable, and inherit the permissions of the data files. MongoDB engineers cannot access them without the owner's help. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 22. FTDC never contains query samples, predicates, results, user-collection/index data, credentials or certificates. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 23. FTDC does contain hostnames, OS information and startup options. Operators should tell MongoDB before sharing if those fields hold confidential da",
+          "text": "21. FTDC files are compressed, not human-readable, and inherit the permissions of the MongoDB data files. MongoDB engineers cannot access them without explicit permission and assistance from system owners or operators. 22. FTDC never contains query samples, predicates, results, data sampled from end-user collections or indexes, or system or MongoDB user credentials or security certificates. 23. FTDC does contain hostnames, OS information and the options used to start mongod or mongos. Operators should notify MongoDB before sending FTDC data if those fields hold protected or confidential data",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/practice.md#privacy",
           "note": null
         },
@@ -203,32 +203,32 @@
           "note": null
         },
         {
-          "text": "- **D1 — \"FTDC thread failures are fatal\".** The current and 7.0 docs say FTDC thread failures \"are fatal and stop the parent `mongod` or `mongos` process\" (https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/). Two sources describe FTDC failing while the server keeps running: - SERVER-30961 (2017) logs \"Shutting down the full-time diagnostic data capture subsystem\" on disk-full (https://jira.mongodb.org/browse/SERVER-30961). - Percona (2025) reports a hung FTDC thread with a healthy cluster (https://www.percona.com/blog/behind-the-scenes-how-percona-support-di",
+          "text": "D1: The current and 7.0 docs say FTDC thread failures \"are fatal and stop the parent mongod or mongos process\"; the 4.4 docs already say the same. SERVER-30961 (2017) logs \"Shutting down the full-time diagnostic data capture subsystem\" after an FTDC write failure on disk-full, and a 2025 Percona post describes a stuck FTDC thread that did not affect user queries. A hang is not a thrown failure. D2: MongoDB docs say the defaults have minimal impact on performance or storage size. Red Hat Bugzilla 1834377 reports the ftdc thread using about 5% of overall mongod CPU time on a busy Satellite and p",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/edge-cases.md#disconfirming-evidence-and-unresolved-disagreements",
           "note": null
         },
         {
-          "text": "5. SERVER-21818, \"Capture system metrics in FTDC\", was created 2015-12-09 and resolved 2016-07-26 with fix versions 3.3.11 (dev) and 3.2.13 (stable backport). It added OS-level counters. https://jira.mongodb.org/browse/SERVER-21818 6. SERVER-21818 read from Linux `/proc/stat`, `/proc/meminfo`, and `/sys/block/*/stat`/`/proc/diskstats`, plus equivalent Windows performance counters. It deliberately preferred cumulative counters over instantaneous values so that any sampling interval stays valid. https://jira.mongodb.org/browse/SERVER-21818 7. SERVER-28495, \"FTDC for MongoS\", was created 2017-03-",
+          "text": "5. SERVER-21818, \"Capture system metrics in FTDC\", was created 2015-12-09 and resolved 2016-07-26 with fix versions 3.3.11 (dev) and 3.2.13 (stable backport). It added OS-level counters. 6. SERVER-21818 read from Linux `/proc/stat`, `/proc/meminfo`, and `/sys/block/*/stat`/`/proc/diskstats`, plus equivalent Windows performance counters. It deliberately preferred cumulative counters over instantaneous values so that any sampling interval stays valid. 7. SERVER-28495, \"FTDC for MongoS\", was created 2017-03-24 and resolved 2017-07-12 with fix versions 3.5.10 and 3.4.14. Before it, FTDC was \"only",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/history.md#scope-expansions-2016-2020",
           "note": null
         },
         {
-          "text": "26. The compressor flattens each sample to `uint64` values. It extracts double, int64, int32, bool, datetime, decimal128 and timestamp fields; a timestamp becomes two values (seconds and increment). https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/README.md 27. `NaN` is stored as 0. Values that overflow are clamped to `MIN_INT64`/`MAX_INT64`. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/README.md 28. Encoding runs in four stages: (1) each value minus the previous sample's value; (2) run-length encoding of zeros (`[0,0,0]` becomes `[0,2]`); (3",
+          "text": "26. The compressor flattens each sample to int64/uint64 metric values. It extracts double, int32, int64, decimal128 (via numberLong), bool, date (milliseconds) and timestamp fields; a timestamp becomes two metrics (seconds and increment). 27. NaN is stored as 0; +Inf and values at or above 2^63 become the int64 maximum, and values below the int64 minimum become the int64 minimum. 28. Each metric's samples are delta-encoded, then zeros are run-length encoded as (0, count-1), then non-zero values are written as VarInt, then the whole buffer is compressed with zlib. 29. Deltas are stored metric-m",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/mechanism.md#compression-pipeline-metric-chunks",
           "note": null
         },
         {
-          "text": "- **Interim file contents.** The source README says `metrics.interim` is a \"single document representing the most recent uncompressed sample\". `file_writer.cpp` writes the in-progress *compressed* chunk (up to 10 samples), and Percona describes it the same way (\"the chunk the server hasn't flushed\"). The code and Percona agree; the README text looks stale or imprecise. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/README.md vs https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/file_writer.cpp · https://www.percona.com/blog/the-diagnostic-data-mo",
+          "text": "- **Interim file contents.** The FTDC README says `metrics.interim` \"represents the most recent uncompressed metrics sample\". The code (`file_writer.cpp`) instead writes the in-progress compressed chunk (`getCompressedSamples()`) as a metric document, and rewrites it every `maxSamplesPerInterimMetricChunk` samples (default 10). Percona describes it the same way (\"the chunk the server hasn't flushed to a numbered file yet\"). The code and Percona agree; the README's Files section is imprecise (its own overview says the interim file holds the \"unwritten section of data\"). vs - **Default directory",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/mechanism.md#unresolved-disagreements",
           "note": null
         },
         {
-          "text": "24. MongoDB documents that FTDC thread failures are fatal and stop the parent `mongod`/`mongos`. https://www.mongodb.com/docs/manual/administration/full-time-diagnostic-data-capture/ 25. If the dbPath filesystem fills, FTDC fails with `FileStreamFailed: Failed to write to interim file buffer for full-time diagnostic data capture`. On restart it can fail again on the leftover interim temp file (`boost::filesystem::filesystem_error`). The ticket is unresolved (Backlog, opened 2017). https://jira.mongodb.org/browse/SERVER-30961 26. The FTDC thread can hang silently instead of failing. It sticks i",
+          "text": "24. MongoDB documents that FTDC thread failures are fatal and stop the parent mongod/mongos. 25. If the dbPath filesystem fills, FTDC fails with FileStreamFailed: Failed to write to interim file buffer for full-time diagnostic data capture. On restart it can fail again on the leftover interim temp file (boost::filesystem::filesystem_error). The ticket (SERVER-30961) is unresolved (Backlog, opened 2017). 26. The FTDC thread can hang silently instead of failing. It sticks in uninterruptible sleep (D state) in statfs() on an autofs mount. It then stops writing diagnostic data and stops serving",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/practice.md#failure-modes-and-trade-offs",
           "note": null
         },
         {
-          "text": "- **\"Fatal\" vs silent stop.** The docs say FTDC thread failures stop mongod (claim 24). SERVER-30961 describes FTDC shutting down on disk-full, and Percona shows a hung FTDC thread with mongod still up (claims 25–26). A hang is not a \"failure\" to the fatal path. Whether I/O errors always abort mongod on current versions is unverified. - **Default cap history.** The 8.0 docs say 8.0.10 raised 200→250 MB (400→500 sharded). The 8.3 release notes say 8.3 raised 200→500 MiB. The current manual says 8.3 raised it \"from 250 MB (500 MB for sharded clusters)\". Current source is 500 MiB. MongoDB's own d",
+          "text": "- \"Fatal\" vs silent stop. The manual says FTDC thread failures are fatal and stop the parent mongod or mongos process. SERVER-30961 describes FTDC shutting itself down on disk-full, and Percona describes a hung FTDC thread (D state in statfs()) with the cluster still operational. Whether all I/O errors abort mongod on current versions is not settled by these sources. - Default cap history. The 8.0 manual says 8.0.10 raised the default from 200 MB (400 MB sharded) to 250 MB (500 MB sharded). The 8.3 release notes say 8.3 raised diagnosticDataCollectionDirectorySizeMB from 200 to 500 MiB. The cu",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/practice.md#unresolved-disagreements",
           "note": null
         }
@@ -298,7 +298,7 @@
           "note": null
         },
         {
-          "text": "1. The first implementation ticket is SERVER-19585, \"Implement full-time diagnostic data capture MongoD integration\". It was created 2015-07-24, resolved 2015-09-10 with fix version 3.1.8 (the 3.2 development series), and assigned to Mark Benvenuto. https://jira.mongodb.org/browse/SERVER-19585 2. The original scope was to collect BSON documents on a recurring schedule from server status, replication status, and oplog statistics. It also captured build information, command-line options, and host details at startup and on file rotation. https://jira.mongodb.org/browse/SERVER-19585 3. FTDC first",
+          "text": "The first implementation ticket is SERVER-19585, \"Implement full-time diagnostic data capture MongoD integration\". It was created 2015-07-24, resolved 2015-09-10 with fix version 3.1.8, and assigned to Mark Benvenuto. The original scope was to collect BSON documents periodically (serverStatus, replSetGetStatus, local.oplog.rs collection stats) and, on startup and file rotation, buildInfo, getCmdLineOpts and hostInfo. The parent feature SERVER-19007 was motivated by the difficulty of collecting wide-coverage, high-resolution, long-retention diagnostic data with external tools. MongoDB's own Go",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/history.md#origin-2015-2016",
           "note": null
         },
@@ -308,12 +308,12 @@
           "note": null
         },
         {
-          "text": "13. `FTDCController` is a decoration on the service context. `startMongoDFTDC` and `startMongoSFTDC` start it. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/README.md 14. The controller holds three collector sets: `_periodicCollectors` (every period), `_rotateCollectors` (on each new file) and `_periodicMetadataCollectors` (slowly-changing metadata, delta-encoded). https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/README.md 15. Most collectors call existing commands through `FTDCSimpleInternalCommandCollector`. https://raw.githubusercontent.com",
+          "text": "13. `FTDCController` is a decoration on the `ServiceContext`. `startMongoDFTDC` and `startMongoSFTDC` start it. 14. The controller holds three collector sets: `_periodicCollectors` (every period), `_rotateCollectors` (on each new file) and `_periodicMetadataCollectors` (periodic metadata, collected every `metadataCaptureFrequency` samples). 15. Most collectors call existing commands through `FTDCSimpleInternalCommandCollector`. 16. The controller owns an `FTDCFileManager`, which owns an `FTDCFileWriter`, which holds the `FTDCCompressor`. The file manager handles rotation, directory trimming an",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/mechanism.md#parts-architecture",
           "note": null
         },
         {
-          "text": "36. Periodic metadata (strings, server parameters) is stored as deltas against the previous sample. If top-level or collector-level field names change, tracking resets and the full sample is written again. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/README.md 37. To rebuild a point-in-time metadata snapshot, a reader replays the deltas in order, merging one level deep at the collector sub-document. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/README.md",
+          "text": "36. Periodic metadata (strings, server parameters) is stored as deltas against the previous sample. If the top-level or collector-level field names change, the compressor resets and the full sample is written again. 37 (removed). The FTDC file reader returns the raw periodic metadata deltas without reconstructing a full sample. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/metadata_compressor.cpp ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/ftdc/file_reader.h",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ftdc-diagnostics/reports/mechanism.md#metadata-delta-encoding",
           "note": null
         },

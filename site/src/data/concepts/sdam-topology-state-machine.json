@@ -18,7 +18,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "36. The spec never uses the phrase \"state machine.\" It encodes transitions as a table whose vertical axis is the new ServerDescription's type and whose horizontal axis is the current TopologyType; each cell names an action such as updateUnknownWithStandalone. https://specifications.readthedocs.io/en/latest/server-discovery-and-monitoring/server-discovery-and-monitoring/ 37. The Node driver diverged from the table: it removed Unknown servers from a ReplicaSetNoPrimary topology where the spec says to update and do nothing. NODE-2214 (2019-09-27) was fixed in 3.3.4. https://jira.mongodb.org/brows",
+          "text": "The spec encodes transitions as a table whose vertical axis is the new ServerDescription's type and whose horizontal axis is the current TopologyType; each cell names an action such as updateUnknownWithStandalone. The Node driver diverged from the table: it removed Unknown servers from a ReplicaSetNoPrimary topology where the spec says to do nothing (no-op) after replacing the description (NODE-2214, created 2019-09-27, fixed in 3.3.4). The Ruby driver's topology can change several times in one SDAM flow (e.g. unknown -> RS no primary -> RS with primary), but topology-change events are sent at",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/history.md#form-of-the-state-machine-and-implementation-drift",
           "note": null
         },
@@ -73,12 +73,12 @@
           "note": null
         },
         {
-          "text": "- **Failover-time budget.** Failover time as the application sees it is driven by the monitor mode (stream or poll), `heartbeatFrequencyMS`, and `serverSelectionTimeoutMS`, not by the election alone (claims 22–29). Tune these before blaming the server. - **Logs.** Error strings are specified (claims 11, 40), so they are reliable things to grep for. - **Connectivity symptoms.** Most \"healthy cluster, but the driver sees no primary\" incidents are about hostname reachability, not bugs in the state machine (claims 36–38). - **Serverless.** On FaaS, leave `serverMonitoringMode=auto` or set `poll`,",
+          "text": "- **Failover-time budget.** Failover time as the application sees it is driven by the monitor mode (stream or poll), `heartbeatFrequencyMS`, and `serverSelectionTimeoutMS`, not by the election alone (claims 22–29). Tune these before blaming the server. - **Logs.** Error strings are specified (claims 11, 40), so they are reliable things to grep for. - **Connectivity symptoms.** Most \"healthy cluster, but the driver sees no primary\" incidents are about hostname reachability, not bugs in the state machine (claims 36–38). - **Serverless.** On FaaS, leave `serverMonitoringMode=auto` or set `poll`",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/practice.md#practical-implications",
           "note": null
         },
         {
-          "text": "If `directConnection` is not given, drivers must behave as if it were false. — https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 10. Single cannot be combined with more than one seed. `directConnection=true` is also invalid with more than one seed. — https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 11. The client constructor MUST NOT do any I/O. Discovery starts asynchronously after the client is built. — https://github.com/mongodb/specifi",
+          "text": "If directConnection is not specified, newly developed drivers MUST behave as if it were false (existing drivers may stage this change). TopologyType Single cannot be used with multiple seeds, and directConnection=true cannot be used with multiple seeds. The client constructor MUST NOT do any I/O (apart from initial DNS seed list discovery for mongodb+srv). Multi-threaded and asynchronous clients MAY start monitors as background tasks from the constructor, or from a separate method or on first use; single-threaded clients scan on demand when the first operation is attempted. A client that is no — https://github.com/mongodb/specifi",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/mechanism.md#initial-state",
           "note": null
         },
@@ -103,17 +103,17 @@
           "note": null
         },
         {
-          "text": "22. The client replaces a ServerDescription only if the new topologyVersion is ≥ the current one. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 23. `compareTopologyVersion` returns \"tv1 < tv2\" if either value is None or the two processIds differ. The result is that a response without a topologyVersion, or from a restarted process, always counts as newer. The spec states that the client \"MUST assume the response is more recent\" if the processId differs. https://specifications.readthedocs.io/en/latest/ser",
+          "text": "The client ignores a new ServerDescription if the current topologyVersion is greater than the new one, so it replaces the description only if the new topologyVersion is greater than or equal to the current. compareTopologyVersion returns -1 (tv1 < tv2) if either value is None or the two processIds differ, so a response without a topologyVersion, or from a different process, is assumed more recent; the spec says the client MUST assume the response is more recent if the processId differs. An error is stale, and the client must not change topology state for it, if its connection generation is low",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/edge-cases.md#topologyversion-and-generation-staleness",
           "note": null
         },
         {
-          "text": "- **The ordering depends on wire version, so it varies across versions.** The spec and SERVER-59409 hold that `(electionId, setVersion)` is the correct, monotonic order. The spec still requires the order it shows is failure-prone, `(setVersion, electionId)`, for maxWireVersion < 17, citing backup-system compatibility. The DRIVERS-1954 failover outage therefore remains possible for drivers talking to pre-6.0 replica sets. The spec's own text leaves this unresolved. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitor",
+          "text": "The tuple ordering depends on wire version. The spec requires (electionId, setVersion) order, which it says is guaranteed monotonic. For servers reporting maxWireVersion below 17 (pre-6.0), drivers keep the old (setVersion, electionId) order, citing compatibility with backup systems. DRIVERS-1954 describes a failover that the old order treats as a stale primary, causing a full cluster outage. The pre-17 pseudocode sets maxElectionId only when both setVersion and electionId are non-null, but updates maxSetVersion separately, while DRIVERS-1954 says to always set maxElectionId and maxSetVersion",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/edge-cases.md#unresolved-disagreements-and-open-questions",
           "note": null
         },
         {
-          "text": "20. 2016-09-26: \"Direct conn to RS member mustn't discover members\" (commit 2f99395). https://api.github.com/repos/mongodb/specifications/commits?path=source/server-discovery-and-monitoring&until=2016-12-31T00:00:00Z&per_page=100 21. 2016-11-01: \"Fix assumptions about initial TopologyType\" (commit c4adbe0). https://api.github.com/repos/mongodb/specifications/commits?path=source/server-discovery-and-monitoring&until=2016-12-31T00:00:00Z&per_page=100 22. 2018-11-23: \"Specify when topology type unknown becomes RS with primary\" (commit 4303937). https://api.github.com/repos/mongodb/specifications/",
+          "text": "20. 2016-09-26: \"Direct conn to RS member mustn't discover members\" (commit 2f99395). https://api.github.com/repos/mongodb/specifications/commits?path=source/server-discovery-and-monitoring&until=2016-12-31T00:00:00Z&per_page=100 21. 2016-11-01: \"Fix assumptions about initial TopologyType\" (commit c4adbe0). https://api.github.com/repos/mongodb/specifications/commits?path=source/server-discovery-and-monitoring&until=2016-12-31T00:00:00Z&per_page=100 22. 2018-11-23: \"Specify when topology type unknown becomes RS with primary\" (commit 4303937).",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/history.md#transition-table-refinements-2016-2020",
           "note": null
         },
@@ -123,7 +123,7 @@
           "note": null
         },
         {
-          "text": "1. The topology has six states: `Single`, `ReplicaSetNoPrimary`, `ReplicaSetWithPrimary`, `Sharded`, `LoadBalanced`, and `Unknown`. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 2. Each server is classified as one of ten types: `Standalone`, `Mongos`, `PossiblePrimary`, `RSPrimary`, `RSSecondary`, `RSArbiter`, `RSOther`, `RSGhost`, `LoadBalancer`, or `Unknown`. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 3. The",
+          "text": "1. The topology has six states: `Single`, `ReplicaSetNoPrimary`, `ReplicaSetWithPrimary`, `Sharded`, `LoadBalanced`, and `Unknown`. 2. Each server is classified as one of ten types: `Standalone`, `Mongos`, `PossiblePrimary`, `RSPrimary`, `RSSecondary`, `RSArbiter`, `RSOther`, `RSGhost`, `LoadBalancer`, or `Unknown`. 3. The client treats the primary's view of the replica set as authoritative. Once a primary is known, the client removes any server that is missing from the primary's hosts list. While no primary is known, the client adds hosts reported by non-primaries but never removes any. 4.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/practice.md#states-and-transitions",
           "note": null
         },
@@ -133,7 +133,7 @@
           "note": null
         },
         {
-          "text": "— https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 6. An RSGhost reports no setName and no hosts list. The client MUST NOT use its hosts list or check its setName. — https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 7. RSOther members may be hidden, starting up, or recovering. The client cannot query them, but their hosts lists still help it discover the replica-set configuration. — https://github.com/mongodb/specifications/blob/master/sou",
+          "text": "— https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 6. An RSGhost reports no setName and no hosts list. The client MUST NOT use its hosts list or check its setName. — https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 7. RSOther members may be hidden, starting up, or recovering. The client cannot query them, but their hosts lists still help it discover the replica-set configuration.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/mechanism.md#parts-states-and-inputs",
           "note": null
         },
@@ -158,7 +158,7 @@
           "note": null
         },
         {
-          "text": "26. A network error or timeout during connection establishment or the `hello` handshake MUST NOT change the ServerDescription. A network error or timeout during authentication marks the server Unknown, except in a LoadBalanced topology. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 27. After the handshake, a network timeout MUST NOT mark the server Unknown, because a timeout \"may indicate a slow operation\". Other post-handshake network errors do mark it Unknown, except in a LoadBalanced topology. https:",
+          "text": "26. A network error or timeout during connection establishment or the `hello` handshake MUST NOT change the ServerDescription. A network error or timeout during authentication marks the server Unknown, except in a LoadBalanced topology. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 27. After the handshake, a network timeout MUST NOT mark the server Unknown, because a timeout \"may indicate a slow operation\". Other post-handshake network errors do mark it Unknown, except in a LoadBalanced topology.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/edge-cases.md#error-driven-transitions",
           "note": null
         },
@@ -183,12 +183,12 @@
           "note": null
         },
         {
-          "text": "15. If a network error or timeout occurs during authentication, the client marks the server `Unknown` (unless the topology is `LoadBalanced`). https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 16. If a network *timeout* occurs after the handshake, the client must NOT mark the server `Unknown`. If a non-timeout network error occurs after the handshake, the client marks the server `Unknown` and clears its pool. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitor",
+          "text": "15. If a network error or timeout occurs during authentication, the client marks the server `Unknown` (unless the topology is `LoadBalanced`). https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 16. If a network *timeout* occurs after the handshake, the client must NOT mark the server `Unknown`. If a non-timeout network error occurs after the handshake, the client marks the server `Unknown` and clears its pool.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/practice.md#error-driven-transitions",
           "note": null
         },
         {
-          "text": "32. Multi-threaded drivers such as PyMongo run one monitor thread per server. The thread checks every 10 s in steady state and every 0.5 s while it cannot find a suitable server. Application operations do not block on scans. https://emptysqua.re/blog/server-discovery-and-monitoring-in-pymongo-perl-and-c/ 33. Single-threaded drivers such as Perl scan on demand, and the application blocks during the scan. A serial scan takes the sum of all server checks. The C driver's single-threaded mode checks servers concurrently, so a scan takes only as long as the slowest check. https://emptysqua.re/blog/s",
+          "text": "32. Multi-threaded drivers such as PyMongo run one monitor thread per server. The thread checks every 10 s in steady state and every 0.5 s while it cannot find a suitable server. Application operations do not block on scans. https://emptysqua.re/blog/server-discovery-and-monitoring-in-pymongo-perl-and-c/ 33. Single-threaded drivers such as Perl scan on demand, and the application blocks during the scan. A serial scan takes the sum of all server checks. The C driver's single-threaded mode checks servers concurrently, so a scan takes only as long as the slowest check.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/practice.md#driver-architecture-trade-offs",
           "note": null
         },
@@ -208,7 +208,7 @@
           "note": null
         },
         {
-          "text": "31. The initial TopologyType follows from two options. `directConnection=true` gives Single, with or without replicaSet. Otherwise, having replicaSet gives ReplicaSetNoPrimary, and having no replicaSet gives Unknown. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 32. The client rejects `directConnection=true` with more than one seed, and it rejects `loadBalanced=true` combined with `directConnection=true` or replicaSet. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discove",
+          "text": "31. The initial TopologyType follows from two options. `directConnection=true` gives Single, with or without replicaSet. Otherwise, having replicaSet gives ReplicaSetNoPrimary, and having no replicaSet gives Unknown. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 32. The client rejects `directConnection=true` with more than one seed, and it rejects `loadBalanced=true` combined with `directConnection=true` or replicaSet.",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/edge-cases.md#start-states-and-option-conflicts",
           "note": null
         },
@@ -223,7 +223,7 @@
           "note": null
         },
         {
-          "text": "1. An RSGhost response never changes TopologyType from Unknown or ReplicaSetNoPrimary. The reason is that a ghost reports no setName, and a \"ReplicaSetNoPrimary and no setName\" state would add complexity for no benefit. https://raw.githubusercontent.com/mongodb/specifications/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 2. If a Standalone answers while TopologyType is Unknown, the topology becomes Single only when there is exactly one seed. With several seeds, the client removes the standalone and the topology stays Unknown, because the user most likely mean",
+          "text": "1. An RSGhost response never changes TopologyType from Unknown, because a ghost does not report its setName and a 'ReplicaSetNoPrimary and no setName' state would add complexity without benefit. 2. If a Standalone answers while TopologyType is Unknown, the topology becomes Single only when there is exactly one seed; with several seeds the standalone is removed and the topology stays Unknown, because the user's intent is clearly to use the replica set despite an outdated seed list. 3. A Mongos response moves an Unknown topology to Sharded; in the replica-set topology types the client removes Mo",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/edge-cases.md#transition-table-boundaries",
           "note": null
         },
@@ -238,7 +238,7 @@
           "note": null
         },
         {
-          "text": "1. A. Jesse Jiryu Davis published the SDAM spec as a draft on 2014-09-17. https://emptysqua.re/blog/server-discovery-and-monitoring-spec/ 2. The stated motivation was that \"each MongoDB driver answered these questions a little differently, and mongos differed a little from the drivers.\" https://emptysqua.re/blog/server-discovery-and-monitoring-spec/ 3. The 2014 draft shipped with 37 YAML-specified tests (inputs and expected outcomes) and was declared a draft until multiple reference implementations stabilised. https://emptysqua.re/blog/server-discovery-and-monitoring-spec/ 4. The spec names Je",
+          "text": "A. Jesse Jiryu Davis published a draft of the SDAM spec on 2014-09-17, motivated by the fact that \"In the past each MongoDB driver answered these questions a little differently, and mongos differed a little from the drivers.\" The draft came with 37 YAML-specified tests, and would become final once there were multiple reference implementations. The spec names Jeff Yemin's Java driver 2.12 code as its \"major inspiration\" and credits Mathias Stearn's mongos 2.6 replica set monitoring design as contributing. Java driver 2.12.1 was the reference implementation for multi-threaded drivers and mongos",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/history.md#origin-2014-2015",
           "note": null
         },
@@ -278,7 +278,7 @@
           "note": null
         },
         {
-          "text": "63. The machine only tracks what the client believes the topology is. It does not choose servers for operations; the Server Selection spec does that. — https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 64. **Disconfirming evidence.** Jepsen found that a node which still believes it is primary can serve stale reads, even with `w:majority` and `readPreference: primary`. The server-side fix was the linearizable read concern, not client-side topology tracking. — https://jira.mongodb.org/browse/SERVER-17975 · https://jeps",
+          "text": "63. The machine only tracks what the client believes the topology is. It does not choose servers for operations; the Server Selection spec does that. — https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 64. **Disconfirming evidence.** Jepsen found that a node which still believes it is primary can serve stale reads, even with `w:majority` and `readPreference: primary`. The server-side fix was the linearizable read concern, not client-side topology tracking. — https://jira.mongodb.org/browse/SERVER-17975 ·",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/mechanism.md#limits",
           "note": null
         },
@@ -298,7 +298,7 @@
           "note": null
         },
         {
-          "text": "1. MongoDB Specifications, \"Server Discovery and Monitoring\" (normative spec) — https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 2. Same spec, readthedocs rendering, with changelog — https://specifications.readthedocs.io/en/latest/server-discovery-and-monitoring/server-discovery-and-monitoring/ 3. SDAM summary (readthedocs) — https://specifications.readthedocs.io/en/latest/server-discovery-and-monitoring/server-discovery-and-monitoring-summary/ 4. PyMongo `topology_description.py` (reference implementation) — https:",
+          "text": "Sources: (1) MongoDB Specifications, \"Server Discovery and Monitoring\" (normative spec); (2) the same spec, readthedocs rendering, with changelog; (3) SDAM summary (readthedocs); (4) PyMongo `topology_description.py` (reference implementation); (5) Ruby driver API, `Mongo::Cluster::Topology::ReplicaSetNoPrimary`; (6) A. Jesse Jiryu Davis, \"Announcing The Server Discovery And Monitoring Spec\" (2014-09-17); (8) SERVER-17975, \"Stale reads with WriteConcern Majority and ReadPreference Primary\"; (9) Jepsen, \"MongoDB 3.4.0-rc3\" (2017-02-07); (10) NODE-3712, \"SDAM should give priority to electionId o — https:",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/mechanism.md#sources",
           "note": null
         },
@@ -308,7 +308,7 @@
           "note": null
         },
         {
-          "text": "42. The spec was published 2014-09-17. Its motivation: until then, \"each MongoDB driver answered these questions a little differently, and mongos differed a little from the drivers.\" https://emptysqua.re/blog/server-discovery-and-monitoring-spec/ 43. At launch, conformance was checked with 37 language-neutral YAML tests (inputs plus expected outcomes). Each driver runs them through its own test runner. https://emptysqua.re/blog/server-discovery-and-monitoring-spec/ 44. From the start, the spec excluded choosing which server to use for an operation. That is left to the separate Server Selection",
+          "text": "The SDAM spec draft was published on 2014-09-17. Its motivation: \"In the past each MongoDB driver answered these questions a little differently, and mongos differed a little from the drivers.\" The draft was accompanied by 37 language-neutral YAML tests (inputs and expected outcomes); a test runner was to be written for each driver to feed it the inputs and verify the outcome. The spec does not describe which servers the client uses for operations; that is left to the separate Server Selection spec. MongoDB publicly uses TLA+ model checking and conformance checking for parts of server replicati",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/practice.md#evaluation-and-conformance",
           "note": null
         },
@@ -353,12 +353,12 @@
           "note": null
         },
         {
-          "text": "23. The **primary's hosts list is authoritative.** The client \"strives to fill the 'servers' list only with servers that the primary said were members of the replica set.\" — https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 24. The spec gives two reasons for this. First, \"the primary is never on the minority side of a network partition.\" Second, reconfigs run on the primary, so the primary learns of them first. A non-primary's reply \"may reflect any past state.\" — https://github.com/mongodb/specifications/blob/master",
+          "text": "23. The **primary's hosts list is authoritative.** The client \"strives to fill the 'servers' list only with servers that the primary said were members of the replica set.\" — https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 24. The spec gives two reasons for this. First, \"the primary is never on the minority side of a network partition.\" Second, reconfigs run on the primary, so the primary learns of them first. A non-primary's reply \"may reflect any past state.\"",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/mechanism.md#action-subroutines-replica-set-membership",
           "note": null
         },
         {
-          "text": "58. The spec deliberately prescribes no driver architecture, data structures, or user-facing API. — https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-discovery-and-monitoring.md 59. PyMongo encodes the Unknown-state transitions as a lookup table, `_SERVER_TYPE_TO_TOPOLOGY_TYPE`: Mongos → Sharded, RSPrimary → ReplicaSetWithPrimary, and RSSecondary → ReplicaSetNoPrimary. — https://github.com/mongodb/mongo-python-driver/blob/master/pymongo/topology_description.py 60. The Ruby driver models each TopologyType as a class, with `ReplicaSetWithPrimary`",
+          "text": "58. The spec deliberately prescribes no driver architecture, data structures, or user-facing API. — 59. PyMongo encodes the Unknown-state transitions as a lookup table, `_SERVER_TYPE_TO_TOPOLOGY_TYPE`: Mongos → Sharded, RSPrimary → ReplicaSetWithPrimary, and RSSecondary → ReplicaSetNoPrimary. — 60. The Ruby driver models each TopologyType as a class, with `ReplicaSetWithPrimary` a subclass of `ReplicaSetNoPrimary`. The base class carries `replica_set_name`, `max_election_id`, and `max_set_version`. — 61. Drivers expose each transition as TopologyDescriptionChangedEvent and ServerDescriptionCha",
           "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sdam-topology-state-machine/reports/mechanism.md#implementation-shape-non-normative",
           "note": null
         },
