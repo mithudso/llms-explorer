@@ -1,7 +1,7 @@
 # LLMSX offerings, peers and site identity
 
-Version: 1.1.0  
-Delta: add eight comparable monthly traffic estimates through the Similarweb provider and preserve failed LLMSX lookups.  
+Version: 1.1.0
+Delta: add eight comparable monthly traffic estimates through the Similarweb provider and preserve failed LLMSX lookups.
 Observed: 2026-11-06. Task: TASK-1196. Status: advisory research; no redesign implemented.
 
 ## Recommendation
@@ -31,12 +31,12 @@ Sources: home, downloads, skills, blog, task hub and tree. Counts are page-repor
 
 Live pages:
 
-https://llmsx.org/  
-https://llmsx.org/downloads/  
-https://llmsx.org/skills/  
-https://llmsx.org/blog/  
-https://llmsx.org/research/  
-https://llmsx.org/tree/  
+https://llmsx.org/
+https://llmsx.org/downloads/
+https://llmsx.org/skills/
+https://llmsx.org/blog/
+https://llmsx.org/research/
+https://llmsx.org/tree/
 https://llmsx.org/start-here/
 
 ## The closest peers
@@ -61,8 +61,8 @@ His site explicitly separates entries, links, quotes, notes and guides. “Agent
 
 **Traction:** the LLM project had 12,715 stars and 1,080 forks. His site advertises a $10/month sponsorship digest. Neither observation establishes newsletter audience, paid subscriber count or revenue; those were not verified. [G02, S09]
 
-https://simonwillison.net/  
-https://simonwillison.net/guides/  
+https://simonwillison.net/
+https://simonwillison.net/guides/
 https://llm.datasette.io/en/stable/
 
 ### roadmap.sh — strongest concept-tree presentation reference
@@ -73,7 +73,7 @@ https://llm.datasette.io/en/stable/
 
 **Traction:** the repository lookup resolved the older owner path to nilbuild/developer-roadmap and returned 371,405 stars and 45,355 forks. Its homepage also claims hundreds of thousands of monthly visitors. The former is a GitHub observation; the latter is a publisher claim without independent analytics verification. [G03, S12]
 
-https://roadmap.sh/  
+https://roadmap.sh/
 https://github.com/nilbuild/developer-roadmap
 
 ### skills.sh — strongest low-friction skills distribution reference
@@ -84,8 +84,8 @@ https://github.com/nilbuild/developer-roadmap
 
 **Traction:** the related vercel-labs/skills CLI repository had 38,368 stars and 3,344 forks. The homepage displayed multi-million installation counts for leading skills; these are publisher-reported aggregate installs, not unique people or active users. The leaderboard's large “All Time” label is not treated here as a user count. [G04, S13, S14]
 
-https://skills.sh/  
-https://www.skills.sh/docs/faq  
+https://skills.sh/
+https://www.skills.sh/docs/faq
 https://github.com/vercel-labs/skills
 
 ### Tessl — closest skills-quality and lifecycle competitor
@@ -96,8 +96,8 @@ The current homepage leads with “Build your software factory, one skill at a t
 
 **Traction:** the January announcement claimed review evaluations for over 2,000 skills; that is a dated catalog claim. TechCrunch reported $125 million of funding on November 14, 2024. Funding establishes financing, not product adoption or commercial success. Current paying customers and recurring revenue were not established. Homepage improvement percentages and customer logos were not independently verified and are not used as proof here. [S16, S17]
 
-https://tessl.io/  
-https://tessl.io/blog/skills-are-software-and-they-need-a-lifecycle-introducing-skills-on-tessl  
+https://tessl.io/
+https://tessl.io/blog/skills-are-software-and-they-need-a-lifecycle-introducing-skills-on-tessl
 https://techcrunch.com/2024/11/14/tessl-raises-125m-at-at-500m-valuation-to-build-ai-that-writes-and-maintains-code/
 
 ### Context7 — strongest focused agent-context proposition
@@ -108,7 +108,7 @@ The repository describes “Up-to-date docs for AI agents.” The live website m
 
 **Traction:** 64,285 stars and 3,215 forks. The 161,000+ library count is publisher-reported coverage, not a user count or a measure of reference quality. Customer logos do not establish the scope of deployment. [G05, S18]
 
-https://context7.com/  
+https://context7.com/
 https://github.com/upstash/context7
 
 ### Prompt Engineering Guide — strongest focused educational library comparison
@@ -119,7 +119,7 @@ A recognizable subject name unifies papers, techniques, learning guides, lecture
 
 **Traction:** 79,873 stars and 8,768 forks. The public site advertises courses and sponsorship. Course availability and sponsor placement do not establish sales or profit. [G06, S19]
 
-https://www.promptingguide.ai/  
+https://www.promptingguide.ai/
 https://github.com/dair-ai/Prompt-Engineering-Guide
 
 ### DeepWiki — strongest single-task knowledge interface
@@ -130,7 +130,7 @@ https://github.com/dair-ai/Prompt-Engineering-Guide
 
 **Traction:** ZenML's 2026 case-study summary attributes 1.4 million indexed repositories and over 20 million queries to the system. This is a secondary account based on a linked presentation; the presentation itself was not reviewed here. Treat these as reported historical scale, not audited current unique users, revenue or a product-quality measure. [S21]
 
-https://deepwiki.com/  
+https://deepwiki.com/
 https://www.zenml.io/llmops-database/auto-generated-codebase-documentation-and-intelligence-at-scale
 
 ## What the comparison says about success
