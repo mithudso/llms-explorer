@@ -160,6 +160,98 @@ class WorkflowAgentsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "independent review"):
             agents.evaluate_responses(self.catalog, path)
 
+    # --- 1.1.0: per-agent version, extra sections, guarded update -------------------------------
+
+    def extended(self, data):
+        agent = data["agents"][0]
+        agent["version"] = "2.0.0"
+        agent["extra_sections"] = [
+            {"heading": "Budget gate", "body": "Require a budget.\n\n- item"},
+            {"heading": "After workflow", "after": "Workflow", "body": "Late note."},
+        ]
+
+    def test_version_and_extra_sections_render_in_place(self):
+        catalog = agents.load_catalog(self.altered_catalog(self.extended))
+        body = agents.body_for(catalog, catalog["agents"][0])
+        self.assertIn("Definition version: 2.0.0", body)
+        headings = (
+            "## Route elsewhere",
+            "## Budget gate",
+            "## Reuse existing capabilities",
+            "## Workflow",
+            "## After workflow",
+            "## Receipt details",
+        )
+        order = [body.index(h) for h in headings]
+        self.assertEqual(order, sorted(order))
+        self.assertIn("## Budget gate\n\nRequire a budget.\n\n- item\n\n## Reuse", body)
+        other = agents.body_for(catalog, catalog["agents"][1])
+        self.assertIn(f"Definition version: {catalog['version']}", other)
+
+    def test_invalid_extra_sections_rejected(self):
+        for bad, message in (
+            ({"heading": "X", "after": "Nowhere", "body": "b"}, "anchor"),
+            ({"heading": "X", "body": "  "}, "body"),
+            ({"heading": "## X", "body": "b"}, "heading"),
+        ):
+            path = self.altered_catalog(
+                lambda d, bad=bad: d["agents"][0].update(extra_sections=[bad])
+            )
+            with self.assertRaisesRegex(ValueError, message):
+                agents.load_catalog(path)
+        path = self.altered_catalog(lambda d: d["agents"][0].update(version="1.1"))
+        with self.assertRaisesRegex(ValueError, "semantic"):
+            agents.load_catalog(path)
+
+    def test_update_replaces_only_recorded_renderings(self):
+        old = agents.render(self.catalog)
+        agents.apply_files(self.root, old)
+        history_path = self.root / "history.json"
+        agents.record_history(old, history_path)
+        new = agents.render(agents.load_catalog(self.altered_catalog(self.extended)))
+        with self.assertRaisesRegex(ValueError, "--update"):
+            agents.apply_files(self.root, new)
+        history = agents.load_history(history_path)
+        rows = agents.apply_files(self.root, new, update=True, history=history)
+        self.assertEqual(sorted({r["action"] for r in rows}), ["unchanged", "update"])
+        self.assertEqual(sum(r["action"] == "update" for r in rows), 2)
+        agents.verify_files(self.root, new)
+
+    def test_update_refuses_an_edited_definition(self):
+        old = agents.render(self.catalog)
+        agents.apply_files(self.root, old)
+        history_path = self.root / "history.json"
+        agents.record_history(old, history_path)
+        target = self.root / list(old)[0]
+        target.write_text("user edit")
+        new = agents.render(agents.load_catalog(self.altered_catalog(self.extended)))
+        with self.assertRaisesRegex(ValueError, "not a recorded earlier rendering"):
+            agents.apply_files(
+                self.root, new, update=True, history=agents.load_history(history_path)
+            )
+        self.assertEqual(target.read_text(), "user edit")
+
+    def test_failed_update_restores_previous_bytes(self):
+        old = agents.render(self.catalog)
+        agents.apply_files(self.root, old)
+        history_path = self.root / "history.json"
+        agents.record_history(old, history_path)
+        new = agents.render(agents.load_catalog(self.altered_catalog(self.extended)))
+        with (
+            patch.object(agents, "verify_files", side_effect=ValueError("boom")),
+            self.assertRaisesRegex(ValueError, "boom"),
+        ):
+            agents.apply_files(
+                self.root, new, update=True, history=agents.load_history(history_path)
+            )
+        for relative, data in old.items():
+            self.assertEqual((self.root / relative).read_bytes(), data)
+
+    def test_shipped_history_covers_the_current_rendering(self):
+        history = agents.load_history()
+        for relative, data in agents.render(self.catalog).items():
+            self.assertIn(agents.digest(data), history.get(relative, ()), relative)
+
 
 if __name__ == "__main__":
     unittest.main()

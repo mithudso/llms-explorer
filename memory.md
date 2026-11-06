@@ -2,6 +2,13 @@
 
 <!-- worklog: 130 older sections moved to docs/archive/memory-2026-11-06.md on 2026-11-06 -->
 
+## v0.22.126 - 2026-11-06
+
+- Workflow agents 1.1.0 (DOC-754 workstream F, Prompt v109). The catalog gains per-agent `version` and `extra_sections`; continuation-recovery, local-model-qualification and agent-asset-parity-auditor carry their hand-extended 1.1.0 definitions. All eleven rendered Claude definitions are byte-identical to `/Users/mitch/.claude/agents/*.md`; no residue.
+- `scripts/workflow_agents.py install --update` replaces only recorded earlier renderings (`agents/workflows/rendered-history.json`, 28 hashes: the 22 v1.0.0 renderings plus 6 new). An edited installed file still aborts. `record-history` appends the current rendering.
+- Verification: `python3 -m unittest discover -s hub/tests -p test_workflow_agents.py` 21 tests OK (6 new: placement, validation, guarded update, refusal of edits, rollback, shipped-history coverage); `uvx ruff check hub` clean for the touched test.
+- Remaining after merge: run `install --home /Users/mitch --update --apply` so the three stale Codex TOMLs (still v1.0.0) pick up 1.1.0, then `verify --home /Users/mitch`.
+
 ## v0.22.125 - 2026-11-06
 
 - Rotated this log with `worklog.py rotate` (workstream J of the agent-workflow recommendations). 130 older `## vX.Y.Z` sections moved verbatim to docs/archive/memory-2026-11-06.md; 53 stay live (350 KB to 102 KB). No section was edited or deleted.

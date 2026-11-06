@@ -1,7 +1,7 @@
 # Workflow agents
 
-Version: 1.0.0
-Delta: eleven portable Claude/Codex agent definitions with guarded installation and evaluation cases.
+Version: 1.1.0
+Delta: 1.0.0 to 1.1.0; per-agent `version` and `extra_sections` in the catalog, `install --update` for recorded earlier renderings, `record-history`.
 
 The versioned catalog is the authoring source. The installed Claude Markdown remains compatible with the existing Claude-to-Codex asset migration. Codex receives the same description and instruction body in its native TOML form. No model, permissions, hooks, MCP servers or existing agent definitions are changed by installation.
 
@@ -37,7 +37,29 @@ python3 /Users/mitch/dev/llms-explorer/scripts/workflow_agents.py install --home
 python3 /Users/mitch/dev/llms-explorer/scripts/workflow_agents.py install --home /Users/mitch --apply
 ```
 
-Installation writes eleven files under /Users/mitch/.claude/agents and eleven under /Users/mitch/.codex/agents. Any different existing file or symlink target aborts the entire preflight. A repeat installation leaves identical definitions unchanged. This version deliberately has no overwrite or delete option. A future source change needs a separately reviewed update mechanism; do not delete a conflicting agent merely to force this installer through.
+Installation writes eleven files under /Users/mitch/.claude/agents and eleven under /Users/mitch/.codex/agents. Any different existing file or symlink target aborts the entire preflight. A repeat installation leaves identical definitions unchanged. There is no delete option.
+
+### Updating installed definitions
+
+The catalog is the authoring source, and since 1.1.0 it can carry everything a hand-extended definition needs: an agent's own `version` (otherwise the top-level `version` is used) and `extra_sections`, a list of `{"heading", "body", "after"}` objects inserted after the named standard section (`after` defaults to `Route elsewhere`). Port a hand edit into the catalog first, then confirm the rendering reproduces the installed file byte for byte:
+
+```sh
+python3 /Users/mitch/dev/llms-explorer/scripts/workflow_agents.py render --output /tmp/workflow-agents-render
+cmp /tmp/workflow-agents-render/.claude/agents/continuation-recovery.md /Users/mitch/.claude/agents/continuation-recovery.md
+```
+
+`install --update` replaces an installed definition only when its bytes are a recorded earlier rendering (`agents/workflows/rendered-history.json`). A file that matches no recorded rendering, such as a hand edit, still aborts the whole preflight. Each replacement re-checks the file's hash just before an atomic rename, and a later failure restores the previous bytes.
+
+```sh
+python3 /Users/mitch/dev/llms-explorer/scripts/workflow_agents.py install --home /Users/mitch --update
+python3 /Users/mitch/dev/llms-explorer/scripts/workflow_agents.py install --home /Users/mitch --update --apply
+```
+
+After any catalog change, record the new renderings so the next update can replace them, and commit the history file with the catalog. The test suite fails if the shipped history does not cover the current rendering.
+
+```sh
+python3 /Users/mitch/dev/llms-explorer/scripts/workflow_agents.py record-history
+```
 
 List the complete descriptions and modes:
 
