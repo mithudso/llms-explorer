@@ -1,6 +1,6 @@
 # Game manufacturing and automated card printing — full-suite report
 
-Version: 1.0.1 · 2026-11-06 · **Research qualified; final Git delivery in progress.**
+Version: 1.0.2 · 2026-11-06 · **Research qualified; delivery receipts in the linked pull requests.**
 
 For identical copies of this game, **outsource the first professionally finished run**. Revisit ownership after configured quotes and a timed, complete-workflow demonstration establish acceptable output and lower total cost at realistic repeat demand. This is the research recommendation, not a measured payback result. Read the [purchasing decision](purchasing-decision.md) for sourced equipment/vendor comparisons, operator tasks, price boundaries and cost-model assumptions. The [quote-and-demo brief](quote-and-demo-brief.md) is prepared for review and has not been sent.
 
