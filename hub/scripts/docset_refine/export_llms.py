@@ -16,15 +16,16 @@ Grammar choices (see document-formats/references/llms-txt*.md):
 - Every file's size is recorded in manifest.json with an approximate token
   count (chars / 4) so a consumer can budget before fetching.
 
-Family: `family` links each product's llms.txt with its page and token
-counts — the spec-v2 nested-index shape (Cloudflare's /llms.txt → per-product
-llms.txt), one hop above the products, never linking pages directly.
+Family: `family` links legacy products with page and token counts, or native
+concept packs with retained-unit, source-host, and token counts. It follows
+the spec-v2 nested-index shape, one hop above each member's llms.txt.
 """
 
 from __future__ import annotations
 
 import re
 from collections import OrderedDict
+from os.path import relpath
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -531,61 +532,103 @@ def run(
     }
 
 
-def _family_link(d: Path, stem: str, fname: str, base_url: str | None, out_path: Path) -> str:
+def _family_link(d: Path, fname: str, base_url: str | None, out_path: Path) -> str:
     if base_url:
-        return f"{base_url.rstrip('/')}/{stem}.llms/{fname}"
+        return f"{base_url.rstrip('/')}/{d.name}/{fname}"
+    return Path(relpath(d.resolve() / fname, out_path.parent.resolve())).as_posix()
+
+
+def _concept_family_member(index: Path, man: dict) -> tuple[str, str, int]:
+    """Validate the native LCA fields used by a family, without rewriting the pack."""
     try:
-        return str((d / fname).relative_to(out_path.parent))
-    except ValueError:
-        return str(d / fname)
+        title = man["concept"]
+        units = man["kept_units"]
+        sources = man["sources"]
+        files = man["files"]
+        if not isinstance(title, str) or not title.strip():
+            raise ValueError("concept must be a nonempty string")
+        if type(units) is not int or units < 0:
+            raise ValueError("kept_units must be a nonnegative integer")
+        if not isinstance(sources, dict):
+            raise ValueError("sources must be a mapping of source hosts")
+        for name in ("llms.txt", "llms-full.txt", "llms-facts.txt"):
+            if name == "llms.txt" or name in files:
+                tokens = files[name]["tokens"]
+                if type(tokens) is not int or tokens < 0:
+                    raise ValueError(f"{name} tokens must be a nonnegative integer")
+                if not (index.parent / name).is_file():
+                    raise ValueError(f"missing {name}")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid concept pack {index}: {exc}") from exc
+    return title, f"{units} units, {len(sources)} source hosts", units
 
 
 def family(
     mirrors: list[Path], name: str, summary: str, out_path: Path, base_url: str | None = None
 ) -> dict:
-    """A family index: one link per product's llms.txt with page + token
-    counts, plus each product's facts file under `## Facts`. `base_url`
+    """Link legacy mirrors or explicit native LCA pack indexes into a family.
+
+    Legacy exports report page counts; concept packs report retained units and
+    source hosts, which do not establish organizational independence. `base_url`
     rewrites local paths into the URL prefix the files will be served from;
     without it the links are file paths relative to `out_path`."""
     out_path = Path(out_path)
-    products, facts = [], []
+    products, concepts, facts = [], [], []
     for m in mirrors:
         m = Path(m)
-        d = m.parent / f"{m.stem}.llms"
+        explicit_pack = m.name == "llms.txt"
+        d = m.parent if explicit_pack else m.parent / f"{m.stem}.llms"
         man = mirror_io.load_json(d / "manifest.json", default=None)
         if not man:
+            if explicit_pack:
+                raise ValueError(f"Missing or invalid concept manifest for {m}")
             continue
+        if explicit_pack:
+            if not isinstance(man, dict) or man.get("kind") != "concept":
+                raise ValueError(f"Expected a native concept pack manifest for {m}")
+            title, counts, unit_count = _concept_family_member(m, man)
+            entries = concepts
+        else:
+            title, counts, unit_count = man["title"], f"{man['pages']} pages", man.get("units", 0)
+            entries = products
         idx = man["files"]["llms.txt"]
         full = man["files"].get("llms-full.txt")
-        products.append(
-            f"- [{man['title']}]({_family_link(d, m.stem, 'llms.txt', base_url, out_path)}): "
-            f"{man['pages']} pages, ~{idx['tokens']} tokens index"
+        entries.append(
+            f"- [{title}]({_family_link(d, 'llms.txt', base_url, out_path)}): "
+            f"{counts}, ~{idx['tokens']} tokens index"
             + (f", ~{full['tokens']} tokens full" if full else "")
         )
         if "llms-facts.txt" in man["files"]:
             facts.append(
-                f"- [{man['title']} facts]"
-                f"({_family_link(d, m.stem, 'llms-facts.txt', base_url, out_path)}): "
-                f"{man.get('units', 0)} units, ~{man['files']['llms-facts.txt']['tokens']} tokens"
+                f"- [{title} facts]"
+                f"({_family_link(d, 'llms-facts.txt', base_url, out_path)}): "
+                f"{unit_count} units, ~{man['files']['llms-facts.txt']['tokens']} tokens"
             )
-    out = (
-        [
-            f"# {name}",
-            "",
-            f"> {summary}",
-            "",
-            "Each product below has its own llms.txt (the authoritative map of that product); "
-            "this file links indexes, not pages, so a reader is at most two hops from any page.",
-            "",
-            "## Products",
-            "",
-        ]
-        + products
-        + [""]
+    introduction = (
+        "Each member below has its own llms.txt; this file links member indexes, not content."
+        if concepts
+        else "Each product below has its own llms.txt (the authoritative map of that product); "
+        "this file links indexes, not pages, so a reader is at most two hops from any page."
     )
+    out = [
+        f"# {name}",
+        "",
+        f"> {summary}",
+        "",
+        introduction,
+        "",
+    ]
+    if products or not concepts:
+        out += ["## Products", ""] + products + [""]
+    if concepts:
+        out += ["## Concepts", ""] + concepts + [""]
     if facts:
         out += ["## Facts", ""] + facts + [""]
     text = "\n".join(out).rstrip() + "\n"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text, encoding="utf-8")
-    return {"out": str(out_path), "products": len(products), "tokens": _tokens(text)}
+    return {
+        "out": str(out_path),
+        "products": len(products) + len(concepts),
+        "tokens": _tokens(text),
+    }

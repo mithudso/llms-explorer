@@ -1,8 +1,8 @@
 # Custom game manufacturing and printer ownership — full-suite run
 
-Version: 0.1.0
+Version: 0.1.1
 Date: 2026-11-06
-Status: **IN PROGRESS — planning complete; research and evidence qualification pending.**
+Status: **IN PROGRESS — native research underway; evidence qualification pending.**
 
 The user requests the full-suite workflow on custom board game manufacture and automated professional playing-card printing. The purchase decision concerns identical copies of the game: whether an owned printer is worthwhile, its quality, and the effort required to operate the complete production workflow. US/USD scenarios are the working scope.
 
@@ -69,3 +69,9 @@ The worked cost scenarios will separate quoted54-card configurations from an ill
 Pending: native research, claim/evidence integrity and semantic gates, per-concept organization independence checks, compilation, rollup, reachable indexes and registrations, independent research-contract audit, purchasing-decision report and final Git delivery. Existing paused embedding/inference services will remain untouched. Index status will distinguish keyword and semantic layers rather than treating compilation as indexed completion.
 
 The root task is the manufacturing full-suite run, TASK-1171. Private source bodies, claims, source pins, run paths and checkpoints stay outside this public repository. Versioned prompt and memory records preserve the commission and safe resumption.
+
+## Compiler compatibility checkpoint
+
+The existing family compiler expected product mirrors with page counts. Native concept packs instead supply retained-unit and source-host counts. The owned compiler now accepts their explicit indexes, preserves those counts, and leaves the native manifests unchanged. Legacy mirror input remains supported. This compatibility change enables the required generated rollup; it is not evidence that research, pack compilation, or indexing has finished.
+
+Basic claims-check and strict v4 evidence preflight are separate checks. The first foundation draft passed the former; independent preflight identified five exact evidence-span issues for repair before any paid semantic gate. Original author passes and pinned snapshots remain private and preserved.

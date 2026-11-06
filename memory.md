@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.117 - 2026-11-06
+
+- Manufacturing full-suite continuation preserves native author outputs and the identical-deck scope. TASK-1179 tracks evidence qualification; TASK-1180 tracks pack/skill/index registration; TASK-1181 tracks the purchasing report and verified delivery. All block parent TASK-1171. The first foundation topic has19 merged claims after2passes; no claim is qualified from author exit or the basic claims-check result.
+- Independent strict preflight found5 foundation evidence issues despite basic claims-check passing:3 Epson model identifiers need exact model/header spans, and2 date spans are shorter than20characters. Repair only these canonical evidence bindings from existing pinned snapshots; preserve pass drafts and every paid attempt. Full-cohort independent semantic gates remain owed.
+- The required family compiler could not consume native concept manifests. A narrow owned fix in hub/scripts/docset_refine/export_llms.py accepts explicit pack/llms.txt, reports real retained-unit/source-host counts, preserves legacy page counts, and fails invalid explicit packs before replacing output. Dedicated compatibility/CLI/link/error tests accompany it. The shared global compiler remains unchanged; use PYTHONPATH=hub/scripts with this worktree's module. Source-host counts do not establish independent organizations.
+- Same-run native sessions and returned paths are retained in /Users/mitch/.global-ai-hub/research/.ranked/card-manufacturing-20261106/live-native-authors.json and native-runs.json. The foundation dispatch completed; only its4 remaining economics topics were dispatched next. Do not repeat existing done authors. Current CFE state retains researched0 until qualified persistence completes. The lock retains its original start and now references verified live native parent91522 rather than the transient creator PID.
+- The file-level FTS helper can index exact owned files without embeddings. Native docset keyword indexing requires existing semantic model metadata, and router registry build calls embeddings. Do not forge model rows or resume paused inference/indexing. Report these layers separately; complete available deterministic work before any bounded user decision on the blocked semantic stage. Delta:0.22.116to0.22.117; prompt102 unchanged.
+
 ## v0.22.116 - 2026-11-06
 
 - TASK-1171 runs the user-invoked full-suite for custom board game manufacturing and automated professional paper playing-card printing. The user clarified identical copies of the game. Include printer quality, real automation, operator effort, finishing, consumables, maintenance, throughput and volume-based make-versus-buy economics in US/USD scenarios.
