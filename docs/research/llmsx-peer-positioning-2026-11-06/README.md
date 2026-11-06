@@ -1,7 +1,7 @@
 # LLMSX offerings, peers and site identity
 
-Version: 1.0.0  
-Delta: initial live review and recommendations.  
+Version: 1.1.0  
+Delta: add eight comparable monthly traffic estimates through the Similarweb provider and preserve failed LLMSX lookups.  
 Observed: 2026-11-06. Task: TASK-1196. Status: advisory research; no redesign implemented.
 
 ## Recommendation
@@ -137,7 +137,26 @@ https://www.zenml.io/llmops-database/auto-generated-codebase-documentation-and-i
 
 There is visible demand for curated learning, agent context and reusable instructions. Several peer repositories have tens of thousands of stars. The evidence does not rank their commercial success or prove demand for LLMSX's exact combination.
 
-LLMSX's own repository record showed **zero stars, zero forks, no homepage URL and no topics**. Its description still says it hosts research, catalogs and MCP servers for found llms files. These observations suggest the GitHub discovery surface is underdeveloped relative to the website's current promise. They do not show that the website has no visitors. Its audience, retention, downloads and conversions remain unknown in this review. [G07]
+### Comparable traffic estimates
+
+A targeted Alexandria lookup found Similarweb's traffic-and-engagement capability. It returned the following **modeled September 2026 visits**, worldwide, total web across devices, including subdomains under the default request. These are visits, not unique people. They are historical estimates from one provider and can differ from first-party analytics. They do not establish revenue, retained use, or the effectiveness of a particular navigation design.
+
+| Site | Estimated September 2026 visits | What the domain measures |
+|---|---:|---|
+| roadmap.sh | 3.88 million | Whole learning site [T01] |
+| skills.sh | 2.13 million | Skills discovery website; CLI usage can occur without a site visit [T02] |
+| simonwillison.net | 1.28 million | Main publication; separate tool/documentation domains are outside this request [T03] |
+| deepwiki.com | 907,000 | Repository documentation website [T04] |
+| context7.com | 671,000 | Main website; this is not an MCP/API usage measure [T05] |
+| promptingguide.ai | 359,000 | Guide website [T06] |
+| danielmiessler.com | 176,000 | Creator's wider site, not Fabric-specific usage [T07] |
+| tessl.io | 112,000 | Main website, not a count of active or paid customers [T08] |
+
+Insights by Similarweb: https://www.similarweb.com
+
+October data was unavailable under the provider's publication policy on the lookup date. The LLMSX September request returned a provider HTTP502 error. That failure establishes no traffic count; it is not zero or evidence of a small audience. The full request scope, exact values and provider metadata are retained in the source index. [T09]
+
+LLMSX's own repository record showed **zero stars, zero forks, no homepage URL and no topics**. Its description still says it hosts research, catalogs and MCP servers for found llms files. These observations suggest the GitHub discovery surface is underdeveloped relative to the website's current promise. They do not show that the website has no visitors. Its audience, retention, downloads and conversions remain unknown in this review; the attempted traffic-provider lookup failed rather than returning a low count. [G07]
 
 The peers are different ages and types. Comparing a new solo project with a long-running educational site or venture-funded company is useful for presentation patterns, but poor for a raw performance ranking.
 
@@ -148,6 +167,7 @@ Use these evidence classes separately:
 | GitHub stars/forks | Public attention and repository reuse interest | Active use, successful workflows, revenue |
 | Installation telemetry | Recorded install events in that distribution channel | Unique people, retained usage, quality |
 | Catalog/library counts | Breadth of supplied material | Adoption, correctness, useful coverage |
+| Modeled traffic estimate | Relative website reach in the requested month and scope | Audited analytics, unique users, retention, revenue |
 | Publisher audience/traffic claim | What the publisher reports | Independently verified audience |
 | Funding | Access to investment capital at the reported date | Product-market fit, profit, current valuation |
 | Reproducible task evaluation | Results under a stated test | Universal improvement across tasks/models |
@@ -223,7 +243,7 @@ Reviewed the installed Firecrawl catalog across core web collection, structured-
 |---|---|---|
 | Search + scrape | Best core fit | Used to discover peers and read the live LLMSX and peer pages. |
 | Market research | Best outcome workflow | Applied its sourced comparison and metric/date discipline. |
-| Alexandria / find-tools | Useful for consistent peer metrics | Discovered and inspected the GitHub repository contract, then executed it for seven repositories. |
+| Alexandria / find-tools | Useful for consistent peer metrics | Discovered and inspected GitHub repository and Similarweb traffic contracts. Retrieved seven repository records and eight comparable monthly traffic estimates; the LLMSX lookup failed. |
 | Competitive intel | Useful after a shortlist exists | Its definition focuses on recurring monitoring. No monitor was created for this one-time review. |
 | Shop | Low fit | Retail purchase comparisons do not answer site positioning. |
 | Map / crawl | Optional | Explicit navigation links supplied the required pages; a full crawl was unnecessary. |
@@ -233,7 +253,7 @@ Reviewed the installed Firecrawl catalog across core web collection, structured-
 | Deep research | Not selected | Its definition asks for an explicitly requested formal, report-scale research job. A bounded peer review answered this request without launching that workflow. |
 | SEO / monitor | Useful subsequent work | Neither a technical SEO audit nor recurring alerts were requested. |
 
-Two configured Firecrawl tool surfaces expose overlapping search, scrape, agent, map, crawl and provider-discovery capabilities: the Firecrawl MCP server and the Firecrawl app connector. This review used the MCP server and reused captures rather than executing the same work twice. Provider discovery did not produce a directly usable traffic estimate in the inspected results; no traffic numbers were invented.
+Two configured Firecrawl tool surfaces expose overlapping search, scrape, agent, map, crawl and provider-discovery capabilities: the Firecrawl MCP server and the Firecrawl app connector. This review used the MCP server and reused captures rather than executing the same work twice. A targeted provider search found Similarweb traffic estimates. Eight peer domains returned September data. LLMSX returned a provider error; no traffic was inferred from that failure.
 
 MCP search and scrape results, structured GitHub records and their observation times are retained in the private capture bundle. The public source index preserves selected short supporting passages and the metrics needed to assess this report. No raw third-party corpus was added to the repository.
 
@@ -245,7 +265,7 @@ The recommendation is ready for review: adopt **practical engineering for AI age
 
 ## Sources and rerun record
 
-Every S/G identifier resolves in the accompanying sources.json. GitHub metrics were fetched on 2026-11-06 through Alexandria's github-com/repositories/repo contract, version 1.3.0. The source record includes the resolved repository URL and observed_at timestamp.
+Every S/G/T identifier resolves in the accompanying sources.json. GitHub metrics were fetched on 2026-11-06 through Alexandria's github-com/repositories/repo contract, version 1.3.0. The source record includes the resolved repository URL and observed_at timestamp. Traffic observations use Similarweb web/traffic for September 2026, with worldwide total-web scope, visits only and subdomains included. October requests were unavailable until the provider publication date.
 
 Rerun: inventory the live seven LLMSX entry pages; search for peer overlap; refresh official peer pages; refresh the seven repository records; preserve metric types and source dates; compare messages and visitor journeys; update this report's version and delta. Reuse adequate captured content within a run. Do not start recurring monitors or change the website as part of a research refresh.
 
