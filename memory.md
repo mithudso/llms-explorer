@@ -1,10 +1,16 @@
 # Memory
 
-## v0.22.117 - 2026-11-06
+## v0.22.118 - 2026-11-06
 
 - TASK-284 resumes the Aero /full-suite run. Run aero-slipstream-v4 repairs only its 9 failed assertions: the ZERO_FEE_INDICATOR static fee branch, the `collect` position.liquidity > 0 condition, CLGaugeFactory/CLPool getter ownership in open questions, and the MAX_PIPS denominator from contracts/libraries/ProtocolConstants.sol. Re-gate reuses 53 then 69 validated unchanged judgments; final gate is 60 SUPPORTED and 10 NO-FACTUAL-ASSERTION with 3 attributed conflicts. One judge evidence span omitted claim identifiers, so that claim was reworded without identifiers and re-judged alone.
 - Native finish registers both runs. clmm-bots-base-v4 (71 SUPPORTED) and aero-slipstream-v4 add 6 concept nodes each, 12 hub and 12 repository packs, 12 research-artifact projections and reader pages. The earlier long-topic finish was rolled back; both manifests already carried short topics. An extractive docs pack that held the aero-protocol-overview slug was moved to aero-protocol-overview-docs before the Aero finish.
-- No source code changed. Validation: publish privacy gate clean; scripts/tests 68 passed. Delta: 0.22.116 to 0.22.117; prompt103.
+- No source code changed. Validation: publish privacy gate clean; scripts/tests 68 passed. Delta: 0.22.117 to 0.22.118; prompt104.
+
+## v0.22.117 - 2026-11-06
+
+- TASK-1182 delivers the original-label mongot autoEmbed supplement solely within current Percona primary documentation.10stored factual rows and15accepted assertions:11SUPPORTED,4NO-FACTUAL-ASSERTION. Retain the attributed catalog-example disagreement and required inherited rows0/9 with zero child novelty. No Atlas or binary-execution applicability follows. Historical private author heuristic11 remains stale; all accepted factual projections contain10.
+- Eight paired pack members and all10full fact/citation/identity/temporal bindings match. All7earlier public scopes and463protected native/public/source files,allqueue bytes and96unowned source-count values are preserved. No source code,body,controller or native claim/plan edits occur in delivery.
+- Audit278,R14site279/hub98 and cohortAsite280/hub99 are merged; the previous7scopes have independent LIVEPASS. This supplement enters paired Git/CI and separate production acceptance. Only after LIVEPASS would8scopes total222stored facts and245assertion judgments (232SUPPORTED,13NO-FACTUAL-ASSERTION); not222unique findings. Preserve640unreviewed drafts,holds and paused state. Remaining212priority candidates:2withheld pilots under prose/curation/configuration review plus210pending. No saturation. Delta:0.22.116to0.22.117; prompt103.
 
 ## v0.22.116 - 2026-11-06
 
