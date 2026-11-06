@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.117 - 2026-11-06
+
+- TASK-284 resumes the Aero /full-suite run. Run aero-slipstream-v4 repairs only its 9 failed assertions: the ZERO_FEE_INDICATOR static fee branch, the `collect` position.liquidity > 0 condition, CLGaugeFactory/CLPool getter ownership in open questions, and the MAX_PIPS denominator from contracts/libraries/ProtocolConstants.sol. Re-gate reuses 53 then 69 validated unchanged judgments; final gate is 60 SUPPORTED and 10 NO-FACTUAL-ASSERTION with 3 attributed conflicts. One judge evidence span omitted claim identifiers, so that claim was reworded without identifiers and re-judged alone.
+- Native finish registers both runs. clmm-bots-base-v4 (71 SUPPORTED) and aero-slipstream-v4 add 6 concept nodes each, 12 hub and 12 repository packs, 12 research-artifact projections and reader pages. The earlier long-topic finish was rolled back; both manifests already carried short topics. An extractive docs pack that held the aero-protocol-overview slug was moved to aero-protocol-overview-docs before the Aero finish.
+- No source code changed. Validation: publish privacy gate clean; scripts/tests 68 passed. Delta: 0.22.116 to 0.22.117; prompt103.
+
 ## v0.22.116 - 2026-11-06
 
 - TASK-1175 delivers catalog cohort A:18deadline,19topology and22retry facts;59stored rows total. Native gates accept73assertions with64SUPPORTED and9NO-FACTUAL-ASSERTION. Independent review resolves exact scope and evidence corrections; retain inherited retry context with zero novelty and the attributed CSOT/retry specification disagreement. The private historical retry heuristic23 is stale; all current accepted projections contain22.
