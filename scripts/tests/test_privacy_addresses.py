@@ -37,7 +37,7 @@ def test_allowlisted_message_does_not_approve_a_different_email_identifier():
     assert cleaned == "https://lore.kernel.org/linux-pci/user@example.test/"
 
 
-def _findings(text: str, rel: str = "hub/scripts/x.py"):
+def _findings(text: str, rel: str = "hub/scripts/x.py", deny=()):
     """Scan `text` as if it sat at `rel` inside the repo, leaving no trace."""
     p = Path(gate.REPO) / rel
     made = []
@@ -49,7 +49,7 @@ def _findings(text: str, rel: str = "hub/scripts/x.py"):
     assert not p.exists(), f"fixture path collides with a real file: {rel}"
     p.write_text(text)
     try:
-        return [(name, val) for _, _, name, val, _ in gate.scan([str(p)], [], gate.allowlist())]
+        return [(name, val) for _, _, name, val, _ in gate.scan([str(p)], deny, gate.allowlist())]
     finally:
         p.unlink()
         for d in reversed(made):
@@ -57,6 +57,59 @@ def _findings(text: str, rel: str = "hub/scripts/x.py"):
 
 
 # ---- gate ---------------------------------------------------------------
+
+HELP_ARTICLES = [
+    "https://help.drivethrucards.com/hc/en-us/articles/"
+    "12780748203543-Specifications-for-Print-Cards",
+    "https://help.drivethrucards.com/hc/en-us/articles/"
+    "12775347188759-Common-Card-Order-Questions-Answers",
+]
+SYNTHETIC_DOC_ID = "1" + "AbCdEf0123" * 4 + "AbC"
+PUBLISHED_ID_FIXTURE = "outputs/google-doc-id-fixture.txt"
+
+
+@pytest.mark.parametrize("url", HELP_ARTICLES)
+@pytest.mark.parametrize("delimiter", ["", ",", ";"])
+def test_help_article_path_slug_is_not_a_google_document_id(url, delimiter):
+    assert _findings(url + delimiter, rel=PUBLISHED_ID_FIXTURE) == []
+
+
+@pytest.mark.parametrize("url", HELP_ARTICLES)
+def test_bare_article_shaped_identifiers_are_not_globally_exempt(url):
+    hits = _findings(url.rsplit("/", 1)[-1], rel=PUBLISHED_ID_FIXTURE)
+    assert [name for name, _ in hits] == ["google doc id"]
+
+
+@pytest.mark.parametrize("text", [
+    SYNTHETIC_DOC_ID,
+    "https://docs.google.com/document/d/" + SYNTHETIC_DOC_ID + "/edit",
+])
+def test_real_google_document_shapes_remain_detected(text):
+    assert ("google doc id", SYNTHETIC_DOC_ID) in _findings(text, rel=PUBLISHED_ID_FIXTURE)
+
+
+@pytest.mark.parametrize("suffix", [
+    "?document=" + SYNTHETIC_DOC_ID,
+    "#" + SYNTHETIC_DOC_ID,
+    "/" + SYNTHETIC_DOC_ID + "/edit",
+    " and " + SYNTHETIC_DOC_ID,
+])
+def test_help_article_does_not_hide_another_identifier(suffix):
+    hits = _findings(HELP_ARTICLES[0] + suffix, rel=PUBLISHED_ID_FIXTURE)
+    assert ("google doc id", SYNTHETIC_DOC_ID) in hits
+
+
+def test_help_article_does_not_exempt_mixed_alphanumeric_slug():
+    url = "https://support.example.com/hc/en-us/articles/1234567890123-" + SYNTHETIC_DOC_ID
+    assert any(name == "google doc id" for name, _ in _findings(url, rel=PUBLISHED_ID_FIXTURE))
+
+
+def test_help_article_keeps_other_privacy_rules_and_denylist_active():
+    text = HELP_ARTICLES[0] + " 192.168.77.75 /Users/synthetic/Documents sensitive-placeholder"  # privacy-ok: synthetic fixture address
+    hits = _findings(text, rel=PUBLISHED_ID_FIXTURE, deny=("sensitive-placeholder",))
+    names = {name for name, _ in hits}
+    assert {"private network address", "operator home path", "denylisted term"} <= names
+
 
 @pytest.mark.parametrize("text", [
     "HUB_OLLAMA_URLS=http://192.168.77.75:11434=4",       # privacy-ok

@@ -564,14 +564,17 @@ def _concept_family_member(index: Path, man: dict) -> tuple[str, str, int]:
 
 
 def family(
-    mirrors: list[Path], name: str, summary: str, out_path: Path, base_url: str | None = None
+    mirrors: list[Path], name: str, summary: str, out_path: Path, base_url: str | None = None,
+    *, include_facts: bool = True,
 ) -> dict:
     """Link legacy mirrors or explicit native LCA pack indexes into a family.
 
     Legacy exports report page counts; concept packs report retained units and
     source hosts, which do not establish organizational independence. `base_url`
     rewrites local paths into the URL prefix the files will be served from;
-    without it the links are file paths relative to `out_path`."""
+    without it the links are file paths relative to `out_path`. Set
+    `include_facts=False` to link only member indexes; their facts remain two
+    hops away through the member indexes."""
     out_path = Path(out_path)
     products, concepts, facts = [], [], []
     for m in mirrors:
@@ -598,7 +601,7 @@ def family(
             f"{counts}, ~{idx['tokens']} tokens index"
             + (f", ~{full['tokens']} tokens full" if full else "")
         )
-        if "llms-facts.txt" in man["files"]:
+        if include_facts and "llms-facts.txt" in man["files"]:
             facts.append(
                 f"- [{title} facts]"
                 f"({_family_link(d, 'llms-facts.txt', base_url, out_path)}): "

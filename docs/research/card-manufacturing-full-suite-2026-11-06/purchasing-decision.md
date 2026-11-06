@@ -1,6 +1,6 @@
 # Identical game decks: outsource first, qualify ownership later
 
-Version: 0.1.1 — working decision report, 2026-11-06. Delta: clarify operating work, comparable procurement steps and fixed-cost crossover algebra. Final suite status and artifact receipts are tracked in the [companion run report](README.md).
+Version: 1.0.0 — reviewed decision report, 2026-11-06. Delta: promote the source-checked decision, preserve coating-operation findings and correct the MPC specification citation. Final suite status and artifact receipts are tracked in the [companion run report](README.md).
 
 ## Recommendation
 
@@ -57,6 +57,8 @@ Identical content makes bulk production worth quoting, but a minimum order is no
 
 These are tasks to measure, not an estimate of hours per batch. Canon warns that stock characteristics can affect feed reliability and output. Xerox documents customer-replaceable supplies, maintenance sheets and adjustments. [Canon media guidance](https://oip.manual.canon/USRMA-7565-zz-PS-900-enUS/contents/devu-beginning-dev_spec-papers.html), [Xerox Versant 4100 user guide](https://download.support.xerox.com/pub/docs/VERSANT_4100/userdocs/any-os/en_GB/Xerox_Versant_4100_press_ug_en-US.pdf), [production sequence](https://printninja.com/card-game-production/).
 
+If the chosen construction needs an in-house coating step, include its setup and upkeep too. ACTEGA treats drying controls as application-specific and identifies pile pressure and excessive coating as blocking concerns. Graphic Whizard documents lamp/reflector and roller cleaning for its Micro coater. These are process-specific tasks; they do not establish a universal coating recipe or minutes per game. [ACTEGA blocking guidance](https://www.actega.com/emea/en/services/troubleshooting/blocking-printed-sheets.html), [Graphic Whizard coater troubleshooting](https://www.graphicwhizard.com/faq/).
+
 Service response is a separate question from production recovery. Ricoh's advertised service response depends on contract terms; it does not establish the repair duration or this game's output during a failure. Check what the actual agreement includes before counting toner or repair spending again. [Ricoh maintenance coverage](https://www.ricoh-usa.com/en/support-and-download/maintenance-services).
 
 The research does **not** establish overall operator minutes per game, accepted games per shift, reject yield, equipment life or a universal ownership break-even volume. Record attended operator minutes separately from machine-running and drying time. Divide total batch effort and expenditure by accepted complete games, including inspection and rework. This is an application of batch costing and a complete-workflow observation method. [MU Extension batch costing](https://extension.missouri.edu/publications/g648), [workflow observation case study](https://repository.rit.edu/theses/5036/).
@@ -89,7 +91,7 @@ These quantities do not predict what this business will sell or which supplier w
 ## Supplier shortlist and the checks that matter
 
 - **The Game Crafter:** useful to evaluate configured small-copy games and direct fulfillment. Specify the two stacks carefully: its guide says same-size cards within a game are not sorted by deck and directs separately packaged decks to its embedded-games option. Whole-sheet billing also affects cost. [Card setup and billing](https://help.thegamecrafter.com/article/399-how-to-make-a-card-game-tarot-deck).
-- **MakePlayingCards:** evaluate fully custom paper-card faces, stock/finish choices and fulfillment against the exact game. Verify the selected stock's quantity restrictions rather than assuming every option has the same minimum. [Print routes](https://www.makeplayingcards.com/pops/card-print-types.html), [fulfillment terms](https://www.makeplayingcards.com/mpc-fulfillment-services.aspx), [card specifications](https://www.makeplayingcards.com/pops/card-stock-type.html).
+- **MakePlayingCards:** evaluate fully custom paper-card faces, stock/finish choices and fulfillment against the exact game. Verify the selected stock's quantity restrictions rather than assuming every option has the same minimum. [Print routes](https://www.makeplayingcards.com/pops/card-print-types.html), [fulfillment terms](https://www.makeplayingcards.com/mpc-fulfillment-services.aspx), [custom game-card specifications and stock minimums](https://www.makeplayingcards.com/design/custom-blank-card.html).
 - **PrintNinja / Panda:** evaluate a repeatable bulk run once the specification and demand support the actual minimums. Retain production-sample approval and freight scope in the quote. [PrintNinja](https://printninja.com/printing-products/card-game-printing/), [Panda](https://pandagm.com/our-process/).
 - **A local card-capable commercial printer:** request a finished, rounded, complete two-stack game sample and total cost. A quote for printed sheets alone is not the same deliverable. This is a proposed procurement requirement from the documented full production workflow. [Production stages](https://printninja.com/card-game-production/).
 

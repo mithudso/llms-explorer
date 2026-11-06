@@ -1,5 +1,15 @@
 # Prompts Log
 
+## Prompt v106 - 2026-11-06
+
+> Run the full-suite skill on custom board game manufacturing, automatic professional playing card printing,
+
+> I also want to know if buying an automated card printer is worth it, if they're any good, and how much effort they take to operate.
+
+Clarification: **Identical game decks**, US/USD planning. User subsequently authorized: **Run the isolated indexing job (Recommended)** for the prepared 26-pack/605-row manufacturing-only job with a 30-minute cap and temporary-server cleanup. Preserve accepted checkpoints, unrelated dirty work and the existing pause on other inference/indexing services. Do not contact suppliers, buy equipment, place orders or change the game service.
+
+Continuation: deliver the qualified 26-topic mapped family, 605 structured rows/841 assertions, 34 paired packs, generated local/public family indexes, scoped semantic/FTS registration and source-backed purchasing/quote guides. CFE exits SATURATED-COVERAGE; no strong frontier-exhaustion claim. The isolated job completed and its server is stopped. Skills PR68 is merged with frozen source hashes verified. Finish primary PR281 CI/merge and actual published acceptance, preserving the original divergent checkout. Root task TASK-1171; report docs/research/card-manufacturing-full-suite-2026-11-06/README.md. Delta: prompt105 to106; memory0.22.121 to0.22.122.
+
 ## Prompt v105 - 2026-11-06
 
 > Run the full-suite skill on custom board game manufacturing, automatic professional playing card printing,
