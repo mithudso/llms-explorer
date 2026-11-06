@@ -8,7 +8,7 @@
       "title": "Definitions",
       "facts": [
         {
-          "text": "A usage count alone is not a drop decision. Studio 3T says the drop decision is rarely a simple question of whether the index was used recently. AWS says never to drop an index without discussing it with all interested parties and testing performance. Atlas says to consider hiding an index before dropping it. (medium confidence)",
+          "text": "A usage count alone is not a drop decision. Studio 3T says the drop decision is rarely a simple question of whether the index was used recently. Amazon DocumentDB's documentation (a different product from MongoDB) says never to drop indexes without discussing with all interested parties and testing performance. Atlas says to consider hiding an index before dropping it. Sources: https://studio3t.com/?p=45504 ; https://docs.aws.amazon.com/documentdb/latest/devguide/anti-pattern-low-used-redundant-indexes.html ; https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes/",
           "source": "https://studio3t.com/?p=45504",
           "note": null
         }
@@ -18,42 +18,42 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "`$indexStats` is an aggregation stage that returns usage statistics for each index of a collection. Per index it returns `name`, `key`, `host`, `accesses` (`ops` and `since`), `shard` (sharded clusters only), `spec`, and `building` (only when true). (high confidence)",
+          "text": "`$indexStats` is an aggregation stage that returns usage statistics for each index of a collection. Per index it returns `name`, `key`, `host`, `accesses` (`ops` and `since`), `shard` (sharded clusters only), `spec`, and `building` (only when true). (high confidence) (Historical: the cited page documents MongoDB 4.4, which is past end of life.)",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
         {
-          "text": "`accesses.since` is the time from which MongoDB gathered the statistics for that index. It is populated even when `ops` is 0: the manual's sample output shows `_id_` and `price_1` with `ops: 0` and a set `since`. Read `ops` against the length of the window that `since` opens. (high confidence)",
+          "text": "`accesses.since` is the time from which MongoDB gathered the statistics for that index. It is populated even when `ops` is 0: the manual's sample output shows `_id_` and `price_1` with `ops: 0` and a set `since`. Read `ops` against the length of the window that `since` opens. (high confidence) (Historical: the cited page documents MongoDB 4.4, which is past end of life.)",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
         {
-          "text": "Index statistics reset on `mongod` restart, on index drop and recreation, and whenever `collMod` modifies the index. Changing `hidden` (only when the value actually changes) or `expireAfterSeconds` resets them; hiding an already hidden index or unhiding an already visible one does not. (high confidence)",
+          "text": "Index statistics reset on `mongod` restart, on index drop and recreation, and whenever `collMod` modifies the index. Changing `hidden` (only when the value actually changes) or `expireAfterSeconds` resets them; hiding an already hidden index or unhiding an already visible one does not. (high confidence) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md ; https://www.mongodb.com/docs/manual/core/index-hidden.md ; https://www.mongodb.com/docs/manual/reference/command/collMod.md",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
         {
-          "text": "Unnecessary indexes degrade write performance and consume disk and memory, because inserts and indexed-field updates must maintain every index. The Atlas Performance Advisor suggests dropping unused, redundant and hidden indexes 'to improve write performance and increase storage space'. (high confidence)",
+          "text": "Unnecessary indexes degrade write performance and consume disk space and memory, because indexes must be updated during writes. The Atlas Performance Advisor suggests dropping unused, redundant, and hidden indexes to improve write performance and increase storage space. Sources: https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes.md ; https://www.mongodb.com/docs/atlas/performance-advisor.md ; https://www.mongodb.com/docs/manual/core/index-hidden.md ; https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes.md",
           "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
           "note": null
         },
         {
-          "text": "`$indexStats` lists hidden indexes too, and its `spec` carries `hidden: true` only for hidden indexes. Hidden indexes stay in statistics output because they are still maintained on every write and still use disk and memory. (high confidence)",
+          "text": "`$indexStats` lists hidden indexes too, and its `spec` carries `hidden: true` only for hidden indexes. Hidden indexes stay in statistics output because they are still maintained on every write and still use disk and memory. (high confidence) Sources: https://www.mongodb.com/docs/manual/core/index-hidden.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-hidden/",
           "note": null
         },
         {
-          "text": "Basic detection recipe: run `db.<coll>.aggregate([{ $indexStats: {} }])` per collection, keep entries with `accesses.ops == 0`, and skip `_id_` because `dropIndexes` never drops the `_id` index. The stage is per collection, so survey a deployment by looping `getSiblingDB(db).getCollectionNames()` and printing zero-ops indexes. (high confidence)",
+          "text": "Basic detection recipe: run `db.<coll>.aggregate([{ $indexStats: {} }])` per collection, keep entries with `accesses.ops == 0`, and skip `_id_`. The stage is per collection, so survey a deployment by looping `getSiblingDB(db).getCollectionNames()` and printing zero-ops indexes. The `_id` index is skipped because the default `_id` index cannot be dropped. Note that `accesses` covers only the node where the query runs. Sources: https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb ; https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
           "source": "https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb",
           "note": null
         },
         {
-          "text": "Judge zero `ops` only over a window that covers the workload's full cycle. Netdata asks for 24+ hours of representative load including peak and off-peak and nightly batches; Percona warns an index used once a month for heavy reporting looks unused otherwise; Pythian says to compare the window with `db.serverStatus().uptime`. (high confidence)",
+          "text": "Judge zero `ops` only over a window that covers the workload's full cycle. Netdata asks for 24+ hours of representative load including peak and off-peak and nightly batches; Percona warns an index used once a month for heavy reporting looks unused otherwise; Pythian says to compare the window with `db.serverStatus().uptime`. (high confidence) Sources: https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/ ; https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/ ; https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb",
           "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "note": null
         },
         {
-          "text": "Hide-then-drop is MongoDB's documented flow: use `$indexStats` to shortlist, hide each candidate (`db.coll.hideIndex(name)` or `collMod` with `hidden: true`) so the planner stops using it while writes still maintain it, watch for regressions, then drop it (a hidden index can be dropped without unhiding) or unhide it at once if queries regress. (high confidence)",
+          "text": "Hide-then-drop is MongoDB's documented flow: use `$indexStats` to shortlist, hide each candidate (`db.coll.hideIndex(name)` or `collMod` with `hidden: true`) so the planner stops using it while writes still maintain it, watch for regressions, then drop it (a hidden index can be dropped without unhiding) or unhide it at once if queries regress. (high confidence) Sources: https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes.md ; https://www.mongodb.com/docs/manual/reference/command/collMod.md ; https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md ; https://www.mongodb.com/docs/manual/core/index-hidden.md",
           "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
           "note": null
         },
@@ -68,7 +68,7 @@
           "note": null
         },
         {
-          "text": "Leading-prefix redundancy: an index is redundant when its keys are a leading prefix of another index on the same collection ({ a: 1 } against { a: 1, b: -1 }); { b: -1 } is not. `$indexStats` does not detect this, so compare key patterns. The Performance Advisor does and lists the covering indexes so you can verify the drop. (high confidence)",
+          "text": "Leading-prefix redundancy: an index is redundant when its keys are a leading prefix of another index on the same collection ({ a: 1 } against { a: 1, b: -1 }); { b: -1 } is not. `$indexStats` exposes per-index operation counts, so check prefix redundancy as a separate step by comparing key patterns. The Performance Advisor flags redundant indexes and lists the related indexes that cover them so you can verify the drop. Sources: https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes/ ; https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "source": "https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes/",
           "note": null
         },
@@ -78,32 +78,32 @@
           "note": null
         },
         {
-          "text": "Do not drop a unique index because `ops` is 0. It can enforce uniqueness on writes with no reads. Percona says a uniqueness check on INSERT does not increment the counter; Netdata warns that dropping it removes the constraint and can allow duplicate keys. (medium confidence)",
+          "text": "Do not drop a unique index because `ops` is 0. It can enforce uniqueness on writes with no reads. Percona says a uniqueness check on INSERT does not increment the counter; Netdata warns that dropping it removes the constraint and can allow duplicate keys. (medium confidence) Sources: https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/ ; https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "source": "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
           "note": null
         },
         {
-          "text": "`$indexStats` is a collection-level aggregation stage: `db.<coll>.aggregate([{ $indexStats: {} }])`. It returns one document per index with `name`, `key`, `host` and `accesses` (`ops` and `since`). A sharded cluster adds `shard`. `spec` holds the full index definition and lists `hidden` only when it is true. `building` appears only while the index is building. (high confidence)",
+          "text": "`$indexStats` is a collection-level aggregation stage: `db.<coll>.aggregate([{ $indexStats: {} }])`. It returns one document per index with `name`, `key`, `host` and `accesses` (`ops` and `since`). A sharded cluster adds `shard`. `spec` holds the full index definition and lists `hidden` only when it is true. `building` appears only while the index is building. (high confidence) (Historical: the cited page documents MongoDB 4.4, which is past end of life.)",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
         {
-          "text": "An index's statistics reset when `mongod` restarts, when the index is dropped and recreated, and when `collMod` modifies the index. After a reset, `since` moves forward and `ops` starts again from zero. (high confidence)",
+          "text": "An index's statistics reset when `mongod` restarts, when the index is dropped and recreated, and when `collMod` modifies the index. After a reset, `since` moves forward and `ops` starts again from zero. (high confidence) (Historical: the cited page documents MongoDB 4.4, which is past end of life.)",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
         {
-          "text": "A usage sweep must loop over every database and collection, because `$indexStats` runs per collection. Pythian's shell loop prints indexes with `accesses.ops == 0` and skips the `admin` database and the `_id_` index. Percona's PMM advisor script skips `admin`, `config` and `system.profile`. Percona Toolkit `pt-mongodb-index-check check-unused` runs the same `accesses.ops = 0` test in one command, with `--all-databases`, `--databases`, `--collections` and `--json`. (medium confidence) (verified as of 2026-10-20)",
+          "text": "A usage sweep must loop over every database and collection, because `$indexStats` runs per collection. Pythian's shell loop prints indexes with `accesses.ops == 0` and skips the `admin` database and the `_id_` index. Percona's PMM advisor script skips `admin`, `config` and `system.profile`. Percona Toolkit `pt-mongodb-index-check check-unused` runs the same `accesses.ops = 0` test in one command, with `--all-databases`, `--databases`, `--collections` and `--json`. (medium confidence) (verified as of 2026-10-20) Sources: https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb ; https://docs.percona.com/percona-monitoring-and-management/3/advisors/checks/mongodb-unused-indexes.html ; https://docs.percona.com/percona-toolkit/_sources/pt-mongodb-index-check.rst.txt",
           "source": "https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb",
           "note": null
         },
         {
-          "text": "Amazon DocumentDB supports `$indexStats` with the same core output (`name`, `key`, `host`, `accesses.ops`, `accesses.since`). AWS ships an `index-review` tool (awslabs/amazon-documentdb-tools) that lists collections, indexes, usage, and unused or redundant indexes. AWS says to run it on the primary and on every secondary or read replica, using instance endpoints, because that is critical for a complete review of index usage. The per-instance JSON outputs can then be merged for a cumulative analysis. (high confidence)",
+          "text": "Amazon DocumentDB supports `$indexStats` with the same core output (`name`, `key`, `host`, `accesses.ops`, `accesses.since`). AWS ships an `index-review` tool (awslabs/amazon-documentdb-tools) that lists collections, indexes, usage, and unused or redundant indexes. AWS says to run it on the primary and on every secondary or read replica, using instance endpoints, because that is critical for a complete review of index usage. The per-instance JSON outputs can then be merged for a cumulative analysis. (high confidence) Sources: https://docs.aws.amazon.com/documentdb/latest/devguide/indexStats.html ; https://raw.githubusercontent.com/awslabs/amazon-documentdb-tools/master/performance/index-review/README.md ; https://docs.aws.amazon.com/documentdb/latest/devguide/anti-pattern-low-used-redundant-indexes.html",
           "source": "https://docs.aws.amazon.com/documentdb/latest/devguide/indexStats.html",
           "note": null
         },
         {
-          "text": "Let the counters span the longest real workload cycle before trusting a zero. A monthly reporting job, a nightly batch or a rarely run geo query can be the only user of an index. Compare `since`, and `db.serverStatus().uptime`, against that cycle. (high confidence)",
+          "text": "Let the counters span the longest real workload cycle before trusting a zero. A monthly reporting job or a nightly batch can be the only user of an index. Compare `since`, and `db.serverStatus().uptime`, against that cycle. Sources: https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/ ; https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/ ; https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb",
           "source": "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
           "note": null
         },
@@ -113,17 +113,17 @@
           "note": null
         },
         {
-          "text": "Do not drop on a short or freshly reset window. Restart, drop and recreate, `collMod` and hide/unhide all reset an index's counter, so a young `since` makes active indexes look unused. Rules of thumb differ: Atlas needs 7 or more days, Netdata asks for at least 24 hours of uptime under a representative workload. Choose the window from your own workload cycle. (high confidence) (verified as of 2026-10-18)",
+          "text": "Do not drop on a short or freshly reset window. Restart, drop and recreate, and collMod all reset an index's counter, and hiding an unhidden index or unhiding a hidden index also resets it (hiding an already hidden index or unhiding an already unhidden index does not). A young `since` makes active indexes look unused. Rules of thumb differ: the Atlas Performance Advisor flags an index as unused only after 7 or more days without a query since creation or restart; Netdata asks for at least 24 hours of uptime under a representative workload. Choose the window from your own workload cycle. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md ; https://www.mongodb.com/docs/manual/core/index-hidden.md ; https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes.md ; https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
         {
-          "text": "An active TTL index can show `ops: 0`, because TTL deletions are not counted in `accesses.ops`. A hidden TTL index still expires documents, so neither the counter nor a hide test exposes the dependency. Dropping the index stops expiry. (medium confidence)",
+          "text": "An active TTL index can show `ops: 0`, because TTL deletions are not counted in `accesses.ops`. A hidden TTL index still expires documents, so neither the counter nor a hide test exposes the dependency. Dropping the index stops expiry. (medium confidence) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/ ; https://www.mongodb.com/docs/manual/core/index-hidden/",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
         {
-          "text": "`$indexStats` needs authorization. The manual requires at least the `clusterMonitor` role when access control is on. AWS's index-review README lists `indexStats` among the permissions it needs, with collStats, listCollections, listDatabases and serverStatus. (medium confidence)",
+          "text": "`$indexStats` needs authorization. The manual requires at least the `clusterMonitor` role when access control is on. AWS's index-review README lists `indexStats` among the permissions it needs, with collStats, listCollections, listDatabases and serverStatus. (medium confidence) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/ ; https://raw.githubusercontent.com/awslabs/amazon-documentdb-tools/master/performance/index-review/README.md",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         }
@@ -133,12 +133,12 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "A hide trial cannot be judged with `$indexStats`: the planner cannot use a hidden index, so its `ops` cannot rise while hidden, and hiding resets its counters. Judge the trial by query latency, slow-query log COLLSCAN entries and `explain()` on critical query shapes. This follows from the Hidden Indexes behavior rules; no source states it as one sentence. (medium confidence)",
+          "text": "A hide trial cannot be judged with `$indexStats`: the planner cannot use a hidden index, so its `ops` cannot rise while hidden, and hiding resets its counters. This follows from the Hidden Indexes behavior rules; no source states it as one sentence. Sources: https://www.mongodb.com/docs/manual/core/index-hidden/",
           "source": "https://www.mongodb.com/docs/manual/core/index-hidden/",
           "note": null
         },
         {
-          "text": "Percona's `mongodb_exporter` (used by PMM) exports `$indexStats` as the metric `mongodb_indexstats_accesses_ops` through an opt-in `indexstats` collector: `--collector.indexstats`, `--mongodb.indexstats-colls=db1.col1,db2.col2` to limit collections, or `--collect-all`. PMM runs only the `diagnosticdata` and `replicasetstatus` collectors by default, and the Percona author says the collector is off by default because it runs an extra aggregate. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Percona's `mongodb_exporter` (used by PMM) exports `$indexStats` as the metric `mongodb_indexstats_accesses_ops` through an opt-in `indexstats` collector: `--collector.indexstats`, `--mongodb.indexstats-colls=db1.col1,db2.col2` to limit collections, or `--collect-all`. PMM runs only the `diagnosticdata` and `replicasetstatus` collectors by default. Sources: https://forums.percona.com/t/view-index-usage/26802 ; https://raw.githubusercontent.com/percona/mongodb_exporter/main/main.go",
           "source": "https://forums.percona.com/t/view-index-usage/26802",
           "note": null
         },
@@ -148,12 +148,12 @@
           "note": null
         },
         {
-          "text": "If many indexes show zero `ops`, compare each `accesses.since` and `db.serverStatus().uptime` with the last restart before trusting the list. A recent restart makes active indexes look unused, and PMM's advisor documents the same caveat. (medium confidence)",
+          "text": "If many indexes show zero `ops`, compare each `accesses.since` and `db.serverStatus().uptime` with the last restart before trusting the list. A recent restart makes active indexes look unused, and Percona's PMM MongoDB Unused Indexes dashboard documents the same caveat. Sources: https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb ; https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-unused-indexes.html",
           "source": "https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb",
           "note": null
         },
         {
-          "text": "Percona's `mongodb_exporter` collects `$indexStats` only when started with `--collector.indexstats`; limit it with `--mongodb.indexstats-colls=db1.col1,db2.col2`. The metric is `mongodb_indexstats_accesses_ops`. PMM starts the exporter with only the diagnosticdata and replicasetstatus collectors, so the metric is missing until the collector is enabled. PMM's 'MongoDB unused indexes' advisor check needs this collector. The 2018 Percona post used the older flag `-collect.indexusage`. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Percona's `mongodb_exporter` collects `$indexStats` only when started with `--collector.indexstats`; limit it with `--mongodb.indexstats-colls=db1.col1,db2.col2`. The metric is `mongodb_indexstats_accesses_ops`. PMM starts the exporter with only the diagnosticdata and replicasetstatus collectors, so the metric is missing until the collector is enabled. PMM's 'MongoDB unused indexes' advisor check needs this collector. The 2018 Percona post used the older flag `-collect.indexusage`. (medium confidence) (verified as of 2026-10-20) Sources: https://github.com/percona/mongodb_exporter/blob/main/REFERENCE.md ; https://forums.percona.com/t/view-index-usage/26802 ; https://docs.percona.com/percona-monitoring-and-management/3/advisors/checks/mongodb-unused-indexes.html ; https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
           "source": "https://github.com/percona/mongodb_exporter/blob/main/REFERENCE.md",
           "note": null
         },
@@ -168,17 +168,17 @@
           "note": null
         },
         {
-          "text": "Verify after a drop. Check the slow-query log for new `COLLSCAN` entries on the collection. Run `explain('executionStats')` on critical query shapes. Compare write latency (`opLatencies.writes`) and the WiredTiger cache dirty ratio before and after. `explain` in `allPlansExecution` mode shows partial statistics from plan selection, which helps when a query may fall back to another index. (medium confidence)",
+          "text": "Verify after a drop. Check the slow-query log for new `COLLSCAN` entries on the collection. Run `explain('executionStats')` on critical query shapes. Compare write latency (`opLatencies.writes`) and the WiredTiger cache dirty ratio before and after. `explain` in `allPlansExecution` mode shows partial statistics from plan selection, which helps when a query may fall back to another index. (medium confidence) Sources: https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/ ; https://www.mongodb.com/docs/manual/tutorial/measure-index-use.md",
           "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "note": null
         },
         {
-          "text": "Use of the shard key's supporting index by chunk split and migration is not counted in `ops`, so a zero does not prove that index is idle. Since MongoDB 6.0, `dropIndexes` raises an error if you try to drop the last remaining shard-key-compatible index. (medium confidence)",
+          "text": "Use of the shard key's supporting index by chunk split and migration is not counted in `ops`, so a zero does not prove that index is idle. Since MongoDB 6.0, `dropIndexes` raises an error if you try to drop the last remaining shard-key-compatible index. (medium confidence) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/ ; https://www.mongodb.com/docs/manual/reference/command/dropIndexes/",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
         {
-          "text": "Continuous `$indexStats` scraping is an extra aggregate query and can add load. Percona keeps the collector off by default for that reason. On instances with many collections, `--collector.collstats-limit=N` disables the collstats, dbstats, topmetrics and indexstats collectors when the collection count exceeds N. `--mongodb.indexstats-colls` restricts scraping to named collections. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Continuous `$indexStats` scraping is an extra aggregate query and can add load. Percona keeps the collector off by default for that reason. On instances with many collections, `--collector.collstats-limit=N` disables the collstats, dbstats, topmetrics and indexstats collectors when the collection count exceeds N. `--mongodb.indexstats-colls` restricts scraping to named collections. (medium confidence) (verified as of 2026-10-20) Sources: https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/ ; https://raw.githubusercontent.com/percona/mongodb_exporter/main/REFERENCE.md",
           "source": "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
           "note": null
         }
@@ -193,7 +193,7 @@
           "note": null
         },
         {
-          "text": "MongoDB's documented removal sequence: find rarely used indexes with `$indexStats`, hide candidates with `db.collection.hideIndex()`, watch the effect, then drop with `db.collection.dropIndexes()`. If the impact is negative, unhide the index instead of rebuilding it. A hidden index can be dropped directly without unhiding it first. (high confidence)",
+          "text": "MongoDB's documented removal sequence: find rarely used indexes with `$indexStats`, hide candidates with `db.collection.hideIndex()`, watch the effect, then drop with `db.collection.dropIndexes()`. If the impact is negative, unhide the index instead of rebuilding it. A hidden index can be dropped directly without unhiding it first. (high confidence) Sources: https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/ ; https://www.mongodb.com/docs/manual/core/index-hidden/ ; https://www.mongodb.com/docs/manual/reference/command/dropIndexes/",
           "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
           "note": null
         }
@@ -213,12 +213,12 @@
           "note": null
         },
         {
-          "text": "The Atlas Data Explorer index `Usage` column counts lookups by the primary node only, and the Compass `Usage` column counts only the node Compass is connected to. Both pages call the number informational and send you to `$indexStats` on each node for decisions. (high confidence) (verified as of 2026-10-14)",
+          "text": "The Atlas Data Explorer index `Usage` column counts lookups by the primary node only, and the Compass `Usage` column counts only the node Compass is connected to. Both pages call the number informational and send you to `$indexStats` on each node for decisions. (high confidence) (verified as of 2026-10-14) Sources: https://www.mongodb.com/docs/atlas/atlas-ui/indexes.md ; https://www.mongodb.com/docs/compass/indexes.md",
           "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes/",
           "note": null
         },
         {
-          "text": "`$indexStats` dates from MongoDB 3.2: Pythian says 3.2 introduced it, and the 3.2.0 JIRA tickets SERVER-21815 (user operations only) and SERVER-22048 (`$match` recording) both describe its behavior as of 3.2.0. (medium confidence)",
+          "text": "`$indexStats` dates from MongoDB 3.2: Pythian says 3.2 introduced it. SERVER-21815 records that as of 3.2.0 index access statistics covered only user operations (not TTL use or chunk split/move). SERVER-22048 records that in 3.2.0 `$match` did not record index usage; it was fixed in 3.2.3 and 3.3.1. Sources: https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb ; https://jira.mongodb.org/browse/SERVER-21815 ; https://jira.mongodb.org/browse/SERVER-22048",
           "source": "https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb",
           "note": null
         },
@@ -228,12 +228,12 @@
           "note": null
         },
         {
-          "text": "A drop candidate must show zero `ops` on every node that can serve reads: all replica-set members (secondaries can serve reads the primary never sees) and every shard's nodes. Netdata says to sum `accesses.ops` across shards before calling an index globally unused. (high confidence)",
+          "text": "A drop candidate must show zero `ops` on every node that can serve reads: all replica-set members (secondaries can serve reads the primary never sees) and every shard's nodes. Netdata says to sum `accesses.ops` across shards before calling an index globally unused. (high confidence) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md ; https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb ; https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "source": "https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb",
           "note": null
         },
         {
-          "text": "Before dropping, take a backup of affected collections (Pythian) and record the current index definitions with `getIndexes()` so a dropped index can be recreated quickly (Netdata). (medium confidence)",
+          "text": "Before dropping, take a backup of affected collections (Pythian) and record the current index definitions with `getIndexes()` so a dropped index can be recreated quickly (Netdata). (medium confidence) Sources: https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb ; https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "source": "https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb",
           "note": null
         },
@@ -243,12 +243,12 @@
           "note": null
         },
         {
-          "text": "Prioritise by size: combine zero-ops indexes with `collStats` `indexSizes` and `totalIndexSize` or `dbStats` `indexSize` to find the removals that free the most space. (medium confidence)",
+          "text": "MongoDB lists collStats `totalIndexSize` and `indexSizes` and dbStats `indexSize` among the index metrics to consider when analyzing index use. These sizes can be read alongside `$indexStats` zero-ops results to see how much space an index occupies; no MongoDB source prescribes a size-based removal ordering. Sources: https://www.mongodb.com/docs/manual/tutorial/measure-index-use/",
           "source": "https://www.mongodb.com/docs/manual/tutorial/measure-index-use/",
           "note": null
         },
         {
-          "text": "Atlas Performance Advisor (M10 and larger clusters) suggests dropping unused, redundant (leading-prefix duplicate) and hidden indexes. The same suggestions are exposed through the Atlas CLI and API as `listDropIndexSuggestions`. (high confidence) (verified as of 2026-10-14)",
+          "text": "Atlas Performance Advisor (available on M10+ clusters) suggests dropping unused, redundant (leading-prefix duplicate) and hidden indexes. The suggestions are exposed through the Atlas CLI as `atlas api performanceAdvisor listDropIndexSuggestions`, which maps to the Atlas Admin API drop index suggestions endpoint. Sources: https://www.mongodb.com/docs/atlas/performance-advisor.md ; https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes.md ; https://www.mongodb.com/docs/atlas/cli/current/command/atlas-api-performanceAdvisor-listDropIndexSuggestions/",
           "source": "https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes/",
           "note": null
         },
@@ -263,7 +263,7 @@
           "note": null
         },
         {
-          "text": "Do not drop on a short window. After a restart, rebuild or any `collMod` (including hide/unhide) every counter restarts at zero, so active indexes look unused. Netdata says not to drop within 24 hours of a restart; Pythian says to check `db.serverStatus().uptime` first. (high confidence)",
+          "text": "Do not drop on a short window. After a restart, an index drop and recreation (rebuild), a modification of the index via collMod, or a change in an index's hidden state (hiding a visible index or unhiding a hidden one), its counters restart and active indexes can look unused. Netdata says not to drop indexes within 24 hours of a mongod restart; Pythian says the instance must have been up long enough for all queries to run, and gives db.serverStatus().uptime to check it. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md ; https://www.mongodb.com/docs/manual/core/index-hidden.md ; https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/ ; https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
@@ -283,7 +283,7 @@
           "note": null
         },
         {
-          "text": "`accesses.ops` excludes internal operations: deletions by TTL indexes, and chunk split, chunk migration and post-move deletion. MongoDB engineers recorded this in SERVER-21815 (affects 3.2.0, closed Done, no fix version). The manual now documents the exclusion. (high confidence)",
+          "text": "`accesses.ops` excludes internal operations: deletions by TTL indexes, and chunk split, chunk migration and post-move deletion. MongoDB engineers recorded this in SERVER-21815 (affects 3.2.0, closed Done, no fix version). The manual now documents the exclusion. (high confidence) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md ; https://jira.mongodb.org/browse/SERVER-21815",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
@@ -298,12 +298,12 @@
           "note": null
         },
         {
-          "text": "Unused indexes cost write throughput, storage and memory. Every insert and delete maintains every index on the collection. Every update that changes an indexed field maintains each index containing that field. No source read quantifies the saving. (high confidence)",
+          "text": "Unused indexes cost write throughput, storage and memory. Every insert and delete maintains every index on the collection. Every update that changes an indexed field maintains each index containing that field. No source read quantifies the saving. (high confidence) Sources: https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "source": "https://docs.aws.amazon.com/documentdb/latest/devguide/anti-pattern-low-used-redundant-indexes.html",
           "note": null
         },
         {
-          "text": "Atlas Performance Advisor makes three kinds of drop recommendation: unused indexes, redundant indexes (a prefix of another index in the same collection) and hidden indexes. The Performance Advisor is available only on M10 and larger clusters. (high confidence) (verified as of 2026-10-19)",
+          "text": "Atlas Performance Advisor makes three kinds of drop recommendation: unused indexes, redundant indexes (a prefix of another index in the same collection) and hidden indexes. The Performance Advisor is available only on M10 and larger clusters. (high confidence) (verified as of 2026-10-19) Sources: https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes/ ; https://www.mongodb.com/docs/atlas/performance-advisor.md",
           "source": "https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes/",
           "note": null
         },
@@ -313,32 +313,32 @@
           "note": null
         },
         {
-          "text": "Atlas returns the same drop suggestions through the Admin API v2 operation 'Return All Suggested Indexes to Drop' and the CLI command `atlas api performanceAdvisor listDropIndexSuggestions --clusterName <name> --groupId <id>`. The response holds three arrays: `hiddenIndexes`, `redundantIndexes` and `unusedIndexes`. Each item has `accessCount` (described as 'Usage count (since last restart) of index'), `since`, `sizeBytes`, `namespace`, `name`, `index`, `shards` and `collation`. (high confidence) (verified as of 2026-10-20)",
+          "text": "Atlas returns the same drop suggestions through the Admin API v2 operation 'Return All Suggested Indexes to Drop' and the CLI command `atlas api performanceAdvisor listDropIndexSuggestions --clusterName <name> --groupId <id>`. The response holds three arrays: `hiddenIndexes`, `redundantIndexes` and `unusedIndexes`. Each item has `accessCount` (described as 'Usage count (since last restart) of index'), `since`, `sizeBytes`, `namespace`, `name`, `index`, `shards` and `collation`. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/api/doc/atlas-admin-api-v2/operation/operation-listgroupclusterperformanceadvisordropindexsuggestions ; https://www.mongodb.com/docs/atlas/cli/current/command/atlas-api-performanceAdvisor-listDropIndexSuggestions.md",
           "source": "https://www.mongodb.com/docs/api/doc/atlas-admin-api-v2/operation/operation-listgroupclusterperformanceadvisordropindexsuggestions",
           "note": null
         },
         {
-          "text": "Atlas Data Explorer and MongoDB Compass show a per-index Usage column: lookups since index creation or the last restart. Data Explorer reports the primary node only. Compass reports only the node it is connected to. MongoDB labels both informational and points to `$indexStats` on each node for full coverage. (high confidence) (verified as of 2026-10-20)",
+          "text": "Atlas Data Explorer and MongoDB Compass show a per-index Usage column: lookups since index creation or the last restart. Data Explorer reports the primary node only. Compass reports only the node it is connected to. MongoDB labels both informational and points to `$indexStats` on each node for full coverage. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/atlas/atlas-ui/indexes/ ; https://www.mongodb.com/docs/compass/indexes/",
           "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes/",
           "note": null
         },
         {
-          "text": "Combine evidence across nodes before declaring an index unused. Collect `$indexStats` from every replica-set member and every shard, and keep the index if any node shows use. Percona's advisor says to analyze every member before dropping. Netdata says to sum `accesses.ops` across shards. AWS's tool merges per-instance results. Pythian says to confirm the index is not used on secondaries. (high confidence)",
+          "text": "Combine evidence across nodes before declaring an index unused. $indexStats reports usage only for the node where the query runs, so collect it from every replica-set member and every shard, and keep the index if any node shows use. Percona's advisor says to analyze every member before dropping. Netdata says to sum accesses.ops across shards. Pythian says to confirm the index is not used on secondaries. Sources: https://docs.percona.com/percona-monitoring-and-management/3/advisors/checks/mongodb-unused-indexes.html ; https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/ ; https://www.pythian.com/blog/how-to-find-unused-index-and-drop-them-safely-in-mongodb",
           "source": "https://docs.percona.com/percona-monitoring-and-management/3/advisors/checks/mongodb-unused-indexes.html",
           "note": null
         },
         {
-          "text": "Find redundant (prefix) indexes from index definitions, not from usage counters. An index is redundant if its keys are a prefix of another index in the same collection: `{ a: 1 }` is redundant next to `{ a: 1, b: -1 }`, but `{ b: -1 }` is not. Keep the compound index and drop the prefix index. Percona Toolkit `check-duplicated`, Atlas's Redundant badge and AWS's index-review each run this check separately from the zero-ops scan. (high confidence)",
+          "text": "Find redundant (prefix) indexes from index definitions, not from usage counters. An index is redundant if its keys are a prefix of another index in the same collection: `{ a: 1 }` is redundant next to `{ a: 1, b: -1 }`, but `{ b: -1 }` is not. Keep the compound index and drop the prefix index. Percona Toolkit's pt-mongodb-index-check has a separate `check-duplicated` command for prefix indexes, Atlas's Performance Advisor marks redundant indexes with a Redundant badge, and the Amazon DocumentDB Index Review Tool (a DocumentDB tool, not MongoDB) also identifies redundant indexes. Sources: https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes/ ; https://docs.percona.com/percona-toolkit/_sources/pt-mongodb-index-check.rst.txt ; https://docs.aws.amazon.com/documentdb/latest/devguide/anti-pattern-low-used-redundant-indexes.html",
           "source": "https://www.mongodb.com/docs/atlas/performance-advisor/drop-indexes/",
           "note": null
         },
         {
-          "text": "A unique index can show `ops: 0` while still enforcing integrity. Percona reports that the uniqueness check on insert does not increment `ops`. Dropping the index removes the constraint and allows duplicate keys. Exclude unique indexes from zero-ops drop lists. A hidden unique index keeps enforcing its constraint too. (medium confidence)",
+          "text": "A unique index can show `ops: 0` while still enforcing integrity. Percona reports that the uniqueness check on insert does not increment the `ops` counter. A unique index ensures the indexed fields do not store duplicate values, so zero-ops unique indexes need care before dropping. A hidden unique index still applies its unique constraint. Sources: https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/ ; https://www.mongodb.com/docs/manual/core/index-unique.md ; https://www.mongodb.com/docs/manual/core/index-hidden.md",
           "source": "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
           "note": null
         },
         {
-          "text": "Old servers can undercount. `$indexStats` exists since MongoDB 3.2. In 3.2.0 and 3.2.1, index use by aggregation `$match` and by mapReduce was not recorded (SERVER-22048; SERVER-22183 is a duplicate report). The fix shipped in 3.2.3 and 3.3.1. A zero from such a build is not reliable. (medium confidence)",
+          "text": "Old servers can undercount. `$indexStats` exists since MongoDB 3.2. In 3.2.0 and 3.2.1, index use by aggregation `$match` and by mapReduce was not recorded (SERVER-22048; SERVER-22183 is a duplicate report). The fix shipped in 3.2.3 and 3.3.1. A zero from such a build is not reliable. (medium confidence) Sources: https://raw.githubusercontent.com/mongodb/docs/v4.0/source/reference/operator/aggregation/indexStats.txt ; https://jira.mongodb.org/browse/SERVER-22048 ; https://jira.mongodb.org/browse/SERVER-22183",
           "source": "https://jira.mongodb.org/browse/SERVER-22048",
           "note": null
         },

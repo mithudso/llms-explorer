@@ -93,7 +93,7 @@
           "note": null
         },
         {
-          "text": "34. Deletion in the source has no mechanism in either stage. A `$merge` refresh only inserts and matches; it never removes a target document whose source rows have disappeared. `$out`'s full replacement is the only one of the two that implicitly drops vanished rows. MongoDB positions Atlas Stream Processing, not `$merge`, as the facility that \"can delete documents from the target collection when a corresponding deletion event is detected.\" <https://www.mongodb.com/company/blog/technical/real-time-materialized-views-with-atlas-stream-processing>",
+          "text": "`$out` atomically replaces an existing output collection with the new results, so documents not in the new results are not kept. MongoDB's Atlas Stream Processing blog says its `$merge` usage \"even deletes documents from the target collection when a corresponding deletion event is detected in the source stream.\" (Historical: the cited page documents MongoDB 5.0, which is past end of life.) Sources: https://www.mongodb.com/company/blog/technical/real-time-materialized-views-with-atlas-stream-processing ; https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/out.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#refresh-strategy",
           "note": null
         },
@@ -113,7 +113,7 @@
           "note": null
         },
         {
-          "text": "**C. Whether the database \"maintains\" the view.** The 2019-07-16 Percona Community post says that with `$merge` \"the database will take the responsibility to build and maintain the view\" (https://percona.community/blog/2019/07/16/concept-materialized-views-mongodb-sharded-clusters/). MongoDB's own documentation does not support the \"maintain\" half: refresh happens only when a caller re-runs the pipeline (https://www.mongodb.com/docs/manual/core/materialized-views/), and the Atlas comparison labels on-demand refresh as \"Manual or scheduled\" (https://www.mongodb.com/docs/atlas/atlas-stream-proce",
+          "text": "**C. Whether the database \"maintains\" the view.** The 2019-07-16 Percona Community post says that with `$merge` \"the database will take the responsibility to build and maintain the view\" (https://percona.community/blog/2019/07/16/concept-materialized-views-mongodb-sharded-clusters/). MongoDB's own documentation does not support the \"maintain\" half: refresh happens only when a caller re-runs the pipeline (https://www.mongodb.com/docs/manual/core/materialized-views/), and the Atlas comparison labels on-demand refresh as \"Manual or scheduled\"",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#unresolved-disagreements",
           "note": null
         },
@@ -143,17 +143,17 @@
           "note": null
         },
         {
-          "text": "22. `$merge` may output to the same collection being aggregated, but doing so is hazardous: \"documents may get updated multiple times or the operation may result in an infinite loop. This behavior occurs when the update performed by `$merge` changes the physical location of documents stored on disk. When the physical location of a document changes, `$merge` may view it as an entirely new document, resulting in additional updates.\" MongoDB names this the Halloween Problem. No guard is documented; avoidance is the user's responsibility. <https://www.mongodb.com/docs/manual/reference/operator/agg",
+          "text": "22. `$merge` may output to the same collection being aggregated, but doing so is hazardous: \"documents may get updated multiple times or the operation may result in an infinite loop. This behavior occurs when the update performed by `$merge` changes the physical location of documents stored on disk. When the physical location of a document changes, `$merge` may view it as an entirely new document, resulting in additional updates.\" MongoDB names this the Halloween Problem. No guard is documented; avoidance is the user's responsibility. <",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#merge-mechanism",
           "note": null
         },
         {
-          "text": "4. **`$merge` version attribution is secondary-sourced.** Claim 36 rests on Severalnines. The `/docs/v4.2/` manual URLs redirect to the current manual, so I could not read the 4.2-era primary page. The SERVER-13201 fix version 4.1.3 (<https://jira.mongodb.org/browse/SERVER-13201>) is consistent with a 4.2 GA but does not itself establish when the stage shipped.",
+          "text": "SERVER-13201, which added the $merge stage's ability to name a database to write to, has fix version 4.1.3. The MongoDB v4.2 branch documentation includes a $merge reference page, so the stage was documented for 4.2. Sources: https://jira.mongodb.org/browse/SERVER-13201 ; https://raw.githubusercontent.com/mongodb/docs/v4.2/source/reference/operator/aggregation/merge.txt",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#unresolved-disagreements",
           "note": null
         },
         {
-          "text": "6. SERVER-13201 — Allow new Aggregation `$merge` stage to explicitly name a DB to write to. Created 2014-03-14, resolved 2018-08-28, fix version 4.1.3. <https://jira.mongodb.org/browse/SERVER-13201> 7. SERVER-68845 — BSONObjectTooLarge when `$merge` during aggregation. Created 2022-08-08, closed 2022-10-04 (duplicate of SERVER-66289). <https://jira.mongodb.org/browse/SERVER-68845>",
+          "text": "SERVER-13201 — Allow new Aggregation $merge stage to explicitly name a DB to write to. Created 2014-03-14, resolved 2018-08-28, fix version 4.1.3. SERVER-68845 — BSONObjectTooLarge when $merge during aggregation. Created 2022-08-08, closed 2022-10-04 with resolution Duplicate; it is linked as related to SERVER-66289. Sources: https://jira.mongodb.org/browse/SERVER-13201 ; https://jira.mongodb.org/browse/SERVER-68845",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#sources",
           "note": null
         },
@@ -183,7 +183,7 @@
       "title": "Measurements and reference values",
       "facts": [
         {
-          "text": "**E1. `$merge` is not a performance-neutral substitute for `$out` — a reported ~160× gap, closed \"Works as Designed.\"** SERVER-70106 reports, on MongoDB 6.0.1: `insert_many` of 10k records 748 ms; `$densify` + `$out` 565 ms; the same pipeline with `$merge` 91,983 ms. The ticket was closed **Works as Designed** with no optimization guidance; the reporter noted that setting `_id` in the pipeline before `$merge` improved performance. This disconfirms the common \"use `$merge` for everything, it is the modern `$out`\" guidance for bulk rebuilds. <https://jira.mongodb.org/browse/SERVER-70106>",
+          "text": "SERVER-70106 (affects 6.0.1; closed Works as Designed) reports that creating 10k records took 748 ms with insert_many and 565 ms with $densify + $out, but 91,983 ms with $merge in place of $out. The reporter recalled that setting _id in the pipeline before $merge improved performance, but said they could no longer reproduce that. This single report cautions against treating $merge as a performance-neutral substitute for $out when populating an empty collection. Sources: https://jira.mongodb.org/browse/SERVER-70106",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/edge-cases.md#e-disconfirming-and-cost-evidence",
           "note": null
         },
@@ -213,7 +213,7 @@
           "note": null
         },
         {
-          "text": "**C4. `$out` cannot write to capped collections; `$merge` cannot write to time series collections — and `$out` can.** \"The `$out` operator cannot write results to a capped collection.\" Conversely, \"An aggregation pipeline cannot use `$merge` to output to a time series collection,\" while `$out` supports time series targets provided the existing collection is a time series collection, is not a view, and its `timeseries` options \"exactly match those on the existing collection.\" Time-series materialized views are therefore `$out`-only, which forfeits incremental refresh. <https://www.mongodb.com/d",
+          "text": "**C4. `$out` cannot write to capped collections; `$merge` cannot write to time series collections — and `$out` can.** \"The `$out` operator cannot write results to a capped collection.\" Conversely, \"An aggregation pipeline cannot use `$merge` to output to a time series collection,\" while `$out` supports time series targets provided the existing collection is a time series collection, is not a view, and its `timeseries` options \"exactly match those on the existing collection.\" Time-series materialized views are therefore `$out`-only, which forfeits incremental refresh. <",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/edge-cases.md#c-sharding-and-topology-boundaries",
           "note": null
         },
@@ -243,7 +243,7 @@
           "note": null
         },
         {
-          "text": "**A6. Neither stage is retryable by the driver.** The MongoDB driver specification lists, under unsupported write operations: \"Write commands other than insert, update, delete, or findAndModify are not supported. This includes, but is not limited to, an aggregate command using a write stage (e.g. `$out`, `$merge`).\" Drivers \"MUST NOT add a transaction ID to these commands and MUST NOT retry these commands if they fail to return a response.\" A view refresh that loses its connection mid-flight is therefore neither rolled back (A3) nor retried. <https://github.com/mongodb/specifications/blob/mast",
+          "text": "**A6. Neither stage is retryable by the driver.** The MongoDB driver specification lists, under unsupported write operations: \"Write commands other than insert, update, delete, or findAndModify are not supported. This includes, but is not limited to, an aggregate command using a write stage (e.g. `$out`, `$merge`).\" Drivers \"MUST NOT add a transaction ID to these commands and MUST NOT retry these commands if they fail to return a response.\" A view refresh that loses its connection mid-flight is therefore neither rolled back (A3) nor retried. <",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/edge-cases.md#a-atomicity-and-rollback-boundaries",
           "note": null
         },
@@ -253,7 +253,7 @@
           "note": null
         },
         {
-          "text": "**B7. `$merge` never deletes. Incremental views accumulate tombstoneless staleness.** `$merge`'s behavior space is `whenMatched: replace|keepExisting|merge|fail|pipeline` and `whenNotMatched: insert|discard|fail` — there is no delete disposition, so documents whose source rows disappeared persist in the view until the operator removes them explicitly. Third-party guidance treats explicit pre-merge deletion of the refreshed range as the required pattern. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge/> · <https://oneuptime.com/blog/post/2026-03-31-mongodb-merge-increm",
+          "text": "`$merge` has no delete disposition. Its options are `whenMatched: replace|keepExisting|merge|fail|pipeline` and `whenNotMatched: insert|discard|fail`. Documents whose source rows disappeared therefore persist in the output collection until the operator removes them explicitly. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/edge-cases.md#b-correctness-hazards-specific-to-merge",
           "note": null
         },
@@ -348,12 +348,12 @@
           "note": null
         },
         {
-          "text": "23. Self-targeted `$merge` carries an explicit correctness warning: \"When `$merge` outputs to the same collection that is being aggregated, documents may get updated multiple times or the operation may result in an infinite loop. This behavior occurs when the update performed by `$merge` changes the physical location of documents stored on disk.\" MongoDB names this the Halloween Problem and links to https://en.wikipedia.org/w/index.php?title=Halloween_Problem&oldid=738886300 Warning text: https://www.mongodb.com/docs/v4.4/release-notes/4.4.md",
+          "text": "23. Self-targeted `$merge` carries an explicit correctness warning: \"When `$merge` outputs to the same collection that is being aggregated, documents may get updated multiple times or the operation may result in an infinite loop. This behavior occurs when the update performed by `$merge` changes the physical location of documents stored on disk.\" MongoDB names this the Halloween Problem and links to Warning text: Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#capability-changes-after-4-2",
           "note": null
         },
         {
-          "text": "26. Sharding is the durable asymmetry between the stages: `$out` \"Cannot output to a sharded collection. Input collection, however, can be sharded\", whereas `$merge` \"Can output to a sharded collection. Input collection can also be sharded.\" This has held from 4.2 through the current manual. https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/",
+          "text": "26. Sharding is the durable asymmetry between the stages: `$out` \"Cannot output to a sharded collection. Input collection, however, can be sharded\", whereas `$merge` \"Can output to a sharded collection. Input collection can also be sharded.\" This has held from 4.2 through the current manual. (Historical: the cited page documents MongoDB 4.2, which is past end of life.) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md ; https://www.mongodb.com/docs/v4.2/reference/operator/aggregation/out/",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#capability-changes-after-4-2",
           "note": null
         },
@@ -393,7 +393,7 @@
           "note": null
         },
         {
-          "text": "38. `$merge` has had real defects in the field. SERVER-68845, \"BSONObjectTooLarge when `$merge` during aggregation\" (created 2022-08-08, closed 2022-10-04 as a duplicate of SERVER-66289), reports `$merge` failing with \"BSONObj size: 29719999 is invalid. Size must be between 0 and 16793600(16MB)\" on result sets of 20,000–300,000 documents — that is, the stage's internal batching, not a user document, exceeded the BSON limit. <https://jira.mongodb.org/browse/SERVER-68845>",
+          "text": "`$merge` has had real defects in the field. SERVER-68845, \"BSONObjectTooLarge when $merge during aggregation\" (created 2022-08-08, closed 2022-10-04 with resolution Duplicate and linked as related to SERVER-66289), reports `$merge` failing with \"BSONObj size: 29719999 (0x16C57DBF) is invalid. Size must be between 0 and 16793600(16MB)\" on result sets of 20k to 300k documents. MongoDB's own description of this class of failure is that `$merge` and `$out` serialize a write batch to BSON and, in the past, incorrectly computed the size of each insert/update statement (SERVER-66289, SERVER-74806), so the batched write, not a user document, exceeded the BSON limit. Sources: https://jira.mongodb.org/browse/SERVER-68845 ; https://jira.mongodb.org/browse/SERVER-77010",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#provenance",
           "note": null
         },
@@ -468,12 +468,12 @@
           "note": null
         },
         {
-          "text": "1. MongoDB Manual — `$merge` (aggregation stage) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge/> 2. MongoDB Manual — `$out` (aggregation stage) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/> 3. MongoDB Manual — On-Demand Materialized Views — <https://www.mongodb.com/docs/manual/core/materialized-views/> 4. MongoDB Manual — `invalidate` change event — <https://www.mongodb.com/docs/manual/reference/change-events/invalidate/> 5. MongoDB Jira — SERVER-70106, \"Buildfest feedback: $merge is slow vs insert\" (Closed / Works as Designed) — <htt",
+          "text": "1. MongoDB Manual — `$merge` (aggregation stage) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge/> 2. MongoDB Manual — `$out` (aggregation stage) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/> 3. MongoDB Manual — On-Demand Materialized Views — <https://www.mongodb.com/docs/manual/core/materialized-views/> 4. MongoDB Manual — `invalidate` change event — <https://www.mongodb.com/docs/manual/reference/change-events/invalidate/> 5. MongoDB Jira — SERVER-70106, \"Buildfest feedback: $merge is slow vs insert\" (Closed / Works as Designed) — <",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/edge-cases.md#source-list",
           "note": null
         },
         {
-          "text": "**B. \"Incrementally updated\" is contested by MongoDB's own newer documentation.** The 4.2 release notes and the current `$merge` page both say `$merge` lets the output collection be \"incrementally updated\" (https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge/). The Atlas Stream Processing comparison instead classifies the on-demand materialized view's compute model as \"Recomputes full result\", reserving \"Computes incremental effect\" for streaming views (https://www.mongodb.com/docs/atlas/atlas-stream-processing/streaming-materialized-views/). Both readings are defensible a",
+          "text": "MongoDB's 4.2 release notes and the current `$merge` page both say `$merge` lets users create on-demand materialized views whose output collection is incrementally updated each time the pipeline is run. The Atlas Stream Processing comparison classifies the on-demand materialized view's compute model as \"Recomputes full result\", versus \"Computes incremental effect\" for streaming materialized views. Sources: https://raw.githubusercontent.com/mongodb/docs/v4.2/source/release-notes/4.2.txt ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#unresolved-disagreements",
           "note": null
         },
@@ -508,12 +508,12 @@
           "note": null
         },
         {
-          "text": "36. `$merge` was introduced in MongoDB 4.2, specifically to enable on-demand materialized views: `$merge` \"only incorporates pipeline results into existing output rather than fully replacing the collection … The output content will therefore be timely updated enabling users to create on-demand materialized views.\" (Severalnines, Onyancha Brian Henry, 2020-02-14.) This version attribution comes from an independent secondary source; the MongoDB 4.2 release-notes page could not be fetched to corroborate it directly, as `/docs/v4.2/` URLs redirect to the current manual. <https://severalnines.com/b",
+          "text": "36. `$merge` was introduced in MongoDB 4.2, specifically to enable on-demand materialized views: `$merge` \"only incorporates pipeline results into existing output rather than fully replacing the collection … The output content will therefore be timely updated enabling users to create on-demand materialized views.\" (Severalnines, Onyancha Brian Henry, 2020-02-14.) This version attribution comes from an independent secondary source; the MongoDB 4.2 release-notes page could not be fetched to corroborate it directly, as `/docs/v4.2/` URLs redirect to the current manual. <",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#provenance",
           "note": null
         },
         {
-          "text": "5. **Capped-collection behaviour for `$merge` is asserted, not documented.** The `$out` reference states plainly that it \"cannot write results to a capped collection\" (<https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/>). The `$merge` reference's restriction list does not name capped collections; the prohibition is standard MongoDB behaviour but is inferred rather than quoted. Treat claim 28's `$out` half as sourced and any `$merge` equivalent as unverified.",
+          "text": "5. **Capped-collection behaviour for `$merge` is asserted, not documented.** The `$out` reference states plainly that it \"cannot write results to a capped collection\" (<>). The `$merge` reference's restriction list does not name capped collections; the prohibition is standard MongoDB behaviour but is inferred rather than quoted. Treat claim 28's `$out` half as sourced and any `$merge` equivalent as unverified. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#unresolved-disagreements",
           "note": null
         },
@@ -523,7 +523,7 @@
           "note": null
         },
         {
-          "text": "3. **Is the scheduled `$merge` pattern adequate, or obsolete?** The MongoDB manual presents scheduled/on-demand refresh as the recommended way to build these views; the MongoDB product blog calls scheduled batch materialization \"unsuitable for real-time applications\" and steers readers to Atlas Stream Processing. Both are first-party. The disagreement is about the freshness ceiling of the batch pattern, and neither source quantifies where the ceiling sits. ([MongoDB Manual](https://www.mongodb.com/docs/manual/core/materialized-views/) vs [MongoDB blog](https://www.mongodb.com/company/blog/tech",
+          "text": "The MongoDB blog says scheduled batch materialization produced pre-aggregated data that suffered from staleness, making it unsuitable for real-time applications, and presents Atlas Stream Processing as the alternative. The MongoDB manual describes on-demand materialized views refreshed by re-running a $merge or $out pipeline, and itself points to Atlas Stream Processing for continuously updated streaming materialized views. Sources: https://www.mongodb.com/company/blog/technical/real-time-materialized-views-with-atlas-stream-processing",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/practice.md#unresolved-disagreements",
           "note": null
         },
@@ -563,7 +563,7 @@
           "note": null
         },
         {
-          "text": "7. The swap mechanism implies a transient second copy of the full result set on disk (the temp collection coexists with the original until the rename) and a full index rebuild on every refresh, because indexes are *recreated* on the temp collection rather than reused in place. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/>",
+          "text": "When `$out` replaces an existing collection, it creates a temp collection, copies the index definitions from the existing collection, inserts the documents into the temp collection, and then renames it over the destination with `renameCollection` and `dropTarget: true`. The `$out` operation recreates the indexes for the replacement collection. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#out-mechanism",
           "note": null
         },
@@ -573,17 +573,17 @@
           "note": null
         },
         {
-          "text": "29. Change-stream observability differs: a view refreshed with `$merge` can be watched with change streams; one refreshed with `$out` cannot. This follows from mechanism — `$out` replaces the namespace rather than emitting per- document writes to it. <https://www.mongodb.com/docs/manual/core/materialized-views/>",
+          "text": "Change-stream observability differs: a view refreshed with `$merge` can be watched with change streams; one refreshed with `$out` cannot. `$out` writes a temp collection and renames it over the destination. Sources: https://www.mongodb.com/docs/manual/core/materialized-views.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#where-the-two-stages-diverge",
           "note": null
         },
         {
-          "text": "35. Independent characterisation of the cost trade-off: full replacement with `$out` is \"acceptable\" only for \"small dimension tables,\" and `$out` is \"wasteful\" for large datasets. <https://oneuptime.com/blog/post/2026-03-31-mongodb-merge-incremental-materialized-views/view> An earlier independent source makes the same argument: \"Regenerating an entire collection everytime with the `$out` stage consumes a lot of CPU and IO which may degrade the database performance.\" <https://severalnines.com/blog/whats-new-mongodb-42/>",
+          "text": "An earlier independent source (Severalnines) makes the cost argument: \"Regenerating an entire collection everytime with the $out stage consumes a lot of CPU and IO which may degrade the database performance.\" Sources: https://severalnines.com/blog/whats-new-mongodb-42/",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#refresh-strategy",
           "note": null
         },
         {
-          "text": "7. You can watch a `$merge`-maintained view with change streams, but not a `$out`-maintained one — `$out` swaps the collection rather than updating documents in place, so downstream consumers see no per-document change events. ([MongoDB Manual](https://www.mongodb.com/docs/manual/core/materialized-views/))",
+          "text": "You can use change streams to watch a $merge-maintained materialized view, but you can't watch a $out-maintained one. $out atomically replaces an existing output collection upon completion of the aggregation. Sources: https://www.mongodb.com/docs/manual/core/materialized-views/ ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/practice.md#choosing-between-the-two-stages",
           "note": null
         },
@@ -613,7 +613,7 @@
           "note": null
         },
         {
-          "text": "1. **Are change streams replica-set-only?** The dev.to article states change streams are \"available only on the replica-set setup\" and links MongoDB's own change-streams page as its support. The MongoDB manual says change streams \"are available for replica sets *and sharded clusters*.\" The third-party claim is contradicted by its own cited source; treat sharded clusters as supported. ([dev.to](https://dev.to/mayallo/mongodb-views-or-materialized-views-when-to-use-46d8) vs [MongoDB Manual](https://www.mongodb.com/docs/manual/changeStreams/))",
+          "text": "The dev.to article says change streams are available only on the replica-set setup, but the MongoDB manual says change streams are available for replica sets and sharded clusters, so sharded clusters are supported. Sources: https://www.mongodb.com/docs/manual/changeStreams/",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/practice.md#unresolved-disagreements",
           "note": null
         }
@@ -653,12 +653,12 @@
           "note": null
         },
         {
-          "text": "10. `$merge` became generally available in MongoDB 4.2. The archived `$out` reference page states the version explicitly: \"To output to a sharded collection, see `$merge` (Available starting in MongoDB 4.2)\" and \"With the introduction of `$merge` in version 4.2, MongoDB provides two stages, `$merge` and `$out`, for writing the results of the aggregation pipeline to a collection.\" https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/out.md",
+          "text": "10. `$merge` became generally available in MongoDB 4.2. The archived `$out` reference page states the version explicitly: \"To output to a sharded collection, see `$merge` (Available starting in MongoDB 4.2)\" and \"With the introduction of `$merge` in version 4.2, MongoDB provides two stages, `$merge` and `$out`, for writing the results of the aggregation pipeline to a collection.\" Sources: https://raw.githubusercontent.com/mongodb/docs/v4.2/source/reference/operator/aggregation/out.txt",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#mongodb-4-2-merge-ships-and-the-term-on-demand-materialized-view-appears",
           "note": null
         },
         {
-          "text": "11. The 4.2 release notes are where MongoDB first ties the stage to the materialized-view framing: \"MongoDB 4.2 adds the `$merge` aggregation stage… The new stage allows users to create on-demand materialized views, where the content of the output collection can be incrementally updated each time the pipeline is run.\" https://www.mongodb.com/docs/v4.4/release-notes/4.2.md",
+          "text": "11. The 4.2 release notes are where MongoDB first ties the stage to the materialized-view framing: \"MongoDB 4.2 adds the `$merge` aggregation stage… The new stage allows users to create on-demand materialized views, where the content of the output collection can be incrementally updated each time the pipeline is run.\" https://www.mongodb.com/docs/v4.4/release-notes/4.2.md (Historical: the cited page documents MongoDB 4.4, which is past end of life.)",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#mongodb-4-2-merge-ships-and-the-term-on-demand-materialized-view-appears",
           "note": null
         },
@@ -688,7 +688,7 @@
           "note": null
         },
         {
-          "text": "**A1. `$out` is atomic by construction; `$merge` is not atomic at all.** `$out` builds a temp collection, copies index definitions onto it, inserts, then calls `renameCollection` with `dropTarget: true` — \"If the output collection already exists, the `$out` stage atomically replaces it upon completion of the aggregation.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/>",
+          "text": "`$out` builds a temp collection, copies index definitions onto it, inserts, then calls `renameCollection` with `dropTarget: true`; if the output collection already exists, the `$out` stage atomically replaces it upon completion of the aggregation. `$merge` has no all-or-nothing behavior: if the aggregation fails, writes completed by `$merge` before the error are not rolled back. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/edge-cases.md#a-atomicity-and-rollback-boundaries",
           "note": null
         },
@@ -703,7 +703,7 @@
           "note": null
         },
         {
-          "text": "Background - https://en.wikipedia.org/w/index.php?title=Halloween_Problem&oldid=738886300 (the revision MongoDB itself links) - https://pubs.dbs.uni-leipzig.de/se/node/395 — Gupta & Mumick, \"Maintenance of Materialized Views: Problems, Techniques, and Applications\", IEEE Data Engineering Bulletin 18(2), 1995 (bibliographic record only; full text not fetched)",
+          "text": "Gupta & Mumick, \"Maintenance of Materialized Views: Problems, Techniques, and Applications\", IEEE Data Engineering Bulletin 18(2), pp. 3-18, 1995 (bibliographic record only). Sources: https://vldb.org/dblp/db/journals/debu/GuptaM95.html",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#sources",
           "note": null
         },
@@ -718,7 +718,7 @@
           "note": null
         },
         {
-          "text": "3. **The read-performance claim is unquantified everywhere.** MongoDB asserts materialized views are faster to read than standard views (<https://www.mongodb.com/docs/manual/core/materialized-views/>), and I deliberately sought a disconfirming or measuring source. None of the independent write-ups supply one: the Towards Data Science treatment (Quest Henkart, 2020-09-25) argues the scalability case entirely from a mock dataset with \"no quantitative benchmarks, performance metrics, or measured limitations\" (<https://towardsdatascience.com/on-demand-materialized-views-a-scalable-solution-for-gra",
+          "text": "MongoDB's manual asserts that on-demand materialized views give better read performance than standard views, and that the benefit grows with pipeline complexity and data size, but gives no measurements. The Towards Data Science article illustrates its approach with small example collections and does not present benchmarks. The Mydbops overview lists advantages of standard views and describes on-demand materialized views without discussing staleness, refresh burden, or storage cost of materialized views. I did not find an independent source that measures or contradicts MongoDB's performance cla",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#unresolved-disagreements",
           "note": null
         },
@@ -733,12 +733,12 @@
           "note": null
         },
         {
-          "text": "2. The view is not a distinct database object. It is an ordinary collection that a pipeline writes into; MongoDB documents no separate \"materialized view\" catalog entry, refresh scheduler, or dependency tracker. The pattern is a convention over two write stages. <https://www.mongodb.com/docs/manual/core/materialized-views/>",
+          "text": "An on-demand materialized view is a pre-computed aggregation pipeline result stored on and read from disk, typically produced by a $merge or $out stage that writes into a collection. Sources: https://www.mongodb.com/docs/manual/core/materialized-views/",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/mechanism.md#definition-and-framing",
           "note": null
         },
         {
-          "text": "26. Change-stream-driven refresh is deployment-constrained: change streams \"are available for replica sets and sharded clusters,\" require the WiredTiger storage engine and replica set protocol version `pv1`, and are not available on standalone deployments. ([MongoDB Manual — Change Streams](https://www.mongodb.com/docs/manual/changeStreams/))",
+          "text": "26. Change-stream-driven refresh is deployment-constrained: change streams \"are available for replica sets and sharded clusters,\" require the WiredTiger storage engine and replica set protocol version `pv1`, and are not available on standalone deployments. ([MongoDB Manual — Change Streams]()) Sources: https://www.mongodb.com/docs/manual/changeStreams/ ; https://www.mongodb.com/community/forums/t/pymongo-errors-operationfailure-the-changestream-stage-is-only-supported-on-replica-sets/161106",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/practice.md#evaluating-a-materialized-view",
           "note": null
         },
@@ -768,12 +768,12 @@
           "note": null
         },
         {
-          "text": "21. MongoDB 4.4 allowed `$merge` to write back into the collection being aggregated: \"Starting in MongoDB 4.4, `$merge` can output to the same collection that is being aggregated. You can also output to a collection which appears in other stages of the pipeline, such as `$lookup`.\" and \"Versions of MongoDB prior to 4.4 did not allow `$merge` to output to the same collection as the collection being aggregated.\" https://www.mongodb.com/docs/v4.4/release-notes/4.4.md",
+          "text": "21. MongoDB 4.4 allowed `$merge` to write back into the collection being aggregated: \"Starting in MongoDB 4.4, `$merge` can output to the same collection that is being aggregated. You can also output to a collection which appears in other stages of the pipeline, such as `$lookup`.\" and \"Versions of MongoDB prior to 4.4 did not allow `$merge` to output to the same collection as the collection being aggregated.\" https://www.mongodb.com/docs/v4.4/release-notes/4.4.md (Historical: the cited page documents MongoDB 4.4, which is past end of life.)",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#capability-changes-after-4-2",
           "note": null
         },
         {
-          "text": "25. MongoDB 4.4 allowed the read side of both stages to run on secondaries, gated on `featureCompatibilityVersion` 4.4 and a read preference allowing secondary reads; the write side still runs only on the primary. The current manual restates the same gate at FCV 5.0. https://www.mongodb.com/docs/v4.4/release-notes/4.4.md and https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/",
+          "text": "Starting in MongoDB 5.0 (not 4.4), pipelines with $out or $merge can run on replica set secondary nodes if all nodes have featureCompatibilityVersion 5.0 or higher and the read preference allows secondary reads. The read side runs on secondaries while writes go only to the primary. In earlier versions these pipelines always run on the primary and read preference is not considered. (Historical: the cited page documents MongoDB 4.4, which is past end of life.) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#capability-changes-after-4-2",
           "note": null
         },
@@ -783,7 +783,7 @@
           "note": null
         },
         {
-          "text": "Official MongoDB documentation - https://www.mongodb.com/docs/manual/core/materialized-views/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/ - https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/out.md - https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/merge.md - https://www.mongodb.com/docs/v4.4/release-notes/4.2.md - https://www.mongodb.com/docs/v4.4/release-notes/4.4.md - https://www.mongodb.com/docs/atlas/atlas-stream-processing/streaming-materialized-views/ -",
+          "text": "Official MongoDB documentation - https://www.mongodb.com/docs/manual/core/materialized-views/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/ - https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/out.md - https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/merge.md - https://www.mongodb.com/docs/v4.4/release-notes/4.2.md - https://www.mongodb.com/docs/v4.4/release-notes/4.4.md - https://www.mongodb.com/docs/atlas/atlas-stream-processing/streaming-materialized-views/",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#sources",
           "note": null
         },
@@ -873,12 +873,12 @@
           "note": null
         },
         {
-          "text": "22. That capability was implemented in SERVER-42137, \"Allow aggregation $merge stage to write to a collection that the query also reads from\", created 2019-07-10, resolved 2019-11-20, fix version 4.3.2 (a development release in the series that became 4.4). https://jira.mongodb.org/browse/SERVER-42137",
+          "text": "22. That capability was implemented in SERVER-42137, \"Allow aggregation $merge stage to write to a collection that the query also reads from\", created 2019-07-10, resolved 2019-11-20, fix version 4.3.2 (a development release in the series that became 4.4). Sources: https://jira.mongodb.org/browse/SERVER-42137 ; https://raw.githubusercontent.com/mongodb/docs/v4.4/source/reference/versioning.txt",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#capability-changes-after-4-2",
           "note": null
         },
         {
-          "text": "24. MongoDB 4.4 also gave `$out` cross-database output: \"Starting in MongoDB 4.4: `$out` can output to a collection in a different database. In earlier versions, `$out` can only output to a collection in the same database where the aggregation is run.\" https://www.mongodb.com/docs/v4.4/release-notes/4.4.md",
+          "text": "24. MongoDB 4.4 also gave `$out` cross-database output: \"Starting in MongoDB 4.4: `$out` can output to a collection in a different database. In earlier versions, `$out` can only output to a collection in the same database where the aggregation is run.\" https://www.mongodb.com/docs/v4.4/release-notes/4.4.md (Historical: the cited page documents MongoDB 4.4, which is past end of life.)",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#capability-changes-after-4-2",
           "note": null
         },
@@ -893,7 +893,7 @@
           "note": null
         },
         {
-          "text": "**D. Exact 4.2 GA day.** Sources agree on August 2019 but not on the day. The Percona GA announcement is dated 2019-08-16 (https://www.percona.com/blog/long-awaited-mongodb-4-2-ga-has-landed/), and MongoDB's version-history page gives only the year (https://www.mongodb.com/resources/products/mongodb-version-history). The archived 4.2 release notes reachable today list 4.2.1 (2019-10-18) as their earliest dated patch release and do not state the 4.2.0 GA date (https://www.mongodb.com/docs/v4.4/release-notes/4.2.md). Month-level precision only; do not assert a day.",
+          "text": "MongoDB's 4.2 release notes give the release date as Aug 13, 2019; the Percona GA announcement is dated August 16, 2019, and MongoDB's version-history page gives only the year 2019. The 4.2 release notes list 4.2.1 (Oct 18, 2019) as a patch release. Sources: https://raw.githubusercontent.com/mongodb/docs/v4.2/source/release-notes/4.2.txt ; https://www.percona.com/blog/long-awaited-mongodb-4-2-ga-has-landed/",
           "source": "~/.global-ai-hub/research-runs/frontier-current/merge-and-out-materialized-views/reports/history.md#unresolved-disagreements",
           "note": null
         },

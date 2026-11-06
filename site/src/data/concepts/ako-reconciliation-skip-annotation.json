@@ -23,7 +23,7 @@
           "note": null
         },
         {
-          "text": "20. [DOC] Removing the annotation makes AKO reconcile and \"sync it with the spec\". Atlas-side changes made during the pause, in fields the spec covers, are reverted to the spec. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 21. [CODE] The operator has an explicit `SkipAnnotationRemovedPredicate`. It fires when the old object is skipped and the new one is not, because removing an annotation does not bump `metadata.generation` and generation-only predicates would otherwise drop the event. — https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal",
+          "text": "20. [DOC] Removing the annotation makes AKO reconcile and \"sync it with the spec\". Atlas-side changes made during the pause, in fields the spec covers, are reverted to the spec. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 21. [CODE] The operator has an explicit `SkipAnnotationRemovedPredicate`. It fires when the old object is skipped and the new one is not, because removing an annotation does not bump `metadata.generation` and generation-only predicates would otherwise drop the event.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/edge-cases.md#resuming-annotation-removal",
           "note": null
         },
@@ -33,7 +33,7 @@
           "note": null
         },
         {
-          "text": "14. PR #2839, \"CLOUDP-340286: Reconciler on skip removal\", was merged 2025-11-04. It added `SkipAnnotationRemovedPredicate` to `internal/controller/watch/predicates.go` and to `DefaultPredicates`. The predicate fires when the old object was skipped and the new one is not. https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/pulls/2839/files 15. The v2.12.0 release notes (published 2025-12-02) state: \"Previously resources were not updated in Atlas if the skip annotation was removed. Now if the skip annotation is removed, any pending changes in any resource are synchronised to Atlas imm",
+          "text": "14. PR #2839, \"CLOUDP-340286: Reconciler on skip removal\", was merged 2025-11-04. It added `SkipAnnotationRemovedPredicate` to `internal/controller/watch/predicates.go` and to `DefaultPredicates`. The predicate fires when the old object was skipped and the new one is not. 15. The v2.12.0 release notes (published 2025-12-02) state: \"Previously resources were not updated in Atlas if the skip annotation was removed. Now if the skip annotation is removed, any pending changes in any resource are synchronised to Atlas immediately. #2839\". 16. PR #2903, \"CLOUDP-359459: Support skip reconciliation ann",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/history.md#behaviour-corrections-2025",
           "note": null
         },
@@ -48,13 +48,8 @@
           "note": null
         },
         {
-          "text": "33. [CODE] If a skipped AtlasProject has a `deletionTimestamp`, the controller calls `ManageFinalizer(..., UnsetFinalizer)` and returns OK. It never deletes anything in Atlas. (M13, E13) 34. [CODE] AtlasDeployment, AtlasIPAccessList and the shared `AtlasReconciler.Skip` do the same: they release the finalizer and make no Atlas call. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/atlasipaccesslist/transitions.go (M10, E14, P11) 35. [CODE] AtlasDatabaseUser's `skip()` only logs and returns OK. It has no deletion-timestamp branch and does not remove th",
+          "text": "33. If a skipped AtlasProject has a deletionTimestamp, the controller calls ManageFinalizer(..., UnsetFinalizer) and then returns workflow.OK(); the skip branch makes no Atlas delete call. 34. AtlasDeployment, AtlasIPAccessList and the shared AtlasReconciler.Skip do the same: they release the finalizer when the object is being deleted and make no Atlas call. 35. AtlasDatabaseUser's skip() only logs and returns OK. It has no deletion-timestamp branch and does not remove the finalizer. 36. Because Kubernetes only removes an object with a deletionTimestamp once its finalizers field is empty, a sk",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/rabbithole-synthesis.md#e-deleting-a-skipped-resource",
-          "note": null
-        },
-        {
-          "text": "| # | Side A | Side B | Status | |---|---|---|---| | D1 | Docs: a parent skip covers \"the parent resource and its subresources\" (claim 28) | Code: each controller checks only its own object (claims 29–30) | The code reading is preferred. No doc mentions independent CRs. | | D2 | Docs (v1.9.3 onward): AKO reconciles once the annotation is removed; M18 and P15 say removal \"always\" triggers a reconcile | v2.12.0 notes: before the fix, removal did not sync (claim 47) | Version-dependent. On ≥ v2.12.0 it holds only inside watched namespaces (claim 45). | | D3 | M20 and P16: adding the annotation tr",
-          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/rabbithole-synthesis.md#contradictions-kept-side-by-side",
           "note": null
         },
         {
@@ -63,33 +58,28 @@
           "note": null
         },
         {
-          "text": "1. [CODE] The operator reads only `metadata.annotations[\"mongodb.com/atlas-reconciliation-policy\"]`, and skips only when the value equals the exact string `skip`. Any other value, including `Skip`, `SKIP`, `true` or `keep`, does not skip. — https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/customresource/customresource.go 2. [CODE] A *label* with this key has no effect, because `ReconciliationShouldBeSkipped` calls `GetAnnotations()` and never `GetLabels()`. — https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/c",
+          "text": "1. [CODE] The operator reads only `metadata.annotations[\"mongodb.com/atlas-reconciliation-policy\"]`, and skips only when the value equals the exact string `skip`. Any other value, including `Skip`, `SKIP`, `true` or `keep`, does not skip. — https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/customresource/customresource.go 2. [CODE] A *label* with this key has no effect, because `ReconciliationShouldBeSkipped` calls `GetAnnotations()` and never `GetLabels()`.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/edge-cases.md#parsing-and-matching",
           "note": null
         },
         {
-          "text": "13. [CODE] AtlasProject: if a skipped project has a `deletionTimestamp`, the controller removes the AKO finalizer and returns. It never runs Atlas-side deletion. — https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/atlasproject/atlasproject_controller.go 14. [CODE] AtlasDeployment and AtlasIPAccessList behave the same way. On deletion while skipped, they remove the finalizer and skip the Atlas delete. — https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/atlasdeployment/atlasdeployment_controller.go ; https://raw.",
+          "text": "When an AtlasProject, AtlasDeployment or AtlasIPAccessList is skipped and has a deletionTimestamp, the controller removes the AKO finalizer and returns without running Atlas-side deletion. AtlasDatabaseUser differs: its skip() only logs and returns workflow.OK(), and no code between PrepareResource and the skip check handles deletionTimestamp or finalizers. The migration docs warn that without the skip annotation, for users with deletion protection disabled, AKO can remove the Atlas project when the atlasProject resource is removed, or enter a blocked state attempting to remove a project with",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/edge-cases.md#deletion-while-skipped-main-failure-modes",
           "note": null
         },
         {
-          "text": "6. The code defines `ReconciliationPolicyAnnotation = \"mongodb.com/atlas-reconciliation-policy\"` and `ReconciliationPolicySkip = \"skip\"`. This was already true at tag v0.8.0, in `pkg/controller/customresource/customresource.go`. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/v0.8.0/pkg/controller/customresource/customresource.go 7. In current releases the constants live in `internal/controller/customresource/customresource.go`. `ReconciliationShouldBeSkipped()` returns true only when the annotation value exactly equals `\"skip\"`. The comparison is exact-match and case-sensit",
+          "text": "6. The code defines `ReconciliationPolicyAnnotation = \"mongodb.com/atlas-reconciliation-policy\"` and `ReconciliationPolicySkip = \"skip\"`. This was already true at tag v0.8.0, in `pkg/controller/customresource/customresource.go`. 7. In current releases the constants live in `internal/controller/customresource/customresource.go`. `ReconciliationShouldBeSkipped()` returns true only when the annotation value exactly equals `\"skip\"`. The comparison is exact-match and case-sensitive, so `Skip`, `SKIP` and `\"true\"` are ignored and the resource reconciles normally. 8. The legacy AtlasProject and Atlas",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/mechanism.md#evaluation-code",
           "note": null
         },
         {
-          "text": "24. Dry-run mode (`--dry-run`, public preview since AKO 2.8.0) runs every reconciler once and emits events for planned POST/PATCH/PUT/DELETE calls. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/run/run.go ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 25. Inference from claims 8, 9 and 24: the skip check runs before any Atlas call, so a skipped resource should produce no dry-run events. A dry-run preview therefore says nothing about changes that will happen when you remove the annotation. No source confirms this. https://raw.githubuser",
+          "text": "24. Dry-run mode (`--dry-run`, public preview since AKO 2.8.0) runs every reconciler once and emits events for planned POST/PATCH/PUT/DELETE calls. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/run/run.go ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 25. Inference from claims 8, 9 and 24: the skip check runs before any Atlas call, so a skipped resource should produce no dry-run events. A dry-run preview therefore says nothing about changes that will happen when you remove the annotation. No source confirms this.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/mechanism.md#interaction-with-dry-run-limit",
           "note": null
         },
         {
           "text": "21. Deleting a skipped resource orphans it. For project, deployment and base-reconciler kinds, `kubectl delete` on a skipped object drops the finalizer without calling Atlas. The Atlas object survives even if `OBJECT_DELETION_PROTECTION=false` or the object has `atlas-resource-policy: delete`. Skip takes priority over the delete policy. Sources: claim 11, and https://www.mongodb.com/docs/atlas/operator/current/ for the deletion-protection flags. 22. A skipped `AtlasDatabaseUser` that you delete probably stays in `Terminating`, because nothing removes its finalizer (claim 12). After you remove",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/practice.md#concrete-implications-derived-from-the-code-above-test-on-a-non-production-cluster",
-          "note": null
-        },
-        {
-          "text": "- **S1.** If claim 43 is right, the log line in claim 49 may not appear until the next resync: up to 15 minutes for independent CRs and 3 hours for legacy kinds. Putting a spec edit in the same apply as the annotation should make the skip log appear at once. - **S2.** `SkipAnnotationRemovedPredicate` compares the skipped state before and after the update. It should therefore also fire when the value changes from `skip` to something else (claim 6). - **S3.** On `main` the package moved from `pkg/` to `internal/`. Under Go's `internal/` rule, external modules can no longer import it, so E3's \"st",
-          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/rabbithole-synthesis.md#synthesis-only-inferences-not-sourced-test-before-relying-on-them",
           "note": null
         },
         {
@@ -153,7 +143,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "- **Docs vs. actual behaviour before v2.12.0 (disconfirming source).** From at least v1.9.3 onward, the docs promised that removing the annotation would trigger reconciliation (claims 9–10). The v2.12.0 release notes say removing it did *not* push pending changes to Atlas (claim 15). Both sources are kept. Reading them together: on AKO < v2.12.0, removing the annotation alone may leave the resource unsynced until something else triggers a reconcile, such as a spec edit, a periodic resync or an operator restart. The exact pre-fix trigger set is not stated in the sources. That part is inference.",
+          "text": "The v1.9.3 docs said that as soon as the skip annotation is removed the operator should reconcile the resource and sync it back with the spec. The v2.12.0 release notes say that previously resources were not updated in Atlas if the skip annotation was removed, and that from v2.12.0 removing it immediately synchronises pending changes. The v2.12.0 release also fixed the skip annotation being ignored for Org Settings and Third Party Integrations. The v2.16 migration docs say the annotation on a parent resource prevents AKO from attempting to reconcile the parent resource and its subresources. So",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/history.md#unresolved-disagreements-and-limits",
           "note": null
         },
@@ -163,12 +153,12 @@
           "note": null
         },
         {
-          "text": "24. [DOC] AKO skip and Argo CD's `argocd.argoproj.io/skip-reconcile: \"true\"` are unrelated. The Argo annotation goes on an Argo `Application`, stops Argo processing, and is alpha since v2.7.0. AKO skip does not stop GitOps tools from re-applying the CR, and a GitOps sync can remove the annotation if it is not in Git. — https://argo-cd.readthedocs.io/en/latest/user-guide/skip_reconcile/ 25. [DOC] Argo's resume semantics differ from AKO's. Argo accepts `\"false\"` to resume; AKO has no boolean form. Copying Argo muscle memory (`skip: \"true\"`) to AKO silently does nothing. — https://argo-cd.readthe",
+          "text": "24. [DOC] AKO skip and Argo CD's `argocd.argoproj.io/skip-reconcile: \"true\"` are unrelated. The Argo annotation goes on an Argo `Application`, stops Argo processing, and is alpha since v2.7.0. AKO skip does not stop GitOps tools from re-applying the CR, and a GitOps sync can remove the annotation if it is not in Git. — https://argo-cd.readthedocs.io/en/latest/user-guide/skip_reconcile/ 25. [DOC] Argo's resume semantics differ from AKO's. Argo accepts `\"false\"` to resume; AKO has no boolean form. Copying Argo muscle memory (`skip: \"true\"`) to AKO silently does nothing.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/edge-cases.md#boundary-vs-look-alikes-disconfirming-context",
           "note": null
         },
         {
-          "text": "- **Docs example uses a label with value `keep`.** The migration page (current v2.17, and v2.12) has the new `AtlasCustomRole` carry `labels: mongodb.com/atlas-reconciliation-policy: keep`. The code reads only annotations and only `skip` (claims 1–2), so this label is a no-op. It also looks like a mix-up with `atlas-resource-policy: keep`. Docs and code disagree; the code is authoritative for behaviour. — https://www.mongodb.com/docs/atlas/operator/current/migrate-parameter-to-resource/ vs https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/customresourc",
+          "text": "The migration page's example gives the new `AtlasCustomRole` `labels:` with `mongodb.com/atlas-reconciliation-policy: keep`. The shared code only reads the skip annotation (`ReconciliationShouldBeSkipped` looks in `GetAnnotations()` and tests for `skip`), so the label has no effect on reconciliation. The migration docs say skip on the parent \"prevents Atlas Kubernetes Operator from attempting to reconcile the parent resource and its subresources\", while the controllers check their own object. The custom-resources page says skip lets you \"make manual changes to a custom resource and avoid Atlas",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/edge-cases.md#unresolved-disagreements",
           "note": null
         },
@@ -178,7 +168,7 @@
           "note": null
         },
         {
-          "text": "12. On `main`, the check lives in `internal/controller/customresource/customresource.go`. It now takes a generic `metav1.Object` instead of `mdbv1.AtlasCustomResource`, so any Kubernetes object can be checked, not only Atlas CRs. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/customresource/customresource.go 13. The check is an exact string comparison, `v == ReconciliationPolicySkip` with the value `\"skip\"`. Inference from the code: values such as `\"Skip\"`, `\"true\"` or `\"skipped\"` do not pause reconciliation. https://raw.githubusercontent.com/mongod",
+          "text": "12. On `main`, the check lives in `internal/controller/customresource/customresource.go`. It now takes a generic `metav1.Object` instead of `mdbv1.AtlasCustomResource`, so any Kubernetes object can be checked, not only Atlas CRs. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/customresource/customresource.go 13. The check is an exact string comparison, `v == ReconciliationPolicySkip` with the value `\"skip\"`. Inference from the code: values such as `\"Skip\"`, `\"true\"` or `\"skipped\"` do not pause reconciliation.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/history.md#implementation-details-current",
           "note": null
         },
@@ -208,32 +198,32 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "7. [REL] On 2021-06-29 a user on AKO 0.5.0 opened issue #265, asking for a way to stop AKO deleting or modifying existing projects, clusters, users and manually added IP entries. https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/issues/265 (H1) 8. [REL] At that point the `ResourcePolicyAnnotation`/`ResourcePolicyKeep` constants already existed but were used only in tests. (H2) 9. [REL] The annotation arrived in PR #408, \"CLOUDP-94515: Skip reconciliations for specific resource\", by `chatton`. It was opened 2022-02-02 and merged 2022-02-28 as commit `4022313a7249afccae8121aa3c8d6324",
+          "text": "7. [REL] On 2021-06-29 a user on AKO 0.5.0 opened issue #265, asking for a way to stop AKO deleting or modifying existing projects, clusters, users and manually added IP entries. (H1) 8. [REL] At that point the `ResourcePolicyAnnotation`/`ResourcePolicyKeep` constants already existed but were used only in tests. (H2) 9. [REL] The annotation arrived in PR #408, \"CLOUDP-94515: Skip reconciliations for specific resource\", by `chatton`. It was opened 2022-02-02 and merged 2022-02-28 as commit `4022313a7249afccae8121aa3c8d6324767d1e10`. (H3) 10. [CODE/REL] PR #408 added the constants and `Reconcili",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/rabbithole-synthesis.md#b-history",
           "note": null
         },
         {
-          "text": "- \"Add skip to the parent AtlasProject to pause reconciliation\" pauses only the AtlasProject and its spec subobjects. Independent CRs keep reconciling (claims 28–30). - \"Pauses … that one resource until the annotation is removed\" is incomplete. On AtlasProject, skip also patches the last-applied annotation (claim 24). Deleting a skipped resource orphans the Atlas object for most kinds (claims 33–34, 38), but leaves AtlasDatabaseUser stuck in `Terminating` (claims 35–36). - \"Remove the skip annotation; resume reconciliation\": before v2.12.0, removal alone did not sync (claim 47). Removal revert",
+          "text": "Before AKO v2.12.0, removing the skip annotation alone did not sync resources to Atlas; from v2.12.0, removing it synchronises any pending changes to Atlas immediately. Sources: https://newreleases.io/project/github/mongodb/mongodb-atlas-kubernetes/release/v2.12.0",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/rabbithole-synthesis.md#corrections-to-inherited-parent-facts",
           "note": null
         },
         {
-          "text": "1. On 2021-06-29, a user running AKO 0.5.0 opened feature request #265. They asked for a way to stop the operator deleting or modifying existing Atlas projects, clusters, users and manually entered IP access entries. https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/issues/265 2. Issue #265 notes that the `ResourcePolicyAnnotation`/`ResourcePolicyKeep` constants already existed in code at that point but were set only in tests. The request therefore predates both user-facing annotations. https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/issues/265 3. The skip annotation",
+          "text": "1. On 2021-06-29, a user running AKO 0.5.0 opened feature request #265. They asked for a way to stop the operator deleting or modifying existing Atlas projects, clusters, users and manually entered IP access entries. 2. Issue #265 notes that the ResourcePolicyAnnotation/ResourcePolicyKeep constants were set only in tests. 3. The skip annotation came in through PR #408, \"CLOUDP-94515: Skip reconciliations for specific resource\", authored by chatton, opened 2022-02-02 and merged 2022-02-28 as commit 4022313a7249afccae8121aa3c8d6324767d1e10. 4. PR #408 says it \"enables the skipping of reconciliat",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/history.md#origin-2021-2022",
           "note": null
         },
         {
-          "text": "6. AKO 0.8.0 added it: \"Supports the `mongodb.com/atlas-reconciliation-policy=skip` annotation for configuring Atlas Kubernetes Operator to skip reconciliations on specific resources.\" https://www.mongodb.com/docs/atlas/reference/atlas-operator/ak8so-changelog/ 7. By v1.9.3 the repository's own `docs/annotations.md` documented it with the same meaning as today's docs. The contract has not changed since then. https://github.com/mongodb/mongodb-atlas-kubernetes/blob/v1.9.3/docs/annotations.md 8. The current docs line is v2.17 (as of 2026-10-01). The parent pack's \"AKO v2.14\" is therefore out of",
+          "text": "AKO 0.8.0 added the `mongodb.com/atlas-reconciliation-policy=skip` annotation: \"Supports the `mongodb.com/atlas-reconciliation-policy=skip` annotation for configuring Atlas Kubernetes Operator to skip reconciliations on specific resources.\" The repository's v1.9.3 `docs/annotations.md` already documented it, and the current docs describe the same behaviour: reconciliation does not start while the annotation is set, and the resource syncs with the spec again once the annotation is removed. The latest release listed in the AKO changelog is 2.17.0.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/practice.md#history",
           "note": null
         },
         {
-          "text": "- **Docs and code disagree on scope.** The docs say skip on `AtlasProject` pauses \"the parent resource and its subresources\". The code shows that independent CRDs with `projectRef` are not paused (claims 18 and 20). Read \"subresources\" as \"spec subobjects\" only. - **Deletion handling differs between controllers.** Most skipped kinds release the finalizer on delete (orphaning the Atlas object). `AtlasDatabaseUser` does not (claims 11 and 12). No doc describes either behaviour. I could not find out whether this difference is deliberate. - **The pause is not total.** The docs say AKO \"doesn't sta",
+          "text": "The docs say skip on the parent prevents AKO from attempting to reconcile the parent resource and its subresources. On deletion while skipped, AtlasProject, AtlasDeployment and AtlasIPAccessList remove their finalizer, but the AtlasDatabaseUser skip() only logs and returns OK. The v1.9.3 docs said that with skip the operator doesn't start the reconciliation. The deletion-protection section is headed New Default in 2.0 but says setting the flag to false reverts to the behavior prior to Atlas Kubernetes Operator 2.1.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/practice.md#unresolved-disagreements-and-gaps",
           "note": null
         },
         {
-          "text": "28. [DOC] The migration docs say a skip on the parent \"prevents Atlas Kubernetes Operator from attempting to reconcile the parent resource and its subresources\". https://www.mongodb.com/docs/atlas/operator/v2.12/ak8so-independent-crd/ ; https://www.mongodb.com/docs/atlas/operator/v2.14/ak8so-independent-crd/ ; https://www.mongodb.com/docs/atlas/operator/v2.13/migrate-parameter-to-resource/ (M22, E6, P18) 29. [CODE] The AtlasIPAccessList and AtlasDatabaseUser controllers read only their own object's annotation. No code reads the annotation on the referenced project. (M23, E5, P14) 30. [INF] Ind",
+          "text": "The migration docs say adding the skip annotation to the parent \"prevents Atlas Kubernetes Operator from attempting to reconcile the parent resource and its subresources\". The AtlasDatabaseUser and AtlasIPAccessList controllers each check the skip annotation on their own object (`ReconciliationShouldBeSkipped(atlasDatabaseUser)` and `ReconciliationShouldBeSkipped(ipAccessList)`). The migration procedure has you create the new CRD, wait for AKO to sync the new resource's status, and only then remove the skip annotation from the parent. In the current migration page, removing the annotation is s",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/rabbithole-synthesis.md#d-scope-of-a-parent-level-skip",
           "note": null
         },
@@ -248,17 +238,12 @@
           "note": null
         },
         {
-          "text": "- The parent extract says to add skip \"to the parent AtlasProject metadata to pause reconciliation\". This pauses the AtlasProject and its embedded subobjects only. It does not pause independent CRDs (claims 22 and 23). - The parent extract describes skip as purely pausing reconciliation. On AtlasProject, skip also rewrites the last-applied-config annotation (claim 16). On any kind, deleting a skipped CR drops the finalizer without deleting the Atlas object (claims 13 and 14).",
-          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/mechanism.md#corrections-to-inherited-parent-facts",
-          "note": null
-        },
-        {
           "text": "Out of scope: sibling annotations as subjects of their own (`atlas-resource-policy`), AKO dry-run mode, the subobject-to-independent-CRD migration as a whole, and Terraform/AKO co-management. These appear below only where they change how skip behaves.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/practice.md#scope",
           "note": null
         },
         {
-          "text": "5. [CODE] Each controller checks the annotation on its *own* object only. The AtlasIPAccessList handler calls `ReconciliationShouldBeSkipped(ipAccessList)` and then resolves its project through `ResolveProject`. No code reads the referenced AtlasProject's annotation. — https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/atlasipaccesslist/state.go 6. [INFERRED] Independent CRs (AtlasIPAccessList, AtlasDatabaseUser, AtlasDeployment and others) that reference a skipped AtlasProject therefore keep reconciling against Atlas. The docs phrase \"prevents Atlas Ku",
+          "text": "The AtlasIPAccessList handler checks ReconciliationShouldBeSkipped(ipAccessList) on its own object and then resolves its project through ResolveProject. The docs say the skip annotation on the parent prevents AKO from attempting to reconcile the parent resource and its subresources. The migration procedure has the user wait for AKO to sync the new resource status while the parent carries the skip annotation, and only afterwards remove it. Sources: https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/atlasipaccesslist/state.go",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/edge-cases.md#scope-of-a-skip-per-object-not-cascading",
           "note": null
         },
@@ -283,7 +268,7 @@
           "note": null
         },
         {
-          "text": "22. The migration docs say skip on the parent \"prevents Atlas Kubernetes Operator from attempting to reconcile the parent resource and its subresources\". Here \"subresources\" means the subobjects embedded in `AtlasProject.spec` (for example `projectIpAccessList` and `customRoles`). https://www.mongodb.com/docs/atlas/operator/v2.12/ak8so-independent-crd/ 23. Independent CR reconcilers evaluate the skip annotation on their own object only. AtlasIPAccessList, for example, calls `ReconciliationShouldBeSkipped(ipAccessList)`. A skip on the parent AtlasProject therefore does not pause independent CRs",
+          "text": "The migration docs say adding the skip annotation to the parent \"prevents Atlas Kubernetes Operator from attempting to reconcile the parent resource and its subresources\". Independent CR reconcilers evaluate the skip annotation on their own object; for example, AtlasIPAccessList calls `ReconciliationShouldBeSkipped(ipAccessList)`. Sources: https://www.mongodb.com/docs/atlas/operator/v2.12/ak8so-independent-crd/ ; https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/atlasipaccesslist/state.go",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/mechanism.md#scope-of-a-parent-level-skip",
           "note": null
         },
@@ -293,7 +278,7 @@
           "note": null
         },
         {
-          "text": "26. An Operator Framework proposal for a generic pause asks for two things: deletion logic still runs while paused, and the resource gets a `Paused` status condition. AKO's skip does neither (claims 11 to 13). The proposal is still open, labelled stale, and has no maintainer decision. https://github.com/operator-framework/operator-sdk/issues/3418 27. ClickHouse's `clickhouse.com/pause-reconciliation=true` resets conditions to Unknown and reports `ReconcileSucceeded=False` with reason `ReconciliationPaused`. That way status \"honestly reflects that the operator does not observe the cluster\". AKO",
+          "text": "An Operator Framework issue (operator-sdk #3418) proposing a generic pause asks that deletion logic still run while paused and that the operator write a Paused phase or condition (or an Unknown condition) on the resource. The issue is closed and carries the lifecycle/stale label. ClickHouse's `clickhouse.com/pause-reconciliation=\"true\"` resets conditions to Unknown and reports `ReconcileSucceeded=False` with reason `ReconciliationPaused`, so that the persisted status \"honestly reflects that the operator does not observe the cluster\". AKO's state-machine skip handler logs and returns `workflow.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/practice.md#trade-offs-compared-with-other-designs-contrast-sources",
           "note": null
         },
@@ -353,7 +338,7 @@
           "note": null
         },
         {
-          "text": "- https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ - https://www.mongodb.com/docs/atlas/operator/current/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/ - https://www.mongodb.com/docs/atlas/operator/v2.13/migrate-parameter-to-resource/ - https://www.mongodb.com/docs/atlas/reference/atlas-operator/ak8so-changelog/ - https://github.com/mongodb/mongodb-atlas-kubernetes/blob/v1.9.3/docs/annotations.md - https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/customresource/customresource.go - https://raw.githubu",
+          "text": "- https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ - https://www.mongodb.com/docs/atlas/operator/current/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/ - https://www.mongodb.com/docs/atlas/operator/v2.13/migrate-parameter-to-resource/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ - https://github.com/mongodb/mongodb-atlas-kubernetes/blob/v1.9.3/docs/annotations.md - https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/controller/customresource/customresource.go - https://raw.githubu",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-reconciliation-skip-annotation-f72bdb37c0/reports/practice.md#sources",
           "note": null
         }
