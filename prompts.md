@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v107 - 2026-11-06
+
+> Look at my https://llmsx.org website, and identify the major offerings like the applications, the skills, the concept tree, the blog posts, guides, etc. and do a web lookup to try and find anybody else that is doing roughly what I'm doing.  The purpose of this is I want to find out how they're presenting their offerings, how successful they are, and generally identify how to streamline and hone what the site identity is. Look at all of the firecrawl skills and mcp servers and identify if there are any that would help with this search, maybe the competitive intel workflow?  maybe the shopping workflow? see what makes more sense and do that.
+
+Scope: TASK-1196. Advisory review of live offerings, peer positioning and public traction. Use Firecrawl search/scrape and the market-research workflow. Do not implement a redesign or treat stars, catalog counts or publisher claims as active users or revenue. Preserve all unrelated work. Delta: prompt106 to107; memory0.22.123 to0.22.124.
+
 ## Prompt v106 - 2026-11-06
 
 > Run the full-suite skill on custom board game manufacturing, automatic professional playing card printing,
