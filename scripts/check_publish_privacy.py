@@ -64,6 +64,15 @@ ROOT_MD = ("README.md", "CLAUDE.md", "AGENTS.md", "GEMINI.md", "CONTRIBUTING.md"
 ROOT_PUBLISHED = ("llms.txt", "llms-facts.txt", "llms-full.txt", "llms-small.txt",
                   "context-bundle.json", "run-log.jsonl")
 
+# Numeric knowledge-base article IDs followed by human-readable title words
+# can resemble a Drive ID. Exempt only that path segment, not the URL or line.
+HELP_ARTICLE_URL = re.compile(
+    r"https?://[A-Za-z0-9.-]+(?::[0-9]+)?"
+    r"/hc/[A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?/articles/"
+    r"(?P<article>[0-9]{10,20}-[A-Za-z]+(?:-[A-Za-z]+)+)"
+    r"(?=$|[/?#\s<>\"'\x60)\],;])"
+)
+
 SKIP_DIRS = {".git", "node_modules", "dist", ".venv", "__pycache__", ".astro",
              "logs", "research", ".claude"}
 
@@ -269,10 +278,20 @@ def scan(paths, deny, allow=()):
             if "privacy-ok" in line:
                 continue
             for name, rx, why in rules:
-                m = rx.search(line)
-                if m and not any(a in m.group(0) for a in allow) \
-                        and not RESERVED.search(m.group(0)):
+                matches = rx.finditer(line) if name == "google doc id" else [rx.search(line)]
+                article_spans = (
+                    [article.span("article") for article in HELP_ARTICLE_URL.finditer(line)]
+                    if name == "google doc id" else []
+                )
+                for m in matches:
+                    if m is None:
+                        continue
+                    if any(start <= m.start() and m.end() <= end for start, end in article_spans):
+                        continue
+                    if any(a in m.group(0) for a in allow) or RESERVED.search(m.group(0)):
+                        continue
                     findings.append((rel, i, name, m.group(0)[:60], why))
+                    break
             low = line.lower()
             for term in deny:
                 if term.lower() in low:

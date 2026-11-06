@@ -1,5 +1,23 @@
 # Prompts Log
 
+## Prompt v106 - 2026-11-06
+
+> Run the full-suite skill on custom board game manufacturing, automatic professional playing card printing,
+
+> I also want to know if buying an automated card printer is worth it, if they're any good, and how much effort they take to operate.
+
+Clarification: **Identical game decks**, US/USD planning. User subsequently authorized: **Run the isolated indexing job (Recommended)** for the prepared 26-pack/605-row manufacturing-only job with a 30-minute cap and temporary-server cleanup. Preserve accepted checkpoints, unrelated dirty work and the existing pause on other inference/indexing services. Do not contact suppliers, buy equipment, place orders or change the game service.
+
+Continuation: deliver the qualified 26-topic mapped family, 605 structured rows/841 assertions, 34 paired packs, generated local/public family indexes, scoped semantic/FTS registration and source-backed purchasing/quote guides. CFE exits SATURATED-COVERAGE; no strong frontier-exhaustion claim. The isolated job completed and its server is stopped. Skills PR68 is merged with frozen source hashes verified. Finish primary PR281 CI/merge and actual published acceptance, preserving the original divergent checkout. Root task TASK-1171; report docs/research/card-manufacturing-full-suite-2026-11-06/README.md. Delta: prompt105 to106; memory0.22.121 to0.22.122.
+
+## Prompt v105 - 2026-11-06
+
+> Run the full-suite skill on custom board game manufacturing, automatic professional playing card printing,
+
+> I also want to know if buying an automated card printer is worth it, if they're any good, and how much effort they take to operate.
+
+Clarification: **Identical game decks**. Use US/USD cost scenarios as stated in the question unless corrected. Run the actual full-suite workflow: CFE plan/scout, evidence-bound research through the native Codex adapter, reusable per-concept packs and family rollup, available indexes/registration, independent contract review and verified Git delivery. Compare owned paper-card production including finishing/labor with outsourced POD/bulk/API fulfillment. Do not buy equipment, contact suppliers, place orders, alter game production, restart paused inference/indexing or disturb active MongoDB/R14. TASK-1171; scope decision KNOW-1172. Worktree /Users/mitch/dev/worktrees/llms-explorer-card-manufacturing-20261106. Delta: prompt104to105; memory0.22.118to0.22.119.
+
 ## Prompt v104 - 2026-11-06
 
 > Resume and finish the interrupted /full-suite research run on Aero (aero.xyz) liquidity. Preserve every accepted checkpoint: do not redo work that already passed.
