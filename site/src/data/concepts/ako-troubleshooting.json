@@ -8,17 +8,17 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "- **The runbook does not match the defect history.** The runbook (claim 22) leads with configuration causes: a mislabelled credentials secret, then logs. The changelog and issues (claims 29–34) show that many \"stuck\" or infinite-reconcile cases were AKO bugs: diffs on read-only or defaulted fields, and autoscaling comparisons. Checking the secret label does not find those. The third step, reading logs, plus upgrading AKO is the only route the record supports. The sources do not resolve this; both sides are kept. - **The CVE was published long after the fix.** CVE-2023-0436 was published on 202",
+          "text": "- **The CVE was published long after the fix.** CVE-2023-0436 was published on 2023-11-07, but the fix shipped in AKO v1.7.1 on 2023-03-24. The CVE affects versions 1.5.0, 1.6.0, 1.6.1 and 1.7.0, and only when DEBUG logging was enabled; anyone who used debug logs on those versions should treat logs from that period as possibly holding secrets. - **The runbook leads with configuration causes.** The AKO SRE runbook's action items are: verify resource status, check that the connection secret is labelled atlas.mongodb.com/type=credentials, then investigate logs. - **The product name collides with",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/history.md#unresolved-disagreements-and-gaps",
           "note": null
         },
         {
-          "text": "28. Since 2.0, deleting a custom resource leaves the Atlas object in place by default; AKO only stops managing it. The global switch is `--object-deletion-protection` / `OBJECT_DELETION_PROTECTION` (default `true`). The per-resource override is the annotation `mongodb.com/atlas-resource-policy: \"delete\"` or `\"keep\"`. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 29. AKO 2.1.0 disabled `--subobject-deletion-protection`, because with it enabled users could not modify existing resources. https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 30. AKO 2.0.1 cou",
+          "text": "28. Since 2.0, deleting a custom resource leaves the Atlas object in place by default; AKO only stops managing it. The global switch is `--object-deletion-protection` / `OBJECT_DELETION_PROTECTION` (default `true`). The per-resource override is the annotation `mongodb.com/atlas-resource-policy: \"delete\"` or `\"keep\"`. 29. AKO 2.1.0 disabled `--subobject-deletion-protection`, because with it enabled users could not modify existing resources. 30. AKO 2.0.0 could not reconcile `AtlasBackupSchedule` while deletion protection was on; the changelog says to use 2.0.1 instead. 31. Before the 2.0 def",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/edge-cases.md#e-deletion-finalizers-and-destructive-side-effects",
           "note": null
         },
         {
-          "text": "36. `mongodb.com/atlas-reconciliation-policy: \"skip\"` stops AKO from starting reconciliation for that resource until you remove the annotation. MongoDB documents it as a way to make manual changes without AKO undoing them. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 37. The skip annotation pauses sync but does not change resource state. Reconciliation resumes when you remove the annotation, so any manual Atlas changes made meanwhile get reconciled back to the spec. https://github.com/mongodb/mongodb-atlas-kubernetes/blob/v1.9.3/docs/annotations.md 38. `mongodb.com/atl",
+          "text": "36. `mongodb.com/atlas-reconciliation-policy: \"skip\"` stops AKO from starting reconciliation for that resource until you remove the annotation. It is documented as a way to make manual changes without AKO undoing them. 37. The skip annotation pauses syncing with the spec; once it is removed the operator reconciles the resource and syncs it back with the spec. 38. `mongodb.com/atlas-resource-version-policy: \"allow\"` lets AKO use a resource whose version label does not match the version of the running AKO.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/edge-cases.md#f-skip-annotation-and-version-mismatch-annotation",
           "note": null
         },
@@ -28,7 +28,7 @@
           "note": null
         },
         {
-          "text": "26. AKO exposes the standard controller-runtime metrics on `:8080/metrics` (the `--metrics-bind-address` flag changes the port). They include reconcile totals and errors per controller, queue length, reconcile latency, and process and Go runtime metrics. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-metrics/ ; https://www.mongodb.com/docs/atlas/operator/current/production-notes/ 27. The documented stuck-resource alert is `100 * rate(controller_runtime_reconcile_errors_total{controller=\"AtlasProject\"}[1m]) / rate(controller_runtime_reconcile_total{controller=\"AtlasProject\"}[1m])`.",
+          "text": "26. AKO exposes the standard controller-runtime metrics on `:8080/metrics` (the `--metrics-bind-address` flag sets the bind address; default `:8080`). They include reconcile errors and successful reconciles per controller, queue length per controller, reconcile latency, and CPU, memory, file descriptor and Go runtime metrics. 27. The documented stuck-resource alert is `100 * rate(controller_runtime_reconcile_errors_total{controller=\"AtlasProject\"}[1m]) / rate(controller_runtime_reconcile_total{controller=\"AtlasProject\"}[1m])`. A high or rising percentage points to a reconcile problem. 28. The",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/mechanism.md#f-metrics",
           "note": null
         }
@@ -53,7 +53,7 @@
           "note": null
         },
         {
-          "text": "32. Infinite reconcile loops from spec/Atlas normalisation mismatches recur. Examples: autoscaling `min/maxInstanceSize` set while compute autoscaling is disabled (fixed in 2.8.1 and 2.8.2), `terminationProtectionEnabled` set in the UI, and `ebsVolumeType`. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ ; https://github.com/mongodb/mongodb-atlas-kubernetes/releases 33. Some resources got permanently stuck because of concurrency. Simultaneous FlexCluster and Group creation caused `DUPLICATE_CLUSTER_NAME` (fixed in v2.15.0, #3367). A 2.2.2 concurrency bug made AKO miss CR",
+          "text": "Infinite reconcile loops from spec/Atlas mismatches have recurred, for example autoscaling `minInstanceSize`/`maxInstanceSize` set while compute autoscaling is disabled (fixed in 2.8.2, with a related fix in 2.8.1). Concurrency bugs have left resources stuck: simultaneous FlexCluster and Group creation caused `DUPLICATE_CLUSTER_NAME` (fixed in v2.15.0, #3367), and a concurrency issue fixed in 2.2.2 could make AKO miss CR changes. The custom `ResourceWatcher` was removed in 2.5.0 because it could lead to lost data. Before 2.4.1, AKO sometimes skipped periodic reconciliation when CRs had not cha",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/mechanism.md#h-failure-classes-in-the-record",
           "note": null
         },
@@ -73,7 +73,7 @@
           "note": null
         },
         {
-          "text": "1. AKO v0.8.0 was published on 2022-03-04. https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases/tags/v0.8.0 2. v0.8.0 added the `mongodb.com/atlas-reconciliation-policy=skip` annotation, which makes AKO skip reconciliation for a specific resource. https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 3. From v0.8.0, AKO does not mark an `AtlasProject` Ready until the project IP access list exists in Atlas. https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases/tags/v0.8.0 4. While the skip annotation is present, AKO stops syncing that resource,",
+          "text": "1. AKO v0.8.0 was published on 2022-03-04. 2. v0.8.0 added the `mongodb.com/atlas-reconciliation-policy=skip` annotation, which makes AKO skip reconciliation for a specific resource. 3. From v0.8.0, AKO does not mark an `AtlasProject` Ready until the project IP access list exists in Atlas. 4. While the skip annotation is present, AKO stops syncing that resource, so manual Atlas changes are not reverted. When the annotation is removed, AKO resumes and converges the resource back to its spec. 5. AKO v1.0.0 was published on 2022-06-01. 6. v1.0.0 added the `--log-level` flag (`debug|info|warn|erro",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/history.md#timeline-of-the-troubleshooting-surface",
           "note": null
         },
@@ -83,32 +83,32 @@
           "note": null
         },
         {
-          "text": "1. If reconciliation hits an error, AKO writes the error into `status.conditions` on the custom resource. https://www.mongodb.com/docs/atlas/operator/current/production-notes/ 2. A failed sub-step shows up as its own condition type, with the raw Atlas API error in `message`. The documented example has `type: IPAccessListReady`, `reason: ProjectIPAccessListNotCreatedInAtlas`, and the message `POST …/accessList: 400 (request \"INVALID_IP_ADDRESS_OR_CIDR_NOTATION\")`. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 3. One reconcile of one custom resource can make several Atlas",
+          "text": "1. If reconciliation hits an error, AKO writes the error into `status.conditions` on the custom resource. 2. A failed sub-step shows up as its own condition type, with the raw Atlas API error in `message`. The documented example has `type: IPAccessListReady`, `reason: ProjectIPAccessListNotCreatedInAtlas`, and the message `POST …/accessList: 400 (request \"INVALID_IP_ADDRESS_OR_CIDR_NOTATION\")`. 3. One reconcile of one custom resource can make several Atlas API calls, and any one of them can be the failing step. For example, `AtlasProject` calls the IP Access List API. 4. AKO v2.17.0 defines 38",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/edge-cases.md#a-status-conditions-as-the-diagnostic-surface",
           "note": null
         },
         {
-          "text": "10. MongoDB's runbook lists two symptoms: the resource is not `Ready`, and the controller has a high error rate. It says this \"can occur with every Atlas Kubernetes Operator resource type.\" https://www.mongodb.com/docs/atlas/operator/v2.14/ak8so-metrics/ 11. The documented error-rate query is `100 * rate(controller_runtime_reconcile_errors_total{controller=\"AtlasProject\"}[1m]) / rate(controller_runtime_reconcile_total{controller=\"AtlasProject\"}[1m])`. Metrics are served on `http://localhost:8080/metrics`. https://www.mongodb.com/docs/atlas/operator/v2.14/ak8so-metrics/ 12. The runbook has thre",
+          "text": "10. MongoDB's runbook lists two symptoms: the resource is not `Ready`, and the controller has a high error rate. It says this \"can occur with every Atlas Kubernetes Operator resource type.\" 11. The documented error-rate query is `100 * rate(controller_runtime_reconcile_errors_total{controller=\"AtlasProject\"}[1m]) / rate(controller_runtime_reconcile_total{controller=\"AtlasProject\"}[1m])`. Metrics are served on ``. 12. The runbook has three steps, in order: read the status condition message; check that the secret in `spec.connectionSecretRef.name` carries the label `atlas.mongodb.com/type=creden",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/edge-cases.md#b-official-stuck-in-reconciliation-runbook",
           "note": null
         },
         {
-          "text": "25. In AKO 1.1.0, after Atlas autoscaled a cluster from M10 to M40, the operator's PATCH failed with `400 (request 'ATTRIBUTE_READ_ONLY') The attribute createDate is read-only`. The operator had echoed read-only fields back to Atlas. The bug was fixed by PR #615. https://github.com/mongodb/mongodb-atlas-kubernetes/issues/606 26. In AKO 1.4.1, raising `minInstanceSize` above the current base size produced `BASE_INSTANCE_SIZE_MUST_MATCH` without `readOnlySpecs`. With `readOnlySpecs`, it produced a 500 `UNEXPECTED_ERROR` after the log warning \"The instance size is below the minimum autoscaling co",
+          "text": "25. In AKO 1.1.0, after Atlas autoscaled a cluster from M10 to M20, the operator's PATCH failed with `400 (request 'ATTRIBUTE_READ_ONLY') The attribute createDate is read-only`. The same error appeared when a user changed the manifest instance size from M10 to M40 within the autoscaling limits. The maintainers fixed the createDate problem in PR #615, which stopped the operator from sending fields that cannot be set. A commenter noted the PR addresses only the createDate problem. 26. In AKO 1.4.1, raising `minInstanceSize` above the current base size produced `BASE_INSTANCE_SIZE_MUST_MATCH` wit",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/edge-cases.md#d-autoscaling-drift-errors-atlas-rejects-the-operator-s-patch",
           "note": null
         },
         {
-          "text": "39. Dry run is **public preview**, and MongoDB says it \"might change at any time.\" https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 40. Dry run emits events only for mutating verbs (`POST`, `PATCH`, `PUT`, `DELETE`). It cannot show read-path failures such as a credential or GET error that never reaches a write. https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 41. Dry run events can be filtered with `kubectl -n mongodb-atlas-system get events --field-selector reason=DryRun`. A run ends with `Done` and then `Finished`. https://www.mongodb.com/docs/atlas/operat",
+          "text": "39. Dry run is **public preview**, and MongoDB says it \"might change at any time.\" https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 40. Dry run emits events only for mutating verbs (`POST`, `PATCH`, `PUT`, `DELETE`). It cannot show read-path failures such as a credential or GET error that never reaches a write. https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 41. Dry run events can be filtered with `kubectl -n mongodb-atlas-system get events --field-selector reason=DryRun`. A run ends with `Done` and then `Finished`.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/edge-cases.md#g-dry-run-as-a-diagnostic",
           "note": null
         },
         {
-          "text": "48. The upgrade to 2.0.1 removed `advancedDeploymentSpec` in favor of `deploymentSpec` but kept `apiVersion: atlas.mongodb.com/v1`. The reporter called it a silent breaking change with no automated migration. The issue was closed \"not planned\" with no maintainer reply. https://github.com/mongodb/mongodb-atlas-kubernetes/issues/1330 49. 2.15.0 fixed duplicate `status.projects` entries left over after upgrading. Stale status after an upgrade is a known artifact, not necessarily a live fault. https://github.com/mongodb/mongodb-atlas-kubernetes/releases 50. `AtlasProject` subresources (`spec.proje",
+          "text": "48. The upgrade to 2.0.1 removed `advancedDeploymentSpec` in favor of `deploymentSpec` but kept the same CRD version (`apiVersion: atlas.mongodb.com/v1`). The reporter of issue #1330 called it a breaking change. A maintainer acknowledged that in-cluster upgrades are hard because the CRD version did not change and that the release includes breaking changes. The bot closed the issue as \"not planned\" after it went stale, and a maintainer later pointed to the 1.x to 2.x upgrade guide. 49. 2.15.0 fixed duplicate `status.projects` entries left over after upgrading from pre-v2 operator versions. Sta",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/edge-cases.md#i-upgrade-induced-failures",
           "note": null
         },
         {
-          "text": "17. AKO serves the standard controller-runtime metrics at `http://localhost:8080/metrics`. https://www.mongodb.com/docs/atlas/operator/current/ak8so-metrics/ 18. The metrics cover reconcile errors and successes per controller, queue length per controller, reconcile latency, process resources, and Go runtime stats. https://www.mongodb.com/docs/atlas/operator/current/ak8so-metrics/ 19. `controller_runtime_reconcile_total` counts reconciliations per controller. `controller_runtime_reconcile_errors_total` counts reconcile errors per controller. Both are counters. https://book.kubebuilder.io/refere",
+          "text": "17. AKO serves the standard controller-runtime metrics at ``. 18. The metrics cover reconcile errors and successes per controller, queue length per controller, reconcile latency, process resources, and Go runtime stats. 19. `controller_runtime_reconcile_total` counts reconciliations per controller. `controller_runtime_reconcile_errors_total` counts reconcile errors per controller. Both are counters. 20. The runbook's error-rate query is `100 * rate(controller_runtime_reconcile_errors_total{controller=\"AtlasProject\"}[1m]) / rate(controller_runtime_reconcile_total{controller=\"AtlasProject\"}[1m])",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/history.md#current-mechanism-what-an-operator-checks",
           "note": null
         },
@@ -118,7 +118,7 @@
           "note": null
         },
         {
-          "text": "1. Every AKO custom resource status embeds a shared `Common` struct. It holds `Conditions` (\"the list of statuses showing the current state of the Atlas Custom Resource\") and `ObservedGeneration`. — https://pkg.go.dev/github.com/mongodb/mongodb-atlas-kubernetes/v2/api 2. `ObservedGeneration` \"indicates the generation of the resource specification of which the Atlas Operator is aware\". If it is lower than `metadata.generation`, AKO has not yet processed the latest spec, so the conditions describe an older spec. — https://pkg.go.dev/github.com/mongodb/mongodb-atlas-kubernetes/v2/api 3. A `Condit",
+          "text": "1. Every AKO custom resource status embeds a shared `Common` struct. It holds `Conditions` (\"the list of statuses showing the current state of the Atlas Custom Resource\") and `ObservedGeneration` (\"indicates the generation of the resource specification of which the Atlas Operator is aware\"). 2. A `Condition` has five fields: `Type`, `Status` (`corev1.ConditionStatus`), and the optional `LastTransitionTime`, `Reason` and `Message`. 3. `TrueCondition()` sets Status to true and explicitly omits Reason and Message, so a healthy condition carries no diagnostic text. 4. The generic `Ready` type exis",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/mechanism.md#a-status-conditions-the-primary-signal",
           "note": null
         },
@@ -128,7 +128,7 @@
           "note": null
         },
         {
-          "text": "37. The Atlas Admin API rate-limits with a token bucket per endpoint set, scoped to GROUP (project), ORGANIZATION, USER or IP. A rejected request returns HTTP 429 with `errorCode: RATE_LIMITED_TOKEN_BUCKET` and a `detail` string that names the capacity and refill rate. — https://www.mongodb.com/docs/atlas/api/api-rate-limit/ 38. Atlas may return `RateLimit-Limit`, `RateLimit-Remaining` and `Retry-After` headers. It recommends honouring `Retry-After`, then exponential backoff with jitter. Rate limits are \"not part of the API contract and may change without notice\". — https://www.mongodb.com/doc",
+          "text": "37. The Atlas Admin API rate-limits with a token bucket per endpoint set, scoped to GROUP (project), ORGANIZATION, USER or IP. A rejected request returns HTTP 429 with `errorCode: RATE_LIMITED_TOKEN_BUCKET` and a `detail` string that names the capacity and refill rate. — https://www.mongodb.com/docs/atlas/api/api-rate-limit/ 38. Atlas may return `RateLimit-Limit`, `RateLimit-Remaining` and `Retry-After` headers. It recommends honouring `Retry-After`, then exponential backoff with jitter. Rate limits are \"not part of the API contract and may change without notice\".",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/mechanism.md#i-rate-limiting-atlas-side-mechanism",
           "note": null
         },
@@ -138,22 +138,22 @@
           "note": null
         },
         {
-          "text": "- Reconciliation-skip annotation `mongodb.com/atlas-reconciliation-policy=skip` (v2.6.1+): separate frontier item. - Deletion-protection flags (`--object-deletion-protection`, the disabled `--subobject-deletion-protection`). - Resource version label / `ResourceVersionIsValid` and upgrade paths: belongs to AKO upgrade/install. - Atlas Admin API error-code catalogue: https://www.mongodb.com/docs/atlas/reference/api-errors/",
+          "text": "The `mongodb.com/atlas-reconciliation-policy=skip` annotation is a separate frontier item (it dates from Atlas Kubernetes Operator 0.8.0, not 2.6.1). Deletion-protection flags (`--object-deletion-protection`; the `--subobject-deletion-protection` flag is disabled since 2.1.0) are separate. The `ResourceVersionIsValid` condition and upgrade paths belong to AKO upgrade/install. The Atlas Admin API error-code catalogue is separate. Sources: https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog.md ; https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/api/condition.go",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/mechanism.md#handoffs-adjacent-concepts-not-chased",
           "note": null
         },
         {
-          "text": "1. Every AKO custom resource carries a `Ready` condition. On success it is `status: \"True\"`. On failure the condition is `False`, and resource-specific conditions hold the error detail. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 2. Failed conditions embed the raw Atlas API call and error code in `message`, and give a typed `reason`. Example: `reason: ProjectIPAccessListNotCreatedInAtlas` on condition type `IPAccessListReady`, with message `POST …/accessList: 400 (request \"INVALID_IP_ADDRESS_OR_CIDR_NOTATION\")`. Most Atlas-side failures can therefore be diagnosed from",
+          "text": "1. AKO resources carry a `Ready` condition. On success it is `status: \"True\"`. On failure it is `False`, and resource-specific conditions hold the error detail. 2. Failed conditions embed the raw Atlas API call and error code in `message`, and give a typed `reason`. Example: `reason: ProjectIPAccessListNotCreatedInAtlas` on condition type `IPAccessListReady`. The AKO runbook tells you to read the condition message first and then the controller logs. 3. AtlasDeployment adds a `ClusterReady` condition, for example `reason: ClusterCreating`, `message: Cluster is provisioning`. It turns `True` whe",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/practice.md#primary-signal-status-conditions",
           "note": null
         },
         {
-          "text": "7. MongoDB's SRE runbook defines the problem as a resource that is not `Ready` and has a high reconcile error rate. It applies to every AKO resource type, not only `AtlasProject`. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/docs/sre-runbook/resource_stuck_in_reconciliation.md 8. The runbook's error-rate query is `100 * rate(controller_runtime_reconcile_errors_total{controller=\"AtlasProject\"}[1m]) / rate(controller_runtime_reconcile_total{controller=\"AtlasProject\"}[1m])`. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/docs/sre-runbook/resourc",
+          "text": "7. MongoDB's SRE runbook defines the problem as a resource that is not `Ready` and has a high reconcile error rate. It applies to every AKO resource type, not only `AtlasProject`. 8. The runbook's error-rate query is `100 * rate(controller_runtime_reconcile_errors_total{controller=\"AtlasProject\"}[1m]) / rate(controller_runtime_reconcile_total{controller=\"AtlasProject\"}[1m])`. 9. The runbook prescribes three steps in this order: (1) read the condition message, (2) check that the secret named by `spec.connectionSecretRef.name` carries the label `atlas.mongodb.com/type=credentials`, (3) read th",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/practice.md#official-runbook-resource-stuck-in-reconciliation",
           "note": null
         },
         {
-          "text": "12. The Helm chart raises verbosity through `extraArgs`, for example `--log-level=debug`. https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml 13. The manager binary also accepts `--log-encoder=json`, as shown in the dry-run Job spec. https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 14. Debug logging has a security cost. CVE-2023-0436 (fixed in 1.7.1) let DEBUG-mode AKO print secrets such as GCP service-account keys and API integration secrets. DEBUG is off by default. Treat debug logs from older versions as sensitive. https://www.mongo",
+          "text": "12. The Helm chart raises verbosity through `extraArgs`, for example `--log-level=debug`. https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml 13. The manager binary also accepts `--log-encoder=json`, as shown in the dry-run Job spec. https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 14. Debug logging has a security cost. CVE-2023-0436 (fixed in 1.7.1) let DEBUG-mode AKO print secrets such as GCP service-account keys and API integration secrets. DEBUG is off by default. Treat debug logs from older versions as sensitive.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/practice.md#logs-and-log-level",
           "note": null
         },
@@ -163,7 +163,7 @@
           "note": null
         },
         {
-          "text": "17. Dry run (public preview since 2.8.0) runs the manager with `--dry-run`, as a Job or through `atlas kubernetes dry-run --targetNamespace=… --watch`. It emits `Would <verb> (<METHOD>) <Atlas URL>` events, and only for mutating verbs (`POST`, `PATCH`, `PUT`, `DELETE`). https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 18. To read dry-run output, run `kubectl -n mongodb-atlas-system get events --field-selector reason=DryRun`. The run ends with `Done`, then `Finished`. https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 19. Dry run with `--log-level=debug` logs f",
+          "text": "17. Dry run (public preview since 2.8.0) runs the operator with the `--dry-run` parameter as a Kubernetes Job, or via the Atlas CLI command `atlas kubernetes dry-run` (which has `--targetNamespace` and `--watch` options). It emits `Would [verb] ([HTTP-Method]) [Atlas resource URL]` events, and only for HTTP verbs that would create/update/delete resources in Atlas (`POST`, `PATCH`, `PUT`, `DELETE`). 18. To read dry-run output, run `kubectl -n mongodb-atlas-system get events --field-selector reason=DryRun`. The process also emits `Done` and `Finished` messages. 19. With `--log-level=debug` the o",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/practice.md#dry-run-as-a-diagnostic",
           "note": null
         },
@@ -173,12 +173,12 @@
           "note": null
         },
         {
-          "text": "30. Since AKO 2.0, deleting a CR does not delete the Atlas object. AKO stops managing it instead. A \"the cluster still exists in Atlas\" report is therefore expected behavior, not a fault. https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ 31. The chart switches for this behavior are `objectDeletionProtection: true` and `subobjectDeletionProtection: true`. The second stops AKO from overwriting sub-resources it did not create. That can explain a resource that is `Ready` while Atlas still holds out-of-band settings. https://raw.githubusercontent.com/mongodb/helm-",
+          "text": "Since AKO 2.0.1 (2.0.0 had a bug and should not be used), deleting a CR does not delete the Atlas object; AKO stops managing it, so a 'the cluster still exists in Atlas' report is expected behavior. The chart switches are `objectDeletionProtection: true` and `subobjectDeletionProtection: true`; the latter is meant to stop AKO overwriting sub-resources it did not create, but the operator's `--subobject-deletion-protection` flag has been disabled since 2.1.0 because of a bug, so it currently has no effect. The chart's defaults are memory limit 1Gi, memory request 256Mi and CPU request 100m. Sour",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/practice.md#deletion-and-missing-resources",
           "note": null
         },
         {
-          "text": "33. Diagnostic routes, cheapest first: - condition `message`: zero cost, includes the Atlas error code (2) - events: can be silently missing because of RBAC (16) - controller metrics: show fleet-wide rates but no root cause (8, 11) - debug logs: show the diff, but carry a secret-exposure risk on old versions (14, 15) - dry run: makes no change, but is preview, needs its own cluster for upgrades, and has had coverage gaps (17–21) Sources: https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ and https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 34. Version matte",
+          "text": "Diagnostic routes: (a) the condition `message` on `status.conditions` is free to read and can include the Atlas API error code; (b) controller metrics support monitoring the reconcile error rate; (c) debug logs (`--log-level=debug`) show a JSON diff of Atlas resource changes but add GET load on Atlas, so use them only in non-production, and old versions (1.5.0 to 1.7.0) could print secrets in DEBUG mode (CVE-2023-0436); (d) dry run (public preview) makes no changes to Atlas resources, needs a separate Kubernetes cluster when testing an upgrade, and has had a fix for missing teams-related error",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/practice.md#operational-trade-offs-evaluation",
           "note": null
         }
@@ -188,17 +188,17 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "- **D1 — `kubectl wait` vs polling `status.conditions`.** The parent skill says to \"poll status.conditions instead of kubectl wait.\" That advice conflicts with kubectl's documented behavior: `--for=condition=Ready` matches any condition type, and AKO does set a `Ready` type (claims 4 and 8). The real risks are the 30s default timeout and the missing per-condition `observedGeneration` (claims 5 and 9). It is not a custom-type incompatibility. Neither side is authoritative on the stale-Ready race, because MongoDB documents no guidance on it. https://kubernetes.io/docs/reference/kubectl/generated",
+          "text": "- D1: `kubectl wait --for=condition=Ready` matches a named condition type, and AKO sets a `Ready` condition; kubectl's default `--timeout` is 30s, and AKO conditions have no per-condition `observedGeneration`. MongoDB documents no guidance on the stale-Ready race. - D2: pkg.go.dev lists v2.17.0 as published Sep 15, 2026, consistent with the module timeline (v2.5.0 is Oct 28, 2024). - D3: The v2.0.1 release notes carry a `Breaking changes` heading that includes the 'Remove legacy deployment' spec consolidation, and the release warns it contains breaking changes. The issue #1330 reporter argued",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/edge-cases.md#unresolved-disagreements-and-gaps",
           "note": null
         },
         {
-          "text": "**Contradictions I kept side by side (12 in the file). The main ones:** - **`kubectl wait`:** the parent says to poll `status.conditions` instead of using `kubectl wait`. Three reports independently found that `kubectl wait` does work on AKO's generic `Ready` condition. The real risks are its 30-second default timeout and a stale `Ready=True` left over from the previous spec. - **Deployment readiness:** the docs show a deployment with `Ready=True` while `ClusterReady=False`, which would make waiting on `Ready` alone unsafe. Separately, the docs call the condition `ClusterReady`, but the source",
+          "text": "Two of the contradictions listed are supported by primary sources. First, AKO 2.1.0 disabled the --subobject-deletion-protection flag because of a bug where ownership of objects between the operator and the Atlas API cannot be detected deterministically; the --object-deletion-protection flag stays in place. Second, the operator source code uses a condition type named DeploymentReady (status.DeploymentReadyType) in its post-install code. Sources: https://github.com/mongodb/mongodb-atlas-kubernetes/releases/tag/v2.1.0",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/rabbithole-synthesis.md",
           "note": null
         },
         {
-          "text": "15. In versions before 2.8.2, AKO reconciled `AtlasDeployment` forever in one case: `autoscaling.compute.enabled: false` while `minInstanceSize`/`maxInstanceSize` were still set. A region-config comparison never matched. https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 16. In versions before 2.8.1, a similar infinite loop occurred when compute auto-scaling was enabled but `minInstanceSize` was not cleared. https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 17. In versions before 2.14.0, setting `terminationProtectionEnabled: true` **in the Atlas UI** could",
+          "text": "15. In versions before 2.8.2, AKO reconciled `AtlasDeployment` forever in one case: `autoscaling.compute.enabled: false` while `minInstanceSize`/`maxInstanceSize` were still set. A region-config comparison never matched. 16. In versions before 2.8.1, a similar infinite loop occurred when `minInstanceSize` was enabled but the field was not cleared. 17. In versions before 2.14.0, an `AtlasDeployment` configured with `terminationProtectionEnabled: true` in the Atlas UI could put AKO into an infinite reconcile loop. 18. In versions before 2.14.0, AKO could get stuck reconciling `AtlasDeployment` o",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/edge-cases.md#c-infinite-or-stuck-reconcile-loops-version-bound-bugs",
           "note": null
         },
@@ -223,7 +223,7 @@
           "note": null
         },
         {
-          "text": "22. Leaving fields to Atlas defaults can cause a reconcile loop that keeps the resource from reaching `READY`. MongoDB's mitigation is to state autoscaling explicitly (`compute.enabled`, `scaleDownEnabled`, `minInstanceSize`, `maxInstanceSize`). Otherwise AKO keeps reapplying a static `instanceSize` against Atlas autoscaling. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 23. Known AtlasDeployment loop bugs. Version 2.8.1 fixed a loop when the `minInstanceSize` flag is enabled but the field is not cleared. Version 2.8.2 fixed a loop caused by wrong region-config comparis",
+          "text": "23. Known AtlasDeployment loop bugs. Version 2.8.1 fixed an infinite reconciliation loop when the `minInstanceSize` flag is enabled but the field is not cleared. Version 2.8.2 fixed an infinite loop caused by incorrect region-config comparisons when `autoscaling.compute.enabled` is false but `minInstanceSize` and `maxInstanceSize` are set. 24. Other stuck-state fixes: 2.2.1 stopped a reconcile loop that recreated serverless private endpoints; 2.8.1 fixed projects that could remain in an unsteady state due to incorrect status conditions for unmanaged private endpoints; 2.7.0 fixed private endpo",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/practice.md#reconcile-loops-causes-and-known-bugs",
           "note": null
         },
@@ -248,18 +248,13 @@
           "note": null
         },
         {
-          "text": "- The newer `Cluster` and `Group` custom resources (`/docs/atlas/operator/current/cluster-custom-resource/`, `/group-custom-resource/`) appear to be a new CRD family. They need their own troubleshooting coverage. - AKO metrics and observability as a standalone concept, and AKO upgrade or migration paths. Both are siblings, not deepened here.",
+          "text": "The AKO docs include Cluster and Group custom resource pages (/docs/atlas/operator/current/cluster-custom-resource/ and /group-custom-resource/) whose apiVersion is atlas.generated.mongodb.com/v1. Sources: https://www.mongodb.com/docs/atlas/operator/current/group-custom-resource.md ; https://www.mongodb.com/docs/atlas/operator/current/cluster-custom-resource.md",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/edge-cases.md#handoffs-out-of-scope-for-concept-family-explorer",
           "note": null
         },
         {
           "text": "In scope: the troubleshooting surface that the MongoDB Atlas Kubernetes Operator (AKO) gives an operator. That covers status conditions, logs and log levels, the reconcile-skip annotation, dry run, controller metrics, the SRE runbook, and the history of \"stuck\" or \"infinite reconcile\" defects.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/history.md#scope",
-          "note": null
-        },
-        {
-          "text": "**Inherited, not repeated:** the parent says AKO runs a controller-runtime reconcile loop, uses custom condition types, and has a `references/troubleshooting.md` covering stuck clusters, secret format, rate limiting, dry run and upgrades. The claims below add only child-specific detail, corrections and limits.",
-          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/mechanism.md#scope",
           "note": null
         },
         {
@@ -283,7 +278,7 @@
           "note": null
         },
         {
-          "text": "Shared cache: the `mongodb.github.io/helm-charts` page lists charts only and has no troubleshooting content. This report does not use it as evidence.",
+          "text": "Shared cache: the `mongodb.github.io/helm-charts` page lists charts only and has no troubleshooting content. This report does not use it as evidence. Sources: https://mongodb.github.io/helm-charts/",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/history.md#scope",
           "note": null
         },
@@ -293,12 +288,12 @@
           "note": null
         },
         {
-          "text": "19. AKO looks for credentials in this order. First `spec.connectionSecretRef.name` (by default in the AtlasProject's namespace, or in `spec.connectionSecretRef.namespace`). If that is not set, it uses the global secret `<operator-deployment-name>-api-key`, whose name the `--global-api-secret-name` flag can override. — https://www.mongodb.com/docs/atlas/operator/current/production-notes/ 20. The referenced secret must carry the label `atlas.mongodb.com/type=credentials`. The official runbook checks this label as step 2, after the status message. — https://www.mongodb.com/docs/atlas/operator/cur",
+          "text": "19. AKO looks for credentials in this order. First `spec.connectionSecretRef.name` (by default in the AtlasProject's namespace, or in `spec.connectionSecretRef.namespace`). If that is not set, it uses the global secret `<operator-deployment-name>-api-key`, whose name the `--global-api-secret-name` flag can override. — 20. The referenced secret must carry the label `atlas.mongodb.com/type=credentials`. The official runbook checks this label as step 2, after the status message. — 21. If credentials are missing, the reason is `AtlasAPIAccessNotConfigured`. —",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/mechanism.md#d-credentials-the-most-common-precondition-failure",
           "note": null
         },
         {
-          "text": "29. Dry run (public preview since v2.8.0) runs the `/manager` binary with `--dry-run`, usually as a Kubernetes Job. You can also start it with `atlas kubernetes dry-run --targetNamespace=... --watch`. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 30. Dry run emits Kubernetes events with `reason=DryRun`. It emits a `Would <verb> (<HTTP-METHOD>) <Atlas URL>` event only for mutating methods (POST, PATCH, PUT, DELETE), followed by `Done` and `Finished`. To read them: `kubectl -n <ns> get events --field-selector reason=DryRun`. — https://www.mongodb.com/docs/atlas/operator/cu",
+          "text": "29. Dry run (public preview since v2.8.0) runs the operator with the `--dry-run` parameter, usually as a Kubernetes Job. You can also start it with `atlas kubernetes dry-run --targetNamespace=... --watch`. 30. Dry run emits Kubernetes events with `reason=DryRun`. It emits a `Would <verb> (<HTTP-METHOD>) <Atlas URL>` event only for HTTP verbs that create/update/delete resources in Atlas (POST, PATCH, PUT, DELETE), followed by `Done` and `Finished`. To read them: `kubectl -n <ns> get events --field-selector reason=DryRun`. 31. Dry run has limits. It needs a new Kubernetes cluster, because only o",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-troubleshooting-c6bc60094d/reports/mechanism.md#g-dry-run-preview-before-you-change-anything",
           "note": null
         },

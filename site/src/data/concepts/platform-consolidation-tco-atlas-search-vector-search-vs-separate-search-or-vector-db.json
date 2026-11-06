@@ -8,7 +8,7 @@
       "title": "Structure and components",
       "facts": [
         {
-          "text": "Customer evidence for removing a bolt-on Elasticsearch and sync layer is qualitative and published by MongoDB. THL: about two years of sync, stability and outage problems, then Atlas Search replaced Elasticsearch iteratively, 'a couple of months' to migrate everything, Elasticsearch cluster and dedicated sync resources turned off, no cost figures given. Orbweaver: search move took about two weeks including testing, no separate ETL tool, latency down over 70%, previously 'kept scaling Elasticsearch ... extremely expensive', cost reduction stated without a number. (medium confidence)",
+          "text": "Customer evidence for removing a bolt-on Elasticsearch and sync layer is qualitative and published by MongoDB. THL: about two years of sync, stability and outage problems, then Atlas Search replaced Elasticsearch iteratively, 'a couple of months' to migrate everything, Elasticsearch cluster and dedicated sync resources turned off, no cost figures given. Orbweaver: search move took about two weeks including testing, no separate ETL tool, latency down over 70%, previously 'kept scaling Elasticsearch... extremely expensive', cost reduction stated without a number. (medium confidence) Sources: https://mongodb.com/blog/post/thl-simplifies-architecture-with-mongodb-atlas-search ; https://mongodb.com/customers/orbweaver?hideMenu=1",
           "source": "https://mongodb.com/blog/post/thl-simplifies-architecture-with-mongodb-atlas-search",
           "note": null
         }
@@ -18,43 +18,43 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "The search index is eventually consistent with the database. MongoDB's sizing guide sets a goal of under one second from collection to index and lists lag causes: cluster load, change-stream read pressure, Search Node indexing capacity, very heavy ingestion (over 10k inserts/updates per second may need sharding) and many indexes. Initial indexing and ongoing sync 'can impose considerable read pressure on the cluster'. Pinecone's page notes that neither it nor MongoDB publishes a guaranteed time for a write to become searchable. Consolidation moves sync load onto the cluster's read path; it does not remove it. (medium confidence)",
+          "text": "The search index is eventually consistent with the database. MongoDB's sizing guide sets a goal of replicating data from the collection to the index in under one second and lists lag causes: cluster load, change-stream read pressure, Search Node indexing capacity, very heavy ingestion (over 10k inserts/updates per second may need sharding) and many indexes. Initial indexing and ongoing synchronization 'can impose considerable read pressure on the cluster'. Pinecone is also eventually consistent. Consolidation keeps the sync load on the cluster's read path rather than removing it. Sources: https://www.mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes ; https://docs.pinecone.io/guides/data/data-freshness/understanding-data-freshness",
           "source": "https://mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes",
           "note": null
         },
         {
-          "text": "Forrester and Pinecone both scope the consolidation case. Forrester (via BigDATAwire, 2024-08-22) recommends native vector databases for exceptional performance and low-latency access to very large vector volumes and says most vector databases 'haven't yet demonstrated high-end scalability and performance, particularly when handling billions of vectors'; it recommends multimodel databases when vector and non-vector data, hybrid search or existing infrastructure matter. Pinecone's compare page says a separate store wins when retrieval grows at a different rate than the database beside it, and to 'stay on Atlas' if a document and its embedding must be written in one transaction or single-query hybrid search matters. (medium confidence)",
+          "text": "Forrester and Pinecone both scope the consolidation case. Forrester (via BigDATAwire, 2024-08-22) says a native vector database may be in order if the application requires 'exceptional performance and … low-latency access to vector data', and that most vector databases 'haven't yet demonstrated high-end scalability and performance, particularly when handling billions of vectors'; it says to go with a multimodel database where applications need integrated vector and non-vector data, and notes some organizations prefer them for hybrid search and existing infrastructure. Pinecone's compare page says Pinecone is the better choice when retrieval grows at a different rate than the database beside it, and that single-query hybrid search is a reason to stay on Atlas; when a document and its embedding must be written atomically, MongoDB Vector Search is the better choice. (medium confidence) Sources: https://www.hpcwire.com/bigdatawire/2024/08/22/vectors-coming-to-a-database-near-you/ ; https://www.pinecone.io/compare/mongodb-atlas/",
           "source": "https://www.hpcwire.com/bigdatawire/2024/08/22/vectors-coming-to-a-database-near-you/",
           "note": null
         },
         {
-          "text": "A separate search or vector system adds costs that list prices omit: application-side dual writes with a retry or reconciliation job (Pinecone: write the document, then upsert the vector; 'Count it when you compare the two'), a second consistency model, and another system to operate and page on. SoftwareSeni frames TCO as six line items: storage, writes, searches, idle minimums, egress and engineering operations. Atlas can write a document and its embedding in one transaction. (high confidence)",
+          "text": "A separate search or vector system adds application-side work that list prices omit: with Pinecone you write the document, then upsert the vector, and a retry or reconciliation job covers the gap ('Count it when you compare the two'). SoftwareSeni frames TCO as six line items: storage, writes, searches, idle minimums, egress and engineering operations. Atlas can write a document and its embedding in one transaction. Sources: https://www.pinecone.io/compare/mongodb-atlas/ ; https://www.softwareseni.com/the-real-cost-of-native-vector-search-versus-a-dedicated-vector-database",
           "source": "https://www.pinecone.io/compare/mongodb-atlas/",
           "note": null
         },
         {
-          "text": "Adding Search Nodes or changing the search tier triggers a rebuild of the full search index; on AWS or Azure with dedicated nodes and without customer-managed encryption, Atlas instead reuses a recent index copy from S3 or Azure Blob. Expect extra indexing and read load on the cluster during a rebuild (inference), and schedule resizes accordingly. (low confidence) (verified as of 2026-10-20)",
-          "source": "https://mongodb.com/docs/atlas/atlas-vector-search/deployment-options",
+          "text": "Adding Search Nodes or changing the search tier triggers a rebuild of the full search index; on AWS or Azure with dedicated nodes and without customer-managed encryption, Atlas instead reuses a recent index copy from S3 or Azure Blob. Expect extra indexing and read load on the cluster during a rebuild (inference), and schedule resizes accordingly. (low confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
+          "source": "https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
           "note": null
         },
         {
           "text": "Atlas runs MongoDB Search and Vector Search in the mongot process in one of two layouts: co-located with mongod on the same node (Atlas enables this by default when the first search index is created), or on dedicated Search Nodes that sit apart from the database nodes and need an M10-or-higher dedicated cluster. (high confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
           "text": "Co-located search carries no separate fee: MongoDB docs say there are no additional fees or charges when you enable Search on a cluster, only higher resource use on the existing nodes, and that running both processes on one node might be more cost-efficient than a dedicated node. The same docs warn of mongod/mongot resource contention and recommend dedicated Search Nodes for production. (high confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
-          "text": "Atlas Automated Embedding (an autoEmbed Vector Search index) generates embeddings with Voyage AI models at index time and query time, so no external embedding service or embedding pipeline is needed; docs list $0.02 (voyage-4-lite), $0.06 (voyage-4) and $0.12 (voyage-4-large, voyage-code-4) per 1M tokens. Generated embeddings are stored on the cluster in a reserved database, and on M10+ clusters storage auto-scaling must be on or the index goes Stale when disk fills. Omdia analyst Stephen Catanzano says it 'eliminates the need for external embedding pipelines'; Constellation Research frames it as removing a 'synchronization tax'. (high confidence) (verified as of 2026-10-14)",
+          "text": "Atlas Automated Embedding (an autoEmbed Vector Search index) generates embeddings with Voyage AI models at index time and query time, so no separate embedding pipeline is needed; docs list $0.02 (voyage-4-lite), $0.06 (voyage-4) and $0.12 (voyage-4-large, voyage-code-4). Generated embeddings are stored on the cluster in a separate reserved database, and on M10+ clusters storage auto-scaling must be enabled or the index goes Stale when disk fills. Omdia analyst Stephen Catanzano says it 'eliminates the need for external embedding pipelines'. Sources: https://www.mongodb.com/docs/vector-search/crud-embeddings/automated-embedding.md ; https://www.techtarget.com/searchdatamanagement/news/366637414/MongoDB-launches-latest-Voyage-models-to-aid-AI-development",
           "source": "https://www.mongodb.com/docs/vector-search/crud-embeddings/automated-embedding.md",
           "note": null
         },
         {
-          "text": "Scaling Search Nodes (count or tier) triggers a rebuild of the full search index. On AWS and Azure without customer-managed-key encryption, Atlas can use a recent index copy from S3 or Azure Blob Storage instead; the optimization is not yet available on Google Cloud. Deleting all Search Nodes interrupts search query processing. (low confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-vector-search/deployment-options",
+          "text": "Scaling Search Nodes (count or tier) triggers a rebuild of the full search index. On AWS and Azure without customer-managed-key encryption, Atlas can use a recent index copy from S3 or Azure Blob Storage instead; the optimization is not yet available on Google Cloud. Deleting all Search Nodes interrupts search query processing. (low confidence) Sources: https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
+          "source": "https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
           "note": null
         }
       ]
@@ -63,8 +63,8 @@
       "title": "How-to and procedures",
       "facts": [
         {
-          "text": "Use stored source fields (returnStoredSource) to cut database load from search: by default mongot returns document IDs and mongod then performs a full document lookup for each match; with stored fields defined in the search index, mongot returns the fields directly, trading extra index storage for fewer lookups on the shared database nodes. (medium confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "text": "Use stored source fields (returnStoredSource) to cut database load from search: by default (returnStoredSource false) MongoDB Search performs an implicit full document lookup on the backend database; with storedSource fields defined in the search index and returnStoredSource set to true, the stored fields are returned directly from mongot, avoiding that lookup, at the cost of extra disk utilization on the search index. storedSource requires MongoDB 7.0+. Sources: https://www.mongodb.com/docs/search/query/return-stored-source/ ; https://www.mongodb.com/docs/search/deployment/deployment-options/ ; https://www.mongodb.com/docs/search/performance/index-performance.md ; https://www.mongodb.com/docs/search/indexes/stored-source-definition/",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         }
       ]
@@ -73,8 +73,8 @@
       "title": "Measurements and reference values",
       "facts": [
         {
-          "text": "Co-located search (the default: mongot shares the mongod node) carries no additional search fee, and MongoDB concedes it 'might be more cost-efficient' than a dedicated node, but the docs scope it to testing and prototyping (roughly under 2M documents, 10 GB of indexed data and 10,000 queries per 7 days for Atlas Search) and recommend dedicated Search Nodes for production. The Vector Search page repeats the testing/prototyping-only advice without numeric limits, and MongoDB's 2023 launch post calls the co-located model 'simple and cheap'. The no-extra-cost form of consolidation is therefore a prototype tier, not the production TCO. (high confidence) (verified as of 2026-10-18)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "text": "Co-located search (the default: mongot shares the mongod node) carries no additional search fee, and MongoDB concedes it 'might be more cost-efficient' than a dedicated node, but the docs scope it to testing and prototyping (roughly under 2M documents, 10 GB of indexed data and 10,000 queries per 7 days for Atlas Search) and recommend dedicated Search Nodes for production. The Vector Search page repeats the testing/prototyping-only advice without numeric limits, and MongoDB's 2023 launch post calls the co-located model 'simple and cheap'. The no-extra-cost form of consolidation is therefore a prototype tier, not the production TCO. (high confidence) (verified as of 2026-10-18) Sources: https://www.mongodb.com/docs/search/deployment/deployment-options/ ; https://www.mongodb.com/docs/vector-search/deployment/deployment-options/ ; https://mongodb.com/blog/post/search-nodes-now-public-preview-performance-scale-dedicated-infrastructure",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
@@ -83,12 +83,12 @@
           "note": null
         },
         {
-          "text": "Vector Search holds the entire index in memory. About 90% of a Search Node's RAM can hold vectors and indexes (the rest goes to the JVM) and MongoDB recommends RAM at least 10% larger than the total index size. In co-located mode on M10/M20/M30 only 1/2/4 GB (50% of 2/4/8 GB) is available to the vector index. Search-tier cost therefore tracks vector count times dimensions; automatic quantization is documented at roughly 3.75x (scalar) and 24x (binary) RAM reduction (the quantization concept covers the detail). (high confidence) (verified as of 2026-10-20)",
-          "source": "https://mongodb.com/docs/atlas/atlas-vector-search/deployment-options",
+          "text": "Vector Search holds the entire index in memory. About 90% of a Search Node's RAM can hold vectors and indexes (the rest goes to the JVM) and MongoDB recommends RAM at least 10% larger than the total index size. In co-located mode on M10/M20/M30 only 1/2/4 GB (50% of 2/4/8 GB) is available to the vector index. Search-tier cost therefore tracks vector count times dimensions; automatic quantization is documented at roughly 3.75x (scalar) and 24x (binary) RAM reduction (the quantization concept covers the detail). (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
+          "source": "https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
           "note": null
         },
         {
-          "text": "Inference from list prices: node class changes the hourly price by up to about 2.3x at the same RAM. On the 2026-09-29 AWS us-east-1 list at 16 GB RAM, high-CPU S40 is $0.48/hr (8 vCPU, 426 GB), low-CPU S40 is $0.21/hr (2 vCPU, 106 GB) and storage-optimized S40-S is $0.25/hr (2 vCPU, 421 GB). MongoDB's sizing guide (2025-08-12) maps the classes to workloads: high-CPU 2:1 RAM:vCPU for full-text and heavy query load, low-CPU 8:1 for vector search at low data volume, storage-optimized 8:1 with 2x+ storage for large indexes. Matching the class to the bottleneck is the main in-platform cost lever. (medium confidence) (verified as of 2026-09-29)",
+          "text": "Inference from list prices: node class changes the hourly price by up to about 2.3x at the same RAM. On the AWS us-east-1 list at 16 GB RAM, high-CPU S40 is $0.48/hr (8 vCPU, 426 GB), low-CPU S40 is $0.21/hr (2 vCPU, 106 GB) and storage-optimized S40-S is $0.25/hr (2 vCPU, 421 GB). MongoDB's search node sizing blog maps the classes to workloads: high-CPU 2:1 RAM:vCPU for full-text search and heavy query load, low-CPU 8:1 for vector search at low data volume, storage-optimized 8:1 with 2x+ storage for large search indexes. Matching the class to the bottleneck is plausibly a main in-platform cost lever (inference). Sources: https://www.mongodb.com/pricing.md ; https://mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes",
           "source": "https://www.mongodb.com/pricing.md",
           "note": null
         },
@@ -98,7 +98,7 @@
           "note": null
         },
         {
-          "text": "Size from the measured index, not the collection. Index size varies with mapping (a 100-field document indexed on 5 fields gives a far smaller index; mapping all fields or autocomplete inflates it), so MongoDB suggests building a sample index to get an index-to-collection ratio. If the node's RAM is smaller than the index the remainder is paged from disk: MongoDB's example is a 10 GB index on a 4 GB node with 3 GB free for index data, leaving 7 GB paged and causing page faults, disk I/O and CPU IOWait. Local SSDs need 20% overhead for index operations. (medium confidence)",
+          "text": "Size from the measured index, not the collection. Index size varies with mapping (a 100-field document indexed on 5 fields gives a far smaller index; mapping all fields or autocomplete inflates it), so MongoDB suggests building a sample index to get an index-to-collection ratio. If the node's RAM is smaller than the index the remainder is paged from disk: MongoDB's example is a 10 GB index on a 4 GB node with 3 GB free for index data, leaving 7 GB paged and causing page faults, disk I/O and CPU IOWait. Local SSDs need 20% overhead for index operations. (medium confidence) Sources: https://mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes ; https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "source": "https://mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes",
           "note": null
         },
@@ -118,12 +118,12 @@
           "note": null
         },
         {
-          "text": "Search Node list prices have barely moved: a third-party December 2023 snapshot (region not stated) lists High-CPU S20 $0.12, S30 $0.23, S40 $0.48, S50 $0.98, S80 $3.22 per hour and Low-CPU S30 $0.11, S40 $0.21, S110 $5.79; the October 2026 AWS table shows $0.12, $0.24, $0.48, $0.99, $3.26 and $0.11, $0.21, $5.87. No compared tier moved by more than about 4%. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Search Node list prices have barely moved: a third-party snapshot of MongoDB's pricing page (the Jan 1, 2024 capture, filed under December 2023; region not stated) lists High-CPU S20 $0.12, S30 $0.23, S40 $0.48, S50 $0.98, S80 $3.22 per hour and Low-CPU S30 $0.11, S40 $0.21, S110 $5.79; MongoDB's current AWS us-east-1 pricing page shows $0.12, $0.24, $0.48, $0.99, $3.26 and $0.11, $0.21, $5.87. No compared tier moved by more than about 4%. Sources: https://pricingsaas.com/companies/mongodb/diffs/2023M12 ; https://www.mongodb.com/pricing.md",
           "source": "https://pricingsaas.com/companies/mongodb/diffs/2023M12",
           "note": null
         },
         {
-          "text": "S10 is the lowest dedicated Search Node tier (announced 2026-07-23 on AWS, GCP and Azure), meant for M10-M30 clusters with index footprints under 10 GB. On AWS it has 4 GiB RAM, 54 GiB storage and 1 vCPU, against 4 GiB, 98 GiB and 2 vCPU for S20. MongoDB's tier docs say Atlas deploys Search Nodes on S20 by default and that S10 is not suited to large indexes or query-intensive workloads. (high confidence) (verified as of 2026-10-20)",
+          "text": "S10 is the lowest dedicated Search Node tier (announced 2026-07-23 on AWS, GCP and Azure), meant for M10-M30 clusters with index footprints under 10 GB. On AWS it has 4 GiB RAM, 54 GiB storage and 1 vCPU, against 4 GiB, 98 GiB and 2 vCPU for S20. MongoDB's tier docs say Atlas deploys Search Nodes on S20 by default and that S10 is not suited to large indexes or query-intensive workloads. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/products/updates/introducing-the-s10-dedicated-search-node-tier/ ; https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution.md ; https://www.mongodb.com/docs/atlas/reference/amazon-aws.md",
           "source": "https://www.mongodb.com/products/updates/introducing-the-s10-dedicated-search-node-tier/",
           "note": null
         },
@@ -133,32 +133,32 @@
           "note": null
         },
         {
-          "text": "Memory is the main cost driver for vector search. Atlas Vector Search holds the entire index in RAM: about 90% of a Search Node's RAM can hold vector data and indexes (the rest goes to the JVM), and MongoDB recommends RAM at least 10% larger than total index size. A 1536-dimension float32 vector takes about 6 KB, so 1M vectors is about 6 GB before index overhead. The Next Platform says consolidation 'does not remove the physics': memory, compression and tiering set the bill on any platform. (high confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-vector-search/deployment-options",
+          "text": "Atlas Vector Search holds the entire index in memory, so memory must cover the index and the JVM. On dedicated Search Nodes almost 90% of the RAM allocation can store vector data and indexes, with the leftover used for the JVM. MongoDB recommends a node with RAM at least 10% larger than the total size of the Vector Search indexes. A 1536-dimension float32 vector (OpenAI text-embedding-ada-002) takes about 6 KB, so 1M vectors is about 6 GB before index overhead. Automatic quantization reduces in-memory vector RAM by 3.75x (scalar) or 24x (binary). Sources: https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md",
+          "source": "https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
           "note": null
         },
         {
-          "text": "Automatic quantization cuts mongot RAM for vectors by about 3.75x (scalar) or 24x (binary), but Atlas still stores full-precision vectors on disk for rescoring. MongoDB advises roughly a 4:1 (scalar) or 24:1 (binary) storage-to-RAM ratio on Search Nodes and free disk of about 125% of the estimated index size, so quantization lowers the RAM requirement but adds a disk requirement. (medium confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-vector-search/deployment-options",
+          "text": "Automatic quantization cuts mongot RAM for vectors by about 3.75x (scalar) or 24x (binary), but Atlas still stores full-precision vectors on disk for rescoring. MongoDB advises roughly a 4:1 (scalar) or 24:1 (binary) storage-to-RAM ratio on Search Nodes and free disk of about 125% of the estimated index size, so quantization lowers the RAM requirement but adds a disk requirement. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
+          "source": "https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
           "note": null
         },
         {
-          "text": "MongoDB's progression is to prototype co-located (suited to under 2M documents, under 10 GB of indexed data and under 10,000 queries per 7 days) and move to dedicated Search Nodes when usage exceeds that. S10 (July 2026) is the cheaper first step for M10-M30 clusters with index footprints under 10 GB; MongoDB says that until S10 the lowest dedicated tier priced smaller workloads out of workload isolation. (high confidence) (verified as of 2026-10-20)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "text": "MongoDB's progression is to prototype co-located (suited to under 2M documents, under 10 GB of indexed data and under 10,000 queries per 7 days) and move to dedicated Search Nodes when usage exceeds that. S10 (July 2026) is the cheaper first step for M10-M30 clusters with index footprints under 10 GB; MongoDB says that until S10 the lowest dedicated tier priced smaller workloads out of workload isolation. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/search/deployment/deployment-options/ ; https://www.mongodb.com/products/updates/introducing-the-s10-dedicated-search-node-tier/ ; https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution.md",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
-          "text": "A TCO model for either path needs these line items: storage, writes, searches, idle minimums, egress and engineering operations (SoftwareSeni), plus embedding and reranking token spend, which calculators often omit. Atlas-specific items are the database cluster rate, at least 2 Search Nodes per region per shard, Search-to-database transfer, and a 20% local-SSD overhead on Search Nodes. SoftwareSeni and Pinecone both say idle capacity and workload shape (corpus size, query rate) decide the result more than list price. (medium confidence)",
+          "text": "A TCO model for either path needs these line items: storage, writes, searches, idle minimums, egress and engineering operations (SoftwareSeni), plus embedding and reranking token spend, which most pricing calculators exclude. Atlas-specific items are the database cluster tier's per-hour rate, Search Nodes (a minimum of 2 per cluster, up to 32 per region per shard, billed hourly), network transfer between Search Nodes and database nodes, and a 20% storage overhead on the local SSDs of Search Nodes. SoftwareSeni says idle spend and workload shape decide more than any sticker number. Pinecone's comparison page likewise says the cost crossover depends on corpus size and query rate, and that list prices alone do not settle it. Sources: https://www.softwareseni.com/the-real-cost-of-native-vector-search-versus-a-dedicated-vector-database ; https://www.mongodb.com/docs/atlas/billing/search-node.md ; https://www.mongodb.com/docs/search/deployment/deployment-options/ ; https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs.md ; https://www.pinecone.io/compare/s3-vectors/",
           "source": "https://www.softwareseni.com/the-real-cost-of-native-vector-search-versus-a-dedicated-vector-database",
           "note": null
         },
         {
-          "text": "Do not use MongoDB's headline '4x faster and for 77% lower cost than alternative search solutions' as a TCO input. It appears on the pricing page with no methodology, comparator, workload or footnote. The Atlas Search product page (2026-10-20) says Search is the simplest way to 'build relevance-based search 4x faster' (building, not query speed), does not carry the 77% figure, and gives no methodology for its 'up to 60% reduction in query times' or '10X' customer figures. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Do not use MongoDB's headline '4x faster and for 77% lower cost than alternative search solutions' as a TCO input. It appears on the pricing page with no methodology, comparator, workload or footnote. The Atlas Search product page (2026-10-20) says Search is the simplest way to 'build relevance-based search 4x faster' (building, not query speed), does not carry the 77% figure, and gives no methodology for its 'up to 60% reduction in query times' or '10X' customer figures. (medium confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/pricing.md ; https://www.mongodb.com/products/platform/atlas-search",
           "source": "https://www.mongodb.com/pricing.md",
           "note": null
         },
         {
-          "text": "Sizing and cost tools: MongoDB's Pricing Calculator for Atlas costs, the Atlas 'Search Index Size' metric to size Search Node memory and disk from a real index, and Atlas alerts (Index Replication Lag, Mongot stopped replication, Search Process: Ran out of memory, Search Process is Overloaded) to catch under-sizing. MongoDB recommends alerting on replication lag at 30-50% of the oplog window. (medium confidence)",
+          "text": "Sizing and cost tools: MongoDB's Pricing Calculator for Atlas Core costs, the Atlas metrics 'Size of the Search Index' and total RAM on the Search Node to determine Search Node memory requirements, and Atlas alerts (Atlas Search: Index Replication Lag, Atlas Search: Mongot stopped replication, Search Process: Ran out of memory, MongoDB Search: Search Process is Overloaded) to catch under-sizing. MongoDB's alert docs suggest, for example, alerting on replication lag at 30-50% of the oplog window. Sources: https://www.mongodb.com/pricing.md ; https://www.mongodb.com/docs/search/deployment/deployment-options.md ; https://www.mongodb.com/docs/atlas/reference/alert-resolutions/atlas-search-alerts.md",
           "source": "https://www.mongodb.com/pricing.md",
           "note": null
         }
@@ -168,28 +168,28 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "In the coupled model, search and database sizing must be planned together and search growth forces scaling the entire database cluster, paying for compute that may be unneeded; MongoDB's launch post also lists contention risk and no granular limits on each side's share. Dedicated Search Nodes decouple the two, which is the cost lever behind the consolidated-but-isolated architecture. (medium confidence)",
+          "text": "In the coupled model, search and database sizing must be planned together and search growth forces scaling the entire database cluster, paying for compute that may be unneeded; MongoDB's launch post also lists contention risk and no granular limits on each side's share. Dedicated Search Nodes decouple the two, which is the cost lever behind the consolidated-but-isolated architecture. (medium confidence) Sources: https://www.mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes ; https://www.mongodb.com/blog/post/search-nodes-now-public-preview-performance-scale-dedicated-infrastructure",
           "source": "https://mongodb.com/blog/post/search-nodes-now-public-preview-performance-scale-dedicated-infrastructure",
           "note": null
         },
         {
           "text": "Antipattern: running production search co-located on the database node, especially on M10-M30. MongoDB documents contention between mongod and mongot that can hurt index performance and query latency, and mongot is unavailable (search queries fail) during cluster tier scaling, node replacement or initial sync, mongot version updates, reboots and restarts. Fix: add dedicated Search Nodes on an M10+ cluster. (high confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
-          "text": "Antipattern: deciding on a published savings percentage. MongoDB's price page claims search that is '4x faster and for 77% lower cost than alternative search solutions' with no basis shown in the retrieved page; a Towards AI guide (EY consultant author, 2025-10-24) claims 60-90% savings moving from Atlas Vector Search to self-hosted Qdrant, but its scenario figures are infrastructure estimates with no labour accounting and its three-year TCO is asserted without a calculation; Pinecone says it has no head-to-head comparison to point to; SoftwareSeni notes most online cost comparisons come from vendors with a stake. Model your own vector count, dimensions, QPS and sync effort. (high confidence) (verified as of 2026-09-29)",
+          "text": "Antipattern: deciding on a published savings percentage. MongoDB's price page claims search that is '4x faster and for 77% lower cost than alternative search solutions', and SoftwareSeni notes that most cost comparisons found online come from vendors with a stake in the conclusion. Model your own vector count, dimensions, QPS and sync effort. Sources: https://www.mongodb.com/pricing.md ; https://www.softwareseni.com/the-real-cost-of-native-vector-search-versus-a-dedicated-vector-database",
           "source": "https://www.mongodb.com/pricing.md",
           "note": null
         },
         {
           "text": "If $search fails with 'Failed to Execute search Command' on a cluster that has no dedicated Search Nodes, mongot probably terminated during a cluster scale-up, node failover or mongot upgrade; search queries fail until mongot is running again or an initial sync completes. With dedicated Search Nodes, mongod uses a proxy that routes search queries only to healthy nodes where mongot is active. (low confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
           "text": "Dedicated Search Nodes cannot be enabled everywhere: they need an M10 or larger dedicated cluster (not Free or Flex), a cloud region that supports node isolation (all Google Cloud regions but only a subset of AWS and Azure regions), and are not supported on Atlas Infinite clusters during public preview. A cluster in an unsupported region must be migrated before consolidation onto isolated search is possible. (high confidence) (verified as of 2026-10-18)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
@@ -204,12 +204,12 @@
         },
         {
           "text": "Do not run production search co-located on database nodes. mongot shares resources with mongod, search queries fail during cluster scaling, node failover, new-node initial sync and mongot upgrades or restarts (error 'Failed to Execute search Command'), and MongoDB recommends this layout only for testing and prototyping. With dedicated Search Nodes, mongod uses a proxy that routes search queries only to healthy mongot nodes. (high confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
-          "text": "Under-sized Search Node RAM degrades before it fails: when the index exceeds the memory available to mongot, pages are read from disk, causing page faults, disk I/O, CPU IOWait and slower queries (MongoDB's example: a 10 GB index on a 4 GB node). At the limit the 'Search Process: Ran out of memory' alert fires and 'indexing and queries fail'; sustained query pressure raises 'Search Process is Overloaded', where the remedy is a tier with more vCPUs. (medium confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "text": "Under-sized Search Node RAM degrades before it fails: when the index exceeds the memory available to mongot, pages are read from disk, causing page faults, disk I/O, CPU IOWait and slower queries (MongoDB's example: a 10 GB index on a 4 GB node). At the limit the 'Search Process: Ran out of memory' alert fires and 'indexing and queries fail'; sustained query pressure raises 'Search Process is Overloaded', where the remedy is a tier with more vCPUs. (medium confidence) Sources: https://www.mongodb.com/docs/search/deployment/deployment-options/ ; https://mongodb.com/docs/atlas/reference/alert-resolutions/atlas-search-alerts ; https://www.mongodb.com/docs/search/performance/load-shedding/",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         }
       ]
@@ -218,8 +218,8 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "Atlas Search and Vector Search run a Lucene-based search process (mongot) beside the database that stays current by following the cluster's change stream/oplog, so the application owns no sync pipeline, second datastore or dual-write path. Removing that layer is the entire basis of the consolidation argument; the sync work moves into the platform instead of disappearing (see the lag and read-load claim). (high confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "text": "Atlas Search and Vector Search run a search process (mongot) beside the database that automatically syncs to the database by replicating changes from the oplog of mongod, so the application does not run its own sync pipeline. Index replication lag can occur, and if mongot falls behind the oplog window it rebuilds the index while serving stale results. Sources: https://www.mongodb.com/docs/search/deployment/deployment-options/ ; https://mongodb.com/docs/atlas/reference/alert-resolutions/atlas-search-alerts",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
@@ -228,7 +228,7 @@
           "note": null
         },
         {
-          "text": "Tooling to price and validate the comparison: MongoDB's Pricing Calculator (linked from the price page; the Towards AI Qdrant comparison built its Atlas figures from calculator links), the Atlas metrics for search index size and Search Node RAM, and Pinecone's advice to run a proof of concept with the filters your application actually uses instead of relying on list prices. (medium confidence)",
+          "text": "Tooling to price and validate the comparison: MongoDB's Pricing Calculator (linked from the price page), the Atlas cluster metrics and index list page for search index size, and Pinecone's advice to run a proof of concept with the filters your application actually uses. Sources: https://www.mongodb.com/pricing.md ; https://mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes ; https://www.pinecone.io/compare/mongodb-atlas/",
           "source": "https://www.mongodb.com/pricing.md",
           "note": null
         },
@@ -238,27 +238,27 @@
           "note": null
         },
         {
-          "text": "Antipattern: buying a larger compute tier only to get disk. MongoDB's own example is a customer needing S50 compute but S70 storage and paying a 'major price premium'; storage-optimized nodes (375-6,000 GB, 8:1 RAM:vCPU) were added for large indexes and binary-quantized vector search, with vendor claims of up to 50% lower DSN storage cost and about 40% cheaper than high-CPU nodes anchored on RAM (2025-08-12, not independently measured). List prices show storage-optimized S40-S at $0.25/hr versus $0.48/hr for high-CPU S40 at the same 16 GB RAM (about 48% less, with 2 instead of 8 vCPUs). (medium confidence) (verified as of 2026-09-29)",
+          "text": "Antipattern: buying a larger compute tier only to get disk. MongoDB's own example is a customer needing the compute of an S50 node but the storage of an S70 who could face a major price premium; storage-optimized nodes (375-6000 GB, 8:1 RAM:vCPU) were added for large indexes and binary-quantized vector search, with vendor claims of up to 50% savings on DSN storage costs and approximately 40% less expensive than existing high-CPU nodes when anchored on RAM (2025-08-12, not independently measured). On the AWS us-east-1 price list, storage-optimized S40-S is $0.25/hr versus $0.48/hr for high-CPU S40 at the same 16 GB RAM (about 48% less, with 2 instead of 8 vCPUs); prices vary by cloud and region. Sources: https://www.mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes ; https://www.mongodb.com/pricing.md",
           "source": "https://mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes",
           "note": null
         },
         {
-          "text": "Dedicated Search Nodes are billed hourly per node (a partial hour bills as a full hour). Atlas requires at least 2 nodes per region and allows up to 32 per region per shard, so topology multiplies the floor: 2 Search Nodes on a 3-shard cluster deploy 6 nodes. Atlas also bills traffic between Search Nodes and database nodes, but shows it at cluster level rather than as a Search Node line item. (high confidence)",
+          "text": "Dedicated Search Nodes are billed hourly per node (a partial hour bills as a full hour). Atlas requires at least 2 nodes per region and allows up to 32 per region per shard, so topology multiplies the floor: 2 Search Nodes on a 3-shard cluster deploy 6 nodes. Atlas also bills traffic between Search Nodes and database nodes, but shows it at cluster level rather than as a Search Node line item. (high confidence) Sources: https://www.mongodb.com/docs/atlas/billing/search-node.md ; https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md",
           "source": "https://mongodb.com/docs/atlas/billing/search-node",
           "note": null
         },
         {
-          "text": "Atlas dedicated Search Nodes are provisioned capacity: Pinecone's comparison page describes two hourly rates (database cluster and Search Node tier) 'paid whether or not queries arrive', and MongoDB's billing docs confirm hourly per-node billing with a 2-node minimum. Pinecone instead prices storage plus read and write units. The cost shapes differ (capacity-based versus consumption-based), so the break-even depends on query rate; Pinecone says idle capacity usually decides it. (medium confidence)",
+          "text": "Atlas dedicated Search Nodes are provisioned capacity: Pinecone's comparison page describes two hourly rates (database cluster and Search Node tier) paid whether or not queries arrive, and MongoDB's billing docs confirm hourly per-node billing with a minimum of 2 Search Nodes. Pinecone instead prices storage plus the reads and writes you run. The cost shapes differ (capacity-based versus consumption-based). Sources: https://www.pinecone.io/compare/mongodb-atlas/ ; https://www.mongodb.com/docs/atlas/billing/search-node.md",
           "source": "https://www.pinecone.io/compare/mongodb-atlas/",
           "note": null
         },
         {
-          "text": "Atlas removes the user-built sync pipeline but not the sync: mongot replicates from mongod's oplog (Pinecone says via change streams), Atlas alerts on Index Replication Lag, and Pinecone notes neither product publishes a guaranteed time for a write to become searchable. Writing a document and its embedding in one transaction prevents record-versus-vector drift, but search results can still lag the primary write. (medium confidence)",
+          "text": "Atlas removes the user-built sync pipeline but not the sync: mongot replicates from mongod's oplog (Pinecone says via change streams), Atlas alerts on Index Replication Lag, and Pinecone notes neither product publishes a guaranteed time for a write to become searchable. Writing a document and its embedding in one transaction prevents record-versus-vector drift, but search results can still lag the primary write. (medium confidence) Sources: https://www.mongodb.com/docs/atlas/reference/alert-resolutions/atlas-search-alerts.md ; https://www.pinecone.io/compare/mongodb-atlas/",
           "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/atlas-search-alerts",
           "note": null
         },
         {
-          "text": "Search Node families partly unbundle RAM from CPU. At equal RAM on AWS us-east-1 the Low-CPU family costs about 43-52% of High-CPU (8 GB $0.11 vs $0.24 per hour; 16 GB $0.21 vs $0.48; 32 GB $0.43 vs $0.99; 64 GB $0.89 vs $1.77; 128 GB $1.68 vs $3.26; ratios derived). MongoDB's own example still prefers High-CPU S20 over Low-CPU S30 for a 3 GB, 1M-vector index when concurrent queries matter, and Pinecone argues memory, query CPU and isolation are bought together in each Search Node. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Search Node families partly unbundle RAM from CPU. At equal RAM on AWS us-east-1 the Low-CPU family costs about 43-52% of High-CPU (8 GB $0.11 vs $0.24 per hour; 16 GB $0.21 vs $0.48; 32 GB $0.43 vs $0.99; 64 GB $0.89 vs $1.77; 128 GB $1.68 vs $3.26; ratios derived). MongoDB's own example still prefers High-CPU S20 over Low-CPU S30 for a 3 GB, 1M-vector index when concurrent queries matter, and Pinecone argues memory, query CPU and isolation are bought together in each Search Node. (medium confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/pricing.md ; https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md ; https://www.pinecone.io/compare/mongodb-atlas/",
           "source": "https://www.mongodb.com/pricing.md",
           "note": null
         },
@@ -268,7 +268,7 @@
           "note": null
         },
         {
-          "text": "For quiet or cold-but-large corpora, object-storage-backed vector stores undercut always-on RAM-resident indexes. The Next Platform reports S3 Vectors targeting up to 90% lower cost with a latency trade-off (OpenSearch disk-based mode p90 96 ms vs 24 ms in-memory); a practitioner model cited by SoftwareSeni puts S3 Vectors at about $3 versus Pinecone's $50 for 10M vectors and 1,000 queries a month. Atlas Search Nodes are always-on, RAM-resident and sold in pairs, so the same idle-cost gap likely applies to Atlas (inference). (medium confidence)",
+          "text": "For quiet or cold-but-large corpora, object-storage-backed vector stores undercut always-on RAM-resident indexes. The Next Platform reports S3 Vectors targeting up to 90% lower cost with a latency trade-off (OpenSearch disk-based mode p90 96 ms vs 24 ms in-memory); a practitioner model cited by SoftwareSeni puts S3 Vectors at about $3 versus Pinecone's $50 for 10M vectors and 1,000 queries a month. Atlas Search Nodes are always-on, RAM-resident and sold in pairs, so the same idle-cost gap likely applies to Atlas (inference). (medium confidence) Sources: https://www.nextplatform.com/store/2026/09/22/vector-search-is-now-a-data-type-but-the-money-math-has-not-gone-away/5298393 ; https://www.softwareseni.com/the-real-cost-of-native-vector-search-versus-a-dedicated-vector-database ; https://mongodb.com/docs/atlas/billing/search-node ; https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
           "source": "https://www.nextplatform.com/store/2026/09/22/vector-search-is-now-a-data-type-but-the-money-math-has-not-gone-away/5298393",
           "note": null
         },
@@ -283,27 +283,27 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "Dedicated Search Nodes are billed per node-hour on top of the cluster: minimum 2 nodes, maximum 32 per region per shard, a full hour charged for any partial hour, plus network-transfer charges between Search Nodes and database nodes. The node count applies per shard (2 nodes on a 3-shard cluster = 6 nodes), and the rate is paid whether or not queries arrive. (high confidence) (verified as of 2026-10-18)",
+          "text": "Dedicated Search Nodes are billed hourly per node on top of the cluster: minimum 2 nodes, maximum 32 per region per shard, a full hour charged for any partial hour, plus charges for network traffic between Search Nodes and database nodes. Atlas deploys Search Nodes per shard, so 2 Search Nodes on a 3-shard cluster means 6 Search Nodes. Sources: https://www.mongodb.com/docs/atlas/billing/search-node ; https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "source": "https://mongodb.com/docs/atlas/billing/search-node",
           "note": null
         },
         {
-          "text": "Inference for small workloads: Pinecone Standard has a $50/month minimum (Enterprise $500/month), storage at $0.33/GB-month and read units at $16-$18 per million, so for a small corpus a production-grade Atlas search tier (about $161-$175/month for two nodes, S10 aside) costs more in raw infrastructure than a pay-as-you-go separate vector store. At that scale consolidation has to win on removed sync and operations work and atomic document-plus-embedding writes, not on the infrastructure invoice. (medium confidence) (verified as of 2026-09-29)",
+          "text": "Inference for small workloads: Pinecone Standard has a $50/month minimum (Enterprise $500/month), storage at $0.33/GB-month and read units at $16-$18 per million. Atlas Search Nodes require at least 2 nodes billed hourly; at AWS us-east-1 list rates, two nodes at $0.11-$0.12/hr (Low-CPU S30 / High-CPU S20) come to roughly $161-$175 per 730-hour month before the database cluster. For a small corpus this costs more in raw infrastructure than a pay-as-you-go separate vector store, so consolidation has to win on removed sync and operations work and atomic document-plus-embedding writes. (medium confidence) Sources: https://www.pinecone.io/pricing/ ; https://mongodb.com/docs/atlas/billing/search-node ; https://www.mongodb.com/pricing.md",
           "source": "https://www.pinecone.io/pricing/",
           "note": null
         },
         {
-          "text": "MongoDB announced the S10 Dedicated Search Node on 2026-07-23 as a lower-cost entry tier below the S20 floor for developers and architects running M10, M20 and M30 clusters, saying the lowest dedicated tier had 'priced smaller workloads out of those benefits'. The Search price tables on the pricing page dated 2026-09-29 list no S10 row, so its hourly price could not be confirmed. (medium confidence) (verified as of 2026-09-29)",
+          "text": "MongoDB announced the S10 Dedicated Search Node on July 23, 2026 as a lower-cost entry tier below the S20 floor for developers and architects running M10, M20 and M30 clusters, saying the lowest dedicated tier had 'priced smaller workloads out of those benefits'. The Search price tables on MongoDB's pricing page, as pinned, list no S10 row (the lowest listed tier is S20), so its hourly price could not be confirmed. Sources: https://www.mongodb.com/products/updates/introducing-the-s10-dedicated-search-node-tier/ ; https://www.mongodb.com/pricing.md",
           "source": "https://www.mongodb.com/products/updates/introducing-the-s10-dedicated-search-node-tier/",
           "note": null
         },
         {
-          "text": "Compliance can force the dedicated-node cost: with customer-managed encryption keys, co-located search indexes are not covered (only database data), while dedicated Search Nodes support Search Node Data Encryption with the same keys. Enabling customer-managed encryption on Search Nodes also forfeits the optimized resize path that reuses a recent index copy from S3 or Azure Blob. (medium confidence) (verified as of 2026-10-18)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "text": "Compliance can force the dedicated-node cost: with customer-managed encryption keys, co-located search indexes are not covered (only database data), while dedicated Search Nodes support Search Node Data Encryption with the same keys. The optimized scaling path that reuses a recent copy of the index from S3 or Azure Blob Storage instead of rebuilding applies only to dedicated search nodes on AWS or Azure for which Encryption at Rest using Customer Key Management is not enabled; it is not available on Google Cloud. Sources: https://www.mongodb.com/docs/search/deployment/deployment-options/ ; https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
-          "text": "Cost depends on workload shape more than list price. Pinecone's page says 'It depends on the shape of the workload more than on list prices' and offers no head-to-head comparison. SoftwareSeni concludes that idle spend and workload shape decide more than sticker price: pay-per-use or near-zero-idle options win quiet traffic, while steady heavy traffic can favour provisioned capacity or a dedicated store. Search Nodes bill whether or not queries arrive, so capacity sized to hold the index but idle between peaks is the main Atlas-side waste (inference). (medium confidence)",
+          "text": "Cost depends on workload shape more than list price. Pinecone's page says 'It depends on the shape of the workload more than on list prices' and offers no head-to-head comparison. SoftwareSeni concludes that idle spend and workload shape decide more than sticker price: pay-per-use or near-zero-idle options win quiet traffic, while steady heavy traffic can favour provisioned capacity or a dedicated store. Search Nodes bill whether or not queries arrive, so capacity sized to hold the index but idle between peaks is the main Atlas-side waste (inference). (medium confidence) Sources: https://www.pinecone.io/compare/mongodb-atlas/ ; https://www.softwareseni.com/the-real-cost-of-native-vector-search-versus-a-dedicated-vector-database",
           "source": "https://www.pinecone.io/compare/mongodb-atlas/",
           "note": null
         },
@@ -314,16 +314,16 @@
         },
         {
           "text": "Consolidation does not require Atlas: Community Edition supports self-managed MongoDB Search where you install and operate mongod and mongot yourself, on a single host or separate hosts, which shifts cost from Atlas Search Node rates to your own hardware and operations time (inference). (low confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         },
         {
-          "text": "MongoDB's own pages disagree on the minimum production search tier. The Vector Search deployment page says 'M10 or higher cluster tier and S30 or higher search tier', the Search deployment page says S20 or higher, and the tier docs make S10 the lowest tier. The public pricing tables fetched 2026-10-20 list no S10 row, so the S10 hourly price was not found; a floor-cost model that uses S10 needs the price from the Atlas UI or the pricing calculator. (high confidence) (verified as of 2026-10-20)",
-          "source": "https://mongodb.com/docs/atlas/atlas-vector-search/deployment-options",
+          "text": "MongoDB's own pages disagree on the minimum production search tier. The Vector Search deployment page says 'M10 or higher cluster tier and S30 or higher search tier', the Search deployment page says S20 or higher, and the tier docs make S10 the lowest tier. The public pricing tables fetched 2026-10-20 list no S10 row, so the S10 hourly price was not found; a floor-cost model that uses S10 needs the price from the Atlas UI or the pricing calculator. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/vector-search/deployment/deployment-options/ ; https://www.mongodb.com/docs/search/deployment/deployment-options/ ; https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution.md ; https://www.mongodb.com/pricing.md",
+          "source": "https://www.mongodb.com/docs/vector-search/deployment/deployment-options/",
           "note": null
         },
         {
-          "text": "Pinecone (separate vector database) prices by consumption with plan minimums: Standard has a $50/month minimum applied to usage (anything above is pay-as-you-go) and Enterprise $500/month; storage $0.33/GB-month; read units $16-$18 per million (Standard) and $24-$27 (Enterprise); write units $4-$4.50 per million (Standard) and $6-$6.75 (Enterprise). Dedicated Read Nodes have no listed price. SoftwareSeni reports Pinecone raised the low-traffic floor from roughly $8 to $50 in late 2025. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Pinecone (separate vector database) prices by consumption with plan minimums: Standard has a $50/month minimum applied to usage (anything above is pay-as-you-go) and Enterprise $500/month; storage $0.33/GB-month; read units $16-$18 per million (Standard) and $24-$27 (Enterprise); write units $4-$4.50 per million (Standard) and $6-$6.75 (Enterprise), varying by cloud and region. Dedicated Read Nodes have no listed price on the pricing page. Sources: https://www.pinecone.io/pricing/",
           "source": "https://www.pinecone.io/pricing/",
           "note": null
         },
@@ -333,17 +333,17 @@
           "note": null
         },
         {
-          "text": "A separate vector store adds synchronization work that in-database search avoids. Qdrant, a dedicated-vector-database vendor, concedes sync 'is extra work' and that a model change leaves 'two copies during a migration'. The Next Platform says a separate vector database 'forces dual writes, a second consistency model, and a second thing to page someone about'. Pinecone says separate writes need retry logic and reconciliation between the record write and the vector upsert. (high confidence)",
+          "text": "A separate vector store adds synchronization work that in-database search avoids. Qdrant, a dedicated-vector-database vendor, concedes a separate system 'is extra work' and that a model change leaves 'two copies during a migration'. Pinecone says separate writes need retry logic or a reconciliation job between the record write and the vector upsert. Sources: https://qdrant.tech/articles/dedicated-service/ ; https://www.pinecone.io/compare/mongodb-atlas/",
           "source": "https://qdrant.tech/articles/dedicated-service/",
           "note": null
         },
         {
-          "text": "Cases where a separate store can win: Pinecone argues storage, reads and writes scale independently while Atlas bundles memory, query CPU and tenant isolation in each Search Node; Qdrant cites independent upgrades, regional placement and no noisy-neighbour load on the primary database; SoftwareSeni says a managed store earns its minimum under steady high query traffic and that on-premises, edge or regulated settings can force the choice. For small data and simple similarity search, Qdrant itself calls an extension inside an existing database 'the fastest way to prototype'. (high confidence)",
+          "text": "Cases where a separate store can win: Pinecone argues storage, reads and writes scale independently while Atlas bundles memory, query CPU and tenant isolation in each Search Node; Qdrant cites independent upgrades, regional placement and no noisy-neighbour load on the primary database. For small data and simple similarity search, Qdrant itself calls an extension inside an existing database 'the fastest way to prototype'. Sources: https://www.pinecone.io/compare/mongodb-atlas/ ; https://qdrant.tech/articles/dedicated-service/",
           "source": "https://www.pinecone.io/compare/mongodb-atlas/",
           "note": null
         },
         {
-          "text": "Independent, benchmarked TCO studies of Atlas Search/Vector Search against separate stacks are scarce. SoftwareSeni says most online cost comparisons come from vendors with a stake in the conclusion; Pinecone's comparison page gives no dollar figures and tells readers to model both options; the Atlas-to-Qdrant cost article is one author's estimate with no measured benchmarks. (medium confidence)",
+          "text": "SoftwareSeni says most online cost comparisons come from vendors with a stake in the conclusion; Pinecone's comparison page says it has no published head-to-head comparison and tells readers to model both options against their own corpus size and query rate. Sources: https://www.softwareseni.com/the-real-cost-of-native-vector-search-versus-a-dedicated-vector-database ; https://www.pinecone.io/compare/mongodb-atlas/",
           "source": "https://www.softwareseni.com/the-real-cost-of-native-vector-search-versus-a-dedicated-vector-database",
           "note": null
         },
@@ -359,7 +359,7 @@
         },
         {
           "text": "MongoDB Search and Vector Search also run on Community Edition and other self-managed deployments: Atlas does not manage mongot, there are no S-tiers, and you provision and operate the mongot hosts yourself in the same co-located or dedicated patterns, so the Atlas Search Node bill is replaced by hardware and labour (inference). (low confidence)",
-          "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
+          "source": "https://www.mongodb.com/docs/search/deployment/deployment-options/",
           "note": null
         }
       ]

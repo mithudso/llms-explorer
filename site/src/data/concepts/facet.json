@@ -23,7 +23,7 @@
           "note": null
         },
         {
-          "text": "6. `$facet` is built from three cooperating parts: a single `TeeBuffer` that holds input, one `DocumentSourceTeeConsumer` prepended as the initial source of each sub-pipeline, and the `DocumentSourceFacet` stage that drains them. The constructor wires each sub-pipeline with `facet.pipeline->addInitialSource(DocumentSourceTeeConsumer::create(expCtx, facetId, kTeeConsumerStageName));`, indexing the consumer by `facetId`. (https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_facet.cpp)",
+          "text": "`$facet` is built from a `TeeBuffer`, which batches incoming documents and makes them available to multiple consumers, and one `DocumentSourceTeeConsumer` per sub-pipeline, which proxies between the sub-pipeline and the TeeBuffer. The `DocumentSourceFacet` constructor wires each sub-pipeline with `DocumentSourceTeeConsumer::create(expCtx, facetId, kTeeConsumerStageName)` via `addInitialSource`, indexing the consumer by `facetId`. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_facet.cpp ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/tee_buffer.h ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_tee_consumer.h",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/mechanism.md#internal-mechanism",
           "note": null
         },
@@ -53,12 +53,12 @@
           "note": null
         },
         {
-          "text": "**C7. The hoist-the-`$match` workaround is not always expressible.** SERVER-30474 (open, Backlog, filed 2017-08-02, 9 votes) records that combining several sub-pipeline predicates into one leading `$match` with `$or` does not preserve selectivity. Commenter Kevin Pulo: \"When run as independent aggregations, these each scan just 1 document. But when run as above inside `$facet`, the whole collection gets scanned.\" The requested fix — planning each sub-pipeline fully, \"like the way that `$lookup` with a pipeline does\" — remains unimplemented as of this report.",
+          "text": "**C7. The hoist-the-`$match` workaround is not always expressible.** SERVER-30474 (open, Backlog, filed 2017-08-02, 9 votes) records that combining several sub-pipeline predicates into one leading `$match` with `$or` does not preserve selectivity. Commenter Kevin Pulo: \"When run as independent aggregations, these each scan just 1 document. But when run as above inside `$facet`, the whole collection gets scanned.\" The requested fix — planning each sub-pipeline fully, \"like the way that `$lookup` with a pipeline does\" — remains unimplemented as of this report. Sources: https://jira.mongodb.org/browse/SERVER-30474 ; https://jira.mongodb.org/rest/api/2/issue/SERVER-30474?fields=comment",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/",
           "note": null
         },
         {
-          "text": "13. The \"parallel\" execution described in popular write-ups is interleaved, not concurrent. Input is distributed through an internal `TeeBuffer` stage (`$internalFacetTeeConsumer`) that \"will batch incoming documents and allow each consumer to consume one batch at a time,\" and \"consumers must be able to pause their execution to allow other consumers to process the batch before moving to the next batch.\" <https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/tee_buffer.h> The widely repeated framing of `$facet` as \"`async.parallel()` for aggregation pipelines\" therefore d",
+          "text": "13. The \"parallel\" execution described in popular write-ups is interleaved, not concurrent. Input is distributed through an internal `TeeBuffer` stage (`$internalFacetTeeConsumer`) that \"will batch incoming documents and allow each consumer to consume one batch at a time,\" and \"consumers must be able to pause their execution to allow other consumers to process the batch before moving to the next batch.\" <> The widely repeated framing of `$facet` as \"`async.parallel()` for aggregation pipelines\" therefore describes the logical model, not the runtime. <>",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/history.md#execution-model",
           "note": null
         },
@@ -88,7 +88,7 @@
           "note": null
         },
         {
-          "text": "26. `$facet` buys atomicity of input (one consistent snapshot feeds every facet) and one round trip. It does not buy parallelism (claim 8) and does not reliably buy speed (claims 17, 20). Choose it when a single consistent input set across all facets matters, or when round trips are expensive; do not choose it as a default performance optimisation. 27. `$facet` is a poor fit for large result payloads (16 MiB ceiling, no disk spill) and for pipelines that must write (`$out` and `$merge` are banned). It is a good fit for bounded summary output: counts, buckets, top-N lists. ([docs](https://www.m",
+          "text": "`$facet` passes the input documents to all sub-pipelines once. It is a poor fit for large result payloads (the final output document is subject to the 16 MiB BSON limit, and `$facet` cannot spill to disk) and for pipelines that must write (`$out` and `$merge` cannot appear inside its sub-pipelines). Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/practice.md#net-implications",
           "note": null
         },
@@ -108,7 +108,7 @@
           "note": null
         },
         {
-          "text": "21. That counter is initialised once before the facet loop and is never reset per facet, so the 100 MB ceiling applies to the **sum** of all sub-pipeline outputs, not to any one sub-pipeline. (https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/pipeline/document_source_facet.cpp)",
+          "text": "21. That counter is initialised once before the facet loop and is never reset per facet, so the 100 MB ceiling applies to the **sum** of all sub-pipeline outputs, not to any one sub-pipeline. () Sources: https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/pipeline/document_source_facet.cpp ; https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/query/query_knobs.idl",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/mechanism.md#limits-and-failure-modes",
           "note": null
         }
@@ -148,17 +148,17 @@
           "note": null
         },
         {
-          "text": "**C9. `$facet` cannot be nested, and a fixed set of stages is banned inside its sub-pipelines.** Disallowed: `$collStats`, `$facet`, `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, `$vectorSearch`. The same list appears in both the current manual and the v7.0 manual, so this set is stable across at least 7.0 → current. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/ and https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/facet/",
+          "text": "**C9. `$facet` cannot be nested, and a fixed set of stages is banned inside its sub-pipelines.** Disallowed: `$collStats`, `$facet`, `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, `$vectorSearch`. The same list appears in both the current manual and the v7.0 manual, so this set is stable across at least 7.0 → current. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet.md ; https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/facet.md",
           "source": "https://www.mongodb.com/community/forums/t/match-with-facet-index-usage/134804#composition-and-nesting-restrictions",
           "note": null
         },
         {
-          "text": "**C11. Sub-pipelines are mutually invisible: one sub-pipeline's output cannot feed another within the same `$facet`.** \"These sub-pipelines are completely independent of one another... The output of one sub-pipeline can not be used as the input for a different sub-pipeline within the same `$facet` stage.\" Cross-facet arithmetic must be done in stages placed *after* the `$facet`.",
+          "text": "**C11. Sub-pipelines are mutually invisible: one sub-pipeline's output cannot feed another within the same `$facet`.** \"These sub-pipelines are completely independent of one another... The output of one sub-pipeline can not be used as the input for a different sub-pipeline within the same `$facet` stage.\" Cross-facet arithmetic must be done in stages placed *after* the `$facet`. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/",
           "source": "https://www.mongodb.com/community/forums/t/match-with-facet-index-usage/134804#composition-and-nesting-restrictions",
           "note": null
         },
         {
-          "text": "**C13. `$facet` is a blocking stage: it consumes its entire input before emitting anything.** It is grouped with `$group`, `$bucket`, `$bucketAuto`, `$count` and `$sortByCount` as a blocking stage, with the author noting \"it's a stretch to call `$facet` a group stage, but in the context of this topic, it's best to think of it that way\". Consequence: no streaming, no early `$limit` short-circuit, and latency is bounded by the slowest sub-pipeline.",
+          "text": "`$facet` is a blocking stage, according to the SERVER-23654 design ticket (\"This is a blocking stage.\"). It always outputs one document and completely executes all of its sub-pipelines, however large they are. Sources: https://jira.mongodb.org/browse/SERVER-23654 ; https://jira.mongodb.org/browse/SERVER-40317",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/#result-shape-footguns",
           "note": null
         },
@@ -183,7 +183,7 @@
           "note": null
         },
         {
-          "text": "25. The two limits interact: a `$facet` document may legally reach 100 MB in-flight yet still fail downstream, because \"any final documents in an aggregation pipeline's result set face a hard 16MB BSON size limit.\" <https://jira.mongodb.org/browse/SERVER-40317>",
+          "text": "The two limits interact: the `$facet` output document may be up to 100MB as an intermediate result, but all documents produced by an aggregation pipeline's result set must be 16MB or less due to the BSON size limit, so the pipeline still fails unless the document is reduced to 16MB or less. Sources: https://jira.mongodb.org/browse/SERVER-40317 ; https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/history.md#evolution-of-the-memory-limits",
           "note": null
         },
@@ -198,7 +198,7 @@
           "note": null
         },
         {
-          "text": "- <https://www.percona.com/blog/2016/12/13/mongodb-3-4-facet-aggregation-features-and-server-27395-mongod-crash/> — Percona, 2016-12-13 - <https://thecodebarbarian.com/a-nodejs-perspective-on-mongodb-34-facet.html> — Valeri Karpov, 2017-01-19 - <https://mongoing.com/docs/reference/operator/aggregation/facet.html> — 3.4 manual mirror - <https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/facet/index.html> — 3.4 manual mirror - <https://github.com/Automattic/mongoose/issues/11630> — observed `$merge`-in-`$facet` error text",
+          "text": "- <> — Percona, 2016-12-13 - <> — Valeri Karpov, 2017-01-19 - <> — 3.4 manual mirror - <> — 3.4 manual mirror - <> — observed `$merge`-in-`$facet` error text Sources: https://thecodebarbarian.com/a-nodejs-perspective-on-mongodb-34-facet.html ; https://github.com/Automattic/mongoose/issues/11630",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/history.md#sources",
           "note": null
         },
@@ -213,7 +213,7 @@
           "note": null
         },
         {
-          "text": "20. The accumulated output is capped at `_maxOutputDocSizeBytes` (100 MB by default, claim 14), checked incrementally as documents arrive via a closure over a running `usedBytes` counter, with `uassert(4031700, ... \"document constructed by $facet is \" << usedBytes << \" bytes, which exceeds the limit of \" << maxBytes << \" bytes\")`. (https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/pipeline/document_source_facet.cpp)",
+          "text": "20. The accumulated output is capped at `_maxOutputDocSizeBytes` (100 MB by default, claim 14), checked incrementally as documents arrive via a closure over a running `usedBytes` counter, with `uassert(4031700,... \"document constructed by $facet is \" << usedBytes << \" bytes, which exceeds the limit of \" << maxBytes << \" bytes\")`. () Sources: https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/pipeline/document_source_facet.cpp ; https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/pipeline/document_source_facet.h ; https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/query/query_knobs.idl",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/mechanism.md#limits-and-failure-modes",
           "note": null
         },
@@ -243,7 +243,7 @@
           "note": null
         },
         {
-          "text": "2. **Whether the 100 MB limit is per stage or per stage-total.** The manual scopes it per executing stage — \"As each stage in a `$facet` executes, the resulting document is limited to 100 megabytes\" (https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/) — whereas the `usedBytes` accumulator is shared across the whole facet loop, making it a total (claim 21). Code is the stronger evidence here, but the two readings differ materially for a `$facet` with many medium-sized outputs.",
+          "text": "2. **Whether the 100 MB limit is per stage or per stage-total.** The manual scopes it per executing stage — \"As each stage in a `$facet` executes, the resulting document is limited to 100 megabytes\" () — whereas the `usedBytes` accumulator is shared across the whole facet loop, making it a total (claim 21). Code is the stronger evidence here, but the two readings differ materially for a `$facet` with many medium-sized outputs. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/ ; https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/pipeline/document_source_facet.cpp",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/mechanism.md#unresolved-disagreements",
           "note": null
         },
@@ -258,7 +258,7 @@
           "note": null
         },
         {
-          "text": "13. Current documentation: if `$facet` is the first stage of the pipeline it performs a `COLLSCAN` and uses no index; if earlier stages used indexes, `$facet` does not trigger a `COLLSCAN`. ([docs](https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/)) 14. The MongoDB 4.4 manual said the opposite and stronger thing: \"The `$facet` stage, and its sub-pipelines, cannot make use of indexes, even if its sub-pipelines use `$match` or if `$facet` is the first stage in the pipeline. The `$facet` stage will always perform a `COLLSCAN` during execution.\" ([4.4 manual mirror](https:/",
+          "text": "Current documentation: if `$facet` is the first stage of the pipeline it performs a `COLLSCAN` and uses no index; if earlier stages used indexes, `$facet` does not trigger a `COLLSCAN`. The MongoDB 5.0 manual (as quoted by a MongoDB staff member) said the stronger thing: \"The $facet stage, and its sub-pipelines, cannot make use of indexes, even if its sub-pipelines use $match or if $facet is the first stage in the pipeline. The $facet stage will always perform a COLLSCAN during execution.\" The practical rule is to put the selective `$match` (and any `$sort` an index can serve) before `$facet`.",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/practice.md#index-use-the-load-bearing-detail",
           "note": null
         },
@@ -273,17 +273,17 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "**C4. The 100 MB cap is version-gated: before the fix in SERVER-40317, `$facet` had no memory bound at all.** SERVER-40317, \"$facet execution has no limit on how much memory it can consume\", was filed 2019-03-22 and fixed in 3.6.20, 4.0.21, 4.2.10, 4.4.2 and 4.7.0. On any server older than those patch releases, an oversized `$facet` exhausts server memory rather than returning `ExceededMemoryLimit`. Diagnosing a `$facet` OOM therefore requires knowing the exact patch version, not just the major version.",
+          "text": "SERVER-40317, \"$facet execution has no limit on how much memory it can consume\", was created 2019-03-22 and fixed in 3.6.20, 4.0.21, 4.2.10, 4.4.2 and 4.7.0. The fix makes $facet return an error once it has more than 100MB of results instead of computing all of its data first. Releases older than the fix versions on each branch lack that bound. Sources: https://jira.mongodb.org/browse/SERVER-40317",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/",
           "note": null
         },
         {
-          "text": "**C12. A sub-pipeline ending in `$count` returns an empty array — not zero — when nothing matches.** Reported shape was `{ scoreRank: [] }` where `{ scoreRank: [{ count: 2 }] }` was expected, for the pipeline `{ $facet: { scoreRank: [ { $match: { 'quizzes.0.score': { $gt: 0 } } }, { $count: 'count' } ] } }`. Downstream `$arrayElemAt` on that empty array returns *missing*, not `0`, so totals silently vanish from the response instead of reading zero. Guard with `$ifNull`. Sources: https://github.com/Automattic/mongoose/issues/9317 and https://www.mongodb.com/docs/manual/reference/operator/aggreg",
+          "text": "A `$facet` sub-pipeline ending in `$count` returns an empty array — not a zero count — when no documents reach `$count`: `$count` emits no document for an empty input. A reported case was `{ scoreRank: [] }` where `{ scoreRank: [{ count: 2 }] }` was expected, for the pipeline `{ $facet: { scoreRank: [ { $match: { 'quizzes.0.score': { $gt: 0 } } }, { $count: 'count' } ] } }`. `$arrayElemAt` with an index beyond the array bounds (including index 0 of an empty array) returns no result, i.e. the field is missing. `$ifNull` treats missing fields as null and can supply a replacement value.",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/#result-shape-footguns",
           "note": null
         },
         {
-          "text": "**D1. \"Does `$facet` use indexes?\" — the official docs invite a misreading.** The manual says \"If the `$facet` stage comes later in the pipeline and earlier stages have used indexes, `$facet` will not trigger a `COLLSCAN` during execution.\" Read loosely, that suggests `$facet` itself becomes index-aware once it is not first. SERVER-30474 shows it does not: sub-pipeline predicates are never planned against indexes regardless of position. The two statements are reconcilable — the index work is done entirely by the pre-`$facet` stages, and `$facet` merely inherits whatever document stream they pr",
+          "text": "The manual says \"If the `$facet` stage comes later in the pipeline and earlier stages have used indexes, `$facet` will not trigger a `COLLSCAN` during execution.\" It also says a leading `$facet` performs a `COLLSCAN` and makes no use of indexes, and that `$match` or `$sort` stages before `$facet` can use indexes. SERVER-30474 notes that a pipeline consisting only of `$facet` defaults to a COLLSCAN, and proposes adding a `$match` before `$facet` so the planner has predicates. The index work is done by the pre-`$facet` stages, so place selective predicates before the `$facet`.",
           "source": "https://www.practical-mongodb-aggregations.com/guides/performance.html#unresolved-disagreements",
           "note": null
         },
@@ -303,7 +303,7 @@
           "note": null
         },
         {
-          "text": "17. The five additions are all stages that did not exist in 3.4; the restriction list grew by accretion as each new stage shipped rather than by any change to `$facet` itself. The same ten-item list already appears in the v4.0 manual page as currently served, which means MongoDB back-applied the modern list to archived version pages — the v4.0 and v3.4 URLs no longer reflect what those releases documented at the time. <https://www.mongodb.com/docs/v4.0/reference/operator/aggregation/facet/>",
+          "text": "17. The five additions are all stages that did not exist in 3.4; the restriction list grew by accretion as each new stage shipped rather than by any change to `$facet` itself. The same ten-item list already appears in the v4.0 manual page as currently served, which means MongoDB back-applied the modern list to archived version pages — the v4.0 and v3.4 URLs no longer reflect what those releases documented at the time. <https://www.mongodb.com/docs/v4.0/reference/operator/aggregation/facet/> (Historical: the cited page documents MongoDB 4.0, which is past end of life.)",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/history.md#evolution-of-the-restriction-list",
           "note": null
         },
@@ -313,12 +313,12 @@
           "note": null
         },
         {
-          "text": "- <https://jira.mongodb.org/browse/SERVER-23654> — \"Add $facet aggregation stage\" (2016-04-12 → 2016-06-24, fix 3.3.9) - <https://jira.mongodb.org/browse/SERVER-40317> — \"$facet execution has no limit on how much memory it can consume\" (2019-03-22; fixed 3.6.20 / 4.0.21 / 4.2.10 / 4.4.2 / 4.7.0) - <https://jira.mongodb.org/browse/SERVER-30474> — leading `$facet` / `$match` hoisting optimization (Backlog, unresolved) - <https://jira.mongodb.org/browse/SERVER-34428> — `$facet` COLLSCAN report (2018-04-12, dup of SERVER-30474) - <https://jira.mongodb.org/browse/SERVER-27395> — `$bucketAuto` + `$a",
+          "text": "- SERVER-23654 — \"Add $facet aggregation stage\" (created 2016-04-12, resolved 2016-06-24, fix 3.3.9) - SERVER-40317 — \"$facet execution has no limit on how much memory it can consume\" (created 2019-03-22; fixed 3.6.20 / 4.0.21 / 4.2.10 / 4.4.2 / 4.7.0) - SERVER-30474 — leading `$facet` / `$match` hoisting optimization (Backlog, unresolved) - SERVER-34428 — `$facet` COLLSCAN report (created 2018-04-12, closed as Duplicate, linked as related to SERVER-30474) - SERVER-27395 — `$bucketAuto` + `$addToSet` mongod crash (created 2016-12-13, affects 3.4.0) - MongoDB 3.4 press release, 2016-11-01 - cur",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/history.md#sources",
           "note": null
         },
         {
-          "text": "18. Ten stages are rejected inside `$facet` sub-pipelines: `$collStats`, `$facet`, `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, `$vectorSearch`. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/) The set is coherent rather than arbitrary: each excluded stage either must be first in a pipeline (`$collStats`, `$indexStats`, `$geoNear`, `$search`, `$vectorSearch`, `$planCacheStats`) or must be last and is a sink (`$out`, `$merge`) — neither position is available to a sub-pipeline whose first slot is occupied by the injected tee",
+          "text": "Ten stages are rejected inside `$facet` sub-pipelines: `$collStats`, `$facet`, `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, `$vectorSearch`. The documented first-position or last-position requirements explain most of the list: `$collStats`, `$indexStats`, `$geoNear`, `$planCacheStats`, `$search`, `$searchMeta` and `$vectorSearch` must be the first stage of a pipeline, while `$out` and `$merge` must be the last stage. (`$facet` itself is excluded because nesting is not allowed.)",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/mechanism.md#invariants",
           "note": null
         },
@@ -333,42 +333,42 @@
           "note": null
         },
         {
-          "text": "4. **Concurrency wording.** Secondary sources routinely describe `$facet` sub-pipelines as running \"in parallel\" (https://studio3t.com/knowledge-base/articles/mongodb-facet-bucket-stages/, https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/ by implication of \"multi-faceted\"), which the serial round-robin in `doGetNext()` contradicts if read as thread-level concurrency (claim 12). Treated here as loose phrasing rather than a factual dispute, but it is the most common misreading of the stage.",
+          "text": "Secondary sources frequently describe $facet sub-pipelines as running \"in parallel\", but the underlying TeeBuffer mechanism executes them sequentially across interleaved batches rather than with concurrent multi-threading. Sources: https://studio3t.com/knowledge-base/articles/mongodb-facet-bucket-stages/ ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/tee_buffer.h",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/mechanism.md#unresolved-disagreements",
           "note": null
         },
         {
-          "text": "- https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/ — `$facet` reference, MongoDB Manual (current) - https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_facet.h — `DocumentSourceFacet` declaration and class comment - https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_facet.cpp — constructor, `constraints()`, parse-time assertions - https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/pipeline/document_source_facet.cpp — `doGetNext()` body and the `4031700` size assertion -",
+          "text": "- https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/ — `$facet` reference, MongoDB Manual (current) - https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_facet.h — `DocumentSourceFacet` declaration and class comment - https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_facet.cpp — constructor, `constraints()`, parse-time assertions - https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/pipeline/document_source_facet.cpp — `doGetNext()` body and the `4031700` size assertion",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/mechanism.md#sources",
           "note": null
         },
         {
-          "text": "4. These stages cannot appear in a `$facet` sub-pipeline: `$collStats`, `$facet` (no nesting), `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, `$vectorSearch`. ([docs](https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/)) 5. Each stage inside a `$facet` sub-pipeline is capped at 100 MB of output, and `allowDiskUse` does not raise that cap because `$facet` cannot spill to disk. Exceeding it returns `ExceededMemoryLimit`. ([v7.0 docs](https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/facet/)) 6. The single output docu",
+          "text": "These stages cannot appear in a `$facet` sub-pipeline: `$collStats`, `$facet` (no nesting), `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, `$vectorSearch`. As each stage in a `$facet` executes, the resulting document is limited to 100 megabytes, and allowDiskUse does not affect that limit because `$facet` can't spill to disk; exceeding it returns an ExceededMemoryLimit error. The final output document is subject to the 16 mebibyte BSON document size limit and the aggregation errors if it is exceeded. Because `$search`, `$searchMeta` and `$vectorSearch",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/practice.md#hard-limits-that-shape-the-design",
           "note": null
         },
         {
-          "text": "8. `$facet` sub-pipelines execute sequentially, not in parallel. A MongoDB community moderator stated on 2020-09-11: \"No, all aggregation pipelines are executed sequentially, including `$facet`.\" ([forum](https://www.mongodb.com/community/forums/t/are-mongodb-facet-sub-pipelines-asynchronous-and-executed-in-parallel/9005)) 9. Total latency is therefore roughly the sum of the sub-pipelines, not the maximum. Paul Done measured a faceted aggregation over ~113 million MOT records at about 5:20, and 3:30 when he split the same facets into separate client-side threads — a ~35% reduction from client-",
+          "text": "8. `$facet` sub-pipelines execute sequentially, not in parallel. Community forum member Mark Smith replied on 2020-09-11: \"No, all aggregation pipelines are executed sequentially, including $facet.\" 9. Paul Done measured a faceted aggregation over a data set of approximately 113 million MOT records at 5:20 minutes, and 3:30 minutes when he ran the same facets in separate client-side threads, about a 35% reduction (2018-02-04). 10. `$facet` is a blocking stage (SERVER-23654, the ticket that added it). 11. The current manual's page on aggregation pipeline optimization does not mention `$facet`.",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/practice.md#execution-behaviour",
           "note": null
         },
         {
-          "text": "16. The most common production use of `$facet` is \"page of results + total count in one round trip\": one sub-pipeline does `$sort`/`$skip`/`$limit`, another does `$count`. ([forum](https://www.mongodb.com/community/forums/t/paging-with-count-performance-facet-vs-simple-query/170806)) 17. This pattern can be slower than two separate queries. In a 2024 report, the same workload took ~47 ms as two queries (0 ms page + 47 ms count) and 72 ms+ as one `$facet`. ([forum](https://www.mongodb.com/community/forums/t/why-is-facet-so-slow/298075)) 18. The reported cause is eager fetching: \"without the `$f",
+          "text": "16. A common use of `$facet` is returning a page of results plus the total count in one round trip: one sub-pipeline does `$sort`/`$skip`/`$limit`, another does `$count` (as in the 2024 forum thread). 17. This pattern can be slower than two separate queries. In a 2024 report, the same workload took about 47 ms as two queries (0 ms page + 47 ms count) and at least 72 ms as one `$facet`. 18. The reported cause is eager fetching: \"without the $facet, only 10 documents are FETCHed. With the $facet all matching documents 20464 are FETCHed even if none are required for the count\". 19. Rewriting that",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/practice.md#the-pagination-pattern-and-its-measured-cost",
           "note": null
         },
         {
-          "text": "21. For faceted navigation on Atlas, prefer Atlas Search facets: \"use the Atlas faceted search capability if you are in a position to adopt Atlas Search, rather than using MongoDB's general-purpose faceted search capability.\" Faceted indexes precompute category counts, moving work off the query path. ([Practical MongoDB Aggregations, Paul Done](https://www.practical-mongodb-aggregations.com/examples/full-text-search/facets-and-counts-text-search.html)) 22. `$search` stores its metadata in `$$SEARCH_META`, so a pipeline can return both search results and facet counts without a second `$searchMe",
+          "text": "21. For faceted navigation on Atlas, prefer Atlas Search facets: \"use the Atlas faceted search capability if you are in a position to adopt Atlas Search, rather than using MongoDB's general-purpose faceted search capability.\" Faceted indexes precompute category counts, moving work off the query path. ([Practical MongoDB Aggregations, Paul Done]()) 22. `$search` stores its metadata in `$$SEARCH_META`, so a pipeline can return both search results and facet counts without a second `$searchMeta` round trip — the Atlas-native replacement for the `$facet` count-plus-data pattern. ([Practical MongoDB",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/practice.md#alternatives-to-reach-for",
           "note": null
         },
         {
-          "text": "24. Run `explain` and check three things: that a pre-`$facet` stage produced an `IXSCAN` rather than a `COLLSCAN` ([docs](https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/)), the number of documents actually FETCHed versus the number the caller needs ([forum](https://www.mongodb.com/community/forums/t/why-is-facet-so-slow/298075)), and `queryFramework` to see which execution engine ran ([SBE docs](https://www.mongodb.com/docs/manual/reference/sbe/)). 25. Benchmark the `$facet` against the N-separate-queries baseline in the *same driver and language* as production. The .",
+          "text": "Run `explain` and check that a stage before `$facet` used an index rather than a COLLSCAN, and compare the number of documents FETCHed with the number the caller needs (a forum thread found all 20464 matching documents FETCHed under `$facet` versus 10 without it). Which query engine ran shows up as `queryFramework` in slow operation log messages; in explain output, slot-based plans include the `explain.queryPlanner.winningPlan.slotBasedPlan` field. Benchmark the `$facet` against the N-separate-queries baseline in the same driver and language as production: one forum poster found `$facet` about",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/practice.md#how-to-evaluate-a-facet-before-shipping-it",
           "note": null
         },
         {
-          "text": "1. **Does `$facet` always `COLLSCAN`?** The 4.4 manual says the stage and its sub-pipelines can never use an index and always perform a `COLLSCAN` ([4.4 mirror](https://www.xuchao.org/docs/mongodb/reference/operator/aggregation/facet.html)). The current and 7.0 manuals say only that `$facet` as the *first* stage performs a `COLLSCAN`, and that earlier index-using stages prevent one ([current](https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/), [v7.0](https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/facet/)). Third-party write-ups still repeat the older,",
+          "text": "1. Does $facet always COLLSCAN? Older manuals (for example 3.6) say the stage and its sub-pipelines cannot use indexes and always perform a COLLSCAN. The 4.2 and 4.4 manual sources, the current manual and the v7.0 manual say only that $facet as the first stage performs a COLLSCAN, and that if earlier stages have used indexes, $facet does not trigger a COLLSCAN. Verify on your own version with explain. 2. Is $facet faster or slower than separate queries? Both directions are reported for essentially the same pagination workload. The forum user who measured $facet at about 3x slower in the .NET d",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/practice.md#unresolved-disagreements",
           "note": null
         },
@@ -408,27 +408,27 @@
           "note": null
         },
         {
-          "text": "**C5. A `$match` placed inside a `$facet` sub-pipeline does not drive index selection.** Index selection is decided by the stages *before* `$facet`. SERVER-34428 was closed as a duplicate with the explanation \"$facet does not use an index\", and the recommended workaround is to hoist the filter into a leading `$match`.",
+          "text": "A `$match` inside a `$facet` sub-pipeline does not make `$facet` use an index: if `$facet` is the first stage it performs a COLLSCAN, while `$match` or `$sort` stages placed before `$facet` can use indexes, so `$facet` does not trigger a COLLSCAN. SERVER-34428 (a report that `$facet` ignored indexes created for its sub-pipelines and did a COLLSCAN) was closed as a Duplicate and is linked to SERVER-30474, whose description says '$facet is not smart enough to use an index' and which asks for a `$match` to be added before `$facet`. The workaround is to put the filter in a leading `$match`. (Historical: the cited page documents MongoDB 5.1, which is past end of life.) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet.md ; https://mongodb.com/docs/v5.1/reference/operator/aggregation/facet ; https://jira.mongodb.org/browse/SERVER-34428 ; https://jira.mongodb.org/browse/SERVER-30474",
           "source": "https://jira.mongodb.org/browse/SERVER-40317#index-and-planner-behaviour",
           "note": null
         },
         {
-          "text": "**C6. A pipeline whose first stage is `$facet` performs a `COLLSCAN`.** \"If the `$facet` stage is the first stage in a pipeline, the stage will perform a `COLLSCAN`. The `$facet` stage does not make use of indexes if it is the first stage in the pipeline.\"",
+          "text": "**C6. A pipeline whose first stage is `$facet` performs a `COLLSCAN`.** \"If the `$facet` stage is the first stage in a pipeline, the stage will perform a `COLLSCAN`. The `$facet` stage does not make use of indexes if it is the first stage in the pipeline.\" Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet.md",
           "source": "https://jira.mongodb.org/browse/SERVER-34428",
           "note": null
         },
         {
-          "text": "**C8. A leading `$match` before `$facet` does use an index.** Demonstrated on the Atlas `sample_training.zips` collection with a `{state: 1}` index and verified via `.explain()` by community expert steevej, 2021-12-02.",
+          "text": "A leading `$match` before `$facet` can use an index. The current manual says `$match` or `$sort` stages before `$facet` can use indexes, so `$facet` does not trigger a `COLLSCAN`. On 2021-12-02 community user steevej reported this on the Atlas `sample_training.zips` collection with a `{state: 1}` index, saying it \"should\" and \"did\" use the index, and ran `.explain()` to check. The explain output was not posted in the thread. Sources: the MongoDB docs page for `$facet` and the community forum thread, not SERVER-30474. Sources: https://www.mongodb.com/community/forums/t/match-with-facet-index-usage/134804 ; https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/facet.md",
           "source": "https://jira.mongodb.org/browse/SERVER-30474",
           "note": null
         },
         {
-          "text": "**C10. The ban on `$search`/`$searchMeta`/`$vectorSearch` inside `$facet` makes \"search results plus facet counts in one stage\" impossible via the `$facet` stage.** Both `$search` and `$searchMeta` must be the first stage of their pipeline, so neither can sit in a `$facet` sub-pipeline. The supported pattern is `$search` first, then read metadata through the `$$SEARCH_META` variable downstream, or issue `$searchMeta` as a separate query. Practitioners report that `$replaceWith: \"$$SEARCH_META\"` inside a `$facet` yields only the total match count, not `stringFacet` buckets. Sources: https://www",
+          "text": "`$search`, `$searchMeta` and `$vectorSearch` cannot be used inside a `$facet` sub-pipeline, and each must be the first stage of any pipeline it appears in. Search results and metadata can still be combined in one aggregation by running `$search` first and then a `$facet` stage after it; `$$SEARCH_META` is available in stages after `$search` (but not after `$searchMeta`), or `$searchMeta` can be issued as a separate query. A forum poster reported that `$replaceWith: \"$$SEARCH_META\"` inside `$facet` gave only the total count, but a reply showed that `{ $project: { meta: \"$$SEARCH_META\" } }` in a",
           "source": "https://www.mongodb.com/community/forums/t/match-with-facet-index-usage/134804#composition-and-nesting-restrictions",
           "note": null
         },
         {
-          "text": "**C14. Amazon DocumentDB does not support `$facet` on any compatibility level.** AWS's own operator table marks `$facet` as `No` for 3.6, 4.0, 5.0, 8.0 and Elastic cluster. MongoDB's driver-compatibility page independently lists `$facet` among stages \"available in a limited capacity or... not supported at all\" on DocumentDB. Code that depends on `$facet` will not migrate to DocumentDB without rewriting. Sources: https://docs.aws.amazon.com/documentdb/latest/developerguide/mongo-apis.html and https://www.mongodb.com/docs/drivers/documentdb-support/",
+          "text": "Amazon DocumentDB supports `$facet` only on 8.0 (from 8.0.2). AWS's operator table marks `$facet` as `No` for 3.6, 4.0, 5.0 and Elastic cluster, and `Yes (8.0.2+)` for 8.0. MongoDB's driver-compatibility page lists `$facet` among features \"available in a limited capacity or are not supported at all\" on DocumentDB. Code that depends on `$facet` will not migrate to DocumentDB 3.6, 4.0, 5.0 or Elastic clusters without rewriting. Sources: https://docs.aws.amazon.com/documentdb/latest/developerguide/mongo-apis.html ; https://www.mongodb.com/docs/drivers/documentdb-support/",
           "source": "https://www.practical-mongodb-aggregations.com/guides/performance.html#portability-boundaries",
           "note": null
         },
@@ -438,7 +438,7 @@
           "note": null
         },
         {
-          "text": "**D4. Secondary sources misreport Cosmos DB support.** At least one aggregator claimed `$facet` is unsupported on Azure Cosmos DB for MongoDB 4.2, inferring absence from a partial stage list. Microsoft's primary table contradicts this directly (C15). This is a reminder that \"not listed as supported\" and \"listed as unsupported\" are different facts in these compatibility matrices.",
+          "text": "Microsoft's feature-support table for Azure Cosmos DB for MongoDB 4.2 lists $facet as supported. \"Not listed as supported\" and \"listed as unsupported\" are different facts in these compatibility matrices. Sources: https://learn.microsoft.com/azure/cosmos-db/mongodb/feature-support-42",
           "source": "https://www.practical-mongodb-aggregations.com/guides/performance.html#unresolved-disagreements",
           "note": null
         },
@@ -503,7 +503,7 @@
           "note": null
         },
         {
-          "text": "19. For Atlas/MongoDB Search, the documented pattern is not to put `$search` inside `$facet` but to run `$search` with a `facet` collector first and read the result through `$$SEARCH_META` inside a later `$facet`; MongoDB \"recommends using `facet` with the `$searchMeta` stage to retrieve metadata results only for the query.\" <https://www.mongodb.com/docs/search/query/operators-collectors/facet/>",
+          "text": "For MongoDB Search, MongoDB \"recommends using `facet` with the `$searchMeta` stage to retrieve metadata results only for the query.\" To retrieve both metadata and query results with `$search`, you must use the `$$SEARCH_META` aggregation variable, which can be read in later stages such as a `$facet` sub-pipeline (e.g. `$replaceWith: \"$$SEARCH_META\"`). Sources: https://www.mongodb.com/docs/search/query/operators-collectors/facet/",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/history.md#evolution-of-the-restriction-list",
           "note": null
         },
@@ -513,12 +513,12 @@
           "note": null
         },
         {
-          "text": "28. Users have hit this repeatedly. SERVER-34428 (created 2018-04-12, against 3.6.3) reported that queries fast on their own become collection scans inside `$facet`: \"indexes that exist are not utilized, resulting in collection scans instead.\" It was closed as a duplicate of SERVER-30474. <https://jira.mongodb.org/browse/SERVER-34428>",
+          "text": "Users have hit this. SERVER-34428 (created 2018-04-12, affects 3.6.3) reported that a $facet stage does not use indexes for its sub-pipelines and performs a COLLSCAN instead, although the same queries run separately use the index. It was closed as a Duplicate and is linked as related to SERVER-30474. Sources: https://jira.mongodb.org/browse/SERVER-34428",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/history.md#the-index-problem-unresolved-since-2017",
           "note": null
         },
         {
-          "text": "31. The 3.4 faceting feature set had at least one crash-grade defect at GA: SERVER-27395, created 2016-12-13 against 3.4.0, \"$bucketAuto aggregation with $addToSet output accumulator crashes mongod,\" closed as a duplicate on 2016-12-16. This defect is in `$bucketAuto`, not in `$facet`; contemporary coverage discussed it under the heading of 3.4's facet features, which is a conflation worth not repeating. <https://jira.mongodb.org/browse/SERVER-27395> and <https://www.percona.com/blog/2016/12/13/mongodb-3-4-facet-aggregation-features-and-server-27395-mongod-crash/>",
+          "text": "31. The 3.4 faceting feature set had at least one crash-grade defect at GA: SERVER-27395, created 2016-12-13 against 3.4.0, \"$bucketAuto aggregation with $addToSet output accumulator crashes mongod,\" closed as a duplicate on 2016-12-16. This defect is in `$bucketAuto`, not in `$facet`; contemporary coverage discussed it under the heading of 3.4's facet features, which is a conflation worth not repeating. <> and <> Sources: https://jira.mongodb.org/browse/SERVER-27395 ; https://www.percona.com/blog/2016/12/13/mongodb-3-4-facet-aggregation-features-and-server-27395-mongod-crash/",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/history.md#adjacent-for-dating-only",
           "note": null
         },
@@ -558,7 +558,7 @@
           "note": null
         },
         {
-          "text": "15. `$facet` declares itself blocking and non-spilling. `constraints()` returns `StreamType::kBlocking`, `PositionRequirement::kNone`, `DiskUseRequirement::kNoDiskUse`, `FacetRequirement::kNotAllowed`, `TransactionRequirement::kAllowed`, `LookupRequirement::kAllowed`, `UnionRequirement::kAllowed`. (https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_facet.cpp) The blocking classification is corroborated independently, which lists as blocking \"$sort\" and \"$group\" plus \"$bucket, $bucketAuto, $count, $sortByCount & $facet\". (https://www.practical-mongodb-a",
+          "text": "15. `$facet` declares itself blocking and non-spilling. `constraints()` returns `StreamType::kBlocking`, `PositionRequirement::kNone`, `DiskUseRequirement::kNoDiskUse`, `FacetRequirement::kNotAllowed`, `TransactionRequirement::kAllowed`, `LookupRequirement::kAllowed`, `UnionRequirement::kAllowed`. (https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_facet.cpp) The blocking classification is corroborated independently, which lists as blocking \"$sort\" and \"$group\" plus \"$bucket, $bucketAuto, $count, $sortByCount & $facet\".",
           "source": "~/.global-ai-hub/research-runs/frontier-current/facet/reports/mechanism.md#invariants",
           "note": null
         },

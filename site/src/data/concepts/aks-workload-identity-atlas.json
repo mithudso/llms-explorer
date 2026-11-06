@@ -33,7 +33,7 @@
       "title": "Measurements and reference values",
       "facts": [
         {
-          "text": "| # | Topic | Position A | Position B | Position C | |---|---|---|---|---| | 68 | **Atlas IdP Audience on Pattern 3** | Parent: `api://AzureADTokenExchange` | Atlas docs: the Application ID URI (S14†). M22 follows this. | Microsoft says v2 `aud` is the client-ID GUID (S5). The practitioner says only the GUID worked (S25). P reads this as: the Atlas page may assume URI = GUID. | | 69 | **Which principal Atlas sees for \"AKS built-in\"** | Atlas table: \"AKS → Azure Managed Identity\", tokens \"from the Azure metadata server\" (S14†) | Driver spec: `k8s` sends the raw SA token (`iss` = cluster issuer,",
+          "text": "| # | Topic | Position A | Position B | Position C | |---|---|---|---|---| | 68 | **Atlas IdP Audience on Pattern 3** | Parent: `api://AzureADTokenExchange` | Atlas docs: the Application ID URI (S14†). M22 follows this. | Microsoft says v2 `aud` is the client-ID GUID (S5). The practitioner says only the GUID worked (S25). P reads this as: the Atlas page may assume URI = GUID. | | 69 | **Which principal Atlas sees for \"AKS built-in\"** | Atlas table: \"AKS → Azure Managed Identity\", tokens \"from the Azure metadata server\" (S14†) | Driver spec: `k8s` sends the raw SA token (`iss` = cluster issuer",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#3-disagreements-side-by-side-not-resolved",
           "note": null
         },
@@ -48,12 +48,12 @@
           "note": null
         },
         {
-          "text": "- **Which principal Atlas sees for \"AKS built-in\" auth.** Atlas's built-in-auth table lists \"Kubernetes → Azure Kubernetes Service → Azure Managed Identity\" (https://www.mongodb.com/docs/atlas/workload-oidc/). The driver spec says `ENVIRONMENT=k8s` sends the raw projected Kubernetes token (https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md). That token's `iss` is the per-cluster AKS issuer and its `sub` is `system:serviceaccount:...`, not a managed-identity object ID (claims 11 and 13). If that is right, Path K would need an Atlas IdP whose Issuer URI is the AK",
+          "text": "Atlas's built-in-auth table lists \"Kubernetes | Azure Kubernetes Service | Azure Managed Identity (user and system assigned)\". The MongoDB driver spec says ENVIRONMENT:k8s makes the driver read the Kubernetes service account token from the file named by AZURE_FEDERATED_TOKEN_FILE on AKS. AKS federated credentials use the subject system:serviceaccount:<namespace>:<name>, and each cluster's OIDC issuer URL contains a randomly generated, immutable per-cluster GUID, so an Atlas IdP for the AKS issuer would be needed per cluster. No fetched MongoDB page documents that Atlas IdP configuration for AK",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/mechanism.md#unresolved-disagreements",
           "note": null
         },
         {
-          "text": "**Sibling concepts surfaced but not researched:** AKS identity bindings (preview); External Secrets Operator with Azure Key Vault workload-identity auth; Atlas Admin API service accounts and their secret lifecycle; GKE and EKS equivalents of the driver `k8s` provider; Atlas Workforce OIDC with Entra ID.",
+          "text": "Sibling concepts surfaced but not researched: AKS identity bindings (now generally available); External Secrets Operator with Azure Key Vault workload-identity auth; Atlas Admin API service accounts and their secret lifecycle; GKE and EKS equivalents of the AKS pattern (Atlas lists GKE with a GCP Service Account and EKS with an AWS IAM Role; Atlas's table lists only self-managed Kubernetes pods as using a Kubernetes Service Account); Atlas Workforce OIDC with Entra ID. Sources: https://newreleases.io/project/github/Azure/AKS/release/2026-09-25 ; https://www.mongodb.com/docs/atlas/workload-oidc.md ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-secret-storage.md ; https://www.mongodb.com/docs/atlas/workforce-oidc.md",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#8-sources",
           "note": null
         },
@@ -113,12 +113,12 @@
           "note": null
         },
         {
-          "text": "42. The projected token's `expirationSeconds` defaults to 3600 on AKS. It can be set from 3600 to 86400 with the `azure.workload.identity/service-account-token-expiration` annotation. A pod annotation overrides a service-account annotation. [M25, H20, P12] S1 43. Kubernetes enforces a minimum of 600 s. The kubelet refreshes the token at 80% of its TTL or after 24 h, whichever comes first. [M26] S11 44. An Entra token expires 24 h after issue, independent of the SA token. [M27, H20, E22] S1 45. The driver caches one token per `MongoClient`. It allows one provider call at a time, at least 100 ms",
+          "text": "42. The projected token's `expirationSeconds` defaults to 3600 on AKS. It can be set from 3600 to 86400 with the `azure.workload.identity/service-account-token-expiration` annotation. A pod annotation overrides a service-account annotation. 43. Kubernetes enforces a minimum of 600 s. The kubelet rotates the token when it is older than 80% of its TTL or older than 24 h. 44. An Entra token expires 24 h after issue, and its expiry is not correlated with the service-account token's. 45. The driver caches one access token per `MongoClient`. It allows only one provider or callback call at a time, an",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#d-lifetimes-caching-and-rotation",
           "note": null
         },
         {
-          "text": "1. **Audience.** `api://AzureADTokenExchange` is the audience of the **Kubernetes** token that Entra consumes. It is the Atlas audience only on Pattern 2, and Pattern 2 also breaks under identity bindings. On Pattern 3 it is wrong; see disagreement 68. [M40, H, E3, P] 2. **\"Omit `TOKEN_RESOURCE`\"** is true only for `ENVIRONMENT:k8s`. `azure` requires it and calls IMDS. [M6, H, E7] 3. **AKO and the Admin API \"without long-lived credentials\"** is disconfirmed. Workload ID can only fetch AKO's API key or SA secret from Key Vault through ESO. It cannot replace the secret. [M38, H34–36, E29–31, P31",
+          "text": "Direct Entra federation requires a Kubernetes token whose audience is api://AzureADTokenExchange; with identity bindings enabled, the token at AZURE_FEDERATED_TOKEN_FILE instead has audience api://AKSIdentityBinding. The driver's ENVIRONMENT:azure provider calls IMDS with resource=<TOKEN_RESOURCE>, while ENVIRONMENT:k8s reads a token file. Atlas encryption-at-rest access to Azure Key Vault uses an Atlas-managed service principal for the Atlas-owned application (atlasAzureAppId 9efedfcc-2eca-4b27-a613-0cad1e114cb7). The Go driver supports Atlas Workload Identity Federation from v1.17. The Atlas",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#4-corrections-to-inherited-parent-facts",
           "note": null
         },
@@ -128,17 +128,17 @@
           "note": null
         },
         {
-          "text": "1. Microsoft deprecated the open-source Azure AD (Microsoft Entra) pod-managed identity project on **2022-10-24** and archived it in **September 2023**. https://learn.microsoft.com/en-us/azure/aks/use-azure-ad-pod-identity 2. Microsoft patched and supported the AKS Pod Identity managed add-on **through September 2025** so customers could move to Workload ID. https://learn.microsoft.com/en-us/azure/aks/use-azure-ad-pod-identity 3. Pod identity worked by intercepting IMDS: an NMI DaemonSet on each node redirected IMDS token requests to itself and fetched Entra tokens for the pod. https://learn.m",
+          "text": "Items 1-6 and 8-14 stand as written. Item 7 (corrected): Microsoft Tech Community published a GA post titled \"General Availability for Azure Active Directory (AD) Workload Identity on AKS\". A syndicated copy on thewindowsupdate.com is dated April 18, 2023 and says the feature is generally available. The original Tech Community post's own date was not retrievable. Sources: https://thewindowsupdate.com/?p=200892",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/history.md#a-timeline-evolution",
           "note": null
         },
         {
-          "text": "15. AKS Workload ID needs AKS 1.22+ and Azure CLI 2.47.0+ on Standard clusters. https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview 16. The AKS cluster is the token issuer. Entra ID fetches the cluster's `{IssuerURL}/.well-known/openid-configuration` and `{IssuerURL}/openid/v1/jwks` to verify the projected service-account token before exchanging it for an Entra token. https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview 17. The mutating webhook mutates only pods labelled `azure.workload.identity/use: \"true\"`. It injects the projected token volume and sets `",
+          "text": "AKS Workload ID on Standard clusters needs AKS 1.22+ and Azure CLI 2.47.0+. The AKS cluster is the token issuer, and Entra ID uses {IssuerURL}/.well-known/openid-configuration and {IssuerURL}/openid/v1/jwks to verify the service account token. Only pods labelled azure.workload.identity/use are mutated, getting the projected token volume and AZURE_FEDERATED_TOKEN_FILE. Read the token path from AZURE_FEDERATED_TOKEN_FILE and re-read the file on each exchange. Workload ID uses the Entra v2 token endpoint, so scopes should be <resource>/.default. Token expiration defaults to 3600 and ranges 3600-8",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/history.md#b-mechanism-deltas-specific-to-atlas-on-aks",
           "note": null
         },
         {
-          "text": "- **Parent:** \"For AKS federated credentials the audience is `api://AzureADTokenExchange` — ensure the Atlas IDP audience field matches.\" **Limit:** that audience belongs to the Kubernetes service-account token used for the Entra exchange (claim 32). Atlas's documented Azure setup uses the Entra app's Application ID URI as the audience (claim 28). The parent rule holds only on the raw-token `ENVIRONMENT=k8s` path, and fails under identity bindings (claim 33). - **Parent:** \"For AKS with Workload Identity, omit `TOKEN_RESOURCE` — the driver reads the token from the OIDC file projected into the",
+          "text": "AKS direct Entra Workload ID federation requires a token with audience api://AzureADTokenExchange. Atlas's documented Azure setup maps the Entra app's Application ID URI to the Atlas IdP Audience field. With ENVIRONMENT:k8s the driver reads the token from the file in AZURE_FEDERATED_TOKEN_FILE and TOKEN_RESOURCE must not be set; with ENVIRONMENT:azure TOKEN_RESOURCE is required and the driver calls the IMDS endpoint. AKO authenticates to the Atlas Administration API with API keys or Service Accounts read from Kubernetes secrets. Workload identity can grant a pod access to Key Vault secrets. So",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/history.md#corrections-to-inherited-parent-facts",
           "note": null
         },
@@ -158,7 +158,7 @@
           "note": null
         },
         {
-          "text": "38. **Correction (Atlas Admin API):** The parent extract says Workload Identity lets the AKO pod \"call the Atlas Admin API without storing long-lived credentials\". The Admin API accepts only Atlas service-account OAuth tokens (client-credentials grant against `https://cloud.mongodb.com/api/oauth/token`, 1-hour lifetime, secret prefixed `mdb_sa_sk_`) or HTTP-digest API keys. No Entra or workload-identity method is listed. Workload ID therefore cannot replace AKO's Atlas credential Secret. https://www.mongodb.com/docs/atlas/configure-api-access/ 39. **Correction (Key Vault):** Atlas's own access",
+          "text": "The Atlas Admin API accepts Atlas service-account OAuth tokens (client-credentials grant, 1-hour lifetime, client secret prefixed mdb_sa_sk_) or API keys; no Entra or workload-identity method is documented, so Workload ID cannot replace AKO's Atlas credential Secret. Atlas's own access to Key Vault for encryption at rest uses an Atlas-managed Service Principal (atlasAzureAppId: 9efedfcc-2eca-4b27-a613-0cad1e114cb7), not the customer's AKS workload identity. For direct Entra Workload ID federation, the Kubernetes token's audience is api://AzureADTokenExchange. The Atlas IdP Audience is the Appl",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/mechanism.md#f-boundary-corrections-to-the-inherited-parent-facts",
           "note": null
         },
@@ -173,27 +173,27 @@
           "note": null
         },
         {
-          "text": "14. The AKS cluster is the token issuer. Entra fetches `{IssuerURL}/.well-known/openid-configuration` and `{IssuerURL}/openid/v1/jwks` to verify the token before it exchanges it. [M9–10, H16, P11] S1, S11 15. The issuer URL has the form `https://{region}.oic.prod-aks.azure.com/{tenant_id}/{uuid}`. The GUID is random and never changes, so each cluster has its own issuer. [M11] S2 16. Tokens are signed with RS256. Entra federation has been tested only with RS256. [M12] S3, S4 17. The token's `sub` has the form `system:serviceaccount:<ns>:<name>`. [M13] S11 18. The webhook mutates only pods label",
+          "text": "14. The AKS OIDC issuer lets Microsoft Entra ID discover the API server's public signing keys; the discovery document is at {IssuerURL}/.well-known/openid-configuration and its jwks_uri points to {IssuerURL}/openid/v1/jwks. 15. The issuer URL has the form https://<region>.oic.prod-aks.azure.com/<GUID>/<GUID>/. 16. Entra token exchange supports issuers whose tokens are signed with RS256; other algorithms may work but are untested. 17. The token's sub is system:serviceaccount:<ns>:<name>. 18. The webhook adds the projected token volume to containers of pods labelled azure.workload.identity/use",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#b-aks-token-issuance",
           "note": null
         },
         {
-          "text": "50. Atlas supports WIF only on M10+ clusters running MongoDB 7.0.11 or later. M0, Flex and shared tiers are excluded. [M32, H11, E13, P1] S14† 51. Only drivers support WIF. `mongosh` and Compass do not, so you cannot reproduce a pod's login interactively. Minimum driver versions are Java 5.1, C# 2.25, Go 1.17, PyMongo 4.7, Node 6.7, Kotlin 5.1, Rust 3.0 and Scala 5.1. [M33, H30, E14, P2–3] S14† 52. One identity can hold at most 20 FICs, one per issuer+subject pair (cluster × namespace × SA). Identity bindings (preview) can lift this limit across clusters. [M34, H14, H21, E25, P6] S4, S1 53. Du",
+          "text": "Atlas supports Workload Identity Federation only on dedicated clusters (M10 and above) running MongoDB 7.0.11 or later, so M0, Flex and shared tiers are excluded. Only drivers support it; mongosh and Compass do not. Minimum driver versions are Java 5.1, C# 2.25, Go 1.17, PyMongo 4.7, Node 6.7, Kotlin 5.1, Rust 3.0 and Scala 5.1. A user-assigned managed identity can hold at most 20 federated identity credentials (FICs), and each issuer+subject combination must be unique. AKS identity bindings let multiple clusters share one user-assigned managed identity through a single FIC. During FIC propaga",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#e-limits",
           "note": null
         },
         {
-          "text": "55. Microsoft deprecated pod-managed identity on 2022-10-24 and archived it in September 2023. The managed add-on was supported through September 2025. [H1–2] S6 56. Pod identity used an NMI DaemonSet to intercept IMDS. Its limits were 200 identities per cluster, Linux node pools only, VMSS-backed clusters only, and an ARP-spoofing risk under kubenet. [H3–4] S6 57. Workload ID dropped the CRDs and the IMDS-intercepting pods, and added Windows and non-Azure cluster support. [H5] S8 58. Workload ID reached GA in the Azure/AKS release `2023-04-09`, published 2023-04-20T21:54:31Z. A Tech Community",
+          "text": "Microsoft deprecated pod-managed identity on October 24, 2022 and archived the project in September 2023. The AKS Pod Identity Managed add-on was patched and supported through September 2025. Pod identity used an NMI DaemonSet that intercepts IMDS token requests. Its limits were 200 pod-managed identities per cluster, Linux node pools only, Virtual Machine Scale Set-backed clusters only, and an ARP-spoofing risk under kubenet. Workload ID removed the need for CRDs and IMDS-intercepting pods, and supports Windows workloads and clusters in any cloud or on-premises. Workload ID went GA in the Azu",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#f-history",
           "note": null
         },
         {
-          "text": "62. The Atlas Admin API accepts only two credentials: - Atlas service-account OAuth tokens: a client-credentials grant against `https://cloud.mongodb.com/api/oauth/token`, 1-hour tokens, secret prefixed `mdb_sa_sk_`. - HTTP-digest API keys. No Entra or workload-identity method is listed. [M38] S18 63. AKO reads `orgId` plus either API keys or `clientId`/`clientSecret` from a Secret labelled `atlas.mongodb.com/type=credentials`. [H34, E29, P31] S20, S23, S24 64. AKO \"must find the Kubernetes secrets it expects\" and cannot read Key Vault directly. External Secrets Operator (ESO) or the Secrets S",
+          "text": "62. The Atlas Administration API accepts two authentication methods: service account access tokens (OAuth 2.0; 1-hour tokens, client secret prefixed `mdb_sa_sk_`) and API keys (HTTP Digest). 63. AKO reads `orgId` plus either API keys or a `clientId`/`clientSecret` pair from a Secret labelled `atlas.mongodb.com/type=credentials`. 65. Atlas service-account secrets are expirable with a TTL of at most one year and must be rotated before they expire. Atlas raises a \"Service Account Secrets are about to expire\" alert. The AKO pod's egress IP must be on the service account's API access list. 66. `Atl",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#g-ako-credentials",
           "note": null
         },
         {
-          "text": "67. These strings identify the failures: - `Authentication failed at finishAuthentication`: Atlas audience mismatch after a successful Entra exchange (P34, S25). - `AADSTS700212`: the projected token's audience does not match the FIC audience (S1). - `AADSTS70021`: FIC propagation, claim 53. - `Identity not found`: Pattern 1 on AKS, claim 9. - HTTP 409: concurrent FIC creation, claim 53. - \"must have exactly one audience\": claim 28. - error code 391: claim 46.",
+          "text": "Error code 391 is `ReauthenticationRequired`, which makes a MONGODB-OIDC driver re-authenticate the connection. Sources: https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#h-failure-strings",
           "note": null
         },
@@ -208,7 +208,7 @@
           "note": null
         },
         {
-          "text": "29. **CORRECTION** to the parent claim that Workload Identity lets the AKO pod \"call the Atlas Admin API without storing long-lived credentials\". AKO authenticates to the Admin API only with Programmatic API Keys or Atlas Service Accounts (`orgId`, `clientId`, `clientSecret`). It reads them from a Kubernetes Secret labelled `atlas.mongodb.com/type=credentials` — https://www.mongodb.com/docs/atlas/operator/v2.16/ak8so-service-accounts/ 30. AKO \"must find the Kubernetes secrets it expects\" and cannot read Key Vault directly. Workload Identity helps only indirectly: External Secrets Operator or t",
+          "text": "AKO authenticates to the Admin API with Programmatic API Keys or Atlas Service Accounts, read from a Kubernetes Secret labelled atlas.mongodb.com/type=credentials. Workload Identity helps only indirectly: External Secrets Operator has an Azure Key Vault provider that supports workload identity, and can sync the credential into a K8s Secret. Atlas Service Account secrets expire, with a TTL of up to one year, and must be rotated before expiry. If the organization requires an Admin API IP access list, it must be configured. In AtlasDatabaseUser, OIDC Workload users use oidcAuthType USER and datab",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/edge-cases.md#e-ako-atlas-kubernetes-operator-limits",
           "note": null
         },
@@ -228,7 +228,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "1. A driver on AKS can reach Atlas through three patterns: - **Pattern 1:** `ENVIRONMENT:azure`, which uses IMDS. - **Pattern 2:** `ENVIRONMENT:k8s`, which sends the raw service-account token. M calls this \"Path K\". - **Pattern 3:** an `OIDC_CALLBACK` that returns an Entra token. M calls this \"Path E\". Most write-ups blur these together. [M1, P16–21] S12, S16 2. Pattern 3: the callback calls `DefaultAzureCredential`/`WorkloadIdentityCredential` with `.get_token(f\"{audience}/.default\")` and returns an **Entra** access token. PyMongo files AKS under \"Other Azure Environments\". [M2, H26, P21] S16",
+          "text": "A driver on AKS can reach Atlas in three ways: ENVIRONMENT:azure (built-in, calls the Azure IMDS endpoint), ENVIRONMENT:k8s (reads a token file), or a custom OIDC_CALLBACK. For the callback, PyMongo documents using azure-identity's DefaultAzureCredential and get_token(f\"{audience}/.default\") under 'Other Azure Environments', which covers AKS. The Node driver's timeoutContext is an AbortSignal that aborts after 30 seconds for machine callbacks. Built-in callbacks must not cache tokens because the driver caches them. The k8s provider reads the token file from AZURE_FEDERATED_TOKEN_FILE, then AWS",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#a-driver-integration-patterns-on-aks",
           "note": null
         },
@@ -243,12 +243,12 @@
           "note": null
         },
         {
-          "text": "26. The FIC issuer and subject must exactly match the token's `iss` and `sub`. No field accepts wildcards. Leading or trailing whitespace in `iss` blocks the exchange. [M18, E25] S4 27. A wrong FIC subject saves without error. The failure shows up only at exchange time. [M19, E27] S4 28. A FIC has exactly one audience. The API rejects other counts with \"must have exactly one audience\". [M20, E1] S4 29. Identity bindings (preview) change the default token's audience to `api://AKSIdentityBinding`. Using that token for direct federation fails with `AADSTS700212`. The fix is a second projected tok",
+          "text": "The FIC issuer must match the issuer claim of the external token, and leading or trailing whitespace in the issuer blocks the exchange. Wildcard characters are not supported in any FIC property value. A FIC with an incorrect subject is created without error; the failure appears only when the token exchange fails. A FIC must have exactly one audience. For Atlas workload federation with Entra, the Issuer URI is the OpenID Connect metadata document value without /.well-known/openid-configuration. The Entra app manifest must change requestedAccessTokenVersion from null to 2; Atlas says Version 2 e",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/rabbithole-synthesis.md#c-invariants-authentication-fails-if-any-is-broken",
           "note": null
         },
         {
-          "text": "8. AKS Workload ID uses the Entra v2 token endpoint, \"rather than the IMDS `resource` flow used by managed identity\". A raw resource URI where a `<resource>/.default` scope belongs \"can fail\" — https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview 9. On AKS Workload ID, the built-in `ENVIRONMENT:azure` (IMDS) path failed with `Identity not found`, because the UAMI \"lives behind the federated token file, not classic IMDS association\". The fix was a custom callback using `@azure/identity` — https://blog.saintmalik.me/mongodb-passwordless-auth-aks/ 10. PyMongo documents a custom",
+          "text": "8. AKS Workload ID uses the Entra v2 token endpoint, \"rather than the IMDS `resource` flow used by managed identity\". A raw resource URI where a `<resource>/.default` scope belongs \"can fail\" — 9. On AKS Workload ID, the built-in `ENVIRONMENT:azure` (IMDS) path failed with `Identity not found`, because the UAMI \"lives behind the federated token file, not classic IMDS association\". The fix was a custom callback using `@azure/identity` — 10. PyMongo documents a custom `OIDCCallback` built on `DefaultAzureCredential(...).get_token(f\"{audience}/.default\")` for AKS. It documents `ENVIRONMENT:azure`",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/edge-cases.md#b-imds-trap-and-the-driver-integration-you-pick",
           "note": null
         },
@@ -258,7 +258,7 @@
           "note": null
         },
         {
-          "text": "25. The projected token's `expirationSeconds` defaults to 3600 on AKS and can be set from 3600 to 86400 with an annotation. A pod annotation overrides a service-account annotation. https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview 26. Kubernetes enforces a minimum `expirationSeconds` of 600. The kubelet refreshes the token at 80% of its TTL or after 24 hours, whichever comes first. Applications must re-read the file rather than cache it. https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/ and https://learn.microsoft.com/en-us/azure/aks/workl",
+          "text": "The projected token's expirationSeconds defaults to 3600 on AKS and can be set from 3600 to 86400 with an annotation. A pod annotation overrides a service-account annotation. Kubernetes requires expirationSeconds of at least 10 minutes. The kubelet starts rotating the token at 80% of its TTL or after 24 hours. Applications should re-read the file rather than cache it. On AKS, an Entra token issued through Workload ID expires 24 hours after issue, independent of the Kubernetes token's lifetime. The driver caches one access token per MongoClient, allows only one provider or callback call at a ti",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/mechanism.md#d-token-lifetime-and-refresh",
           "note": null
         },
@@ -288,7 +288,7 @@
           "note": null
         },
         {
-          "text": "34. AKO authenticates to the Atlas Admin API only with **API keys** (`orgId`/`publicApiKey`/`privateApiKey`) or **Atlas Service Accounts** (`clientId`/`clientSecret`) read from a Kubernetes Secret labelled `atlas.mongodb.com/type=credentials`. The docs list no OIDC, managed-identity or workload-identity option. https://www.mongodb.com/docs/atlas/operator/current/configure-ak8so-access-to-atlas.md 35. MongoDB's \"secret-less\" AKO pattern means only that the credential lives in an external store. A provisioning tool such as External Secrets Operator or the Secrets Store CSI Driver copies it into",
+          "text": "AKO authenticates to the Atlas Administration API using API keys (orgId/publicApiKey/privateApiKey) or Atlas Service Accounts (clientId/clientSecret) read from Kubernetes Secrets; the documented secret-creation steps label the Secret atlas.mongodb.com/type=credentials. The configuration docs list only these two methods. MongoDB's 'secret-less' AKO pattern means AKO does not create/store the secret itself: an external secret store holds the credential and an intermediary provisioning tool (External Secrets Operator or Secrets Store CSI Driver) creates the Kubernetes Secret. For Azure Key Vault",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/history.md#c-ako-on-aks-and-workload-identity",
           "note": null
         },
@@ -323,7 +323,7 @@
           "note": null
         },
         {
-          "text": "- Atlas Workforce OIDC with Entra ID (human SSO). - External Secrets Operator with the Azure Key Vault workload-identity provider. - Atlas Administration API Service Accounts (secret lifecycle). - AKS identity bindings (preview).",
+          "text": "- Atlas Workforce OIDC with Entra ID (human SSO). - External Secrets Operator with the Azure Key Vault workload-identity provider. - Atlas Administration API Service Accounts (secret lifecycle). - AKS identity bindings (generally available as of the AKS 2026-09-25 release; earlier docs labelled it preview). Sources: https://www.mongodb.com/docs/atlas/workforce-oidc.md ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-secret-storage.md ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-service-accounts.md ; https://learn.microsoft.com/en-us/azure/aks/identity-bindings ; https://newreleases.io/project/github/Azure/AKS/release/2026-09-25",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/practice.md#handoffs-not-researched-here",
           "note": null
         },
@@ -348,12 +348,12 @@
           "note": null
         },
         {
-          "text": "34. An Atlas IdP audience mismatch shows up on the client as `Authentication failed at finishAuthentication`, even though the Entra token exchange succeeded. https://blog.saintmalik.me/mongodb-passwordless-auth-aks/ 35. `AADSTS700212` means the projected token audience does not match the FIC audience. Claim 14 describes the identity-bindings case. https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview",
+          "text": "An Atlas IdP audience mismatch shows up on the client as `Authentication failed at finishAuthentication`, even though the Entra token exchange succeeded. On AKS, reusing the identity binding token file for direct federation fails with `AADSTS700212`, because the federated identity credential audience doesn't match the token audience. Sources: https://blog.saintmalik.me/mongodb-passwordless-auth-aks/ ; https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/practice.md#f-observed-failure-strings",
           "note": null
         },
         {
-          "text": "- https://www.mongodb.com/docs/atlas/workload-oidc/ - https://www.mongodb.com/blog/post/mongodb-introduces-workload-identity-federation-database-access - https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md - https://www.mongodb.com/docs/drivers/node/current/security/authentication/oidc/ - https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview - https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference - https://blog.saintmalik.me/mongodb-passwordless-auth-aks/ - https://www.mongodb.com/docs/atlas/operator/current/atl",
+          "text": "- https://www.mongodb.com/docs/atlas/workload-oidc/ - https://www.mongodb.com/blog/post/mongodb-introduces-workload-identity-federation-database-access - https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md - https://www.mongodb.com/docs/drivers/node/current/security/authentication/oidc/ - https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview - https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference - https://blog.saintmalik.me/mongodb-passwordless-auth-aks/",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-workload-identity-atlas-10a6052e32/reports/practice.md#sources",
           "note": null
         },
