@@ -145,7 +145,7 @@ A targeted Alexandria lookup found Similarweb's traffic-and-engagement capabilit
 |---|---:|---|
 | roadmap.sh | 3.88 million | Whole learning site [T01] |
 | skills.sh | 2.13 million | Skills discovery website; CLI usage can occur without a site visit [T02] |
-| simonwillison.net | 1.28 million | Main publication; separate tool/documentation domains are outside this request [T03] |
+| simonwillison.net | 1.28 million | Publication and its subdomains, including tools.simonwillison.net; separate domains such as llm.datasette.io are excluded [T03] |
 | deepwiki.com | 907,000 | Repository documentation website [T04] |
 | context7.com | 671,000 | Main website; this is not an MCP/API usage measure [T05] |
 | promptingguide.ai | 359,000 | Guide website [T06] |
