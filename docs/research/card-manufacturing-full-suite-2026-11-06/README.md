@@ -1,8 +1,8 @@
 # Custom game manufacturing and printer ownership — full-suite run
 
-Version: 0.1.1
+Version: 0.1.2
 Date: 2026-11-06
-Status: **IN PROGRESS — native research underway; evidence qualification pending.**
+Status: **IN PROGRESS — all25 initial topics authored; qualification, source saturation and publication incomplete.**
 
 The user requests the full-suite workflow on custom board game manufacture and automated professional playing-card printing. The purchase decision concerns identical copies of the game: whether an owned printer is worthwhile, its quality, and the effort required to operate the complete production workflow. US/USD scenarios are the working scope.
 
@@ -75,3 +75,9 @@ The root task is the manufacturing full-suite run, TASK-1171. Private source bod
 The existing family compiler expected product mirrors with page counts. Native concept packs instead supply retained-unit and source-host counts. The owned compiler now accepts their explicit indexes, preserves those counts, and leaves the native manifests unchanged. Legacy mirror input remains supported. This compatibility change enables the required generated rollup; it is not evidence that research, pack compilation, or indexing has finished.
 
 Basic claims-check and strict v4 evidence preflight are separate checks. The first foundation draft passed the former; independent preflight identified five exact evidence-span issues for repair before any paid semantic gate. Original author passes and pinned snapshots remain private and preserved.
+
+## Evidence checkpoint
+
+Prepress passes34/34 authored-assertion checks, equipment119/119, and economics153/153. These counts include summaries and questions, and are not counts of unique manufacturing discoveries. Five private staged leaf packs contain112 accepted factual rows. They remain unpublished and unindexed; canonical identities, final projections and family registration remain pending.
+
+Targeted saturation follow-ups found17 ownership proposals and13 local-trade proposals. Both returns are unfinished and productive. They cannot count as empty rounds or justify a saturation claim. Novelty review, exact source acquisition for admitted deltas, independent gates and further bounded negation remain required. No physical hardware testing or configured game-production quote has been performed. The final purchasing report must preserve those limits.
