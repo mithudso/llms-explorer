@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v110 - 2026-11-06
+
+> Implement all of the recommendations. (DOC-754, workstream F follow-up.)
+
+Scope: agent-asset-parity-auditor 1.1.2 corrects its Antigravity tool-name example: agy 1.3.4 uses read_file, edit_file, write_file; the 2026-09 names can hang a subagent; and call_mcp_tool, list_resources and read_resource stop a subagent from starting. Port it into the catalog so the rendering stays byte-identical, record the rendering, and update the Codex mirror.
+
 ## Prompt v109 - 2026-11-06
 
 > Implement all of the recommendations. (DOC-754, workstream F: asset parity across Claude, Codex and Antigravity.)

@@ -2,6 +2,11 @@
 
 <!-- worklog: 130 older sections moved to docs/archive/memory-2026-11-06.md on 2026-11-06 -->
 
+## v0.22.127 - 2026-11-06
+
+- agent-asset-parity-auditor 1.1.2 ported into the catalog (Prompt v110): its Antigravity tool-name example now lists the agy 1.3.4 subagent names and warns that call_mcp_tool, list_resources and read_resource stop a subagent from starting. All eleven renderings remain byte-identical to `/Users/mitch/.claude/agents/*.md`; `rendered-history.json` records the new pair.
+- Verification: `python3 -m unittest discover -s hub/tests -p test_workflow_agents.py` OK; render + `cmp` 11/11.
+
 ## v0.22.126 - 2026-11-06
 
 - Workflow agents 1.1.0 (DOC-754 workstream F, Prompt v109). The catalog gains per-agent `version` and `extra_sections`; continuation-recovery, local-model-qualification and agent-asset-parity-auditor carry their hand-extended 1.1.0 definitions. All eleven rendered Claude definitions are byte-identical to `/Users/mitch/.claude/agents/*.md`; no residue.
