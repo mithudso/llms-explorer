@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v109 - 2026-11-06
+
+> Implement all of the recommendations. (DOC-754, workstream F: asset parity across Claude, Codex and Antigravity.)
+
+Scope: the eleven workflow agents are rendered from agents/workflows/catalog.json, but the renderer could not produce the sections added by hand to continuation-recovery and local-model-qualification, so regeneration would overwrite them. Port those changes (and the agent-asset-parity-auditor 1.1.0 extension) into the catalog, extend the renderer so regeneration reproduces the current definitions byte for byte, add a guarded update path for the Codex mirrors, and ship through a PR from a fresh worktree off origin/main.
+
 ## Prompt v108 - 2026-11-06
 
 > Implement all of the recommendations (DOC-754). Workstream J: rotate the oversized llms-explorer memory.md through a PR, from a fresh worktree off origin's default branch.
