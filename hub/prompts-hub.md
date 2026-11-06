@@ -15,3 +15,9 @@ The user asked to stop Node compatibility testing and focus on the failing Cloud
 ## Prompt — 2026-10-22 Cloudflare build repair
 
 The user restored Wrangler login and supplied a fine-grained GitHub key for private library access. Diagnose the Pages failure, configure encrypted credentials and verify the build while preserving private repositories.
+
+## Prompt v3 - 2026-11-06
+- User request:
+  - Make the indexer that is currently running not ignore filepaths that are not in the users' home directory. I have a mounted folder that I want indexed and that stupid rule is blocking it.
+- Scope: TASK-1184. Remove the home-only file/tree guard. Preserve exclusions and live runtime differences. Verify mounted paths, activate the running daemon, and deliver both repositories.
+- Delta: prompt 2 to 3.
