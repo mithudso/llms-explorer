@@ -23,7 +23,7 @@
       "title": "Structure and components",
       "facts": [
         {
-          "text": "For covered queries issued through mongos on sharded collections, MongoDB documents that the index must contain the shard key. Historical SERVER-8405 explains the ownership-check problem that motivates index-based chunk membership checks when the shard key is present. (medium confidence) Sources: https://www.mongodb.com/docs/manual/core/query-optimization.md ; https://jira.mongodb.org/browse/SERVER-8405",
+          "text": "For covered queries issued through mongos on sharded collections, MongoDB documents that the index must contain the shard key. Historical SERVER-8405 explains the ownership-check problem that motivates index-based chunk membership checks when the shard key is present. (medium confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/query-optimization.md",
           "note": null,
           "claimId": "clm:81b42f8d42f833b093b2f9046a0588d6891ded6c25bcecfa70d365ad406c7592",
@@ -34,12 +34,7 @@
           ],
           "also": [
             "https://jira.mongodb.org/browse/SERVER-8405"
-          ],
-          "remediation": {
-            "claim_id": "clm:310363b71a2d1bc6719347a4733c565e78f46abee096132a596080b9f250be1f",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T11:15:13Z"
-          }
+          ]
         }
       ]
     },
@@ -62,7 +57,7 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "MongoDB documents that an index covering a sharded query through mongos must include the shard key, and that all fields in the query, including those needed internally for sharding, must be part of an index. Separately, read concern available does not check that the correct shard received the query and can return orphaned documents during chunk migration. Sources: https://www.mongodb.com/docs/manual/core/query-optimization.md ; https://www.mongodb.com/docs/manual/reference/read-concern-available.md",
+          "text": "MongoDB documents that an index covering a sharded query through mongos must include the shard key and all fields needed internally for sharding. Together with the documented orphan risk of available, this implies that an index-only access plan is not sufficient evidence of ownership-correct results; changing read concern to improve coverage changes the correctness assumptions. (medium confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/query-optimization.md",
           "note": null,
           "claimId": "clm:6559e57f1b3906fa5e6884fa2d803a2d5b026563821ba4d779f528dc4276855a",
@@ -75,12 +70,7 @@
           "also": [
             "https://www.mongodb.com/docs/manual/reference/read-concern-available.md",
             "https://www.mongodb.com/docs/manual/reference/read-concern.md"
-          ],
-          "remediation": {
-            "claim_id": "clm:422ed80575c6be7c0acda32444f8dc0798d2cff797b9abd168cb57004279849e",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:15:13Z"
-          }
+          ]
         }
       ]
     },
@@ -131,7 +121,7 @@
           ]
         },
         {
-          "text": "Huawei Cloud's procedure for checking orphaned documents runs db.getSiblingDB(\"dbName\").collName.find().readPref(\"secondary\").readConcern(\"local\").explain(\"executionStats\") through mongos and reads chunkSkips in the SHARDING_FILTER stage, which it describes as the number of orphaned documents on the current shard for the collection checked. Alibaba Cloud's ApsaraDB for MongoDB documentation describes a similar method, using a plain find().explain(\"executionStats\") on each shard and checking whether the SHARDING_FILTER chunkSkips field is not 0. Alibaba's version does not specify readPref or readConcern, and its page does not scope the check to MongoDB 5.0 and earlier. Sources: https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html ; https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster",
+          "text": "Huawei's diagnostic procedure uses find().readPref('secondary').readConcern('local').explain('executionStats') and inspects SHARDING_FILTER.chunkSkips. Alibaba independently documents the same method for ApsaraDB MongoDB 5.0 and earlier. These counts describe documents rejected during that scan, and should not be generalized from a selective query to the whole collection. (medium confidence)",
           "source": "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html",
           "note": null,
           "claimId": "clm:3fce465c15798cb8979384752ea6c59f1266d4b3cd049a3f7fea255fe57a2479",
@@ -141,14 +131,8 @@
             "ev:ae1f6999dffa5bb5d7b2791792b779f59f8e2817b653447efefec6ca792b377b"
           ],
           "also": [
-            "https://help.aliyun.com/en/mongodb/support/how-to-clean-up-orphaned-documents",
-            "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster"
-          ],
-          "remediation": {
-            "claim_id": "clm:b9c571f8c65342cbf07c80d1fea9edd8d0ce439e4f1e5b32242a2ecc36bf63ab",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:13:22Z"
-          }
+            "https://help.aliyun.com/en/mongodb/support/how-to-clean-up-orphaned-documents"
+          ]
         },
         {
           "text": "Available and local behave identically for unsharded collections; available does not guarantee majority persistence, so choosing local for ownership filtering must not be confused with obtaining majority durability. (medium confidence)",
@@ -162,7 +146,7 @@
           ]
         },
         {
-          "text": "MongoDB documents read concern local as an alternative that avoids the risk of returning orphaned documents when reading from sharded collections. Read concern available does not require a check that the correct shard received the query, and can return orphaned documents if the shard was undergoing chunk migration. Sources: https://www.mongodb.com/docs/manual/reference/read-concern.md ; https://www.mongodb.com/docs/manual/reference/read-concern-available.md",
+          "text": "For ordinary reads routed through mongos, MongoDB documents local as an alternative that avoids returning orphaned documents. All shard replica-set members maintain chunk metadata for filtering; the server replication README explains that local can wait for stale routing metadata to refresh, whereas available does not wait for that refresh. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/reference/read-concern.md",
           "note": null,
           "claimId": "clm:b91a8f06443675b387798d24839c7affc148ede611daf4c294a88bdfcf917817",
@@ -174,14 +158,8 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/core/distributed-queries.md",
-            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
-            "https://www.mongodb.com/docs/manual/reference/read-concern-available.md"
-          ],
-          "remediation": {
-            "claim_id": "clm:507f4fe46e848ae2ea691cae563c36ed1fc6db23c523025b960b516a5bf3d2c4",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:15:13Z"
-          }
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md"
+          ]
         },
         {
           "text": "Avoiding orphaned results with local does not establish majority durability: both local and available can return data that has not reached a majority of replica-set members and may subsequently roll back. (high confidence)",
@@ -195,7 +173,7 @@
           ]
         },
         {
-          "text": "Huawei Cloud and Alibaba Cloud document a diagnostic through mongos using find().readPref(\"secondary\").readConcern(\"local\").explain(\"executionStats\") and inspecting SHARDING_FILTER.chunkSkips for orphaned records rejected on each shard. Alibaba scopes this particular method to MongoDB 5.0 or earlier instances. Both warn that the unfiltered diagnostic scans documents across shards, so its cost can be substantial. Treat it as their documented diagnostic, not a universal explain-output contract for every server version. (medium confidence) Sources: https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html ; https://help.aliyun.com/zh/mongodb/support/how-to-clean-up-orphaned-documents",
+          "text": "Huawei Cloud and Alibaba Cloud document a diagnostic through mongos using find().readPref(\"secondary\").readConcern(\"local\").explain(\"executionStats\") and inspecting SHARDING_FILTER.chunkSkips for orphaned records rejected on each shard. Alibaba scopes this particular method to MongoDB 5.0 or earlier instances. Both warn that the unfiltered diagnostic scans documents across shards, so its cost can be substantial. Treat it as their documented diagnostic, not a universal explain-output contract for every server version. (medium confidence)",
           "source": "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html",
           "note": null,
           "claimId": "clm:95e51ac8e2637625f5b502f23bfd662f2a8ab1f5395a7476cb3aa55921cfcbab",
@@ -205,17 +183,11 @@
             "ev:ae1f6999dffa5bb5d7b2791792b779f59f8e2817b653447efefec6ca792b377b"
           ],
           "also": [
-            "https://help.aliyun.com/en/mongodb/support/how-to-clean-up-orphaned-documents",
-            "https://help.aliyun.com/zh/mongodb/support/how-to-clean-up-orphaned-documents"
-          ],
-          "remediation": {
-            "claim_id": "clm:15dfb05c4d2cdab78821c3bf68caf22b72ee58bf387a2806eeade23d31551afb",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T11:15:13Z"
-          }
+            "https://help.aliyun.com/en/mongodb/support/how-to-clean-up-orphaned-documents"
+          ]
         },
         {
-          "text": "Ownership filtering and physical cleanup are separate operations: the local-read explain diagnostic reports orphaned documents that exist on a shard (via chunkSkips), and both Huawei Cloud and Alibaba Cloud describe a separate cleanupOrphaned procedure to remove them. Sources: https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html ; https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster",
+          "text": "Ownership filtering and physical cleanup are separate operations: local-read explain diagnostics can count skipped orphaned records while those records still exist on disk, and both cloud-provider guides describe separate cleanup procedures. Selecting local does not itself delete orphaned documents. (medium confidence)",
           "source": "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html",
           "note": null,
           "claimId": "clm:45e0113cf8ca25a3d98b0f122360c1814d9e5ab7a1bf60f8ace18940b334cd6e",
@@ -226,14 +198,8 @@
           ],
           "also": [
             "https://help.aliyun.com/en/mongodb/support/how-to-clean-up-orphaned-documents",
-            "https://www.mongodb.com/docs/manual/core/distributed-queries.md",
-            "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster"
-          ],
-          "remediation": {
-            "claim_id": "clm:30403f3fa0dda6c61cca352e225be4e96decdf3c46301aa06af2f5f53a021521",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:15:13Z"
-          }
+            "https://www.mongodb.com/docs/manual/core/distributed-queries.md"
+          ]
         }
       ]
     }

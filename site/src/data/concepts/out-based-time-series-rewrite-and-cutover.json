@@ -112,7 +112,7 @@
           ]
         },
         {
-          "text": "Time series output support starts at MongoDB 7.0.3 and 7.1, rather than every 7.0 patch. A first-hand report on 7.0.1 records '$out supports only db and coll' and a time series collection-lock error; MongoDB's reply identifies 7.0.3 as the support boundary. (high confidence) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md ; https://www.mongodb.com/community/forums/t/migrate-data-into-a-time-series-collection-throws-an-error-taking-collection-lock-for-timeseries-is-not-allowed/251090",
+          "text": "Time series output support starts at MongoDB 7.0.3 and 7.1, rather than every 7.0 patch. A first-hand report on 7.0.1 records '$out supports only db and coll' and a time series collection-lock error; MongoDB's reply identifies 7.0.3 as the support boundary. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
           "note": null,
           "claimId": "clm:326c04365d360eb31c117fc0cd041614ba5355f01c553d00926f7a1b49fd04d3",
@@ -123,12 +123,7 @@
           ],
           "also": [
             "https://www.mongodb.com/community/forums/t/migrate-data-into-a-time-series-collection-throws-an-error-taking-collection-lock-for-timeseries-is-not-allowed/251090"
-          ],
-          "remediation": {
-            "claim_id": "clm:3d8ad85a688e804f2bcabff6d119a673cd97bba254a449c8935d2e9fc5a4fd65",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T11:14:05Z"
-          }
+          ]
         },
         {
           "text": "SERVER-111834 reports that $out recreates a time series target's default index even if the operator dropped it beforehand. The issue's September 25, 2026 update lists it as unresolved with no fix version, so inspect the rebuilt index set rather than assuming exact preservation of index absence. (low confidence) (verified as of 2026-09-25)",
@@ -157,7 +152,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "$out builds a temporary collection, inserts the documents into it, and then replaces an existing destination with it at completion. The docs recommend using $out to transform data into the time series schema rather than copying source bucket documents. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md ; https://www.mongodb.com/community/forums/t/migrate-data-into-a-time-series-collection-throws-an-error-taking-collection-lock-for-timeseries-is-not-allowed/251090",
+          "text": "$out builds a temporary collection and replaces an existing destination at completion. Its time-series implementation inserts measurements through insertTimeseries, which makes fresh bucket construction possible; it does not copy source bucket documents unchanged. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
           "note": null,
           "claimId": "clm:52092eec4508032b4b63688a261a3d57ec86d982ca1dccd3da489ebcc6c03cd7",
@@ -165,17 +160,11 @@
           "evidenceIds": [],
           "also": [
             "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/agg/out_stage.cpp",
-            "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-migrate-with-aggregation.md",
-            "https://www.mongodb.com/community/forums/t/migrate-data-into-a-time-series-collection-throws-an-error-taking-collection-lock-for-timeseries-is-not-allowed/251090"
-          ],
-          "remediation": {
-            "claim_id": "clm:44b002e1167f9a170dbab960eb07f03aaf2d535906111652dcf7f8127a2329da",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:14:05Z"
-          }
+            "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-migrate-with-aggregation.md"
+          ]
         },
         {
-          "text": "Repeated $out operations against one destination replace previous results; they do not append successive sensor subsets. A user reported exactly this obstacle during time-series migration. (high confidence) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md ; https://www.mongodb.com/community/forums/t/alternative-to-using-merge-with-time-series-export/301853",
+          "text": "Repeated $out operations against one destination replace previous results; they do not append successive sensor subsets. A user reported exactly this obstacle during time-series migration. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
           "note": null,
           "claimId": "clm:3c9ad521e63798b77df6b2b14e5bd8a950e4345e08f628025325740ef6d60279",
@@ -183,15 +172,10 @@
           "evidenceIds": [],
           "also": [
             "https://www.mongodb.com/community/forums/t/alternative-to-using-merge-with-time-series-export/301853"
-          ],
-          "remediation": {
-            "claim_id": "clm:c60c59d66ee5bb07e1063e4abf0b3f5af6ee71a470fb3c4da350621efb7b8dfa",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T11:14:05Z"
-          }
+          ]
         },
         {
-          "text": "$out atomically replaces the existing destination collection with the new results collection when the aggregation completes. Treat write coordination as a separate cutover requirement, because replacement is a whole-collection swap and not a reconciliation of concurrent writes (an operational inference). Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
+          "text": "Treat write coordination as a separate cutover requirement: the destination replacement does not reconcile concurrent application writes. Extenify explicitly schedules its migration before the new writer starts; using a quiesced source or separately verified reconciliation is an operational inference from replacement semantics. (medium confidence)",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
           "note": null,
           "claimId": "clm:7717303d03c3e17f72eb3c2d8ce6fc05ea1a1d7e3a01be60d433795547c5c892",
@@ -202,12 +186,7 @@
           ],
           "also": [
             "https://extenify.app/blog/mongodb-time-series-collection-extension-stats"
-          ],
-          "remediation": {
-            "claim_id": "clm:aac008305edc4b5878f7792017ec5db798614d61aeea765c9d4a9027b92cbb97",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:14:05Z"
-          }
+          ]
         },
         {
           "text": "Public renameCollection support for time series collections begins in MongoDB 9.0. A staged rewrite followed by an application-issued rename therefore requires a version check; the internal rename used by supported $out implementations does not establish public rename support on older releases. (high confidence) (verified as of 2026-10-05)",
@@ -226,7 +205,7 @@
           ]
         },
         {
-          "text": "For a newly created migration destination, source secondary indexes require manual recreation. For replacement of an existing destination, $out instead copies that destination's index definitions; source indexes and target indexes must therefore be distinguished during validation. (high confidence) Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-migrate-with-aggregation.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
+          "text": "For a newly created migration destination, source secondary indexes require manual recreation. For replacement of an existing destination, $out instead copies that destination's index definitions; source indexes and target indexes must therefore be distinguished during validation. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-migrate-with-aggregation.md",
           "note": null,
           "claimId": "clm:1a759c899baa3de814a76e2a6f92c9aa667a8fe896669ac6dad7e8a52ab09343",
@@ -238,12 +217,7 @@
           "also": [
             "https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
             "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-migrate-with-aggregation/"
-          ],
-          "remediation": {
-            "claim_id": "clm:7421894e240ce28eab44a94aef9e3905a5d56628e48992ffd1632f392b934d81",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T11:14:05Z"
-          }
+          ]
         },
         {
           "text": "TideWave recommends copying a representative week into a separate time-series target with $out and comparing collection stats before migrating the remainder. This is a proposed measurement method, not published evidence of a particular fragmentation-reduction ratio. (low confidence)",

@@ -8,7 +8,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "As of the 2026-10-22 source snapshot, MongoDB master comments that execution statistics are not supported when explain builds mergerPart. SERVER-79805 describes the same observability gap for $mergeCursors and later merger stages, so per-shard execution statistics do not by themselves show merger-side work or router/network latency. (medium confidence) (verified as of 2026-10-22) Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/sharded_agg_helpers.cpp ; https://jira.mongodb.org/browse/SERVER-79805",
+          "text": "As of the 2026-10-22 source snapshot, MongoDB master comments that execution statistics are not supported when explain builds mergerPart. SERVER-79805 describes the same observability gap for $mergeCursors and later merger stages, so per-shard execution statistics do not by themselves show merger-side work or router/network latency. (medium confidence) (verified as of 2026-10-22)",
           "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/sharded_agg_helpers.cpp",
           "note": null
         }
@@ -18,7 +18,7 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "As of 2026-10-22, MongoDB's current server source serializes the merger explain at `queryPlanner` verbosity because merger execution stats are unsupported, and it serializes `$mergeCursors` without actual remote cursors. The explain therefore describes merger plan structure but cannot quantify mongos-side merge work or network latency; SERVER-79805 records this gap. (high confidence) (verified as of 2026-10-22) Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/sharded_agg_helpers.cpp ; https://jira.mongodb.org/browse/SERVER-79805",
+          "text": "As of 2026-10-22, MongoDB's current server source serializes the merger explain at `queryPlanner` verbosity because merger execution stats are unsupported, and it serializes `$mergeCursors` without actual remote cursors. The explain therefore describes merger plan structure but cannot quantify mongos-side merge work or network latency; SERVER-79805 records this gap. (high confidence) (verified as of 2026-10-22)",
           "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/sharded_agg_helpers.cpp",
           "note": null
         }
@@ -28,12 +28,12 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "Read sharded aggregation explain through mergeType, splitPipeline, and shards: mergeType shows where the merge happens, splitPipeline shows which pipeline operations run on shards (the server also emits a mergerPart for the merge portion), and shards shows the work each shard has done. Aggregation explain shows the optimizer-transformed pipeline, which can differ from the submitted pipeline. SHARD_MERGE is a query-plan stage name for merging results from shards, whereas $mergeCursors is an aggregation stage. Sources: https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/sharded_agg_helpers.cpp ; https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md ; https://www.mongodb.com/docs/manual/reference/explain-results.md",
+          "text": "Read sharded aggregation explain through splitPipeline, mergeType, and shards: they show the shard and merger pipeline portions, the selected merge location, and per-shard work. Aggregation explain output is optimized and can differ from the submitted pipeline; the query-plan label SHARD_MERGE is distinct from the aggregation stage $mergeCursors. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
           "note": null
         },
         {
-          "text": "The CVE-2025-6713 release notes disagree on the MongoDB 7.0 affected-version cutoff: MongoDB's 7.0.19 prose says versions before 7.0.6 while its affected-version list ends at 7.0.18, and Percona Distribution 7.0.22 says versions before 7.0.20. Check the exact upstream or Percona build instead of relying on the prose cutoff. (high confidence) (verified as of 2025-07-28) Sources: https://www.mongodb.com/docs/manual/release-notes/7.0.md ; https://docs.percona.com/percona-server-for-mongodb/7.0/release_notes/7.0.22-12.html",
+          "text": "The CVE-2025-6713 release notes disagree on the MongoDB 7.0 affected-version cutoff: MongoDB's 7.0.19 prose says versions before 7.0.6 while its affected-version list ends at 7.0.18, and Percona Distribution 7.0.22 says versions before 7.0.20. Check the exact upstream or Percona build instead of relying on the prose cutoff. (high confidence) (verified as of 2025-07-28)",
           "source": "https://www.mongodb.com/docs/manual/release-notes/7.0.md",
           "note": null
         }
@@ -43,12 +43,12 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "MongoDB's current server source serializes `$mergeCursors` as the first stage in `splitPipeline.mergerPart`. The SERVER-57383 ticket and the related TOOLS-3024 investigation say the merge sort started happening within `$mergeCursors` (the ticket author's belief), which explains why merger output may lack a standalone `$sort`; do not infer that merged results are unsorted. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/sharded_agg_helpers.cpp ; https://jira.mongodb.org/browse/SERVER-57383 ; https://jira.mongodb.org/browse/TOOLS-3024",
+          "text": "As of 2026-10-22, MongoDB's current server source serializes `$mergeCursors` as the first stage in `splitPipeline.mergerPart`. MongoDB's change stream source docs say the stage aggregates responses from remote shards, and sometimes the config server, into a sorted stream. The SERVER-57383 ticket and the related TOOLS-3024 investigation document that merge sorting can happen inside `$mergeCursors`, which explains why merger output may lack a standalone `$sort`; do not infer that merged results are unsorted. (high confidence) (verified as of 2026-10-22)",
           "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/sharded_agg_helpers.cpp",
           "note": null
         },
         {
-          "text": "MongoDB's manual says `mergeType` identifies where the merge runs (`anyShard`, `specificShard`, or `router`); for `specificShard`, the output includes a `mergeShard` property with the merging shard's ID. The manual says `splitPipeline` shows which operations in the pipeline have run on individual shards, while `shards` reports each shard's work. Sources: https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
+          "text": "MongoDB's manual says `mergeType` identifies where the merge runs (`anyShard`, `specificShard`, or `router`); for `specificShard`, the output includes the merging shard identifier. The manual says `splitPipeline` shows operations assigned to shards and the merger, while `shards` reports each shard's work. (high confidence) (verified as of 2026-10-14)",
           "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
           "note": null
         },
@@ -63,12 +63,12 @@
           "note": null
         },
         {
-          "text": "MongoDB's sharded aggregation helper normally prepends $mergeCursors to the merger pipeline to consume remote shard cursors. For explain, it establishes no remote cursors and instead serializes a $mergeCursors entry with arm parameters but no remotes; MongoDB Tools describes this entry as the first stage of mergerPart in sharded explain output. (high confidence) Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/sharded_agg_helpers.cpp ; https://jira.mongodb.org/browse/TOOLS-3024",
+          "text": "MongoDB's sharded aggregation helper normally prepends $mergeCursors to the merger pipeline to consume remote shard cursors. For explain, it establishes no remote cursors and instead serializes a $mergeCursors entry with arm parameters but no remotes; MongoDB Tools describes this entry as the first stage of mergerPart in sharded explain output. (high confidence)",
           "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/sharded_agg_helpers.cpp",
           "note": null
         },
         {
-          "text": "MongoDB's issue history shows that older sharded aggregation explains omitted the final merge-sort phase from mergerPart; the ticket author believes the merge sort moved inside $mergeCursors, which was not displayed in explain. The SERVER-57383 examples show the omission in 4.2 and 4.4 output (mergerPart shows only a $limit), and the ticket is marked fixed in 5.3.0. Do not infer unsorted results from the missing merger sort in those historical explain formats. Sources: https://jira.mongodb.org/browse/SERVER-57383",
+          "text": "MongoDB's issue history shows that older sharded aggregation explains omitted the final merge-sort phase from mergerPart while the sorted merge still occurred. The SERVER-57383 examples show the omission in 4.2 and 4.4 output and list 5.3.0 as the fix version; an independent aggregation guide describes the affected range as 4.2 through 5.2. Do not infer unsorted results from the missing merger sort in those historical explain formats. (medium confidence) (verified as of 2025-09-26)",
           "source": "https://jira.mongodb.org/browse/SERVER-57383",
           "note": null
         }

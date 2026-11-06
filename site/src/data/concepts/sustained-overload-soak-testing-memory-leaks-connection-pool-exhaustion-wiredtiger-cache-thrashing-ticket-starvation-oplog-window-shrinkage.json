@@ -37,29 +37,20 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "High host memory use alone does not prove a MongoDB memory leak: WiredTiger has an internal cache, the operating system uses free RAM for the filesystem cache, and other processes consume RAM. Alibaba Cloud also documents that the tcmalloc allocator keeps freed request buffers in its own cache instead of returning them to the OS immediately, which can add up to tens of gigabytes. In a soak test, separate these categories before interpreting a rising total as leaked allocations. Sources: https://www.mongodb.com/docs/manual/core/wiredtiger/ ; https://www.alibabacloud.com/help/en/mongodb/user-guide/troubleshoot-high-memory-usage-on-an-apsaradb-for-mongodb-instance",
+          "text": "High host memory use alone does not prove a MongoDB memory leak: WiredTiger has an internal cache, the operating system caches files, and other operations consume RAM. Alibaba also documents heap fragmentation as a cause of increasing memory use. In a soak test, separate these categories before interpreting a rising total as leaked allocations. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
           "note": null,
           "claimId": "clm:86ac7967c75f5d96665aeda70c2999ad97522ca2faa821cf83d6d43ac28f5057",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "also": [
-            "https://help.aliyun.com/en/mongodb/user-guide/parameter-tuning-recommendations",
-            "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html",
-            "https://www.alibabacloud.com/help/en/mongodb/user-guide/troubleshoot-high-memory-usage-on-an-apsaradb-for-mongodb-instance"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:8cc636b3890e3f04e384bedf8e30918adab635280ed14199f42c93e543e2f554",
             "ev:ae7d78a07512bdae118d25c57b798cb31747848ac81f95baf4c823cd0475ddb4",
             "ev:f377ef5f86ee437d2cf127a5008068fd75411e4027d32daf5fe0b5e4a2d095fb"
           ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "8b9a7bc61bd71ba6fbb16d855041b5b1306d549b9cafa40a28e2976862cf91b0"
-          }
+          "also": [
+            "https://help.aliyun.com/en/mongodb/user-guide/parameter-tuning-recommendations",
+            "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html"
+          ]
         },
         {
           "text": "Tickets govern storage-engine concurrency and are distinct from client connections. Secondary oplog replay also consumes write tickets; prolonged exhaustion can increase replication lag. Saturated CPU, disk or cache may become worse when ticket limits rise. Alibaba recommends fixing those underlying constraints first. (low confidence)",
@@ -145,50 +136,32 @@
           ]
         },
         {
-          "text": "A minimum oplog retention period (storage.oplogMinRetentionHours) makes mongod remove an oplog entry only if the oplog has reached its maximum size and the entry is older than the configured number of hours, so history is preserved for at least that long. The oplog can then grow without constraint to retain entries for the configured hours, which may reduce or exhaust system disk space under high write volume and a large retention period, and mongod may keep that disk space after the oplog shrinks. A test that enables a retention floor should therefore monitor free disk space. Sources: https://www.mongodb.com/docs/manual/core/replica-set-oplog.md ; https://www.mongodb.com/docs/manual/reference/command/replsetresizeoplog.md",
-          "source": "https://www.mongodb.com/docs/manual/core/replica-set-oplog.md",
+          "text": "Minimum oplog retention can preserve more history under fluctuating writes, but it can increase disk consumption. A test that enables a retention floor must also observe free disk space; retention time and fixed storage capacity cannot both be assumed constant. (medium confidence)",
+          "source": "https://help.aliyun.com/en/mongodb/user-guide/parameter-tuning-recommendations",
           "note": null,
           "claimId": "clm:453091e7624b5a0b1e283bf8add2d77d6d4113f54935f40398ef1142b41e9da8",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "also": [
-            "https://www.mongodb.com/docs/manual/core/replica-set-oplog/",
-            "https://www.mongodb.com/docs/manual/reference/command/replsetresizeoplog.md"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:a95e137e7992bd4868f007c4a602ab00a87405bb830fb5a51c67eacc84d1ca70",
             "ev:d5e830c2a47050353e3594a16a72547fda6043501e34f5edebf345d9288eb3ac"
           ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "484d05137822cc545bce6b6db982dd3ccb61aaba3b30866a91c9bea59d3a2837"
-          }
+          "also": [
+            "https://www.mongodb.com/docs/manual/core/replica-set-oplog/"
+          ]
         },
         {
-          "text": "Do not treat the WiredTiger cache limit as a cap on total mongod or host memory, or automatically enlarge it after a soak failure. MongoDB advises avoiding increasing the internal cache above its default, and the cache limit applies to the WiredTiger internal cache only; Alibaba Cloud documents that memory is also consumed by client connections and request processing, and that tcmalloc retains freed memory. Sources: https://www.mongodb.com/docs/manual/core/wiredtiger/ ; https://www.alibabacloud.com/help/en/mongodb/user-guide/troubleshoot-high-memory-usage-on-an-apsaradb-for-mongodb-instance",
+          "text": "Do not treat the WiredTiger cache limit as a cap on total mongod or host memory, or automatically enlarge it after a soak failure. MongoDB reserves memory uses outside that cache and advises against increasing it above its default; Alibaba documents additional allocator-related memory pressure. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
           "note": null,
           "claimId": "clm:79c530239d9a289b021935391e8796d09a709c8c4a3610446d6addfc060c0905",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "also": [
-            "https://help.aliyun.com/en/mongodb/user-guide/parameter-tuning-recommendations",
-            "https://www.alibabacloud.com/help/en/mongodb/user-guide/troubleshoot-high-memory-usage-on-an-apsaradb-for-mongodb-instance"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:8cc636b3890e3f04e384bedf8e30918adab635280ed14199f42c93e543e2f554",
             "ev:f377ef5f86ee437d2cf127a5008068fd75411e4027d32daf5fe0b5e4a2d095fb"
           ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "60b248fb963f66b793fd24057297a67b93bc5b83bab37a5e1af726688be15e94"
-          }
+          "also": [
+            "https://help.aliyun.com/en/mongodb/user-guide/parameter-tuning-recommendations"
+          ]
         },
         {
           "text": "In the Node.js driver, each MongoClient has a pool per topology server. When in-use connections reach maxPoolSize, subsequent requests wait. waitQueueTimeoutMS bounds socket-checkout waiting; an expired wait raises a connection error. Soak validation should record checkout delay and failures alongside operation latency. (low confidence)",
@@ -260,55 +233,36 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "An instrumentation inventory for a MongoDB soak test can combine WiredTiger cache usage, activity and eviction, open cursors and sessions, queued operations, checkpoint time and host memory with driver connection-checkout waits and oplog-window retention. The cited sources describe these individual measures; they do not prescribe a universal soak duration or pass threshold. (medium confidence) Sources: https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html ; https://www.mongodb.com/docs/drivers/node/upcoming/fundamentals/monitoring/connection-monitoring/ ; https://www.mongodb.com/docs/manual/reference/method/rs.printreplicationinfo/",
+          "text": "An instrumentation inventory for a MongoDB soak test can combine WiredTiger cache usage, activity and eviction, open cursors and sessions, queued operations, checkpoint time and host memory with driver connection-checkout waits and oplog-window retention. The cited sources describe these individual measures; they do not prescribe a universal soak duration or pass threshold. (medium confidence)",
           "source": "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html",
           "note": null,
           "claimId": "clm:e214b9d94ca8106e307f5492b21788f5feec9a6fac19f019df893c97eebfe4c7",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "also": [
-            "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md",
-            "https://www.mongodb.com/docs/manual/core/replica-set-oplog/",
-            "https://www.mongodb.com/docs/drivers/node/upcoming/fundamentals/monitoring/connection-monitoring/",
-            "https://www.mongodb.com/docs/manual/reference/method/rs.printreplicationinfo/"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:694e7d7b9712dee10c3bee381f407dc361a6da375e0f1adf969fe674233cf5bc",
             "ev:6d6d4ad8e797b4b30602453d6a2921722ee11e3e502380222686420ef09a6f60",
             "ev:70afee47319296cba2009388b142d105edeb18fcd89d2a29fed8a16c6cdf386b",
             "ev:ae7d78a07512bdae118d25c57b798cb31747848ac81f95baf4c823cd0475ddb4",
             "ev:c035d588feeb0ee6a1b1bf29f9ea0511e99a0505eea95f4492a47d0cda6eb6ff"
           ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "c7e62ce1a7f3193618ee17946fb9a020af8d4b5d119ad3c614508df1166f62b8"
-          }
+          "also": [
+            "https://github.com/mongodb/specifications/blob/master/source/connection-monitoring-and-pooling/connection-monitoring-and-pooling.md",
+            "https://www.mongodb.com/docs/manual/core/replica-set-oplog/"
+          ]
         },
         {
-          "text": "Include a bounded long-running-transaction case in a soak test: uncommitted work can pressure the WiredTiger cache, and expired transactions are aborted by periodic cleanup. MongoDB documents transaction aborts under excessive cache pressure; Alibaba Cloud documents that long-running transactions put heavy load on the WiredTiger cache and that an overloaded cache can cause stalls, higher latency, 100% CPU and deadlocks. Sources: https://www.mongodb.com/docs/v7.0/core/transactions-production-consideration/ ; https://alibabacloud.com/help/ja/doc-detail/2746869.html",
+          "text": "Include a bounded long-running-transaction case in a soak test: uncommitted work can pressure the WiredTiger cache, and expired or abandoned transactions need cleanup. MongoDB documents transaction aborts under excessive cache pressure; Alibaba warns that increasing transaction lifetime can worsen latency and service availability. (high confidence)",
           "source": "https://www.mongodb.com/docs/v7.0/core/transactions-production-consideration/",
           "note": null,
           "claimId": "clm:71f44ccda498806968da70c530c987c17ce73b9e2a8d225d658c67f865c84297",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "also": [
-            "https://help.aliyun.com/en/mongodb/user-guide/parameter-tuning-recommendations",
-            "https://alibabacloud.com/help/ja/doc-detail/2746869.html"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:7843f7432ac4859faf0dd6cd4580476c9c4a0d76276ef767e05f0131f9684747",
             "ev:8f898075028dc4456bf91be58ce6943608ec393abee999bb9389c6da3676d98f"
           ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "44cb588b91261e94068632b040c98cf16bbbd2fc9131a331e3ba42bedd944d84"
-          }
+          "also": [
+            "https://help.aliyun.com/en/mongodb/user-guide/parameter-tuning-recommendations"
+          ]
         },
         {
           "text": "A November 22, 2025 Mongoose issue reports growing connection counts and RAM alongside unauthenticated-connection messages with Mongoose 9.0.0, Node.js 22.17.1 and MongoDB 8.0.16. It is a reproduction lead, not proof of a confirmed driver leak: the page is closed with stale and needs-clarification labels. (low confidence) (verified as of 2026-10-24)",
@@ -322,29 +276,21 @@
           ]
         },
         {
-          "text": "For sustained cache-pressure diagnosis, correlate cache occupancy, dirty-page eviction, checkpoint duration, disk I/O and query latency. Percona documents these panels together. Combining them is an inferred soak-test measurement set. Sources: https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html",
+          "text": "For sustained cache-pressure diagnosis, correlate cache occupancy, dirty-page eviction, checkpoint duration, disk I/O and query latency. Percona documents these panels together; Alibaba recommends continuous observation of cache eviction, disk utilization, latency and replication lag during concurrency changes. This combination is an inferred soak-test measurement set. (high confidence)",
           "source": "https://docs.percona.com/percona-monitoring-and-management/3/reference/dashboards/dashboard-mongodb-wiredtiger-details.html",
           "note": null,
           "claimId": "clm:565152330f769f834a374e568a06f3373782a1569bdf59b44ff01baa1e9b2c07",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "also": [
-            "https://help.aliyun.com/en/mongodb/user-guide/parameter-tuning-recommendations"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:0c8b30b1e74ac3869c2cb6189a34ff38cc22211a2625c1244c3436906967d502",
             "ev:4c2d7be45c3ad0aa3d6604dec2f5e8c05c8c62a08e8c97f31bb44d5d3aa24c43",
             "ev:694e7d7b9712dee10c3bee381f407dc361a6da375e0f1adf969fe674233cf5bc",
             "ev:ae7d78a07512bdae118d25c57b798cb31747848ac81f95baf4c823cd0475ddb4",
             "ev:c035d588feeb0ee6a1b1bf29f9ea0511e99a0505eea95f4492a47d0cda6eb6ff"
           ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "39e1f36629e964f8728e5c04eeaa49de6860b75818426cd75ba4c4ab48c027b7"
-          }
+          "also": [
+            "https://help.aliyun.com/en/mongodb/user-guide/parameter-tuning-recommendations"
+          ]
         },
         {
           "text": "A high rate of reads into WiredTiger cache does not prove equivalent physical disk reads: the operating-system filesystem cache can serve those reads. A soak test should compare cache activity with storage metrics before attributing latency to disk-backed cache thrashing. (low confidence)",

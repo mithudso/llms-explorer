@@ -26,7 +26,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "A balancing window must be sufficient to complete migration of the data the deployment needs to redistribute, and the window should be chosen to support the deployment's needs. Leaving the balancer disabled for extended periods can lead to unbalanced shards and degrade cluster performance. Balancing can be disabled for a specific collection to support maintenance or atypical workloads such as data ingestions or exports, and re-enabled with sh.enableBalancing(). Sources: https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md",
+          "text": "A balancing window must leave enough time to process the required redistribution. Restricting it too aggressively or leaving balancing disabled can accumulate shard imbalance and harm performance; restore collection balancing when its temporary workload ends. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md",
           "note": null,
           "claimId": "clm:5af6556cec49852f23a6603c2611c6ebfcc1b9ebde76049c4d174aadbfab7fac",
@@ -35,16 +35,11 @@
           "also": [
             "https://www.alibabacloud.com/help/en/mongodb/use-cases/manage-the-apsaradb-for-mongodb-balancer",
             "https://intl.cloud.tencent.com/document/product/240/80980"
-          ],
-          "remediation": {
-            "claim_id": "clm:c7f8ae8b402d7ac6c8c3e56b6c2eb5d5487fd92f0faf85b3d160c57a642152bd",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T08:33:12Z"
-          }
+          ]
         },
         {
-          "text": "Operational inference: range migrations carry bandwidth and workload overhead that can affect performance, and limiting the balancing window can keep that overhead away from production traffic, so scheduling automatic balancing outside a long-read interval can reduce overlap. This is not evidence that every long secondary read will complete: since MongoDB 8.2, long-running secondary reads may be automatically terminated before orphaned document deletion following a chunk migration. Sources: https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
-          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "text": "Operational inference: scheduling automatic balancing outside a long-read interval can reduce overlap with migration workload, because migrations consume source reads and destination writes. This scheduling choice is not evidence that every long secondary read will complete. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md",
           "note": null,
           "claimId": "clm:f302b31d9d142b00f3ae1172afea3130058e1c29e38530f64877b28a76d54ec5",
           "validationStatus": "NOT-SAMPLED",
@@ -53,15 +48,10 @@
             "https://www.percona.com/blog/mongodb-new-balancer-policy-and-automerger/",
             "https://percona.community/podcasts/57-change-and-evolution-in-mongodb-ecosystems-with-ivan-groenwold/",
             "https://www.alibabacloud.com/help/en/mongodb/use-cases/manage-the-apsaradb-for-mongodb-balancer"
-          ],
-          "remediation": {
-            "claim_id": "clm:3a304e2d20474363c2d40ef38614015c2f29c114c4289bef46b2118a2a0d81bc",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T08:33:12Z"
-          }
+          ]
         },
         {
-          "text": "MongoDB supports weekday-specific balancing windows through activeWindowDOW. When both activeWindow and activeWindowDOW are set, the balancer is active only for the windows configured with activeWindowDOW and ignores activeWindow. The MongoDB 8.3 compatibility notes say that on downgrade from 8.3 the day-of-week setting (named activeBalancerWindowDOW there) is not available, the balancer defaults to activeWindow, and custom day-of-week configurations made in 8.3 do not apply. Sources: https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md ; https://www.mongodb.com/docs/manual/release-notes/8.3-compatibility.md",
+          "text": "MongoDB 8.3 supports weekday-specific balancing windows through activeWindowDOW. When activeWindowDOW and activeWindow both exist, the weekday-specific configuration takes precedence. The 8.3 downgrade notes say day-of-week schedules no longer apply after downgrade and the balancer falls back to activeWindow. (medium confidence) (verified as of 2026-10-14)",
           "source": "https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md",
           "note": null,
           "claimId": "clm:c92c07a5955ecae16e93d384e53fd5806f8d8aa0495e76056742f8934a3da40c",
@@ -72,12 +62,7 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/release-notes/8.3-compatibility.md"
-          ],
-          "remediation": {
-            "claim_id": "clm:a1180496ff084a7b9d68fe64f862bc347e82af9423e0f7cebdff3ddc1cd8028f",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T08:33:12Z"
-          }
+          ]
         },
         {
           "text": "In MongoDB 7.0 and later, AutoMerger participates in balancing operations; when a balancing window is configured it runs only within that window. Collection-level AutoMerger controls provide a separate way to disable automatic merges. (high confidence)",
@@ -154,8 +139,8 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "sh.getBalancerState() indicates whether the balancer is enabled (true) or disabled (false), rather than whether data is currently migrating. Check the current state of the balancer separately with sh.isBalancerRunning(), which in mongosh returns a document including mode and inBalancerRound. Sources: https://www.mongodb.com/docs/manual/reference/method/sh.getBalancerState.md ; https://www.mongodb.com/docs/manual/reference/method/sh.isBalancerRunning.md",
-          "source": "https://www.mongodb.com/docs/manual/reference/method/sh.getBalancerState.md",
+          "text": "sh.getBalancerState() indicates whether balancing is enabled, rather than whether data is currently migrating. Check actual balancer activity separately with sh.isBalancerRunning(); its return representation can depend on the shell. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md",
           "note": null,
           "claimId": "clm:a3c57541e76df773114a51c2a4ec3060d444a3f83aea0f662f002cddef700865",
           "validationStatus": "SUPPORTED",
@@ -164,17 +149,11 @@
             "ev:aa967134b0c1c4cfb088a16e7bb8ead54aa81ce9dab83d460a1e5e73168b4654"
           ],
           "also": [
-            "https://www.alibabacloud.com/help/en/mongodb/use-cases/manage-the-apsaradb-for-mongodb-balancer",
-            "https://www.mongodb.com/docs/manual/reference/method/sh.isBalancerRunning.md"
-          ],
-          "remediation": {
-            "claim_id": "clm:13ca894fe30e2b1bbc491488b22ca98d0aa9c55f340159594088e99133710b21",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T08:33:12Z"
-          }
+            "https://www.alibabacloud.com/help/en/mongodb/use-cases/manage-the-apsaradb-for-mongodb-balancer"
+          ]
         },
         {
-          "text": "The current manual describes activeWindowDOW as an array of named-day windows, including multiple windows per day, and says it takes precedence over activeWindow. SERVER-82487 records the day-of-week feature with fix version 8.3.0-rc0; treat this as version-specific rather than an option available on all older releases. (high confidence) (verified as of 2025-12-22) Sources: https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md ; https://jira.mongodb.org/browse/SERVER-82487",
+          "text": "The current manual describes activeWindowDOW as an array of named-day windows, including multiple windows per day, and says it takes precedence over activeWindow. SERVER-82487 records the day-of-week feature with fix version 8.3.0-rc0; treat this as version-specific rather than an option available on all older releases. (high confidence) (verified as of 2025-12-22)",
           "source": "https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md",
           "note": null,
           "claimId": "clm:bda65854354a39b191d68466577279704ec00d833ae1de83afd2652f1d0fb488",
@@ -185,12 +164,7 @@
           ],
           "also": [
             "https://jira.mongodb.org/browse/SERVER-82487"
-          ],
-          "remediation": {
-            "claim_id": "clm:c937972d3b427afd274bafa78e1f87463d12712352a2c59b118067b9d0d4ef4d",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T08:31:25Z"
-          }
+          ]
         },
         {
           "text": "For a selected collection, run sh.disableBalancing('database.collection') through mongos before its maintenance or atypical workload, and sh.enableBalancing('database.collection') afterward. Disabling does not interrupt in-progress migrations; enabling permits future balancing rather than immediately forcing redistribution. (low confidence)",
@@ -214,7 +188,7 @@
           "evidenceIds": []
         },
         {
-          "text": "Time-zone assumptions are deployment-specific: the MongoDB manual evaluates self-managed windows in the config-server primary's time zone and Atlas windows in UTC, whereas Alibaba documents ApsaraDB window times in the instance region's local time zone. (high confidence) (verified as of 2026-10-30) Sources: https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md ; https://www.alibabacloud.com/help/en/mongodb/use-cases/manage-the-apsaradb-for-mongodb-balancer",
+          "text": "Time-zone assumptions are deployment-specific: the MongoDB manual evaluates self-managed windows in the config-server primary's time zone and Atlas windows in UTC, whereas Alibaba documents ApsaraDB window times in the instance region's local time zone. (high confidence) (verified as of 2026-10-30)",
           "source": "https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md",
           "note": null,
           "claimId": "clm:bc3a2da20680c608b456bf892d596ebad6f502424cef7574ed988700e669fcbf",
@@ -225,12 +199,7 @@
           ],
           "also": [
             "https://www.alibabacloud.com/help/en/mongodb/use-cases/manage-the-apsaradb-for-mongodb-balancer"
-          ],
-          "remediation": {
-            "claim_id": "clm:1037a3145dfa5b979735f6386f35580db8d1a52fe0b000d0e2c5ab21d04862e4",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T08:33:12Z"
-          }
+          ]
         },
         {
           "text": "The balancing window must be long enough to handle the deployment's accumulated balancing work. A very short window or prolonged disabling can leave shards unbalanced and degrade cluster performance. (high confidence)",

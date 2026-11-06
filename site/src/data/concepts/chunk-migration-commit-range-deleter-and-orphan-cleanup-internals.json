@@ -94,8 +94,8 @@
           ]
         },
         {
-          "text": "Under the documented default cleanup sequence, the donor waits for pre-existing primary reads, then waits orphanCleanupDelaySecs, then deletes the orphan range. This creates a delay between ownership transfer and replicated physical deletion; it is not a fixed upper bound on cleanup completion. (high confidence) Sources: https://www.mongodb.com/docs/manual/reference/parameters.md ; https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
-          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md",
+          "text": "Under the documented default cleanup sequence, the donor waits for pre-existing primary reads, then waits orphanCleanupDelaySecs, then deletes the orphan range. This creates a delay between ownership transfer and replicated physical deletion; it is not a fixed upper bound on cleanup completion. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
           "note": null,
           "claimId": "clm:42fe205b9484961a74b5d59628422d555b6c52954d56a0ba56f7d82997078e3f",
           "validationStatus": "SUPPORTED",
@@ -103,17 +103,11 @@
             "ev:c4a2e544580bfda014c38e5f9a11c81e1ca3490030a9cffc06e945aaba7cf9e6"
           ],
           "also": [
-            "https://www.mongodb.com/docs/manual/core/long-running-secondary-reads.md",
-            "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md"
-          ],
-          "remediation": {
-            "claim_id": "clm:83edfeaa4eb6fb548711976ef02db88595e9c2c9d0020c6e55ad3c8ddaed0c6d",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T08:48:37Z"
-          }
+            "https://www.mongodb.com/docs/manual/core/long-running-secondary-reads.md"
+          ]
         },
         {
-          "text": "Setting the migration's _waitForDelete option to true bypasses the orphanCleanupDelaySecs delay: MongoDB does not wait on that delay before performing the range deletion. Sources: https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "text": "Waiting for deletion with the migration's wait-for-delete option bypasses orphanCleanupDelaySecs. Jin's MongoDB 8.0.32 experiment observed zero remaining donor documents for the explicitly waited range while ten earlier delayed cleanup tasks still remained. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
           "note": null,
           "claimId": "clm:f8dc870dfaa314deddd3d3dfa87967d8e18e6a523777ecfa62793e4cdb59b60b",
@@ -125,15 +119,10 @@
           ],
           "also": [
             "https://jinlog.dev/posts/mongodb/07-sharding/"
-          ],
-          "remediation": {
-            "claim_id": "clm:11162a94d59ca5d7f6af4e5ad920f300c01c2a7cd70aee10d36eafd86e97951a",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T08:48:37Z"
-          }
+          ]
         },
         {
-          "text": "A recipient can wait for outstanding deletions of orphaned documents before a chunk migration, and the wait can time out. Alibaba documents receiveChunkWaitForRangeDeleterTimeoutMS (default 10000 ms) for this condition. Sources: https://www.alibabacloud.com/help/en/mongodb/user-guide/parameter-tuning-recommendations",
+          "text": "A recipient can wait for outstanding deletions that overlap an incoming range, and the wait can time out. Alibaba documents receiveChunkWaitForRangeDeleterTimeoutMS for this condition; Jin independently reproduced the migration timeout and overlap log message in MongoDB 8.0.32. (high confidence)",
           "source": "https://www.alibabacloud.com/help/en/mongodb/user-guide/parameter-tuning-recommendations",
           "note": null,
           "claimId": "clm:e18f1888616c6493d8a932e837b49da98d029d0b56c7cffa0ad2462c2b9fc47b",
@@ -146,12 +135,7 @@
           "also": [
             "https://jinlog.dev/posts/mongodb/07-sharding/",
             "https://jira.mongodb.org/browse/SERVER-124370"
-          ],
-          "remediation": {
-            "claim_id": "clm:12c6916f9054ce52ab1d751b2bb9c5b09d407d28bcbc9e2d82daa98cdefa2ed1",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T08:48:37Z"
-          }
+          ]
         },
         {
           "text": "SERVER-125663 describes an internal pending-to-ready gate: migration commit registers an in-memory deletion task and removes pending from the durable config.rangeDeletions document; an operation observer calls clearPending() to unblock deletion. Its reported race drops that collection first, causing NoMatchingDocument and leaving the in-memory deletion chain stalled. (low confidence)",
@@ -204,7 +188,7 @@
           ]
         },
         {
-          "text": "Step-down stops range cleanup and clears in-memory service state. Step-up asynchronously rebuilds registrations from persisted tasks, temporarily excluding writes to config.rangeDeletions during recovery; persisted state permits cleanup to survive primary crashes and restarts. (high confidence) (verified as of 2026-10-30) Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/README_range_deleter.md ; https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "text": "Step-down stops range cleanup and clears in-memory service state. Step-up asynchronously rebuilds registrations from persisted tasks, temporarily excluding writes to config.rangeDeletions during recovery; persisted state permits cleanup to survive primary crashes and restarts. (high confidence) (verified as of 2026-10-30)",
           "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/README_range_deleter.md",
           "note": null,
           "claimId": "clm:e6782af804c212b68747e714c64d0aaaaa3c8a2d22d1e57f910f1314875191a0",
@@ -215,12 +199,7 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md"
-          ],
-          "remediation": {
-            "claim_id": "clm:6624d10881987962f59c440c12f295b831dda631b6c052623a2d4e70c33b84b0",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T08:48:37Z"
-          }
+          ]
         },
         {
           "text": "Range migration uses majority acknowledgment at specific transition points independently of _secondaryThrottle. Before further outgoing cleanup or new incoming migrations proceed, cleanup writes from a completed outgoing migration must have replicated to a majority. (low confidence)",
@@ -231,7 +210,7 @@
           "evidenceIds": []
         },
         {
-          "text": "Range deletion can produce substantial CPU, cache and disk-I/O load. rangeDeleterBatchSize limits documents per batch, while rangeDeleterBatchDelayMS spaces deletion batches; larger delays trade lower instantaneous pressure for a longer cleanup backlog. (high confidence) Sources: https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md ; https://www.alibabacloud.com/help/en/mongodb/user-guide/parameter-tuning-recommendations",
+          "text": "Range deletion can produce substantial CPU, cache and disk-I/O load. rangeDeleterBatchSize limits documents per batch, while rangeDeleterBatchDelayMS spaces deletion batches; larger delays trade lower instantaneous pressure for a longer cleanup backlog. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
           "note": null,
           "claimId": "clm:0835e788f1b2bcee5886f908e2f5337e10395916183995802378129edfd0f101",
@@ -243,12 +222,7 @@
           ],
           "also": [
             "https://www.alibabacloud.com/help/en/mongodb/user-guide/parameter-tuning-recommendations"
-          ],
-          "remediation": {
-            "claim_id": "clm:5acd3ac39ec207c3765bf4d5a989f4df63570ded3f318eaabbfbe23066b6501a",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T08:48:37Z"
-          }
+          ]
         },
         {
           "text": "Idle cursors can prevent cleanup from completing. Alibaba documents the diagnostic message \"will be scheduled after all possibly dependent queries finish\" and inspecting $currentOp with idleCursors enabled to identify retained cursors. (high confidence) (verified as of 2026-09-23)",
