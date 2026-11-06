@@ -62,9 +62,11 @@ def main(argv=None) -> int:
     fa.add_argument("--summary", required=True)
     fa.add_argument("--out", required=True, help="path of the family llms.txt to write")
     fa.add_argument("--base-url", default=None, help="URL prefix the .llms/ dirs are served from")
+    fa.add_argument("--index-only", action="store_true",
+                    help="link member indexes only; omit the additional direct facts links")
     fa.set_defaults(func=lambda a: export_llms.family(
         [Path(x).expanduser() for x in a.mirrors], a.name, a.summary, Path(a.out).expanduser(),
-        base_url=a.base_url))
+        base_url=a.base_url, include_facts=not a.index_only))
 
     tp = sub.add_parser("topical", help="a topical llms.txt + llms-facts.txt from a fact pool, "
                                         "sections = the subject's concept-tree children")

@@ -124,4 +124,28 @@ Query `concept__<concept-slug>__facts` through `hub_query_docset` for any of the
 
 Keyword lookup uses the permanent `~/.global-ai-hub/llms-concepts/<slug>.llms/` paths through `keyword_index.py query`. New semantic indexes are deferred under the existing embeddings pause; filesystem skill installation does not establish global semantic-router registration.
 
+<!-- llms-routing:game-manufacturing:start -->
+### Game manufacturing concept suite (2026-11-06)
+
+> Cached lookup data and references from the manufacturing family; the linked files remain the source of truth.
+
+| File | Path | Holds | Ask it for |
+|---|---|---|---|
+| llms.txt | outputs/llms-families/game-manufacturing/llms.txt | Source-linked leaf packs for manufacturing identical paper game decks. | Concepts, Facts |
+| llms-public.txt | outputs/llms-families/game-manufacturing/llms-public.txt | Twenty-six source-qualified concepts for identical paper-game manufacturing and printer ownership. Counts are retained factual rows and source hosts, not unique discoveries or independent organizations. No firsthand hardware test or configured game quote. | Concepts |
+| Run report | docs/research/card-manufacturing-full-suite-2026-11-06/README.md | Qualified scope, evidence, indexing and delivery receipts | Coverage and empirical limits |
+| Purchasing decision | docs/research/card-manufacturing-full-suite-2026-11-06/purchasing-decision.md | Identical-deck make-versus-buy comparison | Equipment quality, operator tasks, price boundaries and cost assumptions |
+| Quote and demonstration brief | docs/research/card-manufacturing-full-suite-2026-11-06/quote-and-demo-brief.md | Prepared application brief; not sent | Matched physical specifications, samples and complete-workflow measurements |
+
+Recorded query keys are `concept__<leaf-slug>` with `--layer facts`, resolving to `concept__<leaf-slug>__facts`. The 26 leaf collections contain 605 factual rows in SQLite vector storage and 26 FTS5 layers; their recorded embedding model is `mxbai-embed-large`. Counts and scope are recorded in `outputs/llms-families/game-manufacturing/manifest.json` and the run report.
+
+The keyword lookup form, from the repository root with hub dependencies available, is:
+
+```sh
+HUB_DOCSET_BACKEND=sqlite python3 hub/scripts/docset_indexer.py keyword concept__duplex-card-printing-registration-and-stock-feeding "duplex" --layer facts
+```
+
+The `keyword` subcommand reads the existing FTS5 layer without inference. The corresponding semantic `query` subcommand requires an available runtime for the recorded embedding model. The scoped indexing server is stopped and default/LAN services remain paused; these cached lookup notes convey no authorization to resume them.
+<!-- llms-routing:game-manufacturing:end -->
+
 <!-- llms-routing:end -->
