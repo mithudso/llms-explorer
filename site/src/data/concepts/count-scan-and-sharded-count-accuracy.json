@@ -38,7 +38,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "MongoDB documents that a count can be returned using only the index if the query can use an index, only contains conditions on the keys of the index, and the query predicates access a single contiguous range of index keys. This describes query-shape eligibility; it is not a guarantee that sharding ownership (orphan) filtering can be omitted, since on sharded clusters mongos-routed counts use an IXSCAN that examines documents to filter orphans. Sources: https://www.mongodb.com/docs/manual/reference/method/db.collection.count.md ; https://jira.mongodb.org/browse/SERVER-39191",
+          "text": "MongoDB documents index-only count eligibility when predicates use indexed fields and a single contiguous index-key range. A first-hand Stack Overflow question reports COUNT_SCAN for equality and IXSCAN for an $in predicate. This is evidence about query shape, not a guarantee that sharding ownership filtering can be omitted. (medium confidence)",
           "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.count.md",
           "note": null,
           "claimId": "clm:d45771d0fae76551a4fc256042a1fa2763971a3ea111d7e94c77d917bd6e6716",
@@ -48,14 +48,8 @@
             "ev:df53aeb8a300e01a012dfe2f5e3f78a38bf019bf7b876a42c3b925b6d6002404"
           ],
           "also": [
-            "https://stackoverflow.com/questions/49554932/what-is-the-difference-between-count-scan-and-ixscan",
-            "https://jira.mongodb.org/browse/SERVER-39191"
-          ],
-          "remediation": {
-            "claim_id": "clm:c79af734f2165276c137a8d164b63bb09c8e00531787c65f711ba7737c25f67a",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T09:08:33Z"
-          }
+            "https://stackoverflow.com/questions/49554932/what-is-the-difference-between-count-scan-and-ixscan"
+          ]
         }
       ]
     },
@@ -63,7 +57,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "A faster direct-shard COUNT_SCAN plan does not by itself give a correct cluster-wide count: through mongos, sharded clusters avoid COUNT_SCAN in favor of an IXSCAN that examines documents in order to filter orphans, and the count command on a sharded cluster can be inaccurate when orphaned documents exist or a chunk migration is in progress. MongoDB recommends db.collection.aggregate() with $count on sharded clusters to avoid this. Sources: https://jira.mongodb.org/browse/SERVER-39191 ; https://www.mongodb.com/docs/manual/reference/command/count.md",
+          "text": "Inference from the documented planner history and the separate metadata-count defect: a faster direct-shard plan or the presence of an index does not by itself establish a correct cluster-wide count. Validate the operation routed through mongos and its shard ownership handling rather than summing physical shard counts as an accuracy workaround. (medium confidence)",
           "source": "https://jira.mongodb.org/browse/SERVER-39191",
           "note": null,
           "claimId": "clm:dcda4af1f7ce98ba26fa377c9d5c00d18edf6875d42561f85a982e18baf74af9",
@@ -73,14 +67,8 @@
             "ev:a42bbc9e32972b78ecb9210e57ca3e48093e6e234fbe57b1e1937bfd3cebc63c"
           ],
           "also": [
-            "https://jira.mongodb.org/browse/SERVER-33753",
-            "https://www.mongodb.com/docs/manual/reference/command/count.md"
-          ],
-          "remediation": {
-            "claim_id": "clm:c37c412c92323f1315aefd12d28baca1b3c9aea3e232341dce2f6433bcf82a06",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T09:08:33Z"
-          }
+            "https://jira.mongodb.org/browse/SERVER-33753"
+          ]
         }
       ]
     },
@@ -102,8 +90,8 @@
           ]
         },
         {
-          "text": "MongoDB documents countDocuments() as not using collection metadata: it performs an aggregation and returns an accurate count even in the presence of orphaned documents in a sharded cluster. For sharded clusters, the count docs recommend db.collection.aggregate() with the $count stage instead of count without a predicate, which can be inaccurate with orphaned documents or in-progress chunk migrations. Sources: https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments.md ; https://www.mongodb.com/docs/manual/reference/command/count.md",
-          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments.md",
+          "text": "For counts that must exclude orphaned documents, MongoDB documents countDocuments() as an aggregation-based alternative to metadata counts and recommends aggregation with $count for sharded collections. These recommendations address orphan and metadata errors; they do not promise that separately issued reads observe an identical moment during concurrent writes. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/count.md",
           "note": null,
           "claimId": "clm:1eabbc1b0ff81affd4d165f1345136f1db4731862c6730b9656a8f2b7089dc79",
           "validationStatus": "SUPPORTED",
@@ -113,14 +101,8 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments.md",
-            "https://jira.mongodb.org/browse/SERVER-3645",
-            "https://www.mongodb.com/docs/manual/reference/command/count.md"
-          ],
-          "remediation": {
-            "claim_id": "clm:f64d41c90b96813d29f95e41b15485eafe264954992668c007935eccbb0cc598",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T09:08:33Z"
-          }
+            "https://jira.mongodb.org/browse/SERVER-3645"
+          ]
         },
         {
           "text": "SERVER-39191 records a MongoDB 4.0.5 workload where a direct-shard count used COUNT_SCAN with zero documents examined, while the mongos-routed count used IXSCAN and examined documents to filter orphans. The issue lists fix version 4.9.0; its old description must not be generalized into a permanent ban on COUNT_SCAN for sharded counts. (medium confidence) (verified as of 2026-10-31)",

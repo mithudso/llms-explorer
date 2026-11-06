@@ -8,7 +8,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Logical initial sync buffers newly added source oplog records in a temporary collection in the destination's local database during the data copy, then applies them. Buffering does not remove source retention requirements: the source oplog window must be long enough for the destination to fetch new entries between the start and end of the logical initial sync, and a continuity gap restarts the initial sync. Sources: https://www.mongodb.com/docs/manual/core/replica-set-sync.md",
+          "text": "Do not assume every initial-sync mechanism requires the entire clone interval to remain in the source oplog: logical initial sync buffers during cloning. The fetcher must still avoid losing required history, and the sync must preserve operation continuity through catch-up; buffering does not remove source retention requirements. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/replica-set-sync.md",
           "note": null,
           "claimId": "clm:dbfe4706b356f772d3aab90ed9678f53beabf43a3461ad2de827b8057b2362b0",
@@ -17,15 +17,10 @@
           "also": [
             "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
             "https://www.percona.com/blog/mongodb-4-4-coming-out-soon-what-does-the-code-tell-us/"
-          ],
-          "remediation": {
-            "claim_id": "clm:40532600fca778fcede25ac49ae340f32ab721366ecbcc2214c4bbc2d5463c25",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:08:50Z"
-          }
+          ]
         },
         {
-          "text": "Monitor the oplog time window alongside migration lag throughout the migration. MongoDB mongosync and Percona ClusterSync both document comparing db.getReplicationInfo().timeDiff with their respective lag metrics and increasing retention when lag approaches the window. (medium confidence) Sources: https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md ; https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html",
+          "text": "Monitor the oplog time window alongside migration lag throughout the migration. MongoDB mongosync and Percona ClusterSync both document comparing db.getReplicationInfo().timeDiff with their respective lag metrics and increasing retention when lag approaches the window. (medium confidence)",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md",
           "note": null,
           "claimId": "clm:596faf933730831bfa4dd47dc735b455b975167e1bf6e3c0a982dc6bdca2c6a6",
@@ -36,15 +31,10 @@
           ],
           "also": [
             "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html"
-          ],
-          "remediation": {
-            "claim_id": "clm:9a06321f8993b1f7a6b27a4965065c55629cbb0fa8a03368b63d155189b227c4",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T11:08:50Z"
-          }
+          ]
         },
         {
-          "text": "Increasing retained history gives more catch-up time but is a separate lever from sync speed. When lag remains high, mongosync docs recommend scaling up the mongosync node (CPU or memory) for a higher copy rate. Percona ClusterSync docs recommend running PCSM closer to the destination, adding CPU and memory on the PCSM host, and using faster destination hardware for write performance. Sources: https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md ; https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html",
+          "text": "Increasing retained history buys catch-up time but does not itself improve migration throughput. When lag remains high, mongosync and Percona ClusterSync documentation also recommend improving synchronization resources or destination performance. (medium confidence)",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md",
           "note": null,
           "claimId": "clm:e9849d72018ccbed47486c57b8b83790fc3b764fd363bb16e80908187b28f7b3",
@@ -52,12 +42,7 @@
           "evidenceIds": [],
           "also": [
             "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html"
-          ],
-          "remediation": {
-            "claim_id": "clm:23e10f5c7a8d75bf5e609127854dd137b364146e6b280b3fa3945d782090bdda",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:08:50Z"
-          }
+          ]
         }
       ]
     },
@@ -85,7 +70,7 @@
           ]
         },
         {
-          "text": "For change-stream-based mongosync and Percona ClusterSync migrations, required changes must remain available in source oplog history. If required operations expire before the migration processes them, synchronization fails; large clones and pauses increase the retention risk. (medium confidence) Sources: https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md ; https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html",
+          "text": "For change-stream-based mongosync and Percona ClusterSync migrations, required changes must remain available in source oplog history. If required operations expire before the migration processes them, synchronization fails; large clones and pauses increase the retention risk. (medium confidence)",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md",
           "note": null,
           "claimId": "clm:44acd2cf37e37f0b4e5470e3e47b8404fbdd2143a06d9ea39da50abba895fd21",
@@ -93,12 +78,7 @@
           "evidenceIds": [],
           "also": [
             "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html"
-          ],
-          "remediation": {
-            "claim_id": "clm:0ba9db03db84c06458ea5801ee8c01b570846908ed43edc62f46e3d9abe8a797",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T11:08:50Z"
-          }
+          ]
         }
       ]
     },
@@ -106,7 +86,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "The oplog window is the time between the newest and oldest oplog entries, so it depends on workload rather than being fixed by the oplog's configured size. The oplog window and replication lag may vary during a migration, so monitor them repeatedly during the migration. Sources: https://www.mongodb.com/docs/manual/core/replica-set-oplog.md ; https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md",
+          "text": "A fixed oplog byte allocation does not imply a fixed retention duration. Higher write volume can shorten the window; evaluate the actual window and lag under the expected migration or bulk-write load instead of relying on a quiet-period measurement. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/replica-set-oplog.md",
           "note": null,
           "claimId": "clm:a2c7f4a8c36b28c25dd040f877d3472f3c9799e5678ca8735ddab902aa421257",
@@ -115,12 +95,7 @@
           "also": [
             "https://www.percona.com/blog/mongodb-4-4-coming-out-soon-what-does-the-code-tell-us/",
             "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md"
-          ],
-          "remediation": {
-            "claim_id": "clm:57b8560b0e799006b19b8a5945a65034206568fb981883519e878040cb895861",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:08:50Z"
-          }
+          ]
         },
         {
           "text": "mongosync consumes change streams rather than reading the source oplog directly, but its historical events must remain inside the source oplog time range. Its sizing guide says synchronization fails if required unapplied operations roll off the source oplog. (low confidence)",
@@ -188,7 +163,7 @@
           ]
         },
         {
-          "text": "Plan destination oplog storage separately from source retention. mongosync initial copying generates destination insert oplog entries, and logical initial sync also needs local storage for buffered history; data size alone is therefore insufficient for disk planning. (high confidence) Sources: https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md ; https://www.mongodb.com/docs/manual/core/replica-set-sync.md",
+          "text": "Plan destination oplog storage separately from source retention. mongosync initial copying generates destination insert oplog entries, and logical initial sync also needs local storage for buffered history; data size alone is therefore insufficient for disk planning. (high confidence)",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing.md",
           "note": null,
           "claimId": "clm:15115477031f43140ee266fcd0ad290bff39bc614eba95eb3ac22c7b50189f07",
@@ -196,12 +171,7 @@
           "evidenceIds": [],
           "also": [
             "https://www.mongodb.com/docs/manual/core/replica-set-sync.md"
-          ],
-          "remediation": {
-            "claim_id": "clm:e0891cd61a4a5ac971f24585c7452cb993312c85b987e13c9f2918635348345c",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T11:06:59Z"
-          }
+          ]
         },
         {
           "text": "Cloud Manager Agent push live migration can buffer the initial-sync oplog window to a configured disk directory. The migration host must have enough storage in that directory for the buffered oplog. This is an agent migration behavior, not a universal mongosync setting. (low confidence)",

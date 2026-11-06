@@ -8,21 +8,15 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Invalid indexes are ignored for querying purposes but still consume update overhead. An index with indisvalid false must still be modified by INSERT/UPDATE operations, unless indisready is false, in which case INSERT/UPDATE operations ignore it; so the write cost depends on the readiness state. Sources: https://www.postgresql.org/docs/current/sql-createindex.html ; https://www.postgresql.org/docs/current/catalog-pg-index.html",
+          "text": "Invalid indexes are excluded from query plans. When indisready remains true, they can still receive writes and generate WAL despite providing no query benefit; the cost depends on their readiness state. (high confidence)",
           "source": "https://www.postgresql.org/docs/current/sql-createindex.html",
           "note": null,
           "claimId": "clm:a09a821ff3c8381e630773a19a6e3ca6343fa932d1382441716c4f0b18ee154c",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://postgres.ai/blog/20260106-invalid-index-overhead",
-            "https://www.postgresql.org/docs/current/catalog-pg-index.html"
-          ],
-          "remediation": {
-            "claim_id": "clm:085762647fba92fc5055f10af87a50c6ada05c045d5b2a212049fc6cd9a715de",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:26:20Z"
-          }
+            "https://postgres.ai/blog/20260106-invalid-index-overhead"
+          ]
         }
       ]
     },
@@ -30,7 +24,7 @@
       "title": "How-to and procedures",
       "facts": [
         {
-          "text": "CREATE INDEX CONCURRENTLY IF NOT EXISTS is not an invalid-index repair strategy: an existing invalid name causes the retry to skip construction. Rails issue #52583 supplies a reproducer with a lock timeout followed by such a retry. (high confidence) Sources: https://www.postgresql.org/docs/current/sql-createindex.html ; https://github.com/rails/rails/issues/52583",
+          "text": "CREATE INDEX CONCURRENTLY IF NOT EXISTS is not an invalid-index repair strategy: an existing invalid name causes the retry to skip construction. Rails issue #52583 supplies a reproducer with a lock timeout followed by such a retry. (high confidence)",
           "source": "https://www.postgresql.org/docs/current/sql-createindex.html",
           "note": null,
           "claimId": "clm:9a32bacdd3c6560756c5cb0a35c1fa99f559fdc14a043188919b9df9dfe3d720",
@@ -41,12 +35,7 @@
           ],
           "also": [
             "https://github.com/rails/rails/issues/52583"
-          ],
-          "remediation": {
-            "claim_id": "clm:39317d31f0779462aa294f466b509b91615feac91c044fd3d21dac2056a2b0f7",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T11:26:20Z"
-          }
+          ]
         }
       ]
     },
@@ -54,8 +43,8 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "Do not infer write maintenance solely from indisvalid=false: an index with indisvalid false must still be modified by INSERT/UPDATE unless indisready is false. PostgreSQL's concurrent reindex phases set indisready and indisvalid separately. Sources: https://www.postgresql.org/docs/current/catalog-pg-index.html ; https://www.postgresql.org/docs/current/sql-reindex.html",
-          "source": "https://www.postgresql.org/docs/current/catalog-pg-index.html",
+          "text": "Do not infer write maintenance solely from indisvalid=false. PostgreSQL's concurrent-reindex phases separately change indisready and indisvalid; failure before readiness can leave a different state from failure after readiness. (high confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-reindex.html",
           "note": null,
           "claimId": "clm:fc1572343c63154c3c140672b3e927c8dc608e716051de022f6a3bedca1cf952",
           "validationStatus": "SUPPORTED",
@@ -63,14 +52,8 @@
             "ev:23dad3894f6820fb9d317cf77edcc8f6fe9de7047a67f09b789fb6e6f84e6ed5"
           ],
           "also": [
-            "https://postgres.ai/blog/20260106-invalid-index-overhead",
-            "https://www.postgresql.org/docs/current/sql-reindex.html"
-          ],
-          "remediation": {
-            "claim_id": "clm:0cecfdd7f10f816dd86a187135f2b2f6842483a977ba8462679dd9e11a672451",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:26:20Z"
-          }
+            "https://postgres.ai/blog/20260106-invalid-index-overhead"
+          ]
         },
         {
           "text": "REINDEX CONCURRENTLY must run outside a transaction block, and only one concurrent index build can run per table. System catalogs and exclusion-constraint indexes cannot be rebuilt concurrently. (high confidence)",
@@ -138,8 +121,8 @@
           ]
         },
         {
-          "text": "After a failed CREATE INDEX CONCURRENTLY, drop the invalid index and retry, or rebuild it with REINDEX INDEX CONCURRENTLY. The REINDEX documentation specifically limits concurrent rebuilding of an invalid index to REINDEX INDEX. (high confidence) Sources: https://www.postgresql.org/docs/current/sql-createindex.html ; https://www.postgresql.org/docs/current/sql-reindex.html",
-          "source": "https://www.postgresql.org/docs/current/sql-createindex.html",
+          "text": "After a failed CREATE INDEX CONCURRENTLY, drop the invalid index and retry, or rebuild it with REINDEX INDEX CONCURRENTLY. The REINDEX documentation specifically limits concurrent rebuilding of an invalid index to REINDEX INDEX. (high confidence)",
+          "source": "https://www.postgresql.org/docs/current/sql-reindex.html",
           "note": null,
           "claimId": "clm:287da518a685d20f4d3cf759136ef5a6e50a7b9f28fa44b53dc8a02572b47b4d",
           "validationStatus": "SUPPORTED",
@@ -148,14 +131,8 @@
             "ev:b8d017e69b90b457b6737322ae177c47faac639e2a75ef971d45d7ecf4f8a97f"
           ],
           "also": [
-            "https://www.postgresql.org/docs/current/sql-createindex.html",
-            "https://www.postgresql.org/docs/current/sql-reindex.html"
-          ],
-          "remediation": {
-            "claim_id": "clm:c899503dc825ea6f086fefd50d5e9af832f90e69c7ffdc28ed9970c6d5985a2c",
-            "outcome": "VERIFIED",
-            "at": "2026-11-02T11:26:20Z"
-          }
+            "https://www.postgresql.org/docs/current/sql-createindex.html"
+          ]
         },
         {
           "text": "A unique concurrent index begins enforcing uniqueness before it becomes valid. If the build fails during its second scan, the invalid index continues to enforce uniqueness afterwards. (low confidence)",

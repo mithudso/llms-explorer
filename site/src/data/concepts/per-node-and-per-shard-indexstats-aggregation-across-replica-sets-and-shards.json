@@ -8,21 +8,15 @@
       "title": "Definitions",
       "facts": [
         {
-          "text": "A zero ops count means the index was not used since the counter started (index creation or server restart), with exceptions. Before dropping an index, analyze every replica set member and make sure the counter has collected for a considerable amount of time, because an index used only once a month for heavy reporting can be wrongly dropped. Sources: https://docs.percona.com/percona-monitoring-and-management/3/advisors/checks/mongodb-unused-indexes.html ; https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
+          "text": "A zero count is a candidate-review signal, not sufficient grounds for dropping an index. Review all members and workloads that run infrequently; a short observation window can miss necessary usage. (high confidence)",
           "source": "https://docs.percona.com/percona-monitoring-and-management/3/advisors/checks/mongodb-unused-indexes.html",
           "note": null,
           "claimId": "clm:69909b471082b910f6a1688775785fcea47492353a3474722e2a7a08ee2b42b6",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://studio3t.com/whats-new/are-my-mongodb-indexes-being-used-studio3t_ama/",
-            "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/"
-          ],
-          "remediation": {
-            "claim_id": "clm:7841e7051fd84914f7dfd4a844e93ac50e289adde547c4edc4ca23fa5a13d248",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:17:41Z"
-          }
+            "https://studio3t.com/whats-new/are-my-mongodb-indexes-being-used-studio3t_ama/"
+          ]
         }
       ]
     },
@@ -55,7 +49,7 @@
           ]
         },
         {
-          "text": "Methodological inference: $indexStats accesses counters apply only to the node where the query runs, and each carries its own since timestamp (counters reset on mongod restart, index drop/recreation, or collMod on the index). Collect per-host samples before grouping by shard and index, and compare intervals only when the since values match; a shard rollup otherwise can hide unsampled members. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
+          "text": "Methodological inference: collect per-host samples before grouping by shard and index; compare intervals only when counter epochs match. A shard rollup otherwise hides unsampled members or differing observation windows. (medium confidence)",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
           "note": null,
           "claimId": "clm:1af5bafeea1e78dab838119d0ed96e370d621c9f051f7c60e8961b926d195be2",
@@ -64,12 +58,7 @@
           "also": [
             "https://docs.percona.com/percona-monitoring-and-management/3/advisors/checks/mongodb-unused-indexes.html",
             "https://studio3t.com/whats-new/are-my-mongodb-indexes-being-used-studio3t_ama/"
-          ],
-          "remediation": {
-            "claim_id": "clm:575153558dfc4b934b01f34b83f01e05e207eab790a9f61e36f7127fbcb748ed",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:17:41Z"
-          }
+          ]
         }
       ]
     },
@@ -93,17 +82,12 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "Studio 3T's article distinguishes the two tools: Visual Explain (built on explain output) shows whether an index is in use for a particular query, whereas $indexStats shows how often an index comes into play. Sources: https://studio3t.com/whats-new/are-my-mongodb-indexes-being-used-studio3t_ama/",
+          "text": "Studio 3T demonstrates separate purposes: explain displays a particular query’s index use and document retrieval, whereas $indexStats reports usage frequency. Usage counts alone cannot establish query coverage. (low confidence)",
           "source": "https://studio3t.com/whats-new/are-my-mongodb-indexes-being-used-studio3t_ama/",
           "note": null,
           "claimId": "clm:5af9966abb4d9c4eaa8a15c1d26881eeacb74e09c99580a523af7deb71db9157",
           "validationStatus": "NOT-SAMPLED",
-          "evidenceIds": [],
-          "remediation": {
-            "claim_id": "clm:a76d76f0b80406f7d59f5879823ba6aa12c757136ef9ea510c2cfc9bb7016835",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:17:41Z"
-          }
+          "evidenceIds": []
         },
         {
           "text": "An OpenTelemetry receiver issue reported direct shard-member monitoring still issuing IndexStats despite disabled database metrics, using Splunk Collector 0.127.0. This is a version-specific monitoring caveat, not proof of current behavior. (low confidence) (verified as of 2026-02-06)",
@@ -163,7 +147,7 @@
           "evidenceIds": []
         },
         {
-          "text": "Methodological inference: $indexStats output includes name, key, host, shard and spec, and the accesses counters apply only to the node that ran the query. Running it through mongos returns results only from the primaries, leaving out secondaries (per an open MongoDB Jira improvement request), so summing mongos-returned rows alone should not be presented as all-member coverage; run $indexStats on each node and retain collection namespace, index spec, shard and host before rolling up. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md ; https://jira.mongodb.org/browse/SERVER-96438",
+          "text": "Methodological inference: retain collection namespace, index specification, shard and host before rolling up counters. Collect nodes explicitly; summing mongos-returned rows alone must not be presented as all-member coverage. (medium confidence)",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md",
           "note": null,
           "claimId": "clm:8f08350bed4c7fd698f588a4e6d95a031aa315011b7ccc0a7d9fe4c2620f3650",
@@ -172,15 +156,10 @@
           "also": [
             "https://docs.percona.com/percona-monitoring-and-management/3/advisors/checks/mongodb-unused-indexes.html",
             "https://jira.mongodb.org/browse/SERVER-96438"
-          ],
-          "remediation": {
-            "claim_id": "clm:b947e03aa7629db1dc3fb1bac3358e10c5e8b933e5873f6e4be06a0d3492769a",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:17:41Z"
-          }
+          ]
         },
         {
-          "text": "Methodological inference: $indexStats reports only per-index usage counters, whereas explain(\"executionStats\") reports the index used and the number of documents scanned for a specific query. To assess whether a particular query is covered, use explain executionStats rather than the counters alone. Sources: https://www.mongodb.com/docs/manual/tutorial/measure-index-use.md",
+          "text": "Methodological inference for covered-query analysis: index-use counters alone do not establish query coverage. Pair them with explain executionStats to inspect the actual index and document-scanning behavior of the specific query. (medium confidence)",
           "source": "https://www.mongodb.com/docs/manual/tutorial/measure-index-use.md",
           "note": null,
           "claimId": "clm:e755f921844cb151b6e3227fbf32eaa2684b4be6fc3b4c19ec1d0d66e2c1961b",
@@ -188,12 +167,7 @@
           "evidenceIds": [],
           "also": [
             "https://studio3t.com/whats-new/are-my-mongodb-indexes-being-used-studio3t_ama/"
-          ],
-          "remediation": {
-            "claim_id": "clm:912de64b7e858057f8d8e84819e6cf6ebf2b5666573ae2daa5395ecf5a1d010c",
-            "outcome": "CORRECTED",
-            "at": "2026-11-02T11:17:41Z"
-          }
+          ]
         },
         {
           "text": "Historical counterexample: a MongoDB 3.2.11 incident report describes worse performance after dropping zero-counter indexes. The issue was closed as a duplicate of a checkpoint-related drop issue; it does not establish that current indexStats counters are defective. (low confidence)",
