@@ -701,6 +701,29 @@ def _apply_classified(pool: list[dict], path: Path | None) -> tuple[list[dict], 
     return kept, conflicts
 
 
+_CLIP_URL_RE = re.compile(r"https?://\S+")
+
+
+def clip_text(text: str, limit: int) -> str:
+    """Cut `text` to at most `limit` characters without splitting a URL.
+
+    A URL that straddles the cut is dropped whole: the text ends before it (and before a
+    dangling "Sources:" label or separator), so a cited URL is either complete or absent.
+    """
+    if len(text) <= limit:
+        return text
+    cut = limit
+    for m in _CLIP_URL_RE.finditer(text):
+        if m.start() >= limit:
+            break
+        if m.end() > limit:
+            cut = m.start()
+            break
+    head = text[:cut].rstrip()
+    head = re.sub(r"\s*(?:Sources?:|[;,:\-\u2014(\[])\s*$", "", head).rstrip()
+    return head
+
+
 def _src(r: dict) -> str:
     return r["source_url"] + (r["anchor"] if r["anchor"] and not r["source_url"].endswith(r["anchor"]) else "")
 
@@ -827,7 +850,7 @@ def compile_pack(args) -> None:
     if args.summary:
         summary = args.summary
     elif top_def:
-        summary = re.sub(r"\s+", " ", top_def["text"])[:400] + f" (from {_host(top_def['source_url'])})"
+        summary = clip_text(re.sub(r"\s+", " ", top_def["text"]), 400) + f" (from {_host(top_def['source_url'])})"
     else:
         summary = (f"Everything the scanned sources say about {concept}: {len(kept)} source-anchored "
                    f"units across {len(hosts)} sources, grouped by facet.")
@@ -872,7 +895,7 @@ def compile_pack(args) -> None:
             continue
         full += [f"## {title}", ""]
         if rights == "extractive":
-            rows = [dict(r, text=r["text"][:600]) for r in rows]
+            rows = [dict(r, text=clip_text(r["text"], 600)) for r in rows]
         full += [_line(r) for r in rows]
         full.append("")
     if conflicts:
@@ -985,7 +1008,7 @@ def compile_pack(args) -> None:
         line = f"- **{t['term']}** · {t['relation']}"
         aka = [s for s in t["surfaces"][1:]]
         if d:
-            line += " — " + re.sub(r"\s+", " ", d["text"])[:300]
+            line += " — " + clip_text(re.sub(r"\s+", " ", d["text"]), 300)
         if aka:
             line += " · aka: " + ", ".join(aka)
         if t.get("note"):
