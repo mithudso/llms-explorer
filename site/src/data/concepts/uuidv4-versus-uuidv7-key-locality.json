@@ -8,7 +8,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Separate key-generation cost from index-maintenance cost and control run order and cache state. CST Solution found inline SQL v7 generation erased its pre-generated insertion advantage; equenum reports v7 slower when tested second and faster when tested first. Neither finding disproves timestamp locality. (medium confidence)",
+          "text": "Separate key-generation cost from index-maintenance cost. CST Solution found that with keys generated inline in SQL, v7 and v4 inserts were a dead heat, erasing v7's pre-generated insertion advantage; it concluded the v7 advantage is entirely in the index. Sources: https://cstsolution.com/blog/uuid-vs-bigint-primary-key/",
           "source": "https://cstsolution.com/blog/uuid-vs-bigint-primary-key/",
           "note": null,
           "claimId": "clm:b77b4baddfe413b6493e6ea7c60990ecc63c41f5e3d1c8125e98b248dd3e4988",
@@ -19,7 +19,12 @@
           ],
           "also": [
             "https://github.com/equenum/postgre_uuid_performance"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:7416c3bddd493304acd0af378018d2b786682bb7f79394af8b99f868744ad8da",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T13:03:56Z"
+          }
         },
         {
           "text": "The pg_uuidv7 benchmark measures SELECT calls to UUID generators with pgbench, reporting near-equal native v4, extension v7, and native v7 generation throughput; because it does not insert indexed rows, those results do not measure the insertion-locality mechanism described by RFC 9562. (high confidence)",
@@ -146,7 +151,7 @@
           ]
         },
         {
-          "text": "The benefit is workload dependent rather than an across-the-board acceleration: the SQLite experiment finds little v4/v7 difference, and the geckonz MongoDB sample reports faster v7 inserts but slightly slower v7 primary-key selections and account/customer lookups. (medium confidence)",
+          "text": "The benefit is workload dependent rather than an across-the-board acceleration: the SQLite experiment finds very little difference between UUIDv4 and UUIDv7. Sources: https://lik.ai/blog/sqlite-primary-key-benchmarks/",
           "source": "https://lik.ai/blog/sqlite-primary-key-benchmarks/",
           "note": null,
           "claimId": "clm:11f38c034160f3f07af71f1d1d690b3889067d7922f93f84190b8e6419c7c553",
@@ -158,7 +163,12 @@
           ],
           "also": [
             "https://github.com/geckonz/uuid-perf-test"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:04901fe59198f68a842f1b2c2244de78ecc12bf641f0796e403d224fcca371f9",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T13:03:56Z"
+          }
         }
       ]
     },
@@ -166,7 +176,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "Random-key inserts can expand the active index working set beyond cache. MongoDB documents increased WiredTiger eviction and disk updates for large random indexed inserts; Schneider observed UUIDv4 primary-key pages consuming buffer cache needed by other data in a PostgreSQL workload. (high confidence)",
+          "text": "Random-key inserts can expand the active index working set beyond cache. MongoDB documents increased WiredTiger eviction and disk updates for large random indexed inserts; Schneider observed UUIDv4 primary-key pages consuming buffer cache needed by other data in a PostgreSQL workload. (high confidence) Sources: https://www.mongodb.com/docs/manual/reference/method/db.collection.insertMany.md ; https://ardentperf.com/2024/02/03/uuid-benchmark-war/",
           "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.insertMany.md",
           "note": null,
           "claimId": "clm:99c3a80757e1c8257810dbbc1777f0b3c2836cb3949e23207d2f42b02541ed47",
@@ -177,7 +187,12 @@
           ],
           "also": [
             "https://ardentperf.com/2024/02/03/uuid-benchmark-war/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:5aaba7a319aadb6d3daeeee5a50bc93368f3b5b5630bc9c1f113a85b28535982",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T13:03:56Z"
+          }
         },
         {
           "text": "UUIDv7 does not inherently guarantee strict order within one millisecond: RFC 9562 permits random trailing bits and makes additional monotonicity constructs optional; delayed arrivals or clock changes also require care before assuming every insertion reaches the rightmost leaf. (medium confidence)",
@@ -195,7 +210,7 @@
           ]
         },
         {
-          "text": "Inference: UUIDv7 locality applies to an index on the ordered UUID value; hashing that field removes timestamp ordering from that hashed index. MongoDB documents hashed distribution of monotonic inputs. An ordinary _id index and a separate hashed shard-key index therefore need separate analysis. (medium confidence)",
+          "text": "RFC 9562 says time-ordered monotonic UUIDs benefit from database-index locality because new values sit near each other in the index. MongoDB documents that a hashed index on a monotonically increasing field distributes inserts more evenly across a cluster than ranged sharding does. It follows (inference) that UUIDv7 insert locality applies to an index on the ordered UUID value, not to a hashed index on that field. An ordinary _id index and a separate hashed shard-key index are different indexes, so analyze them separately. Sources: https://www.rfc-editor.org/rfc/rfc9562.html ; https://www.mongodb.com/docs/manual/core/hashed-sharding.md ; https://www.mongodb.com/docs/manual/core/indexes/index-types/index-hashed.md",
           "source": "https://www.rfc-editor.org/rfc/rfc9562.html",
           "note": null,
           "claimId": "clm:360000a5c96909d8fca4e00b0976215793ea31c5a71441e262deb1793013982f",
@@ -207,8 +222,14 @@
             "ev:e7c50fd4294b3dd11c49adc8f033af9118cedcb778b4dd4efae23f0ee8d6f48a"
           ],
           "also": [
-            "https://www.mongodb.com/docs/manual/core/hashed-sharding.md"
-          ]
+            "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+            "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-hashed.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:e22e2acfcbce121c65d4ccbfe6303a8af80e519faad63694e8c95794f2e8995b",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T13:05:07Z"
+          }
         }
       ]
     }

@@ -8,7 +8,7 @@
       "title": "Structure and components",
       "facts": [
         {
-          "text": "Write blocking and commit are separate gates: the coordinator first blocks incoming writes and waits for recipients to contain all changes. A recipient in strict-consistency has those changes in its temporary collection; the coordinator commits after all required shards reach consistency. (medium confidence)",
+          "text": "Write blocking and commit are separate gates: the donor shard blocks writes on the source collection once the estimated time remaining is under 500 ms (MongoDB 8.2 docs); a recipient in strict-consistency has all data changes stored in its temporary collection; the resharding coordinator commits after all shards reach strict consistency. Sources: https://www.mongodb.com/docs/manual/reference/command/reshardCollection.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentOp.md",
           "source": "https://www.mongodb.com/docs/manual/reference/command/reshardCollection.md",
           "note": null,
           "claimId": "clm:0282116e53c351918a890140512c0b7e7804b4defbcbf33905c529d5725b6d8b",
@@ -18,8 +18,14 @@
             "ev:d4d9a48ae3df39ce4af7360cb1e144a80461c813eefdacab9fa51ec5b43ed728"
           ],
           "also": [
-            "https://www.mongodb.com/docs/manual/reference/command/currentOp.md"
-          ]
+            "https://www.mongodb.com/docs/manual/reference/command/currentOp.md",
+            "https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentOp.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:06c39e04a067ba071537a779d2a50b6e4884ef752fd8686f2bc96986711c4718",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:54:33Z"
+          }
         }
       ]
     },
@@ -41,7 +47,7 @@
           ]
         },
         {
-          "text": "Donor majority replication lag can consume the critical-section timeout during shard-version refresh and configTime persistence, leaving too little time for recipient oplog catch-up. SERVER-104303 documents this mechanism; commit-monitor source includes donor and recipient replication lag in its estimate when the corresponding controls are enabled. (medium confidence)",
+          "text": "Donor majority replication lag can consume the critical-section timeout during shard-version refresh and configTime persistence, leaving too little time for recipient oplog catch-up. SERVER-104303 documents this mechanism; commit-monitor source includes donor and recipient replication lag in its estimate when the corresponding controls are enabled. (medium confidence) Sources: https://jira.mongodb.org/browse/SERVER-104303 ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/resharding/resharding_coordinator_commit_monitor.cpp",
           "source": "https://jira.mongodb.org/browse/SERVER-104303",
           "note": null,
           "claimId": "clm:5e1ec78c835b398a075bddf6e7418b1b3c02565ff67779a2ba1d5d5baa1c827d",
@@ -51,8 +57,14 @@
             "ev:cf56eaabcbb070c7e77ffd107db115be9a1762dc37edb442c87c1cb6f70b5f33"
           ],
           "also": [
-            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/resharding/resharding_coordinator_commit_monitor.cpp"
-          ]
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/resharding/resharding_coordinator_commit_monitor.cpp",
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/resharding/resharding_coordinator_commit_monitor.cpp"
+          ],
+          "remediation": {
+            "claim_id": "clm:1aba1d7a8f391ffa067a0a8e750c1f5f421252d33b23babc417de46c0db265b9",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:54:33Z"
+          }
         },
         {
           "text": "The inspected commit-monitor source treats missing recipient remaining-time metrics as an unbounded estimate, because a recipient may have failed over before restoring its metrics; it does not infer that entering the critical section is safe. (low confidence) (verified as of 2026-10-27)",
@@ -70,7 +82,7 @@
       "title": "Measurements and reference values",
       "facts": [
         {
-          "text": "MongoDB documents a 500 ms remaining-work estimate threshold starting in 8.2, also available in 8.1.2 and 8.0.13. This is a trigger for entering the critical section, not a measured maximum write-block duration. (medium confidence) (verified as of 2026-10-14)",
+          "text": "MongoDB documents a 500 ms remaining-work estimate threshold: when the estimate for the time remaining is under 500 ms, the donor shard blocks writes on the source collection. The reshardCollection page marks this as changed in 8.2, and the SERVER-101124 ticket lists fix versions 8.2.0-rc0, 8.1.2 and 8.0.13. The commitReshardCollection page says the value is two seconds in 8.0.12 or earlier and 500 milliseconds in 8.0.13 or later. This is the trigger for entering the critical section, not a measured maximum write-block duration. Sources: https://www.mongodb.com/docs/manual/reference/command/reshardCollection.md ; https://jira.mongodb.com/browse/SERVER-101124 ; https://www.mongodb.com/docs/manual/reference/command/commitReshardCollection/",
           "source": "https://www.mongodb.com/docs/manual/reference/command/reshardCollection.md",
           "note": null,
           "claimId": "clm:a3712340e06e6aa5b19d0b774410979664643c4c40556fa08cb56dc5bdebebaf",
@@ -80,8 +92,15 @@
             "ev:754abde4bf5c1a92dfa58aaa49b987a461850e328084e0740e21cf0a43a17d61"
           ],
           "also": [
-            "https://www.mongodb.com/docs/manual/release-notes/8.2-compatibility.md"
-          ]
+            "https://www.mongodb.com/docs/manual/release-notes/8.2-compatibility.md",
+            "https://jira.mongodb.com/browse/SERVER-101124",
+            "https://www.mongodb.com/docs/manual/reference/command/commitReshardCollection/"
+          ],
+          "remediation": {
+            "claim_id": "clm:d4e25ba469725aa141b42ac1352952efdb10fea63888e9824409f017d9d123e6",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:55:42Z"
+          }
         }
       ]
     },
@@ -99,8 +118,8 @@
           ]
         },
         {
-          "text": "The documented operator cancellation boundary is the commit phase: abortReshardCollection returns an error after that phase has been reached. Do not assume that an abort remains available throughout cutover. (medium confidence)",
-          "source": "https://www.mongodb.com/docs/manual/reference/command/reshardCollection.md",
+          "text": "The documented operator cancellation boundary is the commit phase: abortReshardCollection returns an error after that phase has been reached. Do not assume that an abort remains available throughout cutover. (medium confidence) Sources: https://www.mongodb.com/docs/manual/reference/command/abortReshardCollection.md ; https://www.mongodb.com/docs/manual/reference/command/reshardCollection.md",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/abortReshardCollection.md",
           "note": null,
           "claimId": "clm:252fce5317bf780e4773853118b24745b594528e5d1e6e68016aa3dc0af4d7a0",
           "validationStatus": "SUPPORTED",
@@ -109,12 +128,18 @@
             "ev:abd1699c7a928c4a2814144aa90af17f48f7e059b8a80f458b9f54bfb8c8e661"
           ],
           "also": [
-            "https://www.mongodb.com/docs/manual/reference/command/abortReshardCollection.md"
-          ]
+            "https://www.mongodb.com/docs/manual/reference/command/abortReshardCollection.md",
+            "https://www.mongodb.com/docs/manual/reference/command/reshardCollection.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:b6d9e23f7972cab091e612e71eb6ac8a23e7e9f2927ccf41b31f4f7303c1c5fe",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:54:33Z"
+          }
         },
         {
-          "text": "SERVER-104303 documents why donor majority-replication lag can consume the critical-section timeout: shard-version refresh and configTime persistence involved majority waits before donors could enter blocking. The upstream commit monitor contains corresponding donor-lag accounting. This is a documented failure mechanism, not evidence that every modern release remains affected. (medium confidence) (verified as of 2026-10-27)",
-          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/resharding/resharding_coordinator_commit_monitor.cpp",
+          "text": "SERVER-104303 documents why donor majority-replication lag can consume the critical-section timeout: shard-version refresh and configTime persistence involved majority waits before donors could enter blocking. The upstream commit monitor contains corresponding donor-lag accounting. This is a documented failure mechanism, not evidence that every modern release remains affected. (medium confidence) (verified as of 2026-10-27) Sources: https://jira.mongodb.org/browse/SERVER-104303 ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/resharding/resharding_coordinator_commit_monitor.cpp",
+          "source": "https://jira.mongodb.org/browse/SERVER-104303",
           "note": null,
           "claimId": "clm:ddcf48e7e228432b0b0abee56fa05687e77f399bf2a4249cdb6b4c53ab4809c5",
           "validationStatus": "SUPPORTED",
@@ -123,8 +148,14 @@
             "ev:cf56eaabcbb070c7e77ffd107db115be9a1762dc37edb442c87c1cb6f70b5f33"
           ],
           "also": [
-            "https://jira.mongodb.org/browse/SERVER-104303"
-          ]
+            "https://jira.mongodb.org/browse/SERVER-104303",
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/resharding/resharding_coordinator_commit_monitor.cpp"
+          ],
+          "remediation": {
+            "claim_id": "clm:83f5b6bdcf1e3a8db826944e145282e802e522a27e93d301acdda4fb85cb15b7",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:54:33Z"
+          }
         }
       ]
     },
@@ -132,8 +163,8 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "Resharding metrics include totalCriticalSectionTimeElapsedSecs for elapsed critical-section time and donorState for the donor state. The currentOp command documentation recommends the $currentOp aggregation stage instead of the deprecated command. (low confidence) (verified as of 2026-10-14)",
-          "source": "https://www.mongodb.com/docs/manual/reference/command/currentOp.md",
+          "text": "Resharding metrics include totalCriticalSectionTimeElapsedSecs for elapsed critical-section time and donorState for the donor state. The currentOp command documentation recommends the $currentOp aggregation stage instead of the deprecated command. (low confidence) (verified as of 2026-10-14) Sources: https://raw.githubusercontent.com/mongodb/docs/master/source/reference/command/currentOp.txt ; https://www.mongodb.com/docs/manual/reference/command/currentOp.md",
+          "source": "https://raw.githubusercontent.com/mongodb/docs/master/source/reference/command/currentOp.txt",
           "note": null,
           "claimId": "clm:83ea9764fc70fd696607627f2f75b608b705f08a18b815d3e7987b8d2b20adee",
           "validationStatus": "SUPPORTED",
@@ -143,8 +174,14 @@
             "ev:deac5a13c89d12729f39152d3840b30aa2c9076b5f52f383b64167ce03a21cf0"
           ],
           "also": [
-            "https://www.percona.com/blog/resharding-in-mongodb-5-0/"
-          ]
+            "https://www.percona.com/blog/resharding-in-mongodb-5-0/",
+            "https://www.mongodb.com/docs/manual/reference/command/currentOp.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:e29e302c28d818392049bd870d8154be0249e4decc0357dab8148e16239fa9fa",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:55:42Z"
+          }
         },
         {
           "text": "GenexDBS recommends scheduling resharding during relatively low workload, monitoring replication lag and resource pressure, and checking application tolerance for the write-blocking period; this is operational advice rather than a measured cutover latency guarantee. (low confidence)",
@@ -176,7 +213,7 @@
           ]
         },
         {
-          "text": "Recipients apply donor oplog changes made after cloning; source writes can continue before cutover blocking. Percona's MongoDB 5.0 experiment independently demonstrated a successful insert while resharding was running. (medium confidence)",
+          "text": "Recipients apply donor oplog changes made after cloning; source writes can continue before cutover blocking. Percona's MongoDB 5.0 experiment independently demonstrated a successful insert while resharding was running. (medium confidence) Sources: https://www.mongodb.com/docs/manual/reference/command/reshardCollection.md ; https://www.percona.com/blog/resharding-in-mongodb-5-0/",
           "source": "https://www.mongodb.com/docs/manual/reference/command/reshardCollection.md",
           "note": null,
           "claimId": "clm:d00a610ea7e6d3f3899e200d98046b2b3ac04c10f24c8ab2767edf282754c7f8",
@@ -188,7 +225,12 @@
           ],
           "also": [
             "https://www.percona.com/blog/resharding-in-mongodb-5-0/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:7568da869829b75730040ba3e95dd37796400ff0e2a4a4514dc2536a27ccd269",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:54:33Z"
+          }
         },
         {
           "text": "In the inspected upstream master commit monitor, remaining-time estimation accounts for donor majority-replication lag before write blocking and recipient majority-replication lag before strict consistency, unless explicitly disabled. A missing recipient estimate prevents the monitor from concluding that critical-section entry is safe. (low confidence) (verified as of 2026-10-27)",
@@ -201,7 +243,7 @@
           ]
         },
         {
-          "text": "Monitor phase state and critical-section elapsed time alongside remaining-time estimates. MongoDB documents donor/coordinator blocking-writes states and recipient strict-consistency; Percona's historical test shows that elapsed and estimated remaining time are separate observations. (medium confidence)",
+          "text": "Monitor phase state and critical-section elapsed time alongside remaining-time estimates. MongoDB documents donor/coordinator blocking-writes states and a recipient strict-consistency state, plus separate totalCriticalSectionTimeElapsedSecs and remainingOperationTimeEstimatedSecs metrics, so elapsed critical-section time and estimated remaining time are separate observations. Sources: https://www.mongodb.com/docs/manual/reference/command/currentOp.md",
           "source": "https://www.mongodb.com/docs/manual/reference/command/currentOp.md",
           "note": null,
           "claimId": "clm:c300b9fa9d590ebb14d5f335a66c4c45abdb287e9e97de959bc8eedf4f17c449",
@@ -213,7 +255,12 @@
           ],
           "also": [
             "https://www.percona.com/blog/resharding-in-mongodb-5-0/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:cdd8d45684183753ad8ef61dd6b85bd7830b134d7acca81537e47513d9c9cf67",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:55:42Z"
+          }
         },
         {
           "text": "The inspected upstream master coordinator waits for strict consistency before its commit sequence. After calling _commit, its post-commit sequence waits for majority durability before telling participants to commit. This code ordering distinguishes the coordinator's durable decision from subsequent participant completion; it does not establish a bound on cutover latency. (low confidence) (verified as of 2026-10-27)",

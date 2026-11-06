@@ -21,7 +21,7 @@
           ]
         },
         {
-          "text": "The groupcache singleflight implementation stores in-flight calls in a Group-local map and deletes the entry after completion. It suppresses overlapping work within that Group; it neither retains a cached value nor coordinates separate processes. A shared lock service is a separate coordination mechanism. (medium confidence)",
+          "text": "The groupcache singleflight implementation stores in-flight calls in a Group-local map and deletes the entry after completion. It suppresses overlapping work within that Group; it neither retains a cached value nor coordinates separate processes. A shared lock service is a separate coordination mechanism. (medium confidence) Sources: https://github.com/golang/groupcache/blob/master/singleflight/singleflight.go ; https://blog.cloudflare.com/sometimes-i-cache/",
           "source": "https://github.com/golang/groupcache/blob/master/singleflight/singleflight.go",
           "note": null,
           "claimId": "clm:eb844e908360f042020c334c229b3533e4bc86f1f03650dbeb888f8360ff886f",
@@ -32,7 +32,12 @@
           ],
           "also": [
             "https://blog.cloudflare.com/sometimes-i-cache/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:68f6edbc269e51e3db19e8d9f5018bbed6e64f0c696d96dbc41e8b3eeca4cb82",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T08:44:30Z"
+          }
         },
         {
           "text": "A cache can add overhead when most reads miss. Assess hit rate and freshness requirements before assuming that caching an expensive query result or precomputed value will improve read offload. (medium confidence)",
@@ -66,8 +71,8 @@
           ]
         },
         {
-          "text": "Cache-aside alone does not detect every database update. Explicit invalidation and TTLs limit stale copies, but concurrent fills, reordered writes, and writers bypassing the cache can still create stale windows. (medium confidence)",
-          "source": "https://redis.io/blog/cache-layer-architecture-guide/",
+          "text": "Cache-aside alone does not detect every database update. Explicit invalidation and TTLs limit stale copies, but concurrent fills, reordered writes, and writers bypassing the cache can still create stale windows. (medium confidence) Sources: https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside ; https://redis.io/blog/cache-layer-architecture-guide/",
+          "source": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
           "note": null,
           "claimId": "clm:d09280af7a164d79287f2b0181ccaccdcca01fa220dfcf826fe8fc657ff6fb32",
           "validationStatus": "SUPPORTED",
@@ -77,8 +82,14 @@
             "ev:cfcca34f86a8be7177ac9526b92821defec92fd467aaedb41f61ea0c56787790"
           ],
           "also": [
-            "https://redis.io/blog/cache-consistency-strategies/"
-          ]
+            "https://redis.io/blog/cache-consistency-strategies/",
+            "https://redis.io/blog/cache-layer-architecture-guide/"
+          ],
+          "remediation": {
+            "claim_id": "clm:bcc4fa7a970f0f9557b9e33d227dc8d968a6b733940b0efd97f0e30a9fb1be13",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T08:45:06Z"
+          }
         },
         {
           "text": "A cache stampede occurs when concurrent requests miss the same popular key and independently regenerate it. More backend work can slow regeneration and widen the miss window, creating a feedback loop. (medium confidence)",
@@ -94,7 +105,7 @@
           ]
         },
         {
-          "text": "TTL jitter staggers expiration across different keys. It does not itself serialize concurrent misses for one expired hot key; combine it with per-key fill coordination when that workload is possible. This limit follows from the distinct mechanisms described by the sources. (medium confidence)",
+          "text": "TTL jitter staggers expirations so keys don't all die at once. Request coalescing is a separate mitigation: when a key expires, only the first request that misses fetches from the database and the other concurrent requests for that key wait for the result. Sources: https://redis.io/blog/cache-layer-architecture-guide/",
           "source": "https://redis.io/blog/cache-layer-architecture-guide/",
           "note": null,
           "claimId": "clm:bde55bcdc3cc8fcb57ab5546aac9e618467f6590562ac7d8a2efb955ea6dc807",
@@ -105,10 +116,15 @@
           ],
           "also": [
             "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:7b17be4dfa0829050c2869e8d03ba985393f6f418547f84c0026bb1e9b41164b",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T08:44:30Z"
+          }
         },
         {
-          "text": "Lock-based stampede protection needs failure handling: waiters can remain without a fresh value if the refresher fails, and lock expiry must allow recovery. A remote lock service also introduces latency and an availability dependency. (medium confidence)",
+          "text": "Lock-based stampede protection needs failure handling: waiters can remain without a fresh value if the refresher fails, and lock expiry must allow recovery. A remote lock service also introduces latency and an availability dependency. (medium confidence) Sources: https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf ; https://blog.cloudflare.com/sometimes-i-cache/",
           "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
           "note": null,
           "claimId": "clm:2e784c08d0da6813b4d8c8013a2d50ae41aef5d09d032de4ad1656e402d23d4c",
@@ -119,7 +135,12 @@
           ],
           "also": [
             "https://blog.cloudflare.com/sometimes-i-cache/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:3fc89a83fc1e51f3a11be48b72fc67bb295a2f406bbd651c6049d632fca593aa",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T08:44:30Z"
+          }
         },
         {
           "text": "Cache-aside and write-through are complementary: demand loading can refill entries missing after eviction or node failure even when writes proactively populate the cache. (medium confidence)",
@@ -163,7 +184,7 @@
           ]
         },
         {
-          "text": "Locks add coordination latency and failure modes. A failed refresh owner can leave callers waiting or serving stale data until lock expiry; lock lifetime must account for regeneration duration and recovery. (medium confidence)",
+          "text": "Locking adds overhead and failure modes: it needs an extra write for the lock, a tuned lock time-to-live, and a locking mechanism, and requests that do not acquire the lock must wait for regeneration, get no item, or get a stale item. If the lock owner fails while regenerating, no item or a stale item is served until the lock expires and a new lock is acquired; the lock TTL must be high enough to recompute the item. Sources: https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
           "source": "https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf",
           "note": null,
           "claimId": "clm:de344b24a90e22d8953b0531d86ff8aa000a5bfb82ca8ec58ba71564bcb385d8",
@@ -174,7 +195,12 @@
           ],
           "also": [
             "https://blog.cloudflare.com/sometimes-i-cache/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:cbd816d72c975e2ab9b46ac2f83751c11c67ca8f2fb8520ba087f8da25356f7e",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T08:43:51Z"
+          }
         }
       ]
     },
@@ -214,7 +240,7 @@
           ]
         },
         {
-          "text": "Write-through updates the cache and backing database on each write. Waiting for both increases write latency and can populate the cache with data that is never read. (medium confidence)",
+          "text": "Write-through updates the cache and backing database on each write. Waiting for both increases write latency and can populate the cache with data that is never read. (medium confidence) Sources: https://redis.io/blog/cache-layer-architecture-guide/ ; https://docs.aws.amazon.com/whitepapers/latest/database-caching-strategies-using-redis/caching-patterns.html",
           "source": "https://redis.io/blog/cache-layer-architecture-guide/",
           "note": null,
           "claimId": "clm:6cb01a248e96a31d92c8e7d10013a785ffd5ab03c30aac6812bc4f543a72c6e7",
@@ -223,11 +249,17 @@
             "ev:4297fc5c89fb3b74ace945f1e456229ea36a1b058d94abe9673c1d110bd9b6b2"
           ],
           "also": [
-            "https://redis.io/blog/cache-consistency-strategies/"
-          ]
+            "https://redis.io/blog/cache-consistency-strategies/",
+            "https://docs.aws.amazon.com/whitepapers/latest/database-caching-strategies-using-redis/caching-patterns.html"
+          ],
+          "remediation": {
+            "claim_id": "clm:4ba0386e60e0da96dd8731db5c66b2c90d4b12e8cd66817ab7f3bc6b2be2d3a9",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T08:44:30Z"
+          }
         },
         {
-          "text": "Per-key request coalescing lets one caller regenerate while duplicate callers share its result. Shared cache entries alone do not provide this coordination. (medium confidence)",
+          "text": "Per-key request coalescing lets one caller regenerate while duplicate callers share its result. Shared cache entries alone do not provide this coordination. (medium confidence) Sources: https://github.com/golang/groupcache/blob/master/singleflight/singleflight.go",
           "source": "https://github.com/golang/groupcache/blob/master/singleflight/singleflight.go",
           "note": null,
           "claimId": "clm:f3573f4585cde49f2da1f091004c871eda9e9b310cf6fd1ceeb312da4518aed2",
@@ -239,7 +271,12 @@
           "also": [
             "https://redis.io/blog/cache-layer-architecture-guide/",
             "https://blog.cloudflare.com/sometimes-i-cache/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:ecfcef87b49460d4dfb4a64c5cf104a42dcc49a24c654837f2a713fb491b4d01",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T08:43:51Z"
+          }
         },
         {
           "text": "The inspected groupcache singleflight implementation stores in-flight calls in a Group-local map guarded by a mutex. It suppresses duplicates within that Group; this primitive alone does not coordinate independent application processes or retain completed results. (low confidence)",

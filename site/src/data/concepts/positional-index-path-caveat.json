@@ -29,7 +29,7 @@
           ]
         },
         {
-          "text": "Wildcard indexes omit array positions, but this does not prohibit all positional predicates: MongoDB documents ship.captains.0.name as eligible, and its planner matches some paths with numeric components removed when the parent is multikey. (high confidence) (verified as of 2026-10-30)",
+          "text": "Wildcard indexes ignore array element positions when recording elements, but they can still support queries that include explicit array indices: MongoDB documents db.fleet.find( { \"ship.captains.0.name\": \"Francis Drake\" } ) as able to use the wildcard index. Sources: https://www.mongodb.com/docs/manual/core/indexes/index-types/index-wildcard/reference/embedded-object-behavior.md",
           "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-wildcard/reference/embedded-object-behavior.md",
           "note": null,
           "claimId": "clm:e71a9076bb48644c4791b79a275f0b028dabc962c428c46540c1358857030e95",
@@ -40,11 +40,16 @@
           ],
           "also": [
             "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/planner_wildcard_helpers.cpp"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:f7c85ea9377575310dff2cb9ad47def0de272cea7479b4fa1c28ceace6431ef9",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:24:59Z"
+          }
         },
         {
-          "text": "Numeric dotted components can mean field names as well as positions. SERVER-27442 demonstrates that {\"a.2\":99} matches both {\"a\":[1,32,99]} and {\"a\":[{\"2\":99},1,2]}; wildcard planner code explicitly enumerates field-name and array-index interpretations. Avoid assuming positional syntax alone disambiguates heterogeneous arrays. (high confidence)",
-          "source": "https://jira.mongodb.org/browse/SERVER-27442?attachmentOrder=desc",
+          "text": "Numeric dotted components can mean field names as well as positions. SERVER-27442 demonstrates that {\"a.2\":99} matches both {\"a\":[1,32,99]} and {\"a\":[{\"2\":99},1,2]}; wildcard planner code explicitly enumerates field-name and array-index interpretations. Avoid assuming positional syntax alone disambiguates heterogeneous arrays. (high confidence) Sources: https://jira.mongodb.org/browse/SERVER-27442 ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/planner_wildcard_helpers.cpp",
+          "source": "https://jira.mongodb.org/browse/SERVER-27442",
           "note": null,
           "claimId": "clm:b4f6f62d065069e02fb81ef7fb1e87929094e5aa9d48e97ae39b6a14722dc678",
           "validationStatus": "SUPPORTED",
@@ -53,8 +58,14 @@
             "ev:ed8008c08387ec081d53f92fea8a0079a416262c05001c95b3c687e22f617f5c"
           ],
           "also": [
-            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/planner_wildcard_helpers.cpp"
-          ]
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/planner_wildcard_helpers.cpp",
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/planner_wildcard_helpers.cpp"
+          ],
+          "remediation": {
+            "claim_id": "clm:12f0a75f29bd1c575877bb1545643ddd4786816cd1b7cb36e6756a476aecee19",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:26:13Z"
+          }
         }
       ]
     },
@@ -73,7 +84,7 @@
           ]
         },
         {
-          "text": "A wildcard index cannot support ship.coordinates.0.1 when coordinates contains arrays directly inside an array: it stores each inner array as a whole. The planner also rejects adjacent positional components following a multikey component because they may require matching inside a nested array. Another eligible index may still serve the query. (high confidence) (verified as of 2026-10-30)",
+          "text": "A wildcard index cannot support ship.coordinates.0.1 when coordinates contains arrays directly inside an array: it stores each inner array as a whole, and MongoDB fulfills such a query with a collection scan. The planner also declines to use a wildcard index when a positional path component that follows a multikey component is followed by another positional component, because the query might need to match by position inside a nested array. Sources: https://www.mongodb.com/docs/manual/core/indexes/index-types/index-wildcard/reference/embedded-object-behavior.md ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/planner_wildcard_helpers.cpp",
           "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-wildcard/reference/embedded-object-behavior.md",
           "note": null,
           "claimId": "clm:cfe6151bdcd9fda1fbc2a3af02534feaf751edc89ceeeb4675029c4715e533af",
@@ -83,8 +94,14 @@
             "ev:e058115f44be336df99ead23d2f336076f3e1228940a8ecc7950a899dad01203"
           ],
           "also": [
-            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/planner_wildcard_helpers.cpp"
-          ]
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/planner_wildcard_helpers.cpp",
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/planner_wildcard_helpers.cpp"
+          ],
+          "remediation": {
+            "claim_id": "clm:5e1619c57bb8f19713ccef8056e3f090d9fae34f7b9f1ea2cd030cb0ee25169a",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:26:13Z"
+          }
         },
         {
           "text": "The inspected wildcard planner rejects a query path included through an array-index wildcard projection: for multikey a, projection {\"a.0\":1} treats 0 as a field name and cannot safely supply {\"a.0.b\":...} under array-position query semantics. (low confidence) (verified as of 2026-10-30)",
@@ -103,7 +120,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "Wildcard query eligibility is limited to at most eight explicit array indices in a field path; this is not an eight-level document-indexing depth limit. Planner comments explain that numeric field-name versus array-index interpretations require exponential path enumeration. (medium confidence) (verified as of 2026-10-30)",
+          "text": "Wildcard query eligibility is limited to at most eight explicit array indices in a field path; this is not an eight-level document-indexing depth limit. Planner comments explain that numeric field-name versus array-index interpretations require exponential path enumeration. (medium confidence) (verified as of 2026-10-30) Sources: https://www.mongodb.com/docs/manual/core/indexes/index-types/index-wildcard/reference/embedded-object-behavior.md ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/planner_wildcard_helpers.cpp",
           "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-wildcard/reference/embedded-object-behavior.md",
           "note": null,
           "claimId": "clm:124b6491d45dba8995d1f98af2530f1f8f10e91059c7838e11eee84bd90fa41c",
@@ -113,11 +130,17 @@
             "ev:f90df83cdf58c46dceefb96237b3d2472ea49a65f9b1b9dce6b949e170c2a778"
           ],
           "also": [
-            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/planner_wildcard_helpers.cpp"
-          ]
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/planner_wildcard_helpers.cpp",
+            "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/query/planner_wildcard_helpers.cpp"
+          ],
+          "remediation": {
+            "claim_id": "clm:ea98759cd5ec8f249d5774f4764f4768e50e4079a623e65c970c395587273b0d",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:26:13Z"
+          }
         },
         {
-          "text": "For a fixed-position workload, validate the exact predicate with explain and inspect bounds and document examination, rather than accepting IXSCAN alone. This recommendation follows the targeted positional-index demonstration and the historical full-range hinted-index counterexample. (medium confidence)",
+          "text": "For a query that targets a specific known positional array element, an index on that positional path (for example parts.0.sku) can be used, as shown by explain; queries without the positional path (parts.sku) do not use it and fall back to a collection scan. Sources: https://www.plusnconsulting.com/post/Positional-Array-Indexing-in-MongoDB/index.html",
           "source": "https://www.plusnconsulting.com/post/Positional-Array-Indexing-in-MongoDB/index.html",
           "note": null,
           "claimId": "clm:a28434abfeab0c79af91f4a488495ee46bc70eb179c34ca1ae4a4273ada171e0",
@@ -128,7 +151,12 @@
           ],
           "also": [
             "https://stackoverflow.com/questions/30469564/mongodb-not-using-multikey-index"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:db580520625fdc0001c3b7174670ef8a07a108cad44b6b0e9800e07745a8c719",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:26:13Z"
+          }
         }
       ]
     },
@@ -136,7 +164,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "Do not assume an index on array supplies useful bounds for array.2. Independent user examples report that an ordinary multikey index loses position information; a MongoDB 3.0.3 reproduction shows an unhinted COLLSCAN and a hinted IXSCAN with full [MinKey, MaxKey] bounds. These are historical demonstrations, not benchmarks for current releases. (high confidence)",
+          "text": "Do not assume an index on array supplies useful bounds for array.2. A MongoDB multikey index only indexes the values of the array, not their positions, so an ordinary index on array does not support queries on a specific position such as array.2; a workaround is to store explicit position keys and query with $elemMatch. Sources: https://stackoverflow.com/questions/49134851/indexing-mongodb-array-position-queries",
           "source": "https://stackoverflow.com/questions/49134851/indexing-mongodb-array-position-queries",
           "note": null,
           "claimId": "clm:b193c679e312f01d610108587b5f2880e2a62c4ef493cea37bab37db9203d526",
@@ -149,7 +177,12 @@
           "also": [
             "https://stackoverflow.com/questions/30469564/mongodb-not-using-multikey-index",
             "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:d514286f4e21faca94177602147764aa9c66f2a2c3ab67ca4ce71c5eead3f3f5",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:26:13Z"
+          }
         },
         {
           "text": "SERVER-119604 reports different results for {\"A.0.B\":{$ne:null}} before and after index creation and after inserting an empty array on MongoDB 8.0.19. The ticket was resolved Works as Designed on March 19, 2026; this is a reported version-specific reproduction, not an independently reproduced universal index bug. (low confidence) (verified as of 2026-03-19)",

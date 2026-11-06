@@ -63,7 +63,7 @@
           "note": null
         },
         {
-          "text": "Atlas auto-scaling needs a large enough oplog window: the minimum oplog retention window must be up to 60 seconds times GB of disk configured, and Atlas delays a scaling event until the oplog covers the estimated scaling time. Heavy writes can outrun auto-scaling, so docs advise avoiding high-speed writes when planning to scale up. (medium confidence)",
+          "text": "For Atlas Core storage auto-scaling to complete successfully, Atlas requires the minimum oplog retention window to be up to (60 seconds) * (GB of disk space configured). On an Atlas Core cluster, Atlas delays an auto-scaling event until the oplog window covers the estimated scaling time. In some high-volume bulk write scenarios, such as migrations, the cluster might not maintain the configured minimum oplog retention window, so plan migrations and other write-intensive operations accordingly. Sources: https://www.mongodb.com/docs/atlas/customize-storage.md",
           "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
           "note": null
         },
@@ -83,7 +83,7 @@
           "note": null
         },
         {
-          "text": "Because Atlas keeps full vectors on disk plus a quantized copy in memory, enabling quantization raises total disk need while lowering RAM need. Disk and memory must be sized separately when choosing a tier or search node. (medium confidence)",
+          "text": "Atlas Vector Search keeps full-fidelity vectors on disk and the quantized vectors and HNSW graph in memory. Quantization reduces the RAM mongot needs (about 3.75x for scalar, 24x for binary), but the index Size metric in the Atlas UI can appear larger than for an unquantized index because it counts the total data stored, including the full-fidelity vectors on disk. Use the Required Memory metric to estimate query-time memory. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         }
@@ -98,7 +98,7 @@
           "note": null
         },
         {
-          "text": "Search Nodes run on compute-intensive instances with local SSDs that need about 20% storage overhead, so index size must fit the fixed per-tier disk. Index size depends on field mappings; estimate by indexing 1-2 GB of representative data (example ratio 0.25:1). (medium confidence)",
+          "text": "Search Nodes run on compute-intensive instances with local SSDs that need about 20% storage overhead, so index size must fit the fixed per-tier disk. Index size depends on field mappings; estimate by indexing 1-2 GB of representative data (example ratio 0.25:1). (medium confidence) Sources: https://www.mongodb.com/docs/atlas/atlas-search/about/deployment-options/ ; https://www.mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes",
           "source": "https://mongodb.com/docs/atlas/atlas-search/about/deployment-options",
           "note": null
         },
@@ -163,7 +163,7 @@
           "note": null
         },
         {
-          "text": "If an auto-scaled disk would exceed the current tier's maximum storage, Atlas raises the cluster tier even when tier scaling is disabled (docs example: M30 to M40 when 600 GB is needed). This also disables automatic tier scale-down, so storage growth can silently raise the compute line item. (high confidence) (verified as of 2026-10-18)",
+          "text": "If an auto-scaled disk would exceed the current tier's maximum storage, Atlas might increase the cluster tier even when Cluster Tier Scaling is disabled (docs example: an M30, with 480 GB maximum storage, is raised to M40 when 600 GB is required). Separately, if the new storage requirement exceeds the configured maximum cluster tier, Atlas raises that maximum, scales to it, and disables automatic scale-down. In that case storage growth can raise the compute line item and downward auto-scaling must be re-enabled manually. Sources: https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
           "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
           "note": null
         },
@@ -178,7 +178,7 @@
           "note": null
         },
         {
-          "text": "MongoDB's 96% figure for binary quantization with rescoring is processing-memory reduction in MongoDB's own tests, not total storage. The post names no dataset or model, gives no chart values and uses 50 queries. (low confidence) (verified as of 2025-04-29)",
+          "text": "MongoDB's 96% figure for binary quantization with rescoring is a processing-memory reduction in MongoDB's own tests, not a total storage reduction, because the full-fidelity vectors are still stored on disk for rescoring. Sources: https://www.mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
           "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
           "note": null
         }
@@ -208,7 +208,7 @@
           "note": null
         },
         {
-          "text": "Poor shard-key choice and queries lacking the shard key are the main hidden costs: scatter-gather queries are broadcast to all shards and run long, and resharding is slow and resource intensive. (medium confidence)",
+          "text": "Queries lacking the shard key are broadcast by mongos to all shards, and these scatter/gather queries can be long running. Shard key choice matters: the docs advise considering it carefully to avoid scalability and performance issues, even though a collection can be resharded later. Distributing a collection's data to other shards after shardCollection is slow and resource intensive. Sources: https://www.mongodb.com/docs/manual/sharding/",
           "source": "https://www.mongodb.com/docs/manual/sharding/",
           "note": null
         },
@@ -228,17 +228,17 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "Three node classes trade RAM:vCPU and storage: low-CPU 8:1 (vector search, low data volume), high-CPU 2:1 (lexical search, heavy indexing/query), storage-optimized 8:1 with 375-6000 GB (large indexes, moderate load). MongoDB claims storage-optimized nodes cut Search Node storage cost up to 50% and are about 40% cheaper than high-CPU when RAM-anchored. List prices agree in direction: AWS S40-S $0.25/hr vs high-CPU S40 $0.48/hr, both 16 GB RAM. Choose storage-optimized when storage is the constraint and CPU is moderate. (medium confidence) (verified as of 2026-09-29)",
+          "text": "Three Search Node classes trade RAM:vCPU and storage: low-CPU 8:1 (vector search, low data volume, 50-3200 GB), high-CPU 2:1 (lexical search, heavy indexing/query, 100-3200 GB), storage-optimized 8:1 with 375-6000 GB (large indexes, moderate load). MongoDB says storage-optimized nodes can save up to 50% on Search Node storage costs and are approximately 40% less expensive than existing high-CPU nodes when anchored on RAM. MongoDB's list prices (AWS, us-east-1) agree in direction: S40-S $0.25/hr vs high-CPU S40 $0.48/hr, both 16 GB RAM. Choose storage-optimized when storage is the constraint and CPU is moderate. Sources: https://mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes ; https://www.mongodb.com/pricing.md",
           "source": "https://mongodb.com/company/blog/technical/the-art-and-science-of-sizing-search-nodes",
           "note": null
         },
         {
-          "text": "Low-CPU tiers keep the same RAM and storage range as the General tier of the same size but halve vCPUs: on AWS Gen2 M40 has 4 vCPU and M40 Low-CPU (R40) has 2 vCPU, both 16 GiB RAM and 10 GB-1 TB storage; M50 has 8 vCPU vs R50 4 vCPU at 32 GiB. (high confidence) (verified as of 2026-10-18)",
+          "text": "Low-CPU tiers keep the same RAM and storage range as the General tier of the same size but halve vCPUs: on AWS Gen2 M40 has 4 vCPU and M40 Low-CPU (R40) has 2 vCPU, both 16 GiB RAM and 10 GB-1 TB storage; M50 has 8 vCPU vs R50 4 vCPU at 32 GiB. (high confidence) (verified as of 2026-10-18) Sources: https://www.mongodb.com/docs/atlas/customize-storage.md ; https://www.mongodb.com/docs/atlas/reference/amazon-aws.md",
           "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
           "note": null
         },
         {
-          "text": "NVMe storage and RAM are fixed per tier, not user-selectable: AWS M40_NVME 380 GB, M50_NVME 760 GB (vs General 80/160 GB defaults, scalable to 1/4 TB). NVMe M40 shows 15.25 GB RAM; the instance has 2 vCPU (i8g.large), same as Low-CPU. (high confidence) (verified as of 2026-10-18)",
+          "text": "NVMe storage and RAM are fixed per tier, not user-selectable: AWS M40_NVME 380 GB, M50_NVME 760 GB (vs General 80/160 GB defaults, scalable to 1/4 TB). NVMe M40 shows 15.25 GB RAM. The M40_NVMe instance is i8g.large with 2 vCPU, the same vCPU count as M40 Low-CPU. Sources: https://www.mongodb.com/docs/atlas/reference/amazon-aws.md",
           "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
           "note": null
         },
@@ -248,7 +248,7 @@
           "note": null
         },
         {
-          "text": "Independent vendors corroborate the shape of the trade-off. Azure AI Search says int8 gives a 4x and binary up to 28x vector index size reduction, and that binary works best above 1024 dimensions with zero-centred embeddings. Elastic calls naive binary quantization exceptionally lossy and needing 10x-100x reranking candidates. Elastic's improved BBQ reaches over 90% recall at 3x oversampling on 1024-dimension Cohere vectors. (high confidence) (verified as of 2026-07-02)",
+          "text": "Azure AI Search says int8 scalar quantization reduces vector index size fourfold and binary quantization gives up to 28 times reduction; binary is particularly effective above 1024 dimensions and performs very well when embeddings are centered around zero. Elastic says naive binary quantization is exceptionally lossy and needs 10x or 100x additional neighbors to rerank, and that on 1M 1024-dimension CohereV3 vectors its Better Binary Quantization (BBQ) with HNSW gets above 90% recall with only 3x oversampling. Sources: https://learn.microsoft.com/en-us/azure/search/vector-search-how-to-quantization ; https://www.elastic.co/search-labs/blog/better-binary-quantization-lucene-elasticsearch",
           "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
           "note": null
         }
@@ -268,12 +268,12 @@
           "note": null
         },
         {
-          "text": "MongoDB announced an S10 Dedicated Search Node tier on 2026-07-23 on AWS, GCP and Azure as a lower-cost entry below S20, aimed at M10/M20/M30 clusters. The announcement gives no price or spec, and the deployment-options page still states S20 as the production minimum. (medium confidence) (verified as of 2026-07-23)",
+          "text": "MongoDB announced an S10 Dedicated Search Node tier on 2026-07-23 on AWS, GCP and Azure as a lower-cost entry below S20, aimed at M10/M20/M30 clusters. The announcement gives no price or spec, and the deployment-options page still states S20 as the production minimum. (medium confidence) (verified as of 2026-07-23) Sources: https://www.mongodb.com/products/updates/introducing-the-s10-dedicated-search-node-tier/ ; https://www.mongodb.com/docs/search/deployment/deployment-options.md",
           "source": "https://www.mongodb.com/products/updates/introducing-the-s10-dedicated-search-node-tier/",
           "note": null
         },
         {
-          "text": "Search Node cost is additive to the base cluster: node count x tier rate, plus search-to-database transfer billed under cluster network charges. Pricing-page cluster rates do not include Search Nodes, so model them as a separate line (the sibling multi-region transfer concept covers network cost). (medium confidence)",
+          "text": "Search Node cost is calculated from the number of Search Nodes (billed hourly per node), the chosen search tier, and the data transferred between Search Nodes and database nodes. Network transfer is not shown separately for Search Nodes: it appears at the cluster level, and the cluster's network charges include the Search Nodes. Sources: https://www.mongodb.com/docs/atlas/billing/search-node.md",
           "source": "https://mongodb.com/docs/atlas/billing/search-node",
           "note": null
         },
@@ -283,7 +283,7 @@
           "note": null
         },
         {
-          "text": "Atlas docs say Low-CPU may also carry fewer max connections depending on tier; the AWS reference page does not list connection limits, so check the connection-limits page before downsizing. (low confidence)",
+          "text": "Atlas docs say Low-CPU may also carry fewer max connections depending on tier; the AWS reference page does not list connection limits, so check the connection-limits page before downsizing. (low confidence) Sources: https://www.mongodb.com/docs/atlas/customize-storage/ ; https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
           "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
           "note": null
         },
@@ -323,7 +323,7 @@
           "note": null
         },
         {
-          "text": "Log export to external services routes through the Atlas control plane in AWS us-east-1 regardless of cluster region or provider. A cluster outside us-east-1 pays cross-region or inter-cloud charges on top of internet egress. (low confidence)",
+          "text": "Log export to external services routes through the Atlas control plane in AWS us-east-1 regardless of cluster region or provider. A cluster outside us-east-1 pays cross-region or inter-cloud charges on top of internet egress. (low confidence) Sources: https://www.mongodb.com/docs/atlas/billing/data-transfer-costs.md",
           "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
           "note": null
         },
@@ -338,7 +338,7 @@
           "note": null
         },
         {
-          "text": "Atlas deploys all data-bearing servers in a cluster at the selected cluster tier, and the per-hour charge covers that tier's default RAM and storage. Each added data-bearing node is therefore a full node at the same hourly tier cost, except analytics nodes with a separate tier. (medium confidence) (verified as of 2026-10-18)",
+          "text": "Atlas deploys all data-bearing servers in a cluster at the selected cluster tier, and the per-hour charge covers that tier's default RAM and storage. Each added data-bearing node is therefore a full node at the same hourly tier cost, except analytics nodes with a separate tier. (medium confidence) (verified as of 2026-10-18) Sources: https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/ ; https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution.md",
           "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
           "note": null
         },
@@ -353,7 +353,7 @@
           "note": null
         },
         {
-          "text": "Multi-region clusters can incur higher data transfer costs depending on the number and location of added regions. Atlas compresses intra-cluster communication. The data transfer page does not say whether same-region or cross-AZ replication traffic is billed. (medium confidence) (verified as of 2026-10-18)",
+          "text": "Multi-region clusters might have higher data transfer costs depending on the number and location of additional regions, as well as the number of clusters deployed to each region. Atlas always compresses intra-cluster communication. The data transfer page does list prices for same-region transfer (AWS $0.00 to $0.01 per GB) and for transfer between zones in the same region (Google Cloud $0.01 to $0.15 per GB), but it does not discuss replication traffic specifically. Sources: https://www.mongodb.com/docs/atlas/billing/data-transfer-costs",
           "source": "https://www.mongodb.com/docs/atlas/billing/data-transfer-costs",
           "note": null
         },
@@ -368,7 +368,7 @@
           "note": null
         },
         {
-          "text": "The Atlas billing page does not mention a mongos router charge, tier minimums or per-tier hourly prices. Cost modelling must take the rates from the instance-size pricing section or the pricing calculator. (medium confidence) (verified as of 2026-10-18)",
+          "text": "The Atlas cluster configuration costs page does not mention a mongos router charge, tier minimums or per-tier hourly prices. It says only that sharded clusters add three config servers, which are charged at a separate rate. Per-tier prices are on the MongoDB pricing page, and the Pricing Calculator is available for estimating Atlas Core costs. Sources: https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs ; https://www.mongodb.com/pricing.md",
           "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
           "note": null
         },
@@ -383,7 +383,7 @@
           "note": null
         },
         {
-          "text": "MongoDB 8.0 config shards let a sharded cluster run without dedicated config servers. In Atlas, sharded clusters with up to 3 shards on 8.0 use config shards by default, which removes the separate three-node config server charge for small clusters. (low confidence) (verified as of 2026-10-18)",
+          "text": "MongoDB 8.0 config shards let a sharded cluster run without dedicated config servers. In Atlas, sharded clusters with up to 3 shards on 8.0 use config shards by default. A config shard costs less than a dedicated config server because the dedicated config server runs as its own replica set; Atlas transitions to a dedicated config server above five shards. Sources: https://www.mongodb.com/docs/manual/core/sharding-start-with-sharding/ ; https://www.mongodb.com/docs/current/core/config-shard/",
           "source": "https://www.mongodb.com/docs/manual/core/sharding-start-with-sharding/",
           "note": null
         },
@@ -423,17 +423,17 @@
           "note": null
         },
         {
-          "text": "MongoDB recommends binary quantization with rescoring for most embedding models, and scalar quantization for lower-dimension models that are not quantization-aware trained. Scalar gave the highest average recall in MongoDB's own chart. Binary assumes a zero midpoint, so it suits normalised embeddings. (medium confidence)",
+          "text": "MongoDB recommends binary quantization with rescoring for most embedding models, and scalar quantization for lower-dimension models that are not quantization-aware trained. Binary quantization assumes a midpoint of 0 for each dimension, which is typically appropriate for embeddings normalized to length 1. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "Binary quantization is risky for low-dimension embeddings. Elastic's own post notes a smaller speed advantage on 384-dimension-class E5-small, and Azure advises testing quality or using scalar below 1024 dimensions. Validate recall on your own data before downsizing a tier. (medium confidence)",
+          "text": "Binary quantization is riskier for lower-dimension embeddings. Elastic's own post notes that for E5-small the BBQ distance calculation is not much faster than its optimized int4 because there are fewer dimensions, and Azure recommends testing binary quantization quality, or trying scalar, for dimensions below 1024. Validate recall on your own data before downsizing a tier. Sources: https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization ; https://www.elastic.co/search-labs/blog/better-binary-quantization-lucene-elasticsearch",
           "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
           "note": null
         },
         {
-          "text": "Azure lets binary-quantized indexes discard original vectors (discardOriginals) and rescore with the binary dot product, saving disk. Atlas documents no equivalent: binary rescoring there reads full-fidelity float vectors from disk. (low confidence) (verified as of 2026-07-02)",
+          "text": "Azure lets binary-quantized indexes discard original vectors (discardOriginals) and rescore with the dot product of the binary vector, reducing storage. Atlas Vector Search's automatic binary rescoring re-ranks top binary results using their full-precision counterparts. Sources: https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization ; https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
           "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
           "note": null
         }

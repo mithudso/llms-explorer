@@ -1,0 +1,1093 @@
+{
+  "slug": "evm-money-markets",
+  "concept": "EVM money markets compared with Solana: Aave, Morpho, Compound, Euler",
+  "generated": "2026-11-06",
+  "summary": "EVM money markets (Aave v3/v4, Morpho Blue and Vaults, Compound III/Comet, Euler v2) compared with Solana lenders (Kamino, marginfi/Project 0, Jupiter Lend, Save): health factor, close factor, liquidation bonus, interest rate models, bad debt and isolation, drawn from 113 cited sources. Evidence status: research claims ungated (v4 evidence gate not passed); treat as leads with cited sources.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "A Compound III (Comet) deployment is an isolated market with exactly one borrowable base asset (the original market is USDC on Ethereum, cUSDCv3). Users post other listed assets as collateral and borrow only the base asset; only base-asset suppliers earn interest.",
+          "source": "https://docs.compound.xyz/",
+          "note": null
+        },
+        {
+          "text": "Comet is a small set of contracts. The Comet core (inherits CometMainInterface) forwards unrecognised function selectors to CometExt by delegatecall; the Configurator (behind a TransparentUpgradeableProxy-derived ConfiguratorProxy) holds configuration and deploys new Comet implementations through CometFactory; CometProxyAdmin adds deployAndUpgradeTo, which deploys a new Comet and upgrades the proxy in one transaction; Bulker batches calls and CometRewards handles reward claims.",
+          "source": "https://github.com/compound-finance/comet",
+          "note": null
+        },
+        {
+          "text": "In Morpho Blue the IRM is an external contract chosen at market creation from a governance-approved list. As of 2026-11-06 Morpho's developer IRM docs describe only the AdaptiveCurveIRM for variable-rate markets, matching a Feb 2025 forum statement that it was currently the only model applied to Morpho markets.",
+          "source": "https://docs.morpho.org/morpho/contracts/irm/adaptive-curve-irm",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Euler v2 has two layers. The Euler Vault Kit (EVK) builds 'credit vaults': ERC-4626 vaults with added borrowing functionality that act as passive lending pools and do not invest deposits. The Ethereum Vault Connector (EVC) is a foundational layer between vaults: the EVC is responsible for authentication and vaults for authorisation, and each vault holds a single asset.",
+          "source": "https://github.com/euler-xyz/euler-vault-kit",
+          "note": null
+        },
+        {
+          "text": "Morpho Blue writes bad debt off inside the liquidation transaction. When `liquidate` seizes a borrower's last collateral, `badDebtShares` is the borrower's remaining borrow shares and `badDebtAssets` is their asset value capped at `totalBorrowAssets`. Both `totalBorrowAssets` and `totalSupplyAssets` fall by `badDebtAssets`, so that market's suppliers bear the loss pro rata at once, and the `Liquidate` event reports the amounts. Bad debt becomes possible when LTV exceeds 1/LIF: a liquidator can then seize all collateral by repaying only part of the debt, and nobody has an incentive to repay the",
+          "source": "https://raw.githubusercontent.com/morpho-org/morpho-blue/main/src/Morpho.sol",
+          "note": null
+        },
+        {
+          "text": "Euler Labs' 2026-04-07 retrospective positions Euler as 'lending infrastructure'. It plans to make the app a distribution layer for curator-run products, to deprecate chains with little activity from the official app (contracts stay live), and to recommend cutting protocol fees to zero and pausing Fee Flow through an upgrade that lets the DAO reinstate fees later, which breaks Euler's no-upgrade commitment outside critical vulnerabilities. It also reports co-founder departures and a new CEO in early 2026.",
+          "source": "https://euler.finance/blog/euler-q1-2026",
+          "note": null
+        },
+        {
+          "text": "Umbrella is Aave's automated backstop for realized reserve deficits, and its scope is narrow. As of 2025-12-10 it covered only the Aave V3 Core (Ethereum) reserves WETH, USDC, USDT and GHO, each reserve on its own, and only after a deficit is recorded on-chain. A DAO-funded Deficit Offset is the first-loss layer: when a reserve's recorded deficit exceeds the offset plus pending deficit, Umbrella slashes the matching staked liquidity, burns the aTokens, and sends the seized assets to the Aave Collector. Stakers exit through a 20-day cooldown plus a 2-day withdrawal window. Umbrella does not ext",
+          "source": "https://governance.aave.com/t/llamarisk-insights-umbrella-coverage-principles-and-slashing-logic/23527",
+          "note": null
+        },
+        {
+          "text": "klend lets each reserve choose its accrual clock (klend commit 77e8185). `interest_rate_basis` is `Legacy` (time counted in slots against `SLOTS_PER_YEAR`, derived from `SLOTS_PER_SECOND = 2`) or `TrueApr` (time counted in wall-clock seconds from `clock.unix_timestamp`). Morpho Blue stamps markets with `block.timestamp`, and Compound's Comet uses a `SECONDS_PER_YEAR` constant.",
+          "source": "https://github.com/Kamino-Finance/klend/blob/77e81854909ab7ffea3a2e898b2554d96e07daac/programs/klend/src/state/reserve.rs",
+          "note": null
+        },
+        {
+          "text": "Morpho V2 has two parts. Vaults V2 allocate across any protocol through adapters, including Blue markets, which Morpho calls variable-rate Markets V1. 'Midnight', also called Markets V2, is an offer-based protocol for fixed-rate, fixed-term loans, and Morpho says it 'is designed to complement, not replace, Morpho Blue'. Gauntlet's guide says V2 vaults can allocate to Morpho V1 and V2 markets, V1 vaults and other yield sources. DefiLlama lists 'Morpho Midnight' as a child protocol on 2026-11-06. The launch post is undated, and Midnight's deployment status is unconfirmed.",
+          "source": "https://morpho.org/blog/morpho-v2-liberating-the-potential-of-onchain-loans/",
+          "note": null
+        },
+        {
+          "text": "Curated-vault layers sit above the lending core on both chains. On Morpho a Vault V2 curator enables approved adapters. On Solana, Blockworks Advisory says the first curator-managed markets launched on Kamino in Q2 2026 and Kamino Vaults V2 was in audit, and Crypto Economy reported in October 2026 that Bitwise and Sentora vaults hold more than $626M of Jupiter Lend deposits while Kamino's vault lineup includes products tied to Sentora, Steakhouse and RockawayX.",
+          "source": "https://docs.morpho.org/learn/concepts/vault-v2",
+          "note": null
+        },
+        {
+          "text": "Morpho Blue is the EVM baseline for where state lives. One singleton contract keeps every position in a storage mapping, `mapping(Id => mapping(address => Position)) public position`, and its README calls the protocol a 'simple, immutable, and governance-minimized base layer'.",
+          "source": "https://raw.githubusercontent.com/morpho-org/morpho-blue/main/src/Morpho.sol",
+          "note": null
+        },
+        {
+          "text": "Jupiter Lend builds flow limits into its liquidity layer. Borrow and withdrawal ceilings expand continuously over an 'expand duration' (usually 6 hours) by a set share of the amount (usually 25%, up to 50% for some vaults). On 2026-10-30 the USDC vault showed about 7,900 USDC withdrawable of about 419.6M supplied because idle cash was exhausted, and Jupiter Earn declared the crunch over at 22:16 UTC that day. On 2026-10-31 at 07:18 UTC about 29.4M of roughly 441M (6.7%) was withdrawable.",
+          "source": "https://docs.jup.ag/user-docs/earn/lend/liquidity-layer-and-risk-management",
+          "note": null
+        },
+        {
+          "text": "Jupiter Lend is the Solana deployment of Fluid's Unified Liquidity Layer, which first shipped on Ethereum. It opened publicly in August 2025 as a partnership between Jupiter and Fluid (the former Instadapp team), and DefiLlama still lists a separate Fluid lending protocol on Ethereum.",
+          "source": "https://solanacompass.com/projects/fluid",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Common liquidation reverts and their cause. Aave `MustNotLeaveDust`: the partial repay would leave under $1,000 of debt or collateral, so repay all debt or seize all collateral. Comet `NotLiquidatable`: the account is not past the liquidation collateral factor; Comet `NotForSale`: reserves are at or above `targetReserves`. Euler `E_LiquidationCoolOff`: the account passed a status check inside the cool-off window; `E_ExcessiveRepayAmount`: the repay exceeds what `checkLiquidation` returns as maxRepay; `E_SelfLiquidation`: liquidator equals violator. Morpho `HEALTHY_POSITION`: the position is st",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/protocol/libraries/logic/LiquidationLogic.sol",
+          "note": null
+        },
+        {
+          "text": "A Comet parameter change is a Configurator update followed by CometProxyAdmin.deployAndUpgradeTo, because changing immutable parameters needs a freshly deployed implementation; the governance docs say the Timelock must call the Configurator set methods and then deployAndUpgradeTo. Proposal 586 (executed 2026-05-28) did this for the mainnet WETH and wstETH markets: Configurator.updateAssetPriceFeed for rsETH, then deployAndUpgradeTo on each Comet.",
+          "source": "https://docs.compound.xyz/governance/",
+          "note": null
+        },
+        {
+          "text": "Aave v3.3 and later books bad debt as a per-reserve `deficit`, and only when collateral reaches exactly zero. In `executeLiquidationCall`, `hasNoCollateralLeft` is true when the collateral consumed equals the account's total collateral value. If debt remains then, the protocol burns the remaining debt in every borrowed reserve, adds it to that reserve's `deficit`, and emits `DeficitCreated(borrower, debtAsset, outstandingDebt)`. BGD defines deficit as 'strictly zero collateral in the reference currency', so the rule needs no outside oracle judgment. The deficit is accounted apart from aToken a",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/protocol/libraries/logic/LiquidationLogic.sol",
+          "note": null
+        },
+        {
+          "text": "Comet sells absorbed collateral through `buyCollateral(asset, minAmount, baseAmount, recipient)` at the oracle price discounted by `storeFrontPriceFactor * (1e18 - liquidationFactor)`. Sales are open only while `getReserves()`, a signed integer, is below the immutable `targetReserves`; at or above it the call reverts with `NotForSale`. Because reserves are signed, the shortfall from absorbing an underwater account shows up as negative reserves, which keeps collateral for sale until buyers refill reserves. The compound docs describe the same flow: each absorption is paid from base-asset reserve",
+          "source": "https://raw.githubusercontent.com/compound-finance/comet/main/contracts/CometWithExtendedAssetList.sol",
+          "note": null
+        },
+        {
+          "text": "MixBytes notes that fee-on-transfer and rebasing tokens are unsupported by Euler v2 vaults because vaults track balances internally.",
+          "source": "https://mixbytes.io/blog/modern-defi-lending-protocols-how-its-made-euler-v2",
+          "note": null
+        },
+        {
+          "text": "Aave v4 replaces v3's separate LTV and liquidation threshold with one per-reserve Collateral Factor (CF) stored in the reserve's dynamic config. Health factor is HF = Σ(CF_i × collateral_value_i) / total_debt_value, expressed in WAD (1e18 = 1.00), and a position is liquidatable when HF < HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 1e18. ChainSecurity writes the same relation as HF = C_v / D_v with C_v the collateral value after the collateral factor is applied.",
+          "source": "https://github.com/aave/aave-v4/blob/main/src/spoke/Spoke.sol",
+          "note": null
+        },
+        {
+          "text": "HF below 1 makes a position eligible for liquidation but does not make it profitable to liquidate. A governance forum post (2026-02-01) reports v3 positions sitting at HF 0.95-1.0 for hours to days because a 0.97 position was not worth gas plus oracle uncertainty plus MEV competition under a static bonus. Chaos Labs' model states the same condition: a liquidation is profitable only if f × p × x × b >= k (close factor, price, size, bonus against cost). Aave Labs says the static v3 bonus gives no extra urgency to the riskiest positions and presents v4's HF-linked bonus as the fix.",
+          "source": "https://governance.aave.com/t/aave-v3-zombie-positions/23980",
+          "note": null
+        },
+        {
+          "text": "v3 E-Mode changes the health factor inputs. When the user's E-Mode category is non-zero and the reserve is enabled in that category's collateral bitmap, the category's liquidationThreshold replaces the reserve's own LT in the HF sum; the LTV comes from ValidationLogic.getUserReserveLtv. Each E-Mode category carries its own LTV, LT and liquidation bonus, borrowing is restricted to the category's assets while it is active, and with liquid E-Modes one asset can belong to several categories.",
+          "source": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/protocol/libraries/logic/GenericLogic.sol",
+          "note": null
+        },
+        {
+          "text": "Gauntlet's curve method applies only to assets with substantial usage data (new assets get a default curve or a comparable live asset) and assumes users are at least partly rate-elastic and that elasticity changes slowly. Its heuristics raise Slope2 and lower the optimal point when whale dominance is high or when supply is large relative to average daily volume or market cap, and lower Slope2 when users are overly sensitive to utilization changes around the optimal point.",
+          "source": "https://gauntlet.xyz/resources/methodology-interest-rate-curves",
+          "note": null
+        },
+        {
+          "text": "Both v3 and v4 return type(uint256).max as the health factor when an account has no debt (v3 also returns it for an empty user configuration). Integrations that read the health factor must treat max uint as 'no debt', not as a large finite value.",
+          "source": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/protocol/libraries/logic/GenericLogic.sol",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To vet a Comet market, read the base token, each collateral's AssetInfo (price feed, collateral and liquidation factors, supplyCap) and the Configurator history. Every change appears as Configurator set calls plus deployAndUpgradeTo in a Governor proposal (for example Proposal 586), so Tally records and the repo's deployments folders form the audit trail.",
+          "source": "https://docs.compound.xyz/governance/",
+          "note": null
+        },
+        {
+          "text": "To vet an Euler vault before depositing, check the factory that deployed it, whether it is upgradeable or finalised (governor set to address(0)), which perspective verifies it, its oracle and unit of account, and which other vaults' shares it accepts as collateral.",
+          "source": "https://raw.githubusercontent.com/euler-xyz/euler-vault-kit/master/docs/whitepaper.md",
+          "note": null
+        },
+        {
+          "text": "To list live Comet markets, use the comet repository's deployments/<network>/<deployment>/ folders (per its README) or an aggregator such as DefiLlama; the Compound docs overview names only cUSDCv3 as the first market and gives no market count.",
+          "source": "https://docs.compound.xyz/",
+          "note": null
+        },
+        {
+          "text": "To read a Morpho market's rate, pass borrowRateView the market state as of its lastUpdate: it returns the per-second average borrow rate since that update. Borrow APY = e^(borrowRate x 31,536,000) - 1. Supply rate = borrowRate x utilization x (1 - fee), compounded afterwards, because scaling the borrow APY by utilization x (1 - fee) overstates supply APY.",
+          "source": "https://docs.morpho.org/morpho/contracts/irm/adaptive-curve-irm",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Side-by-side of how each protocol sizes a liquidation, prices it, and books the loss. Aave v3.3: up to the whole reserve debt, with a 50%-of-total-debt cap only above HF 0.95 and $2,000; static per-asset bonus; loss becomes a reserve deficit when collateral hits zero. Aave v4: repay sized to a target health factor; bonus scales with health. Compound III: the protocol absorbs the whole account; fixed per-asset `liquidationFactor` penalty; collateral resold at a storefront discount; shortfall drains reserves. Morpho Blue: up to 100% of debt; bonus from LLTV, at most 1.15; loss cut from that mark",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/protocol/libraries/logic/LiquidationLogic.sol",
+          "note": null
+        },
+        {
+          "text": "Morpho Blue has no close factor and no per-call cap. `liquidate(marketParams, borrower, seizedAssets, repaidShares, data)` requires exactly one of `seizedAssets` or `repaidShares` to be non-zero, requires the position to be unhealthy, and lets the liquidator repay up to the borrower's whole debt (Morpho docs: 'up to 100% of the borrower's debt in a single transaction'). The bonus is a per-market Liquidation Incentive Factor, `min(MAX_LIQUIDATION_INCENTIVE_FACTOR, 1/(1 - LIQUIDATION_CURSOR * (1 - LLTV)))`, with `LIQUIDATION_CURSOR = 0.3e18` and `MAX_LIQUIDATION_INCENTIVE_FACTOR = 1.15e18`. The",
+          "source": "https://raw.githubusercontent.com/morpho-org/morpho-blue/main/src/Morpho.sol",
+          "note": null
+        },
+        {
+          "text": "Blockworks's Compound filing (dated 2026-08-18) states that Compound III (Comet) is the current production protocol and that governance passed a v2 deprecation in December 2025, pausing borrows and mints and setting reserve factors to 100%.",
+          "source": "https://blockworks.com/token-transparency/filing/compound",
+          "note": null
+        },
+        {
+          "text": "DefiLlama (fetched 2026-11-06) lists Compound V3 at $1.257B TVL across 10 chains: Ethereum $1.161B (about 92%), Arbitrum $60.6M, Base $22.6M, Optimism $7.6M, Polygon $4.0M, the rest under $1M. It shows $624.6M borrowed and a TVL peak of $2.56B on 2025-08-14.",
+          "source": "https://api.llama.fi/protocol/compound-v3",
+          "note": null
+        },
+        {
+          "text": "DefiLlama (fetched 2026-11-06) lists Euler V2 at $279.8M TVL across 16 chains: Monad $204.6M (about 73%), Ethereum $51.0M, Base $12.0M, Avalanche $4.3M, Plasma $2.5M. It shows $333.0M borrowed (Plasma $119.2M, Monad $94.2M) and a TVL peak of $2.20B on 2025-10-06, so TVL is about 87% below peak.",
+          "source": "https://api.llama.fi/protocol/euler-v2",
+          "note": null
+        },
+        {
+          "text": "Aave v3.3 and later (aave-v3-origin `LiquidationLogic.executeLiquidationCall`) lets a liquidator repay the borrower's entire debt in the chosen reserve by default. A 50% cap (`DEFAULT_LIQUIDATION_CLOSE_FACTOR = 0.5e4`) applies only when all three hold: the reserve's collateral value and its debt value are each at least `MIN_BASE_MAX_CLOSE_FACTOR_THRESHOLD` (`2000e8`, i.e. $2,000), and the health factor is above `CLOSE_FACTOR_HF_THRESHOLD` (`0.95e18`). The cap is 50% of the borrower's total debt across all reserves, and it binds only if the repaid reserve's debt exceeds that amount. At health f",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/protocol/libraries/logic/LiquidationLogic.sol",
+          "note": null
+        },
+        {
+          "text": "Morpho Vault V1 (MetaMorpho) is an ERC-4626 vault, with ERC-2612 permit, for one loan asset. It lends into up to 30 Blue markets. Four roles run it. One owner sets the curator, the allocators, the performance fee (at most 50% of interest) and the fee recipient. One curator can cut a market's supply cap at once but must wait out the timelock to raise a cap or force-remove a market. Allocators order the supply queue and the withdraw queue and call `reallocate`. One guardian can revoke pending timelocked actions.",
+          "source": "https://github.com/morpho-org/metamorpho",
+          "note": null
+        },
+        {
+          "text": "Each Comet collateral asset has its own AssetInfo configuration: price feed, scale, borrowCollateralFactor, liquidateCollateralFactor, liquidationFactor and supplyCap. Collateral can be added only while the market is below that asset's supplyCap, and the borrowCollateralFactor sets borrowing capacity (docs example: 85% for WBTC), so governance caps how much of each collateral can back loans of the base asset.",
+          "source": "https://docs.compound.xyz/collateral-and-borrowing/",
+          "note": null
+        },
+        {
+          "text": "Aave liquidations can stall on reserve liquidity. A liquidator who wants the underlying collateral needs free liquidity in that reserve. On 2026-04-20 the WETH reserves on Ethereum, Arbitrum, Base, Linea and Mantle were at 100% utilization with under $20 idle, so liquidators could receive only aWETH (the `receiveAToken` path). That keeps their capital inside the reserve and slows liquidation throughput.",
+          "source": "https://governance.aave.com/t/rseth-incident-report-april-20-2026/24580",
+          "note": null
+        },
+        {
+          "text": "How the Aave close factor changed. Aave v2 used a constant 50%. Aave v3 before v3.3 used 50% by default and 100% below health factor 0.95, but applied the 50% to each debt reserve separately (BGD: 'The 50% close factor has always been applied on a per reserve basis'). v3.3 made the cap position-wide, allowed 100% when the reserve's principal or debt is under `MIN_BASE_MAX_CLOSE_FACTOR_THRESHOLD`, and added a dust rule: a partial liquidation must repay all of the reserve debt, or seize all collateral, or leave at least `MIN_LEFTOVER_BASE` (`MIN_BASE_MAX_CLOSE_FACTOR_THRESHOLD / 2`, $1,000) of b",
+          "source": "https://governance.aave.com/t/bgd-aave-v3-3-feat-umbrella/20129",
+          "note": null
+        },
+        {
+          "text": "Aave rsETH case (2026-04-18): an attacker released 116,500 rsETH through a forged LayerZero V2 packet on Kelp's Unichain-to-Ethereum route, which was configured as a 1-of-1 DVN. The attacker deposited 89,567 rsETH as collateral on Aave V3 Ethereum Core and Arbitrum and borrowed about 82,650 WETH and 821 wstETH, leaving health factors near 1.01 to 1.03. Aave froze rsETH and wrsETH (LTV 0, repay and liquidation still enabled) on all 11 V3 markets that list them from about 19:00 UTC on April 18, then froze WETH on six markets on April 20. LlamaRisk notes that most positions were opened at up to 9",
+          "source": "https://governance.aave.com/t/rseth-incident-report-april-20-2026/24580",
+          "note": null
+        },
+        {
+          "text": "The Morpho Blue owner can call only five functions: `setOwner`, `enableIrm`, `enableLltv` (the LLTV must be below 100%), `setFee` (per market, at most `MAX_FEE` = 0.25e18, which is 25% of borrower interest) and `setFeeRecipient`. The contract has no function to disable an enabled IRM or LLTV, pause a market, change a market's oracle, IRM or LLTV, or move user funds. The whitepaper states the same limits.",
+          "source": "https://raw.githubusercontent.com/morpho-org/morpho-blue/main/src/Morpho.sol",
+          "note": null
+        },
+        {
+          "text": "Parameter units are not portable between protocols. Aave slope1 and slope2 are total rises across each segment. Compound v2 divides multiplierPerYear by the kink, so the rate at the kink is base + multiplierPerYear, but jumpMultiplierPerYear is a raw per-unit-utilization slope (the rise from kink to 100% is (1 - kink) x jumpMultiplier). Euler IRMLinearKink slope1 and slope2 are raw per-unit slopes, with utilization and kink both on a uint32 scale where type(uint32).max is 100%.",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/misc/DefaultReserveInterestRateStrategyV2.sol",
+          "note": null
+        },
+        {
+          "text": "Contagion from EVM-side incidents showed up on Solana lenders in 2026 as utilization spikes and gated withdrawals. After the KelpDAO rsETH hack, BlockBeats reported on 2026-04-20 Jupiter Lend USDC utilization near 99%, Kamino Prime about 96%, Kamino Main about 95.75%, marginfi 88.32% and Save above 70%. After the 2026-10-29 Binance theft the Jupiter Lend USDC vault had only about 7,900 USDC withdrawable of about 419.6M supplied until 22:16 UTC on 2026-10-30. Aave's LlamaRisk makes the same point for frozen reserves: withdrawals by large suppliers raise utilisation and only repayments pull it b",
+          "source": "https://www.kucoin.com/news/flash/solana-stablecoin-lending-utilization-surges-jupiter-lend-usdc-hits-99",
+          "note": null
+        },
+        {
+          "text": "A kinked curve only works if supply or repayments respond. When Aave froze reserves after the 2026-10-29 Binance hot wallet incident (no new supply or borrowing; withdrawals, repayments and liquidations still open), withdrawals pushed large stablecoin reserves to 92%-100% utilization. A rate above the optimal point could no longer attract deposits and mostly accrued to borrowers' debt, eroding health factors, and only repayments could lower utilization (LlamaRisk, 2026-10-30).",
+          "source": "https://governance.aave.com/t/binance-hot-wallet-exploit-aaves-response/25954",
+          "note": null
+        },
+        {
+          "text": "Compound v2's Comptroller enforces `repayAmount <= closeFactorMantissa * borrowBalance` and returns `TOO_MUCH_REPAY` otherwise. Governance can set the close factor only inside (0.05, 0.9] (`closeFactorMinMantissa = 0.05e18`, `closeFactorMaxMantissa = 0.9e18`), so v2 can never allow a 100% repay in one call. Qin et al. report Compound's close factor as 50% in 2021, the same as Aave's.",
+          "source": "https://raw.githubusercontent.com/compound-finance/compound-protocol/master/contracts/Comptroller.sol",
+          "note": null
+        },
+        {
+          "text": "Liquidation sizing rules do not stop bad debt when collateral loses backing faster than a position can be cleared. Aave's rsETH report says contracts, oracles and liquidation mechanics 'functioned as designed' while it modeled $62M to $230M of bad debt, because positions opened at up to 95% LTV had a thinner buffer than the depeg. OAK reports Inverse Finance's liquidations 'worked properly' on about $10M of debt in the Resolv event yet left 340,060 DOLA of bad debt. The protocol responses in both cases were freezes and market pauses plus outside funding, not a change to the close factor.",
+          "source": "https://governance.aave.com/t/rseth-incident-report-april-20-2026/24580",
+          "note": null
+        },
+        {
+          "text": "Morpho Blue's AdaptiveCurveIRM hard-codes target utilization 90%, curve steepness 4, adjustment speed 50 per year, initial rate at target 4% APR, minimum rate at target 0.1% and maximum rate at target 200%. Borrow rate = rateAtTarget x curve(err), with err = (U - 0.9)/0.9 below target and (U - 0.9)/0.1 above. The curve multiplies rateAtTarget by 0.25 at 0% utilization, 1 at 90% and 4 at 100%, so the borrow rate is bounded between 0.025% and 800% APR.",
+          "source": "https://docs.morpho.org/morpho/contracts/irm/adaptive-curve-irm",
+          "note": null
+        },
+        {
+          "text": "In May 2025 Chaos Labs proposed moving Aave V3 wS (Sonic) and BTC.b (Avalanche) off the default tail-asset curve (optimal 45%, slope1 7%, slope2 300%) to optimal 80%, slope1 4%, slope2 80% (BTC.b reserve factor 20% to 50%). This opened about $30M of wS borrowable below the kink. Slope1 was set just under the 4.56% 30-day median stS staking yield so leveraged-yield borrowing stays viable, and slope2 was cut to avoid sharp rate swings just above the kink.",
+          "source": "https://governance.aave.com/t/direct-to-aip-ws-and-btc-b-interest-rate-curve-optimization/21962",
+          "note": null
+        },
+        {
+          "text": "Morpho's docs list nine governance-approved LLTVs: 0%, 38.5%, 62.5%, 77%, 86%, 91.5%, 94.5%, 96.5% and 98%. They name AdaptiveCurveIRM as the only approved IRM. The docs page carries no date, so treat the list as current only on the fetch date. This is the only source for the list.",
+          "source": "https://docs.morpho.org/learn/concepts/blue/",
+          "note": null
+        },
+        {
+          "text": "In Morpho the IRM lives at market level, not vault level. A Morpho forum reply (2025-01-09) to a complaint that a Resolv USDC vault's supply rate was capped near 35.7% at 100% utilization said the vault's two underlying markets were near 100% utilization, so their rates, and therefore the vault's rate, would keep rising through the adaptive mechanism.",
+          "source": "https://forum.morpho.org/t/irm-issue-of-the-gaunlet-resolv-usdc-vault/1359",
+          "note": null
+        },
+        {
+          "text": "The modeled size of the Aave rsETH bad debt moved with each update. LlamaRisk's 2026-04-20 scenarios gave $123.7M (loss spread over all rsETH, 15.12% depeg) and $230.1M (loss only on L2 rsETH, 73.54% haircut). After the Arbitrum Security Council froze 30,766 ETH, the 2026-04-22 update lowered these to $62.4M and $162.5M. On 2026-05-07 Cointelegraph still reported 'more than $190 million in bad debt', and said Aave stated Umbrella was not used after Aave Labs liquidated the hacker's remaining rsETH positions. No source read gives a final realized deficit.",
+          "source": "https://governance.aave.com/t/rseth-incident-report-april-20-2026/24580",
+          "note": null
+        },
+        {
+          "text": "Aave V3's DefaultReserveInterestRateStrategyV2 is a two-slope (kinked) curve. For utilization U at or below the optimal usage ratio Uopt the variable borrow rate is base + slope1 x U/Uopt. Above Uopt it is base + slope1 + slope2 x (U - Uopt)/(1 - Uopt). Slope1 and slope2 are therefore the total rate rise across each segment, and the rate at 100% utilization is base + slope1 + slope2 (getMaxVariableBorrowRate).",
+          "source": "https://aave.com/docs/aave-v3/smart-contracts/interest-rate-strategy",
+          "note": null
+        },
+        {
+          "text": "Case study of a whale exit through a kink: in mid-2025 withdrawals by an HTX/Huobi-linked supplier (Chaos Labs cites about 400M USDT, later about 800M, in single moves) pushed Aave V3 Ethereum Core USDT to 100% utilization, past its 92% optimal point. With Slope2 at 35% the variable borrow rate jumped to about 40%. The Defiant likewise reported USDT rates above 10% after HTX-linked wallets pulled hundreds of millions in liquidity.",
+          "source": "https://governance.aave.com/t/chaos-labs-risk-stewards-adjust-usdt-interest-rate-curve-on-aave-v3-06-05-25/22279",
+          "note": null
+        },
+        {
+          "text": "Chaos Labs' response on Aave V3 USDT Core: it cut Slope2 from 35% to 22.5% (2025-06-05), then temporarily raised the optimal point from 92% to 95% with Slope2 at 14% (2025-06-09). That cut the liquidity needed to get back below the kink at 97% utilization on $3.51B supply from about $150M to about $50M. It reverted to 92% and 22.5% on 2025-06-13 after redeposits brought utilization down to 86.2%.",
+          "source": "https://governance.aave.com/t/chaos-labs-risk-stewards-adjust-usdt-interest-rate-curve-on-aave-v3-06-05-25/22279",
+          "note": null
+        },
+        {
+          "text": "On 2026-11-06 DefiLlama's API showed the Morpho parent protocol at about $11.1B TVL, about $5.8B borrowed (reported separately from TVL), TVL on 34 chains, and about 85% of TVL on Ethereum and Base. The 'Morpho Blue Lending' child showed about $11.0B TVL and about $5.7B borrowed. These figures change daily.",
+          "source": "https://api.llama.fi/protocol/morpho",
+          "note": null
+        },
+        {
+          "text": "The v4 liquidation fee comes out of the bonus, not out of the repaid debt. ISpoke defines liquidationFee as the protocol fee 'taken from the collateral bonus given to the liquidator'. The overview's example: maxLiquidationBonus = 105_00 and liquidationFee = 10_00 give a 5% gross bonus and a 4.5% net bonus for the liquidator. The fee shares are paid to the Hub with hub.payFeeShares.",
+          "source": "https://github.com/aave/aave-v4/blob/main/docs/overview.md",
+          "note": null
+        },
+        {
+          "text": "On 2026-11-06 DefiLlama's Lending category showed about $26.6B TVL on Ethereum, $5.0B on Base and $2.4B on Solana, so Solana is roughly 9% of Ethereum. Kamino Lend (about $1.20B) and Jupiter Lend (about $1.0B) make up about 90% of Solana's lending TVL. DefiLlama lending TVL excludes borrowed funds, which it tracks separately: Aave V3 on Ethereum showed about $12.6B TVL plus $9.0B borrowed.",
+          "source": "https://api.llama.fi/protocols?own-measurement=lending-by-chain-2026-11-06",
+          "note": null
+        },
+        {
+          "text": "Both versions enforce a config-time invariant that keeps collateral sufficient to pay the liquidation bonus. v3 PoolConfigurator.configureReserveAsCollateral requires ltv <= liquidationThreshold and, when LT is not 0, liquidationBonus > 100.00% and liquidationThreshold.percentMul(liquidationBonus) <= 100.00%. v4 Spoke._validateDynamicReserveConfig requires collateralFactor < 100%, maxLiquidationBonus >= 100% and maxLiquidationBonus.percentMulUp(collateralFactor) < 100%, plus liquidationFee <= 100%.",
+          "source": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/protocol/pool/PoolConfigurator.sol",
+          "note": null
+        },
+        {
+          "text": "v3 liquidation sizing is a fixed close factor: up to 50% of debt while HF is above 0.95 and both collateral and debt are at least $2,000, and up to 100% when HF is 0.95 or lower or either side is below $2,000. A partial liquidation must leave at least $1,000 of both collateral and debt or the position must be cleared. The v3 bonus is a static per-reserve value that does not vary with how far HF has fallen.",
+          "source": "https://aave.com/help/borrowing/liquidations",
+          "note": null
+        },
+        {
+          "text": "v4 has no fixed close factor. A liquidator may repay at most min(the borrower's debt in that reserve, the amount requested, debtToTarget), where debtToTarget = totalDebtValue × (targetHF − HF) / ((targetHF − bonus × CF) × debtPrice), in debt-asset units rounded up, and bonus is the dynamic bonus at the current HF. If the leftover debt would be dust, the target is bypassed and all debt in that reserve is liquidated. The code comment says the denominator stays positive because bonus × CF < 100% is enforced at config time and targetHF >= 1.0.",
+          "source": "https://github.com/aave/aave-v4/blob/main/src/spoke/libraries/LiquidationLogic.sol",
+          "note": null
+        },
+        {
+          "text": "Launch reference values for the Ethereum Core Hub Main Spoke (Chaos Labs table, ARFC posted 2026-03-13): targetHealthFactor 1.24, healthFactorForMaxBonus 0.90, liquidationBonusFactor 90%, liquidationFee 10%; collateral factor / max liquidation bonus: ETH 83% / 5.55%, wstETH 80% / 6.66%, WBTC 78% / 5.55%, USDC 78% / 5.00%, USDT 78% / 5.00%. The LlamaRisk Avalanche Main Spoke proposal (2026-06-17) reuses 1.24 / 0.90 / 90% and a 10% fee, sets maxLiquidationBonus at 1.11× its v3 value, and lists WAVAX 73% / 10.00%, BTC.b 75% / 7.22%, USDC and USDT 78% / 5.55%, WETH.e 83% / 5.55%. These are proposa",
+          "source": "https://governance.aave.com/t/arfc-aave-v4-activation-on-ethereum-mainnet/24293",
+          "note": null
+        },
+        {
+          "text": "Typical live Aave settings (as of 2026-10-30): V3 stablecoin reserves used optimal usage ratios of 80%-94% (Core USDC 94%, USDT 92%, DAI 92%, USDtb 80%) with pre-incident Slope2 of 10%-50% (USDC and USDT 10%, DAI 35%, USDtb 50%), giving full-utilization borrow rates of 14%-54%. V4 stablecoin Hub assets used 90%-92% optimal ratios and Slope2 of 10%-35% (Ethereum Core USDC on 2026-11-03: optimal 92%, base 0%, slope1 5.0%, slope2 20%). In May 2025 the default tail-asset configuration was optimal 45%, slope1 7%, slope2 300%.",
+          "source": "https://governance.aave.com/t/risk-stewards-temporary-slope2-reductions-on-aave-v3-and-aave-v4-2026-10-30/25955",
+          "note": null
+        },
+        {
+          "text": "Aave v3 health factor is the liquidation-threshold-weighted collateral value divided by total debt value: HF = Σ(collateral_value_i × LT_i) / Σ(debt_value_j). A position with HF below 1 can be liquidated. Aave's own example: $10,000 of ETH at an 80% liquidation threshold with $6,000 of GHO borrowed gives HF 1.333. Aave Governance sets the liquidation threshold per collateral asset.",
+          "source": "https://aave.com/help/borrowing/liquidations",
+          "note": null
+        },
+        {
+          "text": "Blue has a built-in protocol fee of 0% to 25% of borrower interest per market, set by the owner and paid to `feeRecipient`. Four Pillars reported on 2026-03-16 that no proposal to activate the fee had appeared in 128 Snapshot votes. An `eth_call` made for this research on 2026-11-06 against Morpho Blue on Ethereum (0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb) returned the zero address from `feeRecipient()`, so no one can collect a fee there. Other chains were not checked.",
+          "source": "https://research.4pillars.io/en/research/morpho-the-apollo-pump-is-your-exit",
+          "note": null
+        },
+        {
+          "text": "Morpho's docs set Vault V2 timelocks between 0 and 3 weeks, and a curator can abdicate an action to lock it permanently. The V2 constants cap the performance fee at 50% (`MAX_PERFORMANCE_FEE` = 0.5e18), the management fee at 5% a year, the force-deallocate penalty at 2% and the allocator's `maxRate` at 200% APR (`MAX_MAX_RATE`). Only the docs page gives the timelock range.",
+          "source": "https://docs.morpho.org/learn/concepts/vault-v2",
+          "note": null
+        },
+        {
+          "text": "v4 liquidation bonus is a linear Dutch-auction in the borrower's HF. minLB = (maxLB − 100%) × liquidationBonusFactor + 100%. If HF <= healthFactorForMaxBonus the bonus is maxLB; otherwise bonus = minLB + (maxLB − minLB) × (1.0 − HF) / (1.0 − healthFactorForMaxBonus). Chaos Labs' example: maxLB 15% with factor 40% gives about 6% at HF 1.0, rising to 15% at HF 0.9. maxLiquidationBonus is per reserve (dynamic config); liquidationBonusFactor, healthFactorForMaxBonus and targetHealthFactor are per Spoke.",
+          "source": "https://github.com/aave/aave-v4/blob/main/src/spoke/libraries/LiquidationLogic.sol",
+          "note": null
+        },
+        {
+          "text": "Both Aave strategy contracts bound the curve: the optimal usage ratio must be 1%-99%, and base + slope1 + slope2 must not exceed 1000% (V3 MAX_BORROW_RATE, V4 MAX_ALLOWED_DRAWN_RATE). Only V3 also requires Slope2 >= Slope1.",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/misc/DefaultReserveInterestRateStrategyV2.sol",
+          "note": null
+        },
+        {
+          "text": "Morpho stores rateAtTarget per market and lets it drift continuously: after t seconds it becomes old x exp(speed x t) with speed = 50/year x err, clamped to [0.1%, 200%] APR. At 100% utilization it doubles in about 5 days, at 95% in about 10 days, at 91% in about 50 days, and at exactly 90% it does not move. The whole curve scales with it, so the rate keeps changing even when nobody interacts with the market.",
+          "source": "https://docs.morpho.org/morpho/contracts/irm/adaptive-curve-irm",
+          "note": null
+        },
+        {
+          "text": "Morpho's borrowRate returns the average rate over the interval since the last update, approximated with a two-segment trapezoid: rateAtTarget is taken as (start + end + 2 x mid)/4 before the curve is applied. A contract comment says the speed is not exactly constant between updates, so the returned rate is always slightly underestimated.",
+          "source": "https://raw.githubusercontent.com/morpho-org/morpho-blue-irm/main/src/adaptive-curve-irm/AdaptiveCurveIrm.sol",
+          "note": null
+        },
+        {
+          "text": "Compound v2's JumpRateModelV2 hard-codes blocksPerYear = 2,102,400 (15-second blocks), while Compound's own APR and APY examples assume 12-second blocks (7,200 per day, 2,628,000 per year). On 12-second mainnet blocks a rate converted with 2,102,400 accrues about 25% more per year than the nominal yearly parameter (arithmetic inference), and forks must set the constant for their own chain's block time.",
+          "source": "https://raw.githubusercontent.com/compound-finance/compound-protocol/master/contracts/BaseJumpRateModelV2.sol",
+          "note": null
+        },
+        {
+          "text": "Kamino's liquidation engine caps each round with a per-market `liquidationMaxDebtCloseFactorPct` (the docs' example value is 10). It lifts the cap to 100% when LTV exceeds 95% (`insolvencyRiskUnhealthyLtvPct`), limits one liquidation to $500,000 of debt (`MAX_LIQUIDATABLE_VALUE_AT_ONCE = 500_000`), and forces full repayment below $2 of debt. It seizes the deposit with the lowest liquidation threshold first and repays the borrow with the highest borrow factor first. The bonus runs between `minLiquidationBonusBps` and `maxLiquidationBonusBps`, with a solvency cap so the bonus never exceeds the c",
+          "source": "https://kamino.com/docs/build/developers/borrow/liquidations/liquidation-engine",
+          "note": null
+        },
+        {
+          "text": "Jupiter Lend's oracle program chains up to four price sources per oracle account, and each vault points to one oracle. Sources can be Pyth, Chainlink Solana feeds, RedStone, stake-pool and other exchange-rate sources. It accepts a price up to 600 seconds old for user operations and 7,200 seconds old for liquidations, and rejects a Pyth feed whose confidence exceeds 2% of price (user operations) or 4% (liquidations). Only Pyth feeds are checked for confidence.",
+          "source": "https://developers.jup.ag/docs/lend/oracles",
+          "note": null
+        },
+        {
+          "text": "Correlated-asset spokes run much tighter liquidation settings than the Main Spoke, which fits Aave's guidance that no health factor is universally safe and that lower values can suit correlated assets. In the Avalanche proposal (LlamaRisk), the AVAX Correlated Spoke has bonus factor 100%, targetHealthFactor 1.0350, healthFactorForMaxBonus 0.99, and sAVAX CF 95% with max bonus 1.00%; the Forex Spoke has 100%, 1.0442, 0.99, with CF 90% and max bonus 2.00% for EURC, USDC and USDT. With a factor of 100% the minimum bonus equals the maximum, so the bonus ramp is flat. For Ethereum, Chaos Labs lists",
+          "source": "https://governance.aave.com/t/arfc-deploy-aave-v4-on-avalanche/25165",
+          "note": null
+        },
+        {
+          "text": "TokenLogic's replay, as reported in its post, estimates SVR recapture of $6.09M and total revenue of $9.16M for v3 actual. A 'Borrower UX' v4 configuration (target HF 1.02-1.06, max bonus cap 1.18, fee 8-12%) gives $1.30M and $3.13M. A 'Liquidation Efficiency' configuration (target HF 1.07-1.14, cap 1.28, fee 12-18%) gives $10.92M and $27.60M. Its conclusion: there is no single right liquidation configuration.",
+          "source": "https://governance.aave.com/t/v4-spoke-liquidation-parameters-impact-on-revenue/23993",
+          "note": null
+        },
+        {
+          "text": "DefiLlama's Kamino Lend TVL peaked at about $3.37B on 2025-10-07 and was about $1.20B on 2026-11-06, roughly 64% lower. Jupiter Lend's series starts at about $7.5M on 2025-08-19 and peaked at about $1.23B on 2026-10-07. DefiLlama restates lending series when adapters change, so compare snapshots taken the same day.",
+          "source": "https://api.llama.fi/protocols?own-measurement=lending-by-chain-2026-11-06",
+          "note": null
+        },
+        {
+          "text": "The launch bonus parameters are tuned so the bonus at HF 1.0 is about the v3 bonus. LlamaRisk states max bonus = 1.25× v3 with factor 0.80 so the effective bonus at HF 1.0 equals v3's; Chaos Labs uses 1.11× with factor 90% (0.9 × 1.11 is about 1.0), and LlamaRisk's later Avalanche proposal reuses 90% and 1.11×. The ramp then pays more only below HF 1.0, reaching the maximum at HF 0.90.",
+          "source": "https://governance.aave.com/t/arfc-aave-v4-activation-on-ethereum-mainnet/24293",
+          "note": null
+        },
+        {
+          "text": "marginfi (now Project 0) has two liquidation paths. Classic `lending_account_liquidate` gives the liquidator a 2.5% premium and sends a further 2.5% to the insurance fund. Receivership (`start_liquidation` to `end_liquidation`) lets the liquidator temporarily control the unhealthy account and withdraw, swap and repay inside one transaction with no starting capital. The program checks only that account health improved and that seized value is at most repaid value times (1 + max fee), which the docs say is configurable up to 10%.",
+          "source": "https://docs.0.xyz/protocol-overview/liquidation",
+          "note": null
+        },
+        {
+          "text": "During the October 2026 Aave-wide freeze, LlamaRisk temporarily cut Slope2 on stablecoin reserves with more than $10M supplied (and V4 Ethereum Core WETH) so the full-utilization rate stayed at or below 10% APR, for example V3 Core USDC Slope2 10% to 5.5% and DAI 35% to 15%, leaving base rate, slope1 and optimal point unchanged. On 2026-10-31, after reserves unfroze, it recommended restoring the previous values, noting the cap had narrowed the rate response available to restore withdrawal liquidity.",
+          "source": "https://governance.aave.com/t/risk-stewards-temporary-slope2-reductions-on-aave-v3-and-aave-v4-2026-10-30/25955",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Symptom: depositors cannot withdraw after a collateral stablecoin depegs, though no loss is booked yet. In November 2025 Entropy saw some Euler markets at very high utilisation (a liquidity crunch) with no bad debt recorded; Euler's retrospective says EulerEarn had no loss-socialisation mechanism and weak withdrawal-run tools, and that on EulerSwap a single operator could push illiquid vaults to full utilisation. A liquidity freeze and realised bad debt are separate states.",
+          "source": "https://forum.arbitrum.foundation/t/update-stream-finance-xusd-situation-and-impact-assessment/30206",
+          "note": null
+        },
+        {
+          "text": "Permissionless vault creation moves vetting to depositors and curators. MixBytes warns that malicious vaults can be deployed and that bad debt is socialised across a vault's depositors; the EVK docs tell users to check which factory created a vault; Euler's 2026 retrospective concludes curators, not Euler, should manage their own risk and says Labs will recommend that the DAO sunset its directly managed markets (which needs a DAO vote).",
+          "source": "https://mixbytes.io/blog/modern-defi-lending-protocols-how-its-made-euler-v2",
+          "note": null
+        },
+        {
+          "text": "EVC account model: each owner gets up to 256 isolated sub-accounts (same first 19 address bytes). Depositing into a vault and calling enableCollateral adds it to an account's collateral set; enableController submits the account entirely to a controller vault's rules, and at the time of the account status check an account can have at most one controller. Operators are revocable delegates (a controller cannot be revoked that way), and EIP-712 permits accept ECDSA and ERC-1271 signatures.",
+          "source": "https://raw.githubusercontent.com/euler-xyz/ethereum-vault-connector/master/docs/whitepaper.md",
+          "note": null
+        },
+        {
+          "text": "Euler risk configuration is per vault. Collateral is risk-adjusted by LTV factors, the borrowing LTV must be less than or equal to the liquidation LTV, and LTV ramps affect only liquidation LTVs (new borrows use the new value immediately).",
+          "source": "https://raw.githubusercontent.com/euler-xyz/euler-vault-kit/master/docs/whitepaper.md",
+          "note": null
+        },
+        {
+          "text": "Bad debt is booked automatically on Morpho Blue but needs an explicit step on Solana lenders. Morpho's `liquidate` writes off the remaining borrow shares and reduces `totalSupplyAssets` once collateral reaches zero. marginfi's `handle_bankruptcy` pays from the Bank's insurance fund first, then socialises the remainder across depositors, and can kill the Bank if both run out. Kamino's `socialize_loss` is an owner-only operation that the emergency council cannot run.",
+          "source": "https://raw.githubusercontent.com/morpho-org/morpho-blue/main/src/Morpho.sol",
+          "note": null
+        },
+        {
+          "text": "Academic evidence says fixed close factors favor liquidators. Qin et al. (IMC 2021) studied Aave, Compound, MakerDAO and dYdX up to April 2021 and found the fixed-spread designs 'well incentivize liquidators but sell excessive amounts of discounted collateral at the borrowers' expenses'. Aave and Compound capped a liquidation at 50% of the debt and dYdX at 100%, although a debt can often be rescued by selling less than 50%. The paper also shows that two successive liquidations lift the close-factor limit: in one replayed case the liquidator earned $53.96K (1.36%) more, and the authors suggest",
+          "source": "https://arxiv.org/html/2106.06389",
+          "note": null
+        },
+        {
+          "text": "Scope limit from the negation search: in the November 2025 Stream Finance xUSD collapse, Protos reported multiple lending markets at 100% utilization with lenders unable to withdraw, and Entropy Advisors (which runs the Arbitrum DAO incentive program) reported a liquidity crunch across Morpho, Euler and Silo, attributed higher-than-normal APRs to liquidity constraints from unwinds, and said some markets were left with borrowed amounts exceeding the value of xUSD collateral. A rate curve prices scarce liquidity; it cannot repair impaired collateral (inference). No source found showed the IRM it",
+          "source": "https://forum.arbitrum.foundation/t/update-stream-finance-xusd-situation-and-impact-assessment/30206",
+          "note": null
+        },
+        {
+          "text": "Euler v2 has no close factor and no fixed bonus. In the EVK `calculateMaxLiquidation`, the discount factor equals the account's health score (risk-adjusted collateral value divided by liability value), floored at `1 - maxLiquidationDiscount`, so the discount is 1 minus health, capped. Max repay is the violator's whole liability for the chosen collateral, cut down only when that collateral is worth less than the debt plus discount; the yield is repay divided by the discount factor. A liquidator may repay less (`desiredRepay`; a larger request reverts with `E_ExcessiveRepayAmount`). Euler calls",
+          "source": "https://raw.githubusercontent.com/euler-xyz/euler-vault-kit/master/src/EVault/modules/Liquidation.sol",
+          "note": null
+        },
+        {
+          "text": "Morpho Vault V2 replaces the single supply cap per market with adapters, ids and caps. An adapter is a contract that moves assets into one protocol and reports its value through `realAssets()`. The curator can enable new adapters without a vault upgrade. The curator defines abstract `ids` for a risk factor, such as a collateral token, an oracle or a market configuration, and gives each id an absolute or relative cap. A docs example is 'Max 20% of the vault allocated to any market using a specific, new oracle'. The roles are owner, curator, allocator and sentinel. The sentinel can deallocate as",
+          "source": "https://docs.morpho.org/learn/concepts/vault-v2",
+          "note": null
+        },
+        {
+          "text": "Design contrast: Compound III is a governance-run product, with fixed single-base-asset deployments whose parameters change only through Timelock proposals. Euler v2 is a permissionless toolkit where anyone can deploy vaults and each vault's governor or curator sets risk. Euler's then-CEO Michael Bentley framed it as 'You can use Euler to build other lending protocols, but the reverse isn't true'.",
+          "source": "https://docs.compound.xyz/governance/",
+          "note": null
+        },
+        {
+          "text": "Because Aave records a deficit only at exactly zero collateral, an insolvent account that keeps a sliver of collateral stays non-deficit: finishing the liquidation does not pay for gas, so no third party does it. Chaos Labs found two such accounts from the October 2025 '10.10' drawdown: a $61.6K (5,760 ENS) deficit recorded on 6 December and a $4.6K deficit recorded on 3 January 2026, roughly two and three months after the debt went bad. The lag matters because Umbrella stakers can time their cooldown on information the chain does not yet show. LlamaRisk adds the structural cause: each call na",
+          "source": "https://governance.aave.com/t/arfc-deficit-realization-risk-oracle-forcing-timely-bad-debt-recognition-via-dust-collateral-cleanup/23896",
+          "note": null
+        },
+        {
+          "text": "Blue moves risk management into a layer above the primitive. A vault takes passive deposits and a curator spreads them over Blue markets that share a loan asset. The whitepaper's example splits WETH between a stETH/WETH market at 97% LLTV and a cbETH/WETH market at 95% LLTV, which reproduces a Compound III-style ETH pool. The whitepaper adds that a failure in such a layer does not affect the security of the primitive. Morpho's V2 launch post says Blue and Vaults pioneered curators.",
+          "source": "https://github.com/morpho-org/morpho-blue/blob/main/morpho-blue-whitepaper.pdf",
+          "note": null
+        },
+        {
+          "text": "To judge a liquidation bonus, weigh bad-debt risk against value leaked to liquidators. Chaos Labs writes the protocol equity change from one liquidation as fD(1 - b(1 - r)), where f is the repaid fraction, D the debt, b the bonus and r the share of the bonus recaptured through MEV recapture (SVR). It proposes picking parameters that maximize conditional protocol equity, with conditional value at risk of bad debt as a benchmark. Aave Labs likewise says expected SVR revenue depends on how risk managers set the bonus parameters, and that a lower bonus can raise competitiveness at the cost of reve",
+          "source": "https://governance.aave.com/t/optimal-liquidation-parameters-conditional-value-at-risk-and-equity-characterizations-in-aave-v3-and-v4/24294",
+          "note": null
+        },
+        {
+          "text": "Blue has no built-in price source. The market creator names an oracle address whose `price()` returns the collateral price in loan-token terms, scaled by 1e36 (`ORACLE_PRICE_SCALE`). The contract calls it in each health check and liquidation and does not bound or validate the answer. The whitepaper says users choose their oracle by choosing a market, and can delegate that choice to a risk layer.",
+          "source": "https://github.com/morpho-org/morpho-blue/blob/main/morpho-blue-whitepaper.pdf",
+          "note": null
+        },
+        {
+          "text": "Risk providers give each Aave curve parameter a job. Slope1 encourages borrowing at low utilization and supply at high utilization. The optimal point is the buffer below 100% utilization. Slope2 rations the last liquidity while limiting user pain. The base rate is the minimum borrow rate, and the reserve factor trades protocol revenue against supplier yield (Gauntlet, 2023). Chaos Labs applies the same logic: it raises the optimal point to open cheap borrowing capacity and keeps slope2 high enough to push repayment or deposits at high utilization.",
+          "source": "https://gauntlet.xyz/resources/methodology-interest-rate-curves",
+          "note": null
+        },
+        {
+          "text": "v4 splits the knobs that v3 kept in one per-asset record. Hub: per-Spoke addCap and drawCap per asset (replacing supply and borrow caps) and credit lines; reserveFactor is renamed liquidityFee. Spoke: ReserveConfig (collateralRisk, paused, frozen, borrowable, receiveSharesEnabled), a Spoke-wide LiquidationConfig (targetHealthFactor, healthFactorForMaxBonus, liquidationBonusFactor), and per-reserve DynamicReserveConfig (collateralFactor, maxLiquidationBonus, liquidationFee). The same asset can therefore carry different risk values in different Spokes. New in v4: risk premiums and deficit report",
+          "source": "https://governance.aave.com/t/aave-v4-new-features-and-risk-parameter-analysis/23443",
+          "note": null
+        },
+        {
+          "text": "v4 has no separate borrow limit below the liquidation line. Spoke.borrow ends in _refreshAndValidateUserAccountData, which reverts only when HF < 1e18, and CF is the only collateral weight, so a borrower can end a borrow at HF exactly 1.0. v3 instead caps new borrows by LTV, which configureReserveAsCollateral forces to be at most the liquidation threshold, leaving a buffer. In v4 any buffer above 1.0 is the borrower's own choice.",
+          "source": "https://github.com/aave/aave-v4/blob/main/src/spoke/Spoke.sol",
+          "note": null
+        },
+        {
+          "text": "ChainSecurity (CS-AAVE4-009) shows a v4 liquidation lowers the borrower's HF whenever CF × liquidation bonus > HF before the liquidation. If the max bonus has not yet been reached at that HF, a liquidator can split a large liquidation into many small ones to ride the rising bonus. Aave Labs answered with a parameter policy, not code: CF × maxLB <= healthFactorForMaxBonus. Spoke.updateLiquidationConfig and _validateDynamicReserveConfig do not cross-check the two settings, so risk managers must hold the rule. The launch rows quoted by Chaos Labs satisfy it against 0.90: ETH 0.83 × 1.0555 is abou",
+          "source": "https://reports.chainsecurity.com/Aave/ChainSecurity_AaveLabs_AaveV4_Audit.pdf",
+          "note": null
+        },
+        {
+          "text": "Independent research says static kinks handle sustained near-100% utilization poorly. Boneh (Byte Masons, 2024) argues the market's acceptable rate is independent of the kink, so utilization can stay dangerously high until humans retune the curve. Baude, Challet and Muni Toke (v2, 2026-08-24), calibrated on Aave v3 Ethereum USDT over Aug 6-16 2024, find the kinked model lacks effective risk management near full utilization: starting at 100% utilization its average risk-adjusted PnL was less than half that of the adaptive and neural-network models, while starting at 90% all were within about 1",
+          "source": "https://arxiv.org/html/2407.10426",
+          "note": null
+        },
+        {
+          "text": "Curators earn performance fees on vault yield. Protos reports critics saying curators take fees while chasing higher yield, which pushes them toward riskier collateral. Four Pillars lists curator performance fees of 0-5% at Gauntlet and 0-25% at Steakhouse, depending on the vault. Its Resolv review recommends treating curators as 'active risk managers, not passive allocators collecting fees'.",
+          "source": "https://protos.com/stream-finance-meltdown-winners-and-losers-in-defi-risk-curator-reckoning/",
+          "note": null
+        },
+        {
+          "text": "Trail of Bits recommends stateful invariant fuzzing (Medusa, Echidna) and mutation testing (Necessist, slither-mutate) for v4, with long-term invariants such as 'users with HF above the liquidation threshold cannot be liquidated' and 'users cannot become liquidatable immediately after a successful borrow or withdraw', plus tests for governance parameter changes.",
+          "source": "https://github.com/trailofbits/publications/blob/master/reviews/2026-02-aave-v4-securityreview.pdf",
+          "note": null
+        },
+        {
+          "text": "Aave v3.7 removed Isolation Mode (debt ceilings and the borrowable-in-isolation flag) and Siloed Borrowing, and added isolated E-Mode categories: inside an isolated category only the category's collateral counts toward borrowing power (every other supplied asset is treated as LTV 0), users with other collateral enabled cannot enter, and users inside cannot enable other collateral. The aave-v3-origin main branch matches: PoolConfigurator has setEModeCategoryIsolated, setReserveLtvzero and setAssetLtvzeroInEMode but no debt-ceiling setter, and PoolInstance.POOL_REVISION is 11. The developer page",
+          "source": "https://aave.com/docs/developers/aave-v3/overview",
+          "note": null
+        },
+        {
+          "text": "v4 dynamic risk configuration: each reserve keeps a numbered history of DynamicReserveConfig entries (collateralFactor, maxLiquidationBonus, liquidationFee), and every user position stores the config key in force at its last risk-increasing action. borrow, withdraw (of collateral), setUsingAsCollateral and updateUserDynamicConfig rebind the position to the latest key; supply, repay, liquidationCall and updateUserRiskPremium do not. If the latest config would leave the position unhealthy, the risk-increasing action reverts. Governance can therefore tighten CF or bonus without liquidating existi",
+          "source": "https://github.com/aave/aave-v4/blob/main/docs/overview.md",
+          "note": null
+        },
+        {
+          "text": "Morpho incentive programs run at the market level, not the vault level, so a reward program cannot see which vaults hold a bad market. In November 2025 Entropy asked Merkl to blacklist two vaults (MEV Capital USDC and Hyperithm USDC) from ARB DRIP rewards and asked Morpho to stop showing their rewards. On 2025-11-14 Entropy reported that the Morpho UI no longer showed ARB rewards for those two vaults.",
+          "source": "https://forum.arbitrum.foundation/t/update-stream-finance-xusd-situation-and-impact-assessment/30206",
+          "note": null
+        },
+        {
+          "text": "Jupiter Lend liquidates by ticks. Positions with similar debt-to-collateral ratios share a tick, and when a tick crosses a vault's Liquidation Threshold all its positions are processed in one transaction. Each liquidation sells only enough collateral to bring the ratio back to the Liquidation Threshold, with a penalty on the liquidated part only that varies by vault. A position beyond the Liquidation Max Limit leaves the tick system and is fully liquidated.",
+          "source": "https://docs.jup.ag/user-docs/earn/lend/liquidation-mechanism",
+          "note": null
+        },
+        {
+          "text": "Parameter changes in v4 can block liquidations or user actions. ChainSecurity CS-AAVE4-002: pausing a Hub asset made liquidations of users who borrowed it revert (fixed with a separate paused flag per Spoke config). CS-AAVE4-022 and Trail of Bits TOB-AAVE-3: a riskPremiumThreshold below the accrued premium can block borrows, repayments and liquidations (Aave Labs accepted the risk in both). CS-AAVE4-008: config-key overflow could overwrite an old key with collateralFactor 0, which updateDynamicReserveConfig forbids; fixed by widening the key (uint16 to uint24 in the audited code; the current r",
+          "source": "https://reports.chainsecurity.com/Aave/ChainSecurity_AaveLabs_AaveV4_Audit.pdf",
+          "note": null
+        },
+        {
+          "text": "Oracle vendor failure is a Solana lending risk with a concrete 2026 case. Switchboard Technology Labs announced on 2026-09-19 that all implementations were deprecated and support would end on 2026-09-25. Solana Compass lists Kamino, Jito, MarginFi and Drift as integrators that had to move to Pyth or RedStone, and Project 0's docs still tell liquidators to crank banks that use 'deprecated Switchboard oracles'.",
+          "source": "https://solanacompass.com/news/switchboard-oracle-protocol-shuts-down-giving-solana-defi-six-days-to-migrate",
+          "note": null
+        },
+        {
+          "text": "v4 Spoke._processUserAccountData values each collateral position through hub.previewRemoveByShares (collateral is rounded against the user), values debt as drawnShares × drawnIndex + premiumDebtRay at RAY precision, and floors the final HF with Math.mulDiv(..., Rounding.Floor). A collateral reserve whose collateralFactor is 0 is skipped entirely: it adds nothing to total collateral value, the average collateral factor or the risk premium. UserAccountData.avgCollateralFactor is the value-weighted average CF in WAD.",
+          "source": "https://github.com/aave/aave-v4/blob/main/src/spoke/Spoke.sol",
+          "note": null
+        },
+        {
+          "text": "v4 user risk premium: each Spoke reserve has collateralRisk (BPS, 0 is best, maximum 1000_00). RP_u is the value-weighted average collateralRisk of the lowest-risk collateral needed to cover the user's debt, found by sorting collateral by risk ascending then value descending. The premium accrues as extra premium shares, premiumShares = drawnShares × RP_u, on top of the utilization-based rate. It is refreshed only on risk-increasing actions and on an explicit updateUserRiskPremium call.",
+          "source": "https://github.com/aave/aave-v4/blob/main/docs/overview.md",
+          "note": null
+        },
+        {
+          "text": "Tight targets plus low bonus factors can slow or skip liquidations near HF 1.0. Chaos Labs notes debtToTarget is small just under the threshold, so small positions can go unliquidated when the bonus factor is low. TokenLogic's 'Borrower UX' boundary configuration (target HF 1.02-1.06) leaves less surplus per liquidation and may leave some liquidations unexecuted under stress; its 'Liquidation Efficiency' configuration trades that for larger liquidations and more protocol revenue.",
+          "source": "https://governance.aave.com/t/aave-v4-new-features-and-risk-parameter-analysis/23443",
+          "note": null
+        },
+        {
+          "text": "Jupiter Lend's program upgrade authority is a 12-hour-timelock multisig controlled jointly by Jupiter and Fluid signers (address 4MsgBB5VPoTrUSp5XnfbViV386C1UnsTdifLBw33ZMSJ), and per-vault risk parameters are set by the market's admin multisig behind a timelock. On 2026-11-06 the Liquidity, Lending and Vaults programs all showed that same authority on-chain.",
+          "source": "https://raw.githubusercontent.com/Instadapp/fluid-solana-programs/main/README.md",
+          "note": null
+        },
+        {
+          "text": "Authorship of v4 parameters is concentrated and changed hands. Chaos Labs wrote the v4 parameter analysis and launch tables, then announced on 2026-04-06 that it was leaving as Aave's risk provider, citing v4's 'more interdependent configurations across spokes and markets', a $3 million budget (about 2% of revenue) against its $8 million (5.6%) minimum estimate, and an offered $5 million. Aave Labs said LlamaRisk would provide continuity, and the 2026-06-17 Avalanche V4 parameters were authored by LlamaRisk alone.",
+          "source": "https://governance.aave.com/t/chaos-labs-is-leaving-aave/24386",
+          "note": null
+        },
+        {
+          "text": "In every Main Spoke row retrieved for the Ethereum launch (ETH, wstETH, WBTC, USDC, USDT) and for the Avalanche proposal (WAVAX, BTC.b, USDC, USDT, WETH.e, plus the correlated and Forex rows), collateralRisk is 0, so the risk-premium mechanism is built in but priced at zero in those rows. Rows for other assets (weETH, cbBTC, AAVE, LINK) were not retrieved.",
+          "source": "https://governance.aave.com/t/arfc-aave-v4-activation-on-ethereum-mainnet/24293",
+          "note": null
+        },
+        {
+          "text": "Kamino's emergency council can only tighten settings. Market-wide it can enable emergency mode, disable new borrowing and disable price-triggered liquidations. Per reserve it can set borrow limit, deposit limit or LTV to zero. Only the `lending_market_owner` can reverse an action, and the docs recommend a fast council multisig beside a timelocked owner. On 2026-10-29 Kamino paused borrowing in its SOL/BTC Market at 22:03 UTC and resumed at 14:50 UTC on 2026-10-30 (about 16 h 47 min), saying deposits, withdrawals and repayments kept processing.",
+          "source": "https://kamino.com/docs/curators/markets/emergency-council",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Liquidation fires only on oracle-reported health, so an oracle that keeps pricing a broken asset at par hides or exports the loss. LlamaRisk's example for Aave: if the oracle prices USDe on par with USDT, the undercollateralization never reaches pool logic, `poolDeficit` stays unchanged, and the bad debt is realized only after the DAO switches to an oracle that shows the real value. In the Resolv USR exploit (2026-03-22), OAK reports Morpho vaults valued USR at a hardcoded 1 USDC while it traded near $0.025, with no circuit breaker. Sentora reports traders borrowed against wstUSR still valued",
+          "source": "https://governance.aave.com/t/llamarisk-insights-umbrella-coverage-principles-and-slashing-logic/23527",
+          "note": null
+        },
+        {
+          "text": "EVC batch() executes several operations atomically and lets account-status and vault-status checks run once, deferred to the end of the call context. Users are expected to go through the EVC's call or batch rather than calling vaults directly, so sub-account and operator authorisation applies. MixBytes likewise describes the EVC as managing accounts, operators and multicalls.",
+          "source": "https://raw.githubusercontent.com/euler-xyz/ethereum-vault-connector/master/docs/whitepaper.md",
+          "note": null
+        },
+        {
+          "text": "Aave v3 pays liquidators a static bonus. The collateral seized equals the repaid debt value times the collateral reserve's `liquidationBonus` (or the e-mode category's bonus when the borrower's e-mode category includes that collateral). If `liquidationProtocolFeePercentage` is non-zero, the protocol takes that share of the bonus portion only, not of the base collateral. One call names one collateral asset and one debt asset, and the liquidator may take aTokens (`receiveAToken`) instead of the underlying. Aave Labs describes the v3 bonus as static: it does not rise as the position gets deeper u",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/protocol/libraries/logic/LiquidationLogic.sol",
+          "note": null
+        },
+        {
+          "text": "Solana lending programs are upgradeable, unlike the immutable Morpho Blue core. On 2026-11-06 klend, marginfi v2, Jupiter Lend's three programs and Save all ran under BPFLoaderUpgradeable with a non-null upgrade authority. Last deploys were klend 2026-10-26, marginfi 2026-11-04, Jupiter Lend 2026-09-24 to 2026-10-06 and Save 2025-07-02. The Kamino, marginfi and Jupiter authorities behave like Squads v4 multisig vaults (their recent transactions invoke the Squads v4 program), but signer sets and thresholds were not read. Neodyme's general warning applies: 'This authority can replace said smart",
+          "source": "https://api.mainnet-beta.solana.com/?own-measurement=lending-program-upgrade-authority-2026-11-06",
+          "note": null
+        },
+        {
+          "text": "Euler's IRMAdaptiveCurve differs from Morpho's. Its six parameters are constructor arguments (bounded: target utilization 0-100%, min and max rate at target 0.1%-1000% APR, steepness 1.01-100, adjustment speed 2-1000 per year) instead of hard-coded constants. It keeps per-vault state (rateAtTarget, lastUtilization, lastUpdate). It shifts the curve with the utilization recorded at the previous update but prices the current rate with the current utilization. It returns the instantaneous end rate instead of Morpho's trapezoid average, and leaves state untouched until a vault's first borrow.",
+          "source": "https://raw.githubusercontent.com/euler-xyz/evk-periphery/master/src/IRM/IRMAdaptiveCurve.sol",
+          "note": null
+        },
+        {
+          "text": "Unlike V3, Aave V4's strategy contract has no Slope2 >= Slope1 check and ignores its deficit argument. The gap was exercised: on 2026-10-31 the V4 Ethereum Core Hub USDC curve ran with Slope2 at 4.50% below Slope1 at 5.00% (full-utilization rate 9.50%), a shape V3's setter rejects, so the Hub did not reject it. This is an inference from the two contracts and LlamaRisk's tables.",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/misc/DefaultReserveInterestRateStrategyV2.sol",
+          "note": null
+        },
+        {
+          "text": "Risk-manager calibrations of v4 liquidation parameters are simulations on v3 history, not v4 outcomes. Chaos Labs (2026-03-14) says its equity-uplift framework applies to both versions but its simulations use the v3 feature set, with the v4 application conceptual; it assumes partial equilibrium and a 65% SVR take-rate. TokenLogic (2026-02-03) replays 7,027 v3 Ethereum Core events from 2025, excludes execution failure, residual bad debt and cascades, and calls its two configurations boundary cases rather than expected regimes.",
+          "source": "https://governance.aave.com/t/optimal-liquidation-parameters-conditional-value-at-risk-and-equity-characterizations-in-aave-v3-and-v4/24294",
+          "note": null
+        },
+        {
+          "text": "Aave IRM parameters are retuned by outside risk providers through the on-chain Risk Steward process rather than fixed at listing. Chaos Labs in 2025 and LlamaRisk in its Oct-Nov 2026 posts propose slope and optimal-point changes for Aave V3 and V4. The steward enforces a timelock between changes to the same market (Chaos Labs, 2025-07-19: changes 'cannot be implemented because of a Risk Steward timelock'). Aave V3 Horizon has no Risk Steward, so its Operations multisig applies changes through the PoolConfigurator.",
+          "source": "https://governance.aave.com/t/chaos-labs-risk-stewards-adjust-usdt-interest-rate-curve-on-aave-v3-06-05-25/22279",
+          "note": null
+        },
+        {
+          "text": "Aave answered the same 2026-10-29 Binance hot-wallet theft with a freeze instead of a pause. Guardian multisigs froze 175 reserves on Aave V3 across 16 networks and 117 reserves on Aave V4 across four networks between 21:42 and 23:04 UTC. A freeze blocks new supply and borrow while repay, withdraw and liquidation continue. LlamaRisk chose it because a guardian can reverse it, whereas cutting caps needs a governance vote and about five days to restore. The attacker had supplied 60M USDT on Aave V3 Ethereum Core and borrowed 19,762 WETH about 40 minutes before the first freeze, and Aave unfroze",
+          "source": "https://governance.aave.com/t/binance-hot-wallet-exploit-aaves-response/25954",
+          "note": null
+        },
+        {
+          "text": "Aave governance has a record of covering bad debt from DAO and ecosystem funds instead of cutting supplier balances. TokenLogic's ARFC says that after the 2022 CRV short squeeze (2,651,906 CRV of bad debt, about $1.9M then) the DAO covered the shortfall rather than socialise it. For rsETH the same ARFC (2026-04-24) proposed a 25,000 ETH treasury contribution inside the 'DeFi United' coalition, plus a Mantle credit facility of up to 30,000 ETH. LlamaRisk advised pausing the WETH Umbrella module because 18,922 of 23,507 staked aWETH were already in cooldown. The ARFC's Snapshot result was not co",
+          "source": "https://governance.aave.com/t/arfc-rseth-incident-funding-update/24740",
+          "note": null
+        },
+        {
+          "text": "On 2025-09-01 Kamino announced changes to its soft-liquidation system: the penalty fell from 1% to as low as 0.1% and positions unwind in 10% increments instead of 20%. SolanaFloor and CoinCentral report this followed Jupiter Lend's launch. Blockworks Advisory's Q2 2026 report still describes a '10% incremental close factor' and only $37.3K of liquidation fees in Q2 2026.",
+          "source": "https://solanafloor.com/news/kamino-drops-liquidation-penalties-90-jupiter-lend-grows",
+          "note": null
+        },
+        {
+          "text": "Vault V2 can be permissioned with allowlists, unlike non-permissioned V1 vaults. Morpho warns that some gate implementations can stop certain users from depositing or withdrawing, which weakens the non-custodial guarantee. A Fee Wrapper inherits the limits of the vault it wraps, so the underlying vault's gates can block wrapper users even when the wrapper's own gates are abdicated.",
+          "source": "https://docs.morpho.org/learn/concepts/vault-v2",
+          "note": null
+        },
+        {
+          "text": "Venus Core Pool stablecoin markets use a two-kink curve. Chaos Labs proposed kinks at 80% and 90% for USDC and USDT across several chains in Dec 2024, then proposed kinks at 84% (target rate 5.5%) and 92% (7.5%) with 40% at full utilization in Nov 2025. Chaos Labs' stated trade-off: a single kink pulls utilization toward the kink but makes rates volatile near it (in its single-kink illustration, a move from 90% to 92% utilization would lift the rate from 5.5% to 12.4%), while two kinks smooth rate discovery at the cost of a wider buffer between kink 1 and 100%. Parameters are proposals by the",
+          "source": "https://community.venus.io/t/stablecoin-interest-rate-adjustment-and-2-kink-model-integration/4774",
+          "note": null
+        },
+        {
+          "text": "Which Solana lender is 'largest' depends on metric and date. Reports on 2026-10-07 and 10-08 said Jupiter Lend had passed Kamino (deposits $2.60B vs $2.57B per Blockworks data; DefiLlama TVL $1.411B vs $1.403B) while Kamino still earned more 30-day fees ($4.82M vs $3.77M). On DefiLlama data of 2026-11-06 Kamino leads again on TVL (about $1.20B vs $1.0B) and on TVL plus borrowed (about $2.02B vs $1.92B), while Jupiter Lend leads on borrowed (about $0.92B vs $0.82B).",
+          "source": "https://cryptobriefing.com/jupiter-lend-overtakes-kamino-solana-lending/",
+          "note": null
+        },
+        {
+          "text": "Kamino splits risk across many separate lending markets instead of one pool. Its API listed 50 lending markets on 2026-11-06 (23 flagged `isCurated`, one flagged primary: 'SOL/BTC Market'), each with its own address lookup table, and the client-funded Blockworks Advisory Q2 2026 report describes Kamino's revenue as earned 'across its isolated lending markets'.",
+          "source": "https://api.kamino.finance/v2/kamino-market",
+          "note": null
+        },
+        {
+          "text": "Mango Markets lost over $116M on 2022-10-12 when an attacker pumped the thinly traded MNGO price from about $0.03 to $0.91 and borrowed against the inflated collateral. The oracles reported the manipulated price, and Ackee describes the event as an exploit of market conditions rather than a hack of the contracts.",
+          "source": "https://ackee.xyz/blog/2022-solana-hacks-explained-mango-markets/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Where to see bad debt on-chain. Aave: the `DeficitCreated(borrower, debtAsset, outstandingDebt)` event and the reserve's `deficit` field. Morpho Blue: `badDebtAssets` and `badDebtShares` in the `Liquidate` event. Euler: the `DebtSocialized(violator, amount)` event. Compound III: `getReserves()` below zero, plus the `AbsorbDebt` event that reports the base amount paid out of reserves.",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/protocol/libraries/logic/LiquidationLogic.sol",
+          "note": null
+        },
+        {
+          "text": "Read-only entry points: Aave V3 getInterestRateData, getInterestRateDataBps and getMaxVariableBorrowRate (per reserve); Morpho rateAtTarget(id) and borrowRateView(marketParams, market); Euler computeInterestRateView(vault, cash, borrows) and, for the adaptive curve, computeRateAtTargetView and getLastUpdateTimestamp; Compound III getBorrowRate(utilization), getSupplyRate(utilization) and getUtilization(), which return per-second rates scaled by 1e18.",
+          "source": "https://aave.com/docs/aave-v3/smart-contracts/interest-rate-strategy",
+          "note": null
+        },
+        {
+          "text": "Comet liquidation is protocol-mediated and two-step (absorb, then buyCollateral). Absorbers earn liquidation points, buyCollateral is gated by targetReserves, and governance can pause absorb and buyCollateral separately. Mechanics such as close factor and bad debt belong to a sibling concept; this claim covers architecture only.",
+          "source": "https://defilending.substack.com/p/special-issue-a-deep-dive-into-compound",
+          "note": null
+        },
+        {
+          "text": "Other EVK vault controls: supply and borrow caps are denominated in the underlying asset, packed into 2-byte decimal floating point values and enforced at the end of a batch; the interest rate model is a swappable contract; the governor can attach a hook target to selected operations, and if the hook call fails the vault operation fails too.",
+          "source": "https://raw.githubusercontent.com/euler-xyz/euler-vault-kit/master/docs/whitepaper.md",
+          "note": null
+        },
+        {
+          "text": "Cross-vault collateral is permissionless composition. A vault can be parameterised to accept any other vault's shares as collateral (all vaults must be EVC-compatible and use the same EVC deployment), so collateral value depends on the collateral vault's share price. Each vault has its own oracle (IPriceOracle getQuote and getQuotes) and unit of account; the EVK docs state the oracle address is immutable even for the vault governor.",
+          "source": "https://raw.githubusercontent.com/euler-xyz/euler-vault-kit/master/docs/whitepaper.md",
+          "note": null
+        },
+        {
+          "text": "Compound III (Comet) has no close factor and no partial liquidation. Anyone can call `absorb(absorber, accounts[])` on an account where `isLiquidatable` is true (borrow above the collateral weighted by `liquidateCollateralFactor`). `absorbInternal` seizes every enabled collateral asset of the account (balances set to 0, moved to protocol-owned collateral), credits the account with the collateral value times each asset's `liquidationFactor` in base token, and clears the debt from protocol reserves. If the credit exceeds the debt, the surplus stays as the account's base supply. If not, the code",
+          "source": "https://raw.githubusercontent.com/compound-finance/comet/main/contracts/CometWithExtendedAssetList.sol",
+          "note": null
+        },
+        {
+          "text": "Certora's 'Comet Service Patch' review (2026-05-26) covers six areas: extended pause, oracle paralysis prevention, collateral deactivation lifecycle, utilization cap, lender illiquidity prevention and a test-suite overhaul. Certora says it 'identified important security issues which were all resolved by the development team'; the page gives no findings count.",
+          "source": "https://www.certora.com/reports/comet-service-patch",
+          "note": null
+        },
+        {
+          "text": "Aave v4 drops the fixed close factor. Each spoke sets a `TargetHealthFactor`; in normal cases a liquidator may repay only enough debt to restore the borrower to that target, so a small shortfall means a small repay. For a target of 1.0 the minimum repaid fraction is f = (T*s - 1) / (T*(1+b) - 1), where T is the liquidation threshold, s the collateral-to-debt value ratio and b the bonus (Chaos Labs). The bonus is variable, Dutch-auction style: lower health factor, higher bonus, set by `maxLiquidationBonus` (per reserve), `healthFactorForMaxBonus` and `liquidationBonusFactor` (per spoke). If a s",
+          "source": "https://governance.aave.com/t/overview-of-aave-v4-s-liquidation-engine/23531",
+          "note": null
+        },
+        {
+          "text": "Comet enforces a minimum borrow size, baseBorrowMin: an account's initial borrow must be at least that value, a withdrawal that would leave the borrow below it reverts, and later borrows may be any size. Governance can change the borrow minimum through the Configurator.",
+          "source": "https://docs.compound.xyz/collateral-and-borrowing/",
+          "note": null
+        },
+        {
+          "text": "A Morpho Blue market pairs one loan token with one collateral token. Five parameters define it: loan token, collateral token, oracle address, interest rate model (IRM) address and liquidation LTV (LLTV). The contract stores each market under an id derived from those parameters and has no function that edits them afterwards, so each market is immutable and separate from every other market.",
+          "source": "https://github.com/morpho-org/morpho-blue/blob/main/morpho-blue-whitepaper.pdf",
+          "note": null
+        },
+        {
+          "text": "If a liquidation seizes a borrower's last collateral while debt remains, `liquidate` writes that debt off at once. It lowers both the market's total borrow assets and total supply assets, so the loss falls on that market's suppliers pro rata and the market keeps operating. Liquidation uses a fixed incentive per market, `min(1.15, 1 / (1 - 0.3 * (1 - LLTV)))`, and has no close factor.",
+          "source": "https://raw.githubusercontent.com/morpho-org/morpho-blue/main/src/Morpho.sol",
+          "note": null
+        },
+        {
+          "text": "Licensing differs across the three code bases. EVK is GPL-2.0-or-later except src/EVault/modules/, which is BUSL-1.1 until automatic relicensing to GPL-2.0-or-later on 2029-04-24; the EVC is GPL-2.0-or-later; Comet's contract headers carry SPDX BUSL-1.1.",
+          "source": "https://github.com/euler-xyz/euler-vault-kit",
+          "note": null
+        },
+        {
+          "text": "In the November 2025 collapse of Stream Finance's xUSD and Elixir's deUSD, Morpho depositors lost money through curated vaults. Entropy Advisors (post on the Arbitrum DAO forum) reported about $700K of realized bad debt in the MEV Capital USDC vault. Protos listed Re7 Labs with $12.75M of bad sdeUSD and deUSD collateral across four Euler and Morpho markets, and MEV Capital with about $34M 'impacted' across four permissionless markets and one vault. Morpho co-founder Paul Frambot said other Morpho markets stayed unexposed.",
+          "source": "https://forum.arbitrum.foundation/t/update-stream-finance-xusd-situation-and-impact-assessment/30206",
+          "note": null
+        },
+        {
+          "text": "Collateral supplied to a Comet market does not earn interest. Compound's docs say 'Collateral assets that are supplied do not earn interest', and the 2022-07-24 State of DeFi Lending deep dive says only the supplied base asset earns supply interest in Compound III.",
+          "source": "https://docs.compound.xyz/collateral-and-borrowing/",
+          "note": null
+        },
+        {
+          "text": "Comet stores base balances as signed principal. Present value is principal times baseSupplyIndex (or baseBorrowIndex) divided by BASE_INDEX_SCALE (1e15). Converting back to principal rounds down for supply and up for borrow, and the code notes overflow at roughly 20 trillion principal for 18-decimal assets.",
+          "source": "https://raw.githubusercontent.com/compound-finance/comet/main/contracts/CometCore.sol",
+          "note": null
+        },
+        {
+          "text": "DefiLlama's api.llama.fi/protocol/<slug> endpoint returns the TVL series plus currentChainTvls, including '<Chain>-borrowed' keys and a total 'borrowed' key; the slugs compound-v3 and euler-v2 identify these two protocols.",
+          "source": "https://api.llama.fi/protocol/compound-v3",
+          "note": null
+        },
+        {
+          "text": "Who can retune a curve differs by protocol. Compound v2's JumpRateModelV2 lets its owner (the Timelock) call updateJumpRateModel. Aave's strategy has a PoolConfigurator-only setter. Morpho's AdaptiveCurveIRM is immutable, so neither governance nor market creators can tune it. Euler's IRMLinearKink keeps baseRate, slope1, slope2 and kink as immutable constructor values.",
+          "source": "https://raw.githubusercontent.com/compound-finance/compound-protocol/master/contracts/BaseJumpRateModelV2.sol",
+          "note": null
+        },
+        {
+          "text": "Comet's collateral list is capped in code. CometCore defines 'uint8 internal constant MAX_ASSETS = 15' (hard-coded; changing it means resizing UserBasic.assetsIn). CometWithExtendedAssetList raises the ceiling to 24 ('MAX_ASSETS_FOR_ASSET_LIST = 24') by keeping asset configs in a separate asset-list contract at an immutable address, and the repo README names that variant as the core Comet implementation.",
+          "source": "https://raw.githubusercontent.com/compound-finance/comet/main/contracts/CometCore.sol",
+          "note": null
+        },
+        {
+          "text": "All Compound III deployments are administered by the Timelock, the same administrator as Compound v2. Non-mainnet deployments add a Bridge Receiver and a Local Timelock that delays admin calls. The Governor or the Pause Guardian (a community multi-sig designated by COMP holders) can pause supply, transfer, withdraw, absorb and buyCollateral; only the Governor can set the factory or the Governor, withdraw reserves or approve manager allowances.",
+          "source": "https://docs.compound.xyz/governance/",
+          "note": null
+        },
+        {
+          "text": "OpenZeppelin's medium findings show Comet's trust edges: approveThis let the governor approve anyone to move base and collateral assets out of Comet (a governance-attack vector; docstrings were clarified), and a low targetReserves value could stop buyCollateral and leave the protocol holding collateral (the team said targetReserves is meant to be 'a pretty large value'). The governance docs confirm that only the Governor can withdraw reserves or approve manager allowances.",
+          "source": "https://www.openzeppelin.com/news/compound-iii-audit",
+          "note": null
+        },
+        {
+          "text": "Anyone can deploy EVK vault proxies through the factory; EVault dispatches some logic to static modules. Upgradeable vaults point at a factory-controlled beacon and immutable vaults use a fixed implementation. A governor can change vault configuration, and setting the governor to address(0) finalises the vault. 'Perspectives' are verifier contracts; the escrowed-collateral perspective requires no borrowing, immutability and finalisation. At launch Euler's frontend supported four vault classes: escrowed collateral, governed, ungoverned and yield aggregator.",
+          "source": "https://raw.githubusercontent.com/euler-xyz/euler-vault-kit/master/docs/whitepaper.md",
+          "note": null
+        },
+        {
+          "text": "Euler v2 went live on 2024-09-04, after Euler v1 lost about $197 million to a flash-loan attack on 2023-03-13. Euler's April 2026 retrospective also dates the V2 launch to September 2024.",
+          "source": "https://www.theblock.co/news/defi/2024-09-04-euler-launches-v2-modular-defi-lending-protocol-following-hack-314655",
+          "note": null
+        },
+        {
+          "text": "Euler v2's pre-launch security programme, as vendor-reported: The Block (2024-09-04) cites 31 audits (including Certora, Omniscia, OtterSec, OpenZeppelin and Trail of Bits), a $1.25M Cantina audit competition, a $3.5M Hats Finance CTF and a bug bounty. Euler's 2024-08-12 post says 'over 60 security reviews by more than 16 firms', that Certora proved the invariant that a user's health should not change unless their balances or asset prices change, and that the Cantina competition (600+ participants) found no high or medium issues in the post-audit code.",
+          "source": "https://www.theblock.co/news/defi/2024-09-04-euler-launches-v2-modular-defi-lending-protocol-following-hack-314655",
+          "note": null
+        },
+        {
+          "text": "Cross-venue collateral works differently on each chain. Project 0 accepts Kamino and Jupiter Lend positions by creating one wrapped Bank per venue reserve, where a single Kamino Obligation holds all users' deposits for that Bank, yield comes from the origin venue, and there is no borrowing from venue assets. The marginfi program carries asset tags for Kamino, Drift, Solend and Jupiter Lend. On Euler v2 on EVM, the liability vault decides which other credit vaults are acceptable as collateral, tracked by the Ethereum Vault Connector.",
+          "source": "https://docs.0.xyz/protocol-overview/cross-venue-integrations",
+          "note": null
+        },
+        {
+          "text": "Compound III (Comet) prices supply and borrow with two separate governance-set rate models. Each is a function of utilization with its own kink above which the rate rises faster, using separate base and low/high slope parameters (supplyKink, borrowKink), and interest accrues every second from the block timestamp.",
+          "source": "https://docs.compound.finance/interest-rates/",
+          "note": null
+        },
+        {
+          "text": "After the Resolv USR mint exploit on 2026-03-22, Sentora and Four Pillars each report about 15 Morpho vaults with meaningful exposure. Sentora names Gauntlet, Re7 Labs, kpk and 9summits as curators that took losses, and mentions MEV Capital. Neither source gives a Morpho-wide bad-debt total.",
+          "source": "https://sentora.com/market-events/resolv-incident-report",
+          "note": null
+        },
+        {
+          "text": "After the 2026-04-18 Kelp rsETH bridge exploit, Compound used Comet's control levers. Per DeFi Saver's incident notice, the V3 WETH, USDC and wstETH markets on Ethereum, and WETH on Optimism, Base, Arbitrum and Linea, were paused so assets could not be withdrawn or borrowed while deposits stayed possible. The Compound Foundation said on 2026-05-05 that the Ethereum WETH and wstETH Comets had resumed and that temporary suspensions might recur. Proposal 586 (created 2026-05-20, executed 2026-05-28) then removed a temporary rsETH price-feed setup on those two markets.",
+          "source": "https://help.defisaver.com/general/kelpdao-rseth-incident-april-2026",
+          "note": null
+        },
+        {
+          "text": "Comet configuration changes move at governance speed. Comet PR 1122 (return the rsETH price feed on mainnet WETH and wstETH) was opened 2026-05-18, Proposal 586 was created 2026-05-20, voting ran 2026-05-22 to 2026-05-26 and execution came on 2026-05-28, about ten days end to end. The docs give the Pause Guardian a direct pause power that does not wait for a vote.",
+          "source": "https://github.com/compound-finance/comet/pull/1122",
+          "note": null
+        },
+        {
+          "text": "OpenZeppelin audited Comet at commit 0f1221967149115f50a09681eea9580879ee7720 (review 2022-05-13 to 2022-06-14, published 2022-07-20) and found 0 critical, 1 high (ETH or ERC-20 sent to Bulker could be stranded), 3 medium and 8 low issues. Compound's docs list OpenZeppelin and ChainSecurity as the reviewers and mention a bug bounty.",
+          "source": "https://www.openzeppelin.com/news/compound-iii-audit",
+          "note": null
+        },
+        {
+          "text": "Euler Labs' retrospective (2026-04-07) says Euler reached 'over $4 billion in deposits in under a year' of the September 2024 V2 launch.",
+          "source": "https://euler.finance/blog/euler-q1-2026",
+          "note": null
+        },
+        {
+          "text": "Euler socializes bad debt per vault. After a liquidation, if the violator's liability value was at least `MIN_SOCIALIZATION_LIABILITY_VALUE` (1e6), `CFG_DONT_SOCIALIZE_DEBT` is not set, the liability exceeds the repaid amount, and `checkNoCollateral` finds no collateral left on any collateral the account holds, the vault calls `decreaseBorrow` for the remainder and emits `DebtSocialized`. Euler's docs say vaults have this on by default, that it spreads the loss to all depositors, and that governors who do not want it can disable it. Separately, `liquidationCoolOffTime` makes liquidation revert",
+          "source": "https://raw.githubusercontent.com/euler-xyz/euler-vault-kit/master/src/EVault/modules/Liquidation.sol",
+          "note": null
+        },
+        {
+          "text": "Aave V3 supply rate = variable borrow rate x supplyUsageRatio x (1 - reserveFactor). The borrow curve is positioned by totalDebt / (availableLiquidity + totalDebt). The supply ratio divides by the same denominator plus the 'unbacked' input, which the docs say has carried the reserve deficit since V3.4. A deficit therefore lowers supplier yield without moving the borrow curve.",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/misc/DefaultReserveInterestRateStrategyV2.sol",
+          "note": null
+        },
+        {
+          "text": "Euler's vault kit offers IRMLinearKink (utilization = borrows/(cash+borrows) as a uint32; rate = baseRate + util x slope1 up to the kink, then plus (util - kink) x slope2; all four parameters immutable) and IRMAdaptiveCurve, a port of Morpho's adaptive curve that returns per-second rates scaled to RAY for the EVK.",
+          "source": "https://raw.githubusercontent.com/euler-xyz/euler-vault-kit/master/src/InterestRateModels/IRMLinearKink.sol",
+          "note": null
+        },
+        {
+          "text": "Critics quoted by Protos attacked permissionless vault curation and immutable or hardcoded oracle feeds. BGD Labs' Ernesto Boado called it 'selling your brand to gamblers for free'. Protos tags Marc Zeller and Stani Kulechov as Aave figures, and Aave is a competing lender. Zeller compared the model to a hospital where 'anyone can register as a doctor'. Kulechov called immutable oracle feeds and parameters a 'bad recipe for lending protocols'. Four Pillars calls the hardcoded oracle that kept pricing USR at $1 after the depeg a necessary condition for the Resolv losses.",
+          "source": "https://protos.com/stream-finance-meltdown-winners-and-losers-in-defi-risk-curator-reckoning/",
+          "note": null
+        },
+        {
+          "text": "Vault bad-debt handling differs by version. In V1.0, realized market bad debt lowers the vault share price at once, so all depositors share the loss pro rata. In V1.1 the vault 'does not realize the bad debt': the share price does not fall, and 'the last vault users will face the bad debt unless action is taken'. Anyone, including the curator, can cover the loss by supplying loan tokens.",
+          "source": "https://docs.morpho.org/curation/tutorials/bad-debt",
+          "note": null
+        },
+        {
+          "text": "Morpho's fixed-rate Midnight protocol has no utilization IRM. Its contracts store no rate, only trades at a unit price P, and the implied simple rate to maturity is 1/P - 1. Morpho quotes Midnight rates as APR since 2026-10-09, while Morpho Blue and vaults still quote variable rates as APY, so the two are not directly comparable.",
+          "source": "https://docs.morpho.org/learn/concepts/midnight/",
+          "note": null
+        },
+        {
+          "text": "Compound v2's JumpRateModelV2 defines utilization as borrows / (cash + borrows - reserves). At or below the kink the per-block borrow rate is util x multiplierPerBlock + baseRatePerBlock. Above the kink it is the rate at the kink plus (util - kink) x jumpMultiplierPerBlock. Yearly inputs become per-block values by dividing by a hard-coded blocksPerYear of 2,102,400, and the supply rate is util x borrow rate x (1 - reserve factor).",
+          "source": "https://raw.githubusercontent.com/compound-finance/compound-protocol/master/contracts/BaseJumpRateModelV2.sol",
+          "note": null
+        },
+        {
+          "text": "Aave V4's API and AaveKit expose the whole curve per Hub asset (hubAssetInterestRateModel query, useHubAssetInterestRateModel hook): each point has utilization, borrow rate, supply rate and liquidityDistance from the current state. HubAssetSettings also returns irStrategy, optimalUtilizationRate, baseBorrowRate, slopeBelowOptimal and slopeAboveOptimal.",
+          "source": "https://aave.com/docs/aave-v4/liquidity/hubs.md",
+          "note": null
+        },
+        {
+          "text": "All markets on a chain live in one Morpho contract (a singleton). The whitepaper puts the implementation at about 650 source lines. The same contract offers flash loans with no fee over the liquidity of every market, callbacks in `supply`, `supplyCollateral`, `repay` and `liquidate`, and an authorization system, including EIP-712 signatures, that lets another address borrow or withdraw on a user's behalf.",
+          "source": "https://github.com/morpho-org/morpho-blue/blob/main/morpho-blue-whitepaper.pdf",
+          "note": null
+        },
+        {
+          "text": "Three V1 vault settings can trap or block funds. If the supply queue is empty, deposits are disabled. A market's supply cap starts at 0, so a new market receives nothing until the curator raises the cap through the timelock. A forced market removal loses money: the README warns that 'funds previously supplied in forced removed markets will be lost permanently'.",
+          "source": "https://github.com/morpho-org/metamorpho",
+          "note": null
+        },
+        {
+          "text": "How a Morpho vault passes on market-level bad debt depends on its version. V1.0 vaults realize the loss at once, so the share price falls for all depositors. V1.1 vaults do not mark the loss down: 'The last vault users will face the bad debt unless action is taken' (the vault tracks it as `lostAssets`, and anyone can cover it by depositing loan token on behalf of `address(1)`). V2 vaults reflect it through adapter `realAssets()`, so every share redeems for less and 'all vault users absorb the loss proportionally'. A V2 vault that allocates into a V1.1 vault does not see that loss until the V1.",
+          "source": "https://docs.morpho.org/curation/tutorials/bad-debt",
+          "note": null
+        },
+        {
+          "text": "Anyone can call `createMarket` on Morpho Blue. The call reverts only if the IRM is not governance-enabled, the LLTV is not governance-enabled, or the market already exists. It needs no governance vote.",
+          "source": "https://raw.githubusercontent.com/morpho-org/morpho-blue/main/src/Morpho.sol",
+          "note": null
+        },
+        {
+          "text": "Two independent audits found that 1-2 wei of rounding in v4 premium-debt recomputation can push a position at HF near 1 below the liquidation line. Trail of Bits (TOB-AAVE-7, Medium): the Spoke checks HF before _notifyRiskPremiumUpdate raises premium debt by up to 2 wei, so a user exactly at the threshold can pass the check and be liquidatable immediately. ChainSecurity (CS-AAVE4-001, Medium): repeated 1-wei liquidations or updateUserRiskPremium calls can add debt and create bad debt. Fix: premium debt kept at RAY plus asset-decimal precision (ChainSecurity 'Code corrected'; Trail of Bits stat",
+          "source": "https://reports.chainsecurity.com/Aave/ChainSecurity_AaveLabs_AaveV4_Audit.pdf",
+          "note": null
+        },
+        {
+          "text": "Aave V4 keeps the optimal-usage curve but sets it per Hub asset. AssetInterestRateStrategy stores optimalUsageRatio, baseDrawnRate, rateGrowthBeforeOptimal and rateGrowthAfterOptimal (the docs and API call them optimalUtilizationRate, baseBorrowRate, slopeBelowOptimal and slopeAboveOptimal), so a change applies to every Spoke drawing from that Hub asset. Usage = drawn / (liquidity + drawn + swept), and the strategy returns only the drawn (borrow) rate.",
+          "source": "https://raw.githubusercontent.com/aave/aave-v4/main/src/hub/AssetInterestRateStrategy.sol",
+          "note": null
+        },
+        {
+          "text": "Morpho Blue tracks supply and borrow positions as shares. `SharesMathLib` adds virtual shares and assets (`VIRTUAL_SHARES` = 1e6, `VIRTUAL_ASSETS` = 1), using OpenZeppelin's method to blunt share-price manipulation. Interest accrues in each market at the start of every state-changing call, and the protocol fee is minted as supply shares for the fee recipient.",
+          "source": "https://raw.githubusercontent.com/morpho-org/morpho-blue/main/src/libraries/SharesMathLib.sol",
+          "note": null
+        },
+        {
+          "text": "In Vault V1.0, every action that could work against depositors waits at least 24 hours. Vault V1.1 allows a timelock of 0 at deployment; any later timelock must lie between 24 hours and 2 weeks. V1.1 also makes the vault name and symbol mutable, and its `reallocate` always reverts for a market that is not enabled in the vault.",
+          "source": "https://github.com/morpho-org/metamorpho",
+          "note": null
+        },
+        {
+          "text": "A vault counts as a Morpho Vault V2 only if two things hold. It sets its adapter registry to the Morpho Registry, which Morpho governance maintains and which lists Morpho Markets V1 and V2 and Morpho Vaults V1. Its curator also abdicates the ability to change that registry. Before abdication the curator can still change the registry.",
+          "source": "https://docs.morpho.org/curate/concepts/adapter-registry/",
+          "note": null
+        },
+        {
+          "text": "Morpho's audit page lists three reviews for Blue itself: OpenZeppelin (2023-10-13), Spearbit (2023-10-16) and a Cantina contest (November to December 2023). Vault V1 has OpenZeppelin and Spearbit reviews dated 2023-11-16 and a Cantina contest. V1.1 has OpenZeppelin (2024-11-16) and Spearbit (2024-11-23). Vault V2 and its adapters list Spearbit, Blackthorn, Certora, Zellic, ChainSecurity and a Cantina contest, dated between 2025-04 and 2025-11. Morpho's V2 launch post cites three completed V2 audits (Spearbit, ChainSecurity, Zellic) before a final Cantina competition. Both lists come from Morph",
+          "source": "https://docs.morpho.org/get-started/resources/audits/",
+          "note": null
+        },
+        {
+          "text": "Research groups linear and kinked IRMs as a first generation that depends only on current utilization, and Morpho's AdaptiveCurveIRM as a newer generation. Boneh (Byte Masons) describes Aave as a piecewise curve with an inflection point, Ajna as a 12-hour-epoch multiplier (x1.1 if utilization is above target, x0.9 if below, ignoring the size of the gap), and Morpho as a piecewise curve with a time-varying scale.",
+          "source": "https://arxiv.org/html/2502.19862",
+          "note": null
+        },
+        {
+          "text": "Hard limits in v4 code: targetHealthFactor >= 1e18; healthFactorForMaxBonus < 1e18; liquidationBonusFactor <= 100_00 BPS; maxLiquidationBonus >= 100_00 BPS; liquidationFee <= 100_00 BPS; collateralRisk <= MAX_ALLOWED_COLLATERAL_RISK = 1000_00 BPS; DUST_LIQUIDATION_THRESHOLD = 1000e26, documented as USD 1,000. A liquidation must clear the position's debt or collateral fully, or leave at least that dust amount of both; the Aave guide says the liquidator must clear a reserve's debt if under $1,000 would remain.",
+          "source": "https://github.com/aave/aave-v4/blob/main/src/spoke/Spoke.sol",
+          "note": null
+        },
+        {
+          "text": "Aave V3 keeps optimalUsageRatio, baseVariableBorrowRate, variableRateSlope1 and variableRateSlope2 per reserve in a mapping inside one strategy contract per pool, and only the PoolConfigurator can change them.",
+          "source": "https://raw.githubusercontent.com/aave-dao/aave-v3-origin/main/src/contracts/misc/DefaultReserveInterestRateStrategyV2.sol",
+          "note": null
+        },
+        {
+          "text": "Blue assumes ordinary ERC-20 behavior. Morpho's docs require ERC-20-compliant loan and collateral tokens, with an exception for return values of `transfer` and `transferFrom`. MixBytes warns that rebasing tokens, fee-on-transfer tokens and tokens that revert in non-standard ways create liveness and security risks in a market.",
+          "source": "https://docs.morpho.org/learn/concepts/blue/",
+          "note": null
+        },
+        {
+          "text": "In aave-v3-origin, GenericLogic.calculateUserAccountData sums collateral base value × LT over every collateral reserve and sets HF = that sum.wadDiv(totalDebtInBaseCurrency) / 100_00, an 18-decimal value. The 'average liquidation threshold' it also returns is derived afterwards by dividing the same sum by total collateral, which matches the identity H = L(u) × ΣC / ΣB in Cyfrin's course. Each reserve's debt value uses MathUtils.mulDivCeil, so debt rounds up against the borrower.",
+          "source": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/protocol/libraries/logic/GenericLogic.sol",
+          "note": null
+        },
+        {
+          "text": "v3 treats LTV and liquidation threshold as separate levers. A collateral reserve with LTV 0 still counts in totalCollateralInBaseCurrency and in the LT-weighted sum that feeds HF, but it is skipped in avgLtv and sets hasZeroLtvCollateral, so it adds liquidation protection without borrowing power. Setting the liquidation threshold itself to 0 is the hard disable: PoolConfigurator then requires liquidationBonus == 0 and calls _checkNoSuppliers(asset), so the reserve must have no suppliers.",
+          "source": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/protocol/libraries/logic/GenericLogic.sol",
+          "note": null
+        },
+        {
+          "text": "klend prices positions from values cached in each reserve by a separate refresh instruction, not from an oracle read inside each action. The cache counts as fresh only while `STALE_AFTER_SLOTS_ELAPSED = 1` slot has not passed, and the program returns `ReserveStale` or `ObligationStale` otherwise. Project 0's docs therefore say every Kamino-related transaction looks like 'refresh reserves, refresh obligation, everything else'. Morpho Blue instead calls `IOracle(marketParams.oracle).price()` inside the liquidation call.",
+          "source": "https://github.com/Kamino-Finance/klend/blob/77e81854909ab7ffea3a2e898b2554d96e07daac/programs/klend/src/state/last_update.rs",
+          "note": null
+        },
+        {
+          "text": "Morpho.sol` carries the SPDX license GPL-2.0-or-later. The repository README lists the other files as MIT and names BUSL-1.1 as the previous license. Four Pillars says the GPL code has been live since 2026-01-01.",
+          "source": "https://raw.githubusercontent.com/morpho-org/morpho-blue/main/src/Morpho.sol",
+          "note": null
+        },
+        {
+          "text": "Aave v4 went live on Ethereum mainnet on 2026-03-30: AaveLabs posted the ARFC on 2026-03-13, the Snapshot passed on 2026-03-23, and on 2026-03-30 the AIP payload executed (interface at pro.aave.com). The launch layout has three Hubs (Core, Prime, Plus) with named Spokes, each with its own liquidation settings, caps and credit lines; AaveLabs calls it 'an initial configuration, not a final one'. Aave Labs said on 2026-04-06 that the V3-to-V4 transition has no forced timeline and V3 runs in parallel.",
+          "source": "https://governance.aave.com/t/arfc-aave-v4-activation-on-ethereum-mainnet/24293",
+          "note": null
+        },
+        {
+          "text": "Solend lost $1.26M to bad debt on 2022-11-02. The attacker pumped USDH on Saber, write-locked the Saber account to stop same-slot arbitrage, and let a Switchboard oracle read the inflated price. Solend's DAO later passed proposals to cover the bad debt. The attack relied on Solana's account write-locking.",
+          "source": "https://ackee.xyz/blog/2022-solana-hacks-explained-solend/",
+          "note": null
+        },
+        {
+          "text": "Several Solana safety records are vendor self-reports. Kamino's docs say `socialize_loss` 'has never been triggered'. The Blockworks Advisory Q2 2026 report, which discloses that it was funded by the client, says Kamino has had zero bad debt since inception and handled the 2026-04-01 Drift exploit ($285M) and the June SOL drawdown without loss to depositors. Project 0's docs say bankruptcy had never been executed in its main pool as of November 2025. This research did not audit any of these statements.",
+          "source": "https://kamino.com/docs/build/developers/borrow/liquidations/liquidation-engine",
+          "note": null
+        },
+        {
+          "text": "Project 0 (marginfi) applies Emode automatically. Users do not opt in, the most favourable matching setting is applied, entries are configured on the borrowing Bank, and borrowing several assets takes the least favourable treatment across all liabilities. Project 0's docs contrast this with Aave, which they say requires disabling E-mode before borrowing a non-preferential asset.",
+          "source": "https://docs.0.xyz/protocol-overview/emode",
+          "note": null
+        },
+        {
+          "text": "Aave V3 E-mode and Kamino elevation groups both restrict borrowing to a related asset set, but they differ in shape. In Aave a user picks one E-mode category, borrowing is then limited to assets in that category, and an asset can belong to several categories. In Kamino a user requests a group, each group names one permitted `debt_reserve`, a market holds up to 32 groups, a reserve can join up to 20, and leaving the group or borrowing outside it restores the per-reserve parameters.",
+          "source": "https://aave.com/help/borrowing/e-mode",
+          "note": null
+        },
+        {
+          "text": "Other Solana lenders also cap positions per user account. marginfi's lending account is a fixed array of `MAX_LENDING_ACCOUNT_BALANCES = 16` balances, and a Save (Solend) obligation allows at most `MAX_OBLIGATION_RESERVES = 10` deposits and borrows combined.",
+          "source": "https://raw.githubusercontent.com/mrgnlabs/marginfi-v2/main/type-crate/src/types/user_account.rs",
+          "note": null
+        },
+        {
+          "text": "Jupiter Lend on Solana is built from three programs. Liquidity custodies every token and tracks supply and borrow positions. Lending (Earn, jlTokens) and Vaults (Borrow) hold no tokens and reach Liquidity by cross-program invocation. Each borrow vault has one supply token and one borrow token, and vault positions are represented as NFTs.",
+          "source": "https://developers.jup.ag/docs/lend/architecture",
+          "note": null
+        },
+        {
+          "text": "Solana's runtime limits shape lending design. A transaction is capped at 1,232 bytes, 64 locked accounts (legacy and v0) and 1,400,000 compute units (200,000 per instruction by default). Project 0's docs say liquidators need 'a large pool of LUTs' to fit a liquidation plus a swap and that a flash-loan liquidation is 'considerably difficult to pack into a single transaction'. Kamino publishes an address lookup table for each market in its API.",
+          "source": "https://github.com/solana-foundation/solana-com/blob/main/apps/docs/content/docs/en/core/constants-reference.mdx",
+          "note": null
+        },
+        {
+          "text": "On Kamino Lend (program klend) a borrower's whole position lives in one program-owned Obligation account that holds at most eight collateral deposits and five borrows. The Rust struct declares fixed arrays `deposits: [ObligationCollateral; 8]` and `borrows: [ObligationLiquidity; 5]`, and health is computed across all of them together.",
+          "source": "https://kamino.com/docs/build/developers/borrow/liquidations/liquidation-engine",
+          "note": null
+        },
+        {
+          "text": "Solana Transaction V1 (SIMD-0385) went live on mainnet at epoch 1035 on 2026-09-15. It raises the maximum transaction size from 1,232 to 4,096 bytes, but v1 does not support address lookup tables and still names at most 64 accounts until SIMD-0596 activates. Whether lending liquidators have moved to v1 was not measured.",
+          "source": "https://solanacompass.com/news/transaction-v1-simd-0385-is-live-on-solana-mainnet-at-epoch-1035",
+          "note": null
+        },
+        {
+          "text": "In klend the `LIQUIDATION_CHECKS` price-status mask holds only `PRICE_LOADED`, `PRICE_AGE_CHECKED` and `PRICE_USAGE_ALLOWED`, while `ALL_CHECKS` also holds `TWAP_CHECKED` and `TWAP_AGE_CHECKED`. An independent reviewer argues that this lets TWAP divergence bands block borrowing but not delay liquidation during a flash crash.",
+          "source": "https://github.com/Kamino-Finance/klend/blob/77e81854909ab7ffea3a2e898b2554d96e07daac/programs/klend/src/state/last_update.rs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Contested",
+      "facts": [
+        {
+          "text": "Misbelief: Euler's exposure to the November 2025 Stream Finance xUSD collapse was narrower than headline bad-debt tallies. On 2025-11-07 Arbitrum's DRIP advisor Entropy reported 'no bad debt at this time' on Euler (some markets had very high utilisation), against about $15M of bad xUSD debt in Silo vaults and about $700K in a Morpho MEV Capital vault. Euler's 2026-04-07 retrospective says its DAO-managed markets had no direct exposure to Stream assets, but that the Plasma deployment was 'effectively wiped out' after the Stream-related default; it quantifies no bad debt.",
+          "source": "https://forum.arbitrum.foundation/t/update-stream-finance-xusd-situation-and-impact-assessment/30206",
+          "note": "source corrects headline view of Euler exposure to Stream xUSD collapse"
+        },
+        {
+          "text": "Controversy: Four Pillars argues that the Public Allocator 'effectively neutralized the risk isolation benefit' during the Resolv event. It says the allocator added about $6.2M of USDC from curator vaults to the affected wstUSR/USDC market after the exploit, about 96% of it from Gauntlet vaults, and that 9summits kept supplying for about 10 hours. Four Pillars attributes the $6.2M figure to Chaos Labs founder Omer Goldberg. This research did not find the original Chaos Labs analysis.",
+          "source": "https://research.4pillars.io/en/research/reflections-on-the-resolv-protocol-exploit",
+          "note": "Four Pillars vs Morpho isolation claims",
+          "group": "c1"
+        },
+        {
+          "text": "Controversy: Blue isolates risk per market in three ways. Borrower collateral stays idle in the contract: `supplyCollateral` credits only the borrower's collateral balance and never the market's lendable supply. Bad debt lands only on the suppliers of the market where it occurred. Blue has no supply caps, so lenders and vault curators control exposure by choosing which markets to fund. The whitepaper argues that skipping re-hypothecation lets markets run at higher average utilization.",
+          "source": "https://github.com/morpho-org/morpho-blue/blob/main/morpho-blue-whitepaper.pdf",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Controversy: Isolation fragments liquidity: one market can run short while the vault holds assets elsewhere. Morpho's Public Allocator lets anyone request that a vault move liquidity into a market, so a borrower can draw more in one transaction. Addresses with the vault's allocator role set the limits, the vault's caps still bind, and the caller never takes custody of the vault's assets. Morpho warns that the allocator does not guarantee every request. The docs page fetched describes the Vault V2 variant; this research did not read the V1 variant.",
+          "source": "https://docs.morpho.org/learn/concepts/public-allocator/",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Controversy: Critiques of the adaptive curve. Boneh assesses Morpho's design as possibly adding rate volatility around the target (a step in the gradient at target, speed factor reset at each interaction) and longer settling times; this is an assessment, not a measurement. A Morpho forum analysis (prevert, 2025-02-13) argues the instant curve slope plus the shifting anchor keeps rates on the brink of taking off in thin isolated markets. By the documented formula the slope above target is 30 x rateAtTarget per unit utilization, so each extra percentage point of utilization adds 0.3 x rateAtTarget (about +2.",
+          "source": "https://arxiv.org/html/2407.10426",
+          "note": "critique of adaptive IRM vs Morpho rationale",
+          "group": "c2"
+        },
+        {
+          "text": "Controversy: Adaptive curves can move too slowly or too fast. Gauntlet's VaultBook says a market pinned at 91% utilization needs about 50 days to double its anchor, too slow to rebalance, so curators should add supply capacity early; above 95% the anchor can double in under 10 days, and because the maximum rate is always 4x the anchor, a drift from 4% to 8% moves the maximum rate from 16% to 32%, which may trigger liquidations of unmonitored borrowers. The doubling times follow from the documented 50-per-year speed.",
+          "source": "https://vaultbook.gauntlet.xyz/vaults/morpho-vaults/morpho-adaptive-curve-irm",
+          "note": null,
+          "group": "c2"
+        },
+        {
+          "text": "Controversy: Morpho justifies a 90% target and an immutable, self-adjusting IRM by noting that supply is not used as collateral, so markets need no idle liquidity for liquidations. In Aave-style pooled markets the optimal point is set against that constraint: Chaos Labs names 100% utilization during stress, when liquidations cannot be processed, as the main risk of raising wS's optimal usage ratio from 45% to 80%. The comparison is this research's synthesis of the two sources.",
+          "source": "https://docs.morpho.org/morpho/contracts/irm/adaptive-curve-irm",
+          "note": null,
+          "group": "c2"
+        },
+        {
+          "text": "Controversy: Jupiter and Kamino disputed in December 2025 what an 'isolated' vault means. Jupiter deleted a post saying isolated vaults mean 'removing any risk of contagion'. Kamino's Marius Ciubotariu replied 'There is no isolation here and full cross contamination'. Jupiter's Kash Dhanda conceded the claim 'was not a hundred percent correct' and confirmed 'there is rehypothecation', yet still called the vaults isolated. Kamino also blacklisted an address tied to Jupiter's refinance tool. This matches Jupiter's own docs, which say assets supplied through Earn can support borrowing and leverage at the same",
+          "source": "https://www.theblock.co/post/381602/jupiter-exec-acknowledges-zero-contagion-claim-was-not-100-correct-after-backlash-over-vault-design",
+          "note": "Jupiter vs Kamino on what isolated vault means",
+          "group": "c3"
+        },
+        {
+          "text": "Controversy: Shared liquidity under isolated front-ends is now a pattern on both chains. Aave V4 uses a Hub and Spoke model in which a Liquidity Hub consolidates liquidity and accounting and Spokes implement modular borrowing with isolated risk. Jupiter Lend's README describes a Liquidity layer shared by Lending and Vaults, each keeping its own risk parameters 'within set limits'. This pairing is analysis, not a claim made by either project.",
+          "source": "https://aave.com/docs/aave-v4",
+          "note": null,
+          "group": "c3"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "vault",
+      "relation": "is a part of EVM money markets compared with Solana: Aave, Morpho, Compound, Euler",
+      "note": null
+    },
+    {
+      "concept": "Aave",
+      "relation": "is a synonym of EVM money markets compared with Solana: Aave, Morpho, Compound, Euler",
+      "note": null
+    },
+    {
+      "concept": "liquidation",
+      "relation": "is a related of EVM money markets compared with Solana: Aave, Morpho, Compound, Euler",
+      "note": null
+    },
+    {
+      "concept": "collateral",
+      "relation": "is a related of EVM money markets compared with Solana: Aave, Morpho, Compound, Euler",
+      "note": null
+    }
+  ]
+}

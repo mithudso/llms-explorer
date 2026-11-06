@@ -23,15 +23,21 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Engineering implication: preserve the original eligibility filter and combine it with the continuation predicate, for example {$and: [originalFilter, {_id: {$gt: lastProcessedId}}]}. Persist progress only after successful downstream processing; if a crash can occur between output and checkpoint storage, make replay idempotent or coordinate the two writes. The cited pagination sources establish the boundary mechanism, not an exactly-once processing protocol. (medium confidence)",
+          "text": "To resume a range-paginated scan, store the last-seen _id and query for documents whose _id is greater than it, sorted ascending. Because $and selects documents that satisfy all its expressions, the original eligibility filter can be combined with the continuation predicate, for example {$and: [originalFilter, {_id: {$gt: lastProcessedId}}]}. The cited pagination page establishes the boundary mechanism, not an exactly-once processing protocol. Sources: https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md ; https://www.mongodb.com/docs/manual/reference/operator/query/and.md",
           "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
           "note": null,
           "claimId": "clm:10e19c8e06c2ab26b9fe7c295e936987bbc3974c65dee0adf365f8fa617690ff",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://github.com/Automattic/mongoose/blob/master/docs/queries.md"
-          ]
+            "https://github.com/Automattic/mongoose/blob/master/docs/queries.md",
+            "https://www.mongodb.com/docs/manual/reference/operator/query/and.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:c82644a81a2c9cf019f2574b3492e1112f23ea8ab9ae22719c384e482c67135a",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:57:28Z"
+          }
         }
       ]
     },
@@ -39,15 +45,21 @@
       "title": "How-to and procedures",
       "facts": [
         {
-          "text": "Prefer immutable continuation fields. Changing an ordering value while traversing can move a document across the saved boundary and cause omissions. Range continuation does not itself freeze concurrent writes or ensure that later inserts behind the boundary are included. (medium confidence)",
+          "text": "Prefer immutable continuation fields. Changing the value of the field used as the cursor while traversing can cause an entry to be skipped. Without snapshot isolation, MongoDB reads are not point-in-time: concurrent writes are not frozen while a range is being read. Sources: https://www.mixmax.com/engineering/api-paging-built-the-right-way ; https://www.mongodb.com/docs/manual/core/read-isolation-consistency-recency.md",
           "source": "https://www.mixmax.com/engineering/api-paging-built-the-right-way",
           "note": null,
           "claimId": "clm:c71ededd7465001b4110a29f53c7239683acaaed8c472d812c192664f133bc19",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md"
-          ]
+            "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
+            "https://www.mongodb.com/docs/manual/core/read-isolation-consistency-recency.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:ac783d6097c00ae910d354d7f1cea902debc388921caddc9f53242286d8650a3",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:59:14Z"
+          }
         }
       ]
     },
@@ -71,7 +83,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "For range pagination, use a unique ordering field such as _id. The MongoDB examples query _id greater than the last-seen value with ascending sort, or less than that value with descending sort. A practitioner reports applying the ascending pattern by re-running an export query after cursor-node unavailability. (high confidence)",
+          "text": "For range pagination, use a unique ordering field such as _id. The MongoDB examples query _id greater than the last-seen value with ascending sort, or less than that value with descending sort. Sources: https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
           "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
           "note": null,
           "claimId": "clm:0c1765f8ab19b270a2533c770a7c678d8b750c0beb188544b80d45e0a042e06b",
@@ -84,10 +96,15 @@
             "https://www.mixmax.com/engineering/api-paging-built-the-right-way",
             "https://github.com/Automattic/mongoose/blob/master/docs/queries.md",
             "https://www.reddit.com/r/mongodb/comments/1lttdef"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:e591262a69642515d144776c09262a9a7030efc796beb201f644bff147f28467",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:57:28Z"
+          }
         },
         {
-          "text": "Indexed range queries avoid scanning all preceding results and usually scale better than increasingly large skip offsets. Use an index suited to the original filter and continuation ordering; the range pattern alone does not establish a constant-time guarantee for every query. (high confidence)",
+          "text": "Indexed range queries can avoid scanning unwanted documents and typically yield better performance than skip() as the offset grows. Sources: https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
           "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
           "note": null,
           "claimId": "clm:6333236e8e1e53aae235d22c17b7b42daae880d8a32d2f185f6a5b23b00232c9",
@@ -99,7 +116,12 @@
           "also": [
             "https://github.com/Automattic/mongoose/blob/master/docs/queries.md",
             "https://www.mixmax.com/engineering/api-paging-built-the-right-way"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:0d4a82c3bba4be2dbf0a7c2a4e8f74e2350ac6cba17371fbf836cab8c8bfffc1",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:58:12Z"
+          }
         },
         {
           "text": "For descending sort({sortKey: -1, _id: -1}), continue with {$or: [{sortKey: {$lt: lastSortKey}}, {sortKey: lastSortKey, _id: {$lt: lastId}}]}. Keeping only the nonunique sortKey boundary can omit records tied at that value. The ordering tuple must uniquely identify each record. (high confidence)",
@@ -126,8 +148,8 @@
           ]
         },
         {
-          "text": "In MongoDB’s descending pagination example, the forEach callback prints student.name and then assigns student._id to endValue. The helper returns endValue, and the caller passes it as the next start value. The example stores its continuation value in local variables. (low confidence)",
-          "source": "https://www.reddit.com/r/mongodb/comments/1lttdef",
+          "text": "In MongoDB’s descending pagination example, the forEach callback prints student.name and then assigns student._id to endValue. The helper returns endValue, and the caller passes it as the next start value. The example stores its continuation value in local variables. (low confidence) Sources: https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
           "note": null,
           "claimId": "clm:79ca6f0ceb553e4fe0f2996f794fe59754fd7fa3b113e2235019111ebbf70346",
           "validationStatus": "SUPPORTED",
@@ -136,10 +158,15 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:29f09e41f44768bfdbd130b04eb6d5779f053335524d1416f7413eea65f86ec7",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:58:12Z"
+          }
         },
         {
-          "text": "MongoDB documents range pagination by retaining the last-seen key: use {_id: {$gt: lastKey}} with sort({_id: 1}) for ascending traversal, or $lt with descending sort. Mongoose independently documents the descending pattern. (high confidence)",
+          "text": "MongoDB documents range pagination by retaining the last-seen key: use {_id: {$gt: lastKey}} with sort({_id: 1}) for ascending traversal, or $lt with descending sort. Sources: https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
           "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
           "note": null,
           "claimId": "clm:002917a8f0b498d6e91cbfff7fe5c228d8649343b90c34ced9dca415b06461cb",
@@ -150,11 +177,16 @@
           ],
           "also": [
             "https://github.com/Automattic/mongoose/blob/master/docs/queries.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:4602c388a032b24d134e3bf08266d897b7011a2746384e2f07ba1b47643a6339",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:58:12Z"
+          }
         },
         {
-          "text": "A practitioner describes handling cursor-node unavailability by sorting the export on _id, tracking the processed position, and re-running the query with _id greater than the last processed value. MongoDB’s retryable-reads specification excludes getMore from automatically retryable commands. (medium confidence)",
-          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md",
+          "text": "A practitioner describes handling cursor-node unavailability by sorting the export on _id, tracking the processed position, and re-running the query with _id greater than the last processed value. MongoDB’s retryable-reads specification excludes getMore from automatically retryable commands. (medium confidence) Sources: https://www.reddit.com/r/mongodb/comments/1lttdef ; https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-reads/retryable-reads.md ; https://www.mongodb.com/docs/manual/core/retryable-reads.md",
+          "source": "https://www.reddit.com/r/mongodb/comments/1lttdef",
           "note": null,
           "claimId": "clm:30370c72982ea4dc630339d525d7c96a57285051b4fe4e77fd10723e472e1506",
           "validationStatus": "SUPPORTED",
@@ -164,8 +196,15 @@
           ],
           "also": [
             "https://github.com/mongodb/specifications/blob/master/source/retryable-reads/retryable-reads.md",
-            "https://www.reddit.com/r/mongodb/comments/1lttdef"
-          ]
+            "https://www.reddit.com/r/mongodb/comments/1lttdef",
+            "https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-reads/retryable-reads.md",
+            "https://www.mongodb.com/docs/manual/core/retryable-reads.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:484232b6ee6d91409409f9e515514901e70ae28b32686723be57427c52f8f5f1",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:58:12Z"
+          }
         }
       ]
     }

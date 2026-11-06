@@ -43,7 +43,7 @@
           "note": null
         },
         {
-          "text": "**D4. `$dateTrunc` emits bin labels only for bins that contain at least one document; empty intervals produce no output row.** Filling those gaps requires separate stages: `$densify` (added in MongoDB 5.1) generates the missing documents and `$fill` assigns values via carry-forward (LOCF), linear interpolation, or a constant. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/, https://www.mongodb.com/company/blog/product-release-announcements/introducing-gap-filling-time-series-data-mongodb-5-3)",
+          "text": "$dateTrunc returns the truncated date for each input date; it does not generate interval documents. Grouping input documents by that value yields one result per present group key, so empty intervals are not created by that grouping alone. Use $densify, added in MongoDB 5.1, to generate missing interval documents, and $fill to populate missing values with a constant, last observation carried forward (locf), or linear interpolation. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill.md",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#d-limits-and-failure-modes",
           "note": null
         }
@@ -208,7 +208,7 @@
           "note": null
         },
         {
-          "text": "22. Block processing benefits pipelines beginning with `$match`, `$sort` (on the `timeField`), and `$group` — the exact stage set a `$dateTrunc` downsampling pipeline uses. Official docs quantify it as \"more than 200% for `$group` operations and analytical queries\" versus 7.0 or earlier. — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/>",
+          "text": "Starting in MongoDB 8.0, block processing significantly improves performance for long-running time series aggregation pipelines that begin with $match, $sort (if used on the timeField), or $group. The 8.0 manual says that compared with 7.0 or earlier it may improve throughput in some cases by more than 200% for $group operations and analytical queries. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/ ; https://www.mongodb.com/docs/v8.0/core/timeseries/timeseries-querying.md",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#execution-engine-evolution",
           "note": null
         },
@@ -248,7 +248,7 @@
           "note": null
         },
         {
-          "text": "**D5.** No source was found asserting that `$group` on `$dateTrunc(timeField)` is rewritten to read bucket-level `control.min`/`control.max` summaries instead of unpacking measurements. `control.min`/`control.max` are documented as bucket-level min/max of data fields and are used for bucket pruning, but the MongoDB server's time series README contains no `$dateTrunc` or `$group`-rewrite passage. Do not assume this optimisation exists. **Unverified.** **[derived]** <https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md>",
+          "text": "The storage README describes bucket control fields and contains no $dateTrunc or $group rewrite passage, but the separate query-timeseries README documents control-based $group rewrites. In 7.1+ it includes eligible fixed-bucket group keys using $dateTrunc on the timeField. These rewrites can use bucket controls and remove unpacking, subject to accumulator, filter, alignment and other implementation restrictions. Bucket control min/max values are also used to prune irrelevant buckets. Do not assume that every $dateTrunc group qualifies. Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/timeseries/README.md ; https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_internal_unpack_bucket.cpp",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#d-performance",
           "note": null
         },
@@ -258,12 +258,12 @@
           "note": null
         },
         {
-          "text": "7. `$dateTrunc` shipped as one of a cohort of date operators added in 5.0 — alongside `$dateAdd`, `$dateDiff`, and `$dateSubtract` — rather than as a standalone feature. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/> and sibling operator pages under the same reference tree.",
+          "text": "7. `$dateTrunc` shipped as one of a cohort of date operators added in 5.0 — alongside `$dateAdd`, `$dateDiff`, and `$dateSubtract` — rather than as a standalone feature. — <> and sibling operator pages under the same reference tree. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateAdd.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateDiff.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateSubtract.md",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#origin-and-release",
           "note": null
         },
         {
-          "text": "25. **Disagreement between MongoDB sources on the magnitude of the 8.0 gain:** the manual says \"more than 200%\" (≈3x) for `$group`, while the MongoDB blog claims 10–40x generally and 20x for the `$dateTrunc` OHLC example. Both are first-party. The manual also hedges: \"The amount of performance improvement can vary depending on the configuration of your workloads and database instances.\" — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/> vs <https://www.mongodb.com/company/blog/technical/key-enhancements-mongodb-8-0-block-processing>",
+          "text": "The MongoDB 8.0 manual's time series querying page says block processing may improve throughput \"in some cases by more than 200%\" for $group operations and analytical queries versus 7.0 or earlier (this sentence is on the v8.0 page; the current page no longer carries it), while the MongoDB developer blog reports improvements of 10-40x, up to 100x for some large-scale aggregations, and 2000% (20x) for its $dateTrunc-based OHLC example versus 7.0. The manual also hedges that the improvement can vary with workload and deployment configuration. Sources: https://www.mongodb.com/docs/v8.0/core/timeseries/timeseries-querying.md ; https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/ ; https://www.mongodb.com/company/blog/technical/key-enhancements-mongodb-8-0-block-processing",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#execution-engine-evolution",
           "note": null
         },
@@ -348,7 +348,7 @@
           "note": null
         },
         {
-          "text": "**C4.** Dates before 1583 use the proleptic Gregorian calendar. Leap seconds are not accounted for. Neither matters for typical sensor downsampling, but both break exact interval arithmetic for backfilled historical series. **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "text": "$dateTrunc uses the proleptic Gregorian calendar for dates preceding the year 1583. It accounts for Daylight Savings Time but does not account for leap seconds. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc.md",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#c-null-missing-and-type-handling",
           "note": null
         },
@@ -423,7 +423,7 @@
           "note": null
         },
         {
-          "text": "7. The canonical downsampling shape is `$match` (time range) → `$group` with `_id` containing a `$dateTrunc` of the time field plus the series identity, accumulating `$avg`/`$sum`/`$min`/`$max` → a write stage. MongoDB's own operator reference shows the `$group`-on-`$dateTrunc` half of this directly, grouping cake sales into 6-month bins with `binSize: 6, unit: \"month\"`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/",
+          "text": "MongoDB's $dateTrunc operator reference shows $dateTrunc inside the _id of a $group stage, truncating cake-sales orderDate values to 6-month bins (binSize: 6, unit: \"month\") and summing quantity. The time series docs show a $group that computes $avg and writes the result with $merge to build an on-demand materialized view, and from MongoDB 7.0 $out can write documents to a time series collection. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/ ; https://www.mongodb.com/docs/manual/core/timeseries/timeseries-build-materialized-views/ ; https://www.mongodb.com/docs/manual/core/timeseries/timeseries-aggregations-operators/",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#using-it-to-downsample",
           "note": null
         },
@@ -463,12 +463,12 @@
           "note": null
         },
         {
-          "text": "**C3.** `date` accepts a Date, a Timestamp, or an ObjectID. Truncating an ObjectID buckets by its embedded generation time, which has one-second resolution and reflects document creation, not the measurement's event time — a silent semantic substitution if `_id` is used as a convenience time key. **[primary, with derived consequence]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "text": "**C3.** `date` accepts a Date, a Timestamp, or an ObjectID. Truncating an ObjectID buckets by its embedded generation time, which has one-second resolution and reflects document creation, not the measurement's event time — a silent semantic substitution if `_id` is used as a convenience time key. **[primary, with derived consequence]** <> Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/ ; https://www.mongodb.com/docs/manual/reference/method/ObjectId/",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#c-null-missing-and-type-handling",
           "note": null
         },
         {
-          "text": "**D2.** SERVER-68014 is Closed/Fixed with fix version **6.1.0-rc0**. Any deployment on MongoDB 5.0–6.0 — the versions in which `$dateTrunc` was first available — still carries this penalty. Omitting a redundant `timezone: \"UTC\"` is a free win there. **[primary]** <https://jira.mongodb.org/browse/SERVER-68014>",
+          "text": "SERVER-68014 is Closed with resolution Fixed and fix version 6.1.0-rc0. $dateTrunc was introduced in MongoDB 5.0. The ticket reports one query running at 1.53 sec/op without a timezone parameter and 2.58 sec/op with explicit \"UTC\", despite the same UTC semantics. On builds with that behavior, omitting redundant timezone:\"UTC\" can avoid the reported overhead; this benchmark does not establish a guaranteed penalty or performance win for every 5.0–6.0 deployment and workload. Sources: https://jira.mongodb.org/browse/SERVER-68014 ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc.md ; https://github.com/mongodb/mongo/commit/09e278d706b4062b53d5b614cfd6b63ec62661ee",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#d-performance",
           "note": null
         },
@@ -518,7 +518,7 @@
           "note": null
         },
         {
-          "text": "4. Claim 3 places the merge in the **4.9 development series**, which was the pre-GA line that shipped as 5.0; the operator therefore existed in server builds roughly four months before the 5.0 GA announcement. (Inference from the 4.9.0 fix version in <https://jira.mongodb.org/browse/SERVER-54390> combined with the 5.0 \"new in version\" marker in <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>. Labelled as inference, not as a sourced statement.)",
+          "text": "SERVER-54390 (Implement $dateTrunc in DocumentSource execution) was resolved on Mar 22 2021 with fix version 4.9.0, so the operator was merged about two months before MongoDB 5.0.0-rc0 (May 27, 2021) and roughly three to four months before 5.0 general availability, which was reported on 15 July 2021. Sources: https://jira.mongodb.org/browse/SERVER-54390 ; https://www.mongodb.com/community/forums/t/mongodb-5-0-0-rc0-is-released/108893 ; https://www.fosslife.org/mongodb-50-released",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#origin-and-release",
           "note": null
         },
@@ -528,7 +528,7 @@
           "note": null
         },
         {
-          "text": "26. **Amazon DocumentDB added `$dateTrunc` only in its version 8.0**, roughly four years after MongoDB 5.0, and it is \"Not supported by Elastic cluster.\" — <https://docs.aws.amazon.com/documentdb/latest/developerguide/dateTrunc.html>",
+          "text": "Amazon DocumentDB added $dateTrunc only in its version 8.0 (announced November 14, 2025), whereas MongoDB added it in version 5.0. The DocumentDB page says it is \"Not supported by Elastic cluster.\" Sources: https://docs.aws.amazon.com/documentdb/latest/developerguide/dateTrunc.html ; https://aws.amazon.com/about-aws/whats-new/2025/11/documentdb-8-o/ ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc.md",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#third-party-reimplementation",
           "note": null
         },
@@ -588,7 +588,7 @@
           "note": null
         },
         {
-          "text": "**B3. The anchor is global and data-independent: bins do not begin at the first document, at the `$match` range start, or at any user-supplied origin.** The documented example is `binSize: 10`, `unit: \"year\"` producing periods beginning `2000-01-01`, `2010-01-01`, `2020-01-01`. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/) The same property is what confuses practitioners who expect bins to start at their own data's first timestamp. (https://www.mongodb.com/community/forums/t/cant-understand-the-meening-of-binsize-of-datetrunc/245428)",
+          "text": "The bin anchor is a fixed reference date, not the data: for any unit other than week, $dateTrunc uses 2000-01-01T00:00:00.00Z, so with binSize 10 and unit year the example periods begin 2000-01-01, 2010-01-01 and 2020-01-01. There is no user-supplied origin parameter. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc.md",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#b-the-anchor-the-invariant-that-governs-bin-placement",
           "note": null
         },
@@ -613,7 +613,7 @@
           "note": null
         },
         {
-          "text": "**F1. `$dateTrunc` was introduced in MongoDB 5.0.** It is documented in the v5.0 manual and in every subsequent version consulted (v7.0, v8.0, current). (https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/datetrunc/, https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/datetrunc/)",
+          "text": "**F1. `$dateTrunc` was introduced in MongoDB 5.0.** It is documented in the v5.0 manual and in every subsequent version consulted (v7.0, v8.0, current). ( ) Sources: https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/datetrunc/ ; https://raw.githubusercontent.com/mongodb/docs/v5.0/source/reference/operator/aggregation/dateTrunc.txt",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#f-provenance",
           "note": null
         },
