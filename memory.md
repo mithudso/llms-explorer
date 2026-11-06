@@ -1,5 +1,14 @@
 # Memory
 
+## v0.22.114 - 2026-11-06
+
+- TASK-1166 audits the current Antigravity population using reproducible date strata and source-type supplements. Live source access, relevance, novelty and preliminary assertion support require independent review. No matched no-scout baseline exists yet; report measured audit costs separately from estimated net savings.
+- TASK-1167 recovers the current MongoDB frontier. All four R14 author calls finished on November 3 with return code zero and await integrity, semantic and whole-question review. Do not restart authors. Canonical author state remains under the private r14-admission-v1 directory.
+- The primary checkout is clean but diverged from origin/main. Preserve its local snapshot commit. Own changes use the isolated research/antigravity-audit-20261106 worktree based on origin/main. No open repository PRs were observed.
+- The representative audit reviewed20 URLs from9 bundles:13 usable starting points,6 current404s and1 unreadable shell. Six preliminary examples yield2 scoped supports,1 misbinding,2 contradictions and1 unsupported. Audit619.7seconds versus54seconds independent source acquisition or140seconds including baseline reporting; scopes differ, generation cost and comparable token telemetry unavailable. No measured net savings claim.
+- All39 R14 failed pairs received precise literal/span repairs. All157 assertions now pass deterministic preflight. Split-session and streaming semantic gates are running; repair/checkpoint await capacity. Original153 facts,4summaries and source snapshots survive.
+- Remaining: complete semantic and whole-question reviews, deliver the audit and qualified R14 research, then continue source-grounded frontier rounds. Zero empty-round credit. Delta: memory 0.22.113 to 0.22.114; prompt100.
+
 ## v0.22.113 - 2026-11-03
 
 - TASK-1120 inventories all pending primary changes and dirty companion worktrees. Exact originals, index state and binary patches are preserved in a private recovery snapshot. Integration uses a clean worktree based on current remote main and retains newer remote research.
