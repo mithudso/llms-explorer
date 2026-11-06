@@ -1,12 +1,12 @@
 # Custom game manufacturing and printer ownership — full-suite run
 
-Version: 0.1.2
+Version: 0.2.0
 Date: 2026-11-06
-Status: **IN PROGRESS — all25 initial topics authored; qualification, source saturation and publication incomplete.**
+Status: **IN PROGRESS — 19 accepted topics compiled; final vendor/child checks, indexes, rollup and delivery pending.**
 
 The user requests the full-suite workflow on custom board game manufacture and automated professional playing-card printing. The purchase decision concerns identical copies of the game: whether an owned printer is worthwhile, its quality, and the effort required to operate the complete production workflow. US/USD scenarios are the working scope.
 
-This checkpoint contains a research plan, not qualified manufacturing findings or a vendor recommendation. No supplier is contacted and no equipment or production order is purchased. The game service and unrelated research remain unchanged.
+The [purchasing decision](purchasing-decision.md) recommends outsourcing first, and the [quote-and-demo brief](quote-and-demo-brief.md) specifies comparable output. These are review drafts while the full-suite checks continue. No supplier is contacted and no equipment or production order is purchased. The game service and unrelated research remain unchanged.
 
 ## Method and scope
 
@@ -66,6 +66,11 @@ The worked cost scenarios will separate quoted54-card configurations from an ill
 
 ## Completion record
 
+Six native cohorts have finalized: 19 leaf concepts and six cohort rollups, with paired hub/repository packs. Native parity verifies439 structured facts and611 accepted assertions across those cohorts. Compilation is not semantic/docset indexing or public deployment. Existing source snapshots, author passes and paid gates remain preserved.
+
+Seven initial gates accepted800 assertions including prose, before the newly discovered15vendor qualifiers. The vendor delta gate is in progress. A genuine coating application/curing child scored4.15 in the first source-grounded frontier expansion and has two author passes; strict preflight repairs and independent review remain pending. No frontier saturation is claimed.
+
+
 Pending: native research, claim/evidence integrity and semantic gates, per-concept organization independence checks, compilation, rollup, reachable indexes and registrations, independent research-contract audit, purchasing-decision report and final Git delivery. Existing paused embedding/inference services will remain untouched. Index status will distinguish keyword and semantic layers rather than treating compilation as indexed completion.
 
 The root task is the manufacturing full-suite run, TASK-1171. Private source bodies, claims, source pins, run paths and checkpoints stay outside this public repository. Versioned prompt and memory records preserve the commission and safe resumption.
@@ -78,6 +83,8 @@ Basic claims-check and strict v4 evidence preflight are separate checks. The fir
 
 ## Evidence checkpoint
 
-Prepress passes34/34 authored-assertion checks, equipment119/119, and economics153/153. These counts include summaries and questions, and are not counts of unique manufacturing discoveries. Five private staged leaf packs contain112 accepted factual rows. They remain unpublished and unindexed; canonical identities, final projections and family registration remain pending.
+The initial25 concepts have independent source/scope audits and bounded query-stop receipts. Ownership follow-up admits12new facts and local-trade follow-up2facts in their accepted packets. POD discovery added14 proposals; normal full-body acquisition and independent binding review succeeded, with semantic acceptance pending alongside one local regular-price qualifier. Two discovery-only durable-body gaps were closed for those selected proposals through normal acquisition; neither snippets nor event metadata alone qualified them.
 
-Targeted saturation follow-ups found17 ownership proposals and13 local-trade proposals. Both returns are unfinished and productive. They cannot count as empty rounds or justify a saturation claim. Novelty review, exact source acquisition for admitted deltas, independent gates and further bounded negation remain required. No physical hardware testing or configured game-production quote has been performed. The final purchasing report must preserve those limits.
+The new canonical game-manufacturing hub v1.1.0 and seven folded references pass the deterministic structural gate. Existing live SKILLS-INDEX routing reaches the family; a separate catalog row and semantic registry are absent. Tree-wide unrelated findings remain outside this run. Full content optimization follows the final child/reference set. No firsthand hardware test, configured138-card quote, measured operator time/yield or demonstrated ownership crossover exists.
+
+Delta:0.1.2to0.2.0. This remains a continuation checkpoint, not a completed full-suite report.
