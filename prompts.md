@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v101 - 2026-11-06
+
+> Antigravity has done a lot of work explanding frontier concepts, finding sources, and seeeding preliminary concepts to save you time and effort. Use these resources and do a representative sampling audit to test how well antigravity did, and determine if it saved you time and tokens versus the cost of audting. Finish the research on the unfinished mongodb frontier concepts. l
+
+Continuation of prompt100 at the R14 acceptance checkpoint. Four original questions pass157assertions and independent whole-question review. Preserve153rows, all source pins, every paid attempt and65actual unchanged-judgment reuses. Deliver the verified public checkpoint and explicit preliminary-catalog audit boundary. Continue parent-aware assessment of330unreserved candidates; preserve306reservations and original broad gaps. Delta: prompt100to101; memory0.22.114to0.22.115.
+
 ## Prompt v100 - 2026-11-06
 
 > Antigravity has done a lot of work explanding frontier concepts, finding sources, and seeeding preliminary concepts to save you time and effort. Use these resources and do a representative sampling audit to test how well antigravity did, and determine if it saved you time and tokens versus the cost of audting. Finish the research on the unfinished mongodb frontier concepts. l

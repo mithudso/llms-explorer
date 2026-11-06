@@ -1,5 +1,14 @@
 # Memory
 
+## v0.22.115 - 2026-11-06
+
+- R14 completes four saved original questions with153 stored factual rows and4summaries, all157v4SUPPORTED. Independent review maps37requirement groups to the complete original commissions. These are stored rows, not153unique discoveries.
+- Repair39literal/span pairs without rerunning authors. Semantic review adds the missing nonserial condition. Separate helper-specific proof correction retains original-session routing and full derived operations. Two repair reviews reuse32then33valid unchanged judgments; preserve every prior output and source snapshot.
+- Native finalization refreshes four packs/readers/canonical projections. Public parity verifies all153facts, ordered citations, claim/evidence IDs and temporal metadata. The paired public hub projection copies32members byte for byte and preserves existing nodes. Guarded source-count reconciliation preserves96unowned values refreshed by the normalizer. All four qualified queue identities are complete; original14broad gaps,6limits and4procedures remain unqualified.
+- Audit PR278 is merged at5cc6bd27790c28f024f0b47a657f2d094c2675ee with passing checks. The committed640draft catalog matches all6sampled preliminary assertions exactly. Add explicit unreviewed qualification metadata without rewriting drafts. Current catalog reconciliation identifies306reserved entries,330unreserved/unscored candidates and4names requiring alias/domain resolution. Parent-aware native scoring is active; no new research acceptance follows.
+- Existing project Python3.13environment provides llms_txt; no dependency installation or paused service resumption occurred. A guarded empty projection rollback sealed one stale journal after proving every destination absent; original journal/marker and all source work survive.
+- Validation:56focused tests and6subtests pass;12build-dependent checks skip. All157native assertions and153public projection bindings pass. Remaining: paired Git/default-branch and actual public acceptance for R14; finish330candidate assessments and research eligible gaps. Zero empty-round credit. Delta:0.22.114to0.22.115; prompt101.
+
 ## v0.22.114 - 2026-11-06
 
 - TASK-1166 audits the current Antigravity population using reproducible date strata and source-type supplements. Live source access, relevance, novelty and preliminary assertion support require independent review. No matched no-scout baseline exists yet; report measured audit costs separately from estimated net savings.
