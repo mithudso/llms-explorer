@@ -1,12 +1,24 @@
 # Prompts Log
 
-## Prompt v103 - 2026-11-06
+## Prompt v105 - 2026-11-06
 
 > Run the full-suite skill on custom board game manufacturing, automatic professional playing card printing,
 
 > I also want to know if buying an automated card printer is worth it, if they're any good, and how much effort they take to operate.
 
-Clarification: **Identical game decks**. Use US/USD cost scenarios as stated in the question unless corrected. Run the actual full-suite workflow: CFE plan/scout, evidence-bound research through the native Codex adapter, reusable per-concept packs and family rollup, available indexes/registration, independent contract review and verified Git delivery. Compare owned paper-card production including finishing/labor with outsourced POD/bulk/API fulfillment. Do not buy equipment, contact suppliers, place orders, alter game production, restart paused inference/indexing or disturb active MongoDB/R14. TASK-1171; scope decision KNOW-1172. Worktree /Users/mitch/dev/worktrees/llms-explorer-card-manufacturing-20261106. Delta: prompt102to103; memory0.22.116to0.22.117.
+Clarification: **Identical game decks**. Use US/USD cost scenarios as stated in the question unless corrected. Run the actual full-suite workflow: CFE plan/scout, evidence-bound research through the native Codex adapter, reusable per-concept packs and family rollup, available indexes/registration, independent contract review and verified Git delivery. Compare owned paper-card production including finishing/labor with outsourced POD/bulk/API fulfillment. Do not buy equipment, contact suppliers, place orders, alter game production, restart paused inference/indexing or disturb active MongoDB/R14. TASK-1171; scope decision KNOW-1172. Worktree /Users/mitch/dev/worktrees/llms-explorer-card-manufacturing-20261106. Delta: prompt104to105; memory0.22.118to0.22.119.
+
+## Prompt v104 - 2026-11-06
+
+> Resume and finish the interrupted /full-suite research run on Aero (aero.xyz) liquidity. Preserve every accepted checkpoint: do not redo work that already passed.
+
+Continuation: repair the 9 failed Aero assertions with exact evidence spans, re-gate, render the Aero spoke into the defi-liquidity-automation hub, finish and register both runs with short topics, index the three docs packs, audit the hub and spokes, and re-run placement. Delta: prompt103 to 104; memory 0.22.117 to 0.22.118.
+
+## Prompt v103 - 2026-11-06
+
+> Antigravity has done a lot of work explanding frontier concepts, finding sources, and seeeding preliminary concepts to save you time and effort. Use these resources and do a representative sampling audit to test how well antigravity did, and determine if it saved you time and tokens versus the cost of audting. Finish the research on the unfinished mongodb frontier concepts. l
+
+Continuation: deliver the accepted Percona-only mongot documentation supplement with10stored facts and15assertions (11SUPPORTED,4NO-FACTUAL-ASSERTION). Preserve inherited zero novelty, attributed catalog-example disagreement,640unreviewed drafts and stale private11/current10 caveat. Paired Git and independent production acceptance remain distinct. Remaining212priority candidates include2withheld pilots and210pending. Delta: prompt102to103; memory0.22.116to0.22.117.
 
 ## Prompt v102 - 2026-11-06
 
