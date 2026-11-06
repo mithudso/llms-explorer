@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v104 - 2026-11-06
+
+> Resume and finish the interrupted /full-suite research run on Aero (aero.xyz) liquidity. Preserve every accepted checkpoint: do not redo work that already passed.
+
+Continuation: repair the 9 failed Aero assertions with exact evidence spans, re-gate, render the Aero spoke into the defi-liquidity-automation hub, finish and register both runs with short topics, index the three docs packs, audit the hub and spokes, and re-run placement. Delta: prompt103 to 104; memory 0.22.117 to 0.22.118.
+
 ## Prompt v103 - 2026-11-06
 
 > Antigravity has done a lot of work explanding frontier concepts, finding sources, and seeeding preliminary concepts to save you time and effort. Use these resources and do a representative sampling audit to test how well antigravity did, and determine if it saved you time and tokens versus the cost of audting. Finish the research on the unfinished mongodb frontier concepts. l
