@@ -37,8 +37,8 @@
           ]
         },
         {
-          "text": "MongoDB r8.0.0 handles WT_PREPARE_CONFLICT by retrying the storage operation, incrementing prepare-read-conflict metrics, and waiting for a prepared unit of work to commit or abort when the conflict persists. The historical WT-4366 discussion distinguishes this no-answer-yet read condition from WT_ROLLBACK, which normally requires transaction rollback. (medium confidence)",
-          "source": "https://github.com/mongodb/mongo/blob/r8.0.0/src/mongo/db/storage/wiredtiger/wiredtiger_prepare_conflict.cpp",
+          "text": "MongoDB r8.0.0 handles WT_PREPARE_CONFLICT by retrying the storage operation, incrementing prepare-read-conflict metrics, and waiting for a prepared unit of work to commit or abort when the conflict persists. The WiredTiger ticket WT-4366 discussion distinguishes this read condition, which means 'no answer yet, try again', from WT_ROLLBACK; for update operations, rolling back is usually correct. Sources: https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/mongo/db/storage/wiredtiger/wiredtiger_prepare_conflict.cpp ; https://jira.mongodb.org/browse/WT-4366",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/mongo/db/storage/wiredtiger/wiredtiger_prepare_conflict.cpp",
           "note": null,
           "claimId": "clm:fd00270ec2d22c48296d982aaff6aa3a0ac321703151b0dcf4a3d1bca5cf79df",
           "validationStatus": "SUPPORTED",
@@ -48,7 +48,12 @@
           ],
           "also": [
             "https://jira.mongodb.org/browse/WT-4366"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:1ae41dbb632a3f8967a81fbe6875458350b2f2353a59b59baf7e5dd3291103ea",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:29:53Z"
+          }
         },
         {
           "text": "MongoDB r8.0.0's wiredTigerPrepareConflictRetrySlow normally retries WT_PREPARE_CONFLICT and waits for a prepared unit of work to commit or abort. If the operation's recovery unit is already timestamped and holds an oplog slot, the function instead throws a write-conflict exception to abort and retry, because blocking could prevent replication needed to resolve the prepared update. (low confidence)",
@@ -77,8 +82,8 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "A write targeting a document modified by an unresolved prepared transaction waits before proceeding. The Nanjing University/Tencent model, evaluated on MongoDB 4.4.5, describes delaying an update through a read of the same key; Huawei DDS source analysis independently describes waiting for prepared-state resolution. Resolution permits retry, not guaranteed write success: a subsequent write-conflict check can still fail. (medium confidence)",
-          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
+          "text": "A write targeting a document modified by an unresolved prepared transaction blocks and waits for that transaction to commit or abort before proceeding. The Nanjing University/Tencent model, evaluated on MongoDB 4.4.5, describes delaying an update by first performing a read of the same key. Sources: https://raw.githubusercontent.com/mongodb/mongo/b41cda4fe697dce6fd9b83b3805362ccc02fbeb3/src/mongo/db/repl/README.md ; https://arxiv.org/pdf/2111.14946",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/b41cda4fe697dce6fd9b83b3805362ccc02fbeb3/src/mongo/db/repl/README.md",
           "note": null,
           "claimId": "clm:7dba6231e80f75fa1ab02b9ebba4049c537a785ebc8bbb3a1e6057157101d03b",
           "validationStatus": "SUPPORTED",
@@ -96,7 +101,12 @@
             "https://arxiv.org/pdf/2111.14946",
             "https://mongoing.com/archives/77608",
             "https://raw.githubusercontent.com/mongodb/mongo/b41cda4fe697dce6fd9b83b3805362ccc02fbeb3/src/mongo/db/repl/README.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:6d91eb269fd6547365e667fbd2839f52222d4c97eb55bb6a7629c883da2c3fdf",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:29:53Z"
+          }
         }
       ]
     },
@@ -104,7 +114,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "For eligible reads outside multi-document transactions in MongoDB r8.0.0, local, available, and majority read concerns can ignore prepared updates and return the earlier data state. canIgnorePrepareConflicts requires one of those three concerns and rejects both afterClusterTime and atClusterTime; the command's requested conflict policy must also permit ignoring conflicts. (medium confidence)",
+          "text": "For eligible reads outside multi-document transactions in MongoDB r8.0.0, local, available, and majority read concerns can ignore prepared updates and return the earlier data state. canIgnorePrepareConflicts requires one of those three concerns and rejects both afterClusterTime and atClusterTime; the command's requested conflict policy must also permit ignoring conflicts. (medium confidence) Sources: https://raw.githubusercontent.com/mongodb/mongo/b41cda4fe697dce6fd9b83b3805362ccc02fbeb3/src/mongo/db/repl/README.md ; https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/mongo/db/read_concern_mongod.cpp",
           "source": "https://raw.githubusercontent.com/mongodb/mongo/b41cda4fe697dce6fd9b83b3805362ccc02fbeb3/src/mongo/db/repl/README.md",
           "note": null,
           "claimId": "clm:42a078a16486cf8298516dbacbc5a33a60ccf1b3869efbbeb898fd8b3c69692b",
@@ -115,12 +125,18 @@
           ],
           "also": [
             "https://github.com/mongodb/mongo/blob/r8.0.0/src/mongo/db/read_concern_mongod.cpp",
-            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md"
-          ]
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
+            "https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/mongo/db/read_concern_mongod.cpp"
+          ],
+          "remediation": {
+            "claim_id": "clm:407c46db7c87b5246c06d263fdd9358033c4eb2c7f211cdbb82498452107f49a",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:29:53Z"
+          }
         },
         {
-          "text": "Snapshot, linearizable, and afterClusterTime reads do not receive that bypass. On encountering a relevant prepared update they wait for commit or abort. For timestamped reads, MongoDB explains the blocking condition as read timestamp greater than or equal to the prepare timestamp; the mere existence of a prepared transaction does not imply every snapshot read must wait. (medium confidence)",
-          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
+          "text": "Snapshot, linearizable, and afterClusterTime reads do not get the bypass that local, available and majority reads get. On encountering a prepared update they block and wait until the transaction is committed or aborted. Sources: https://raw.githubusercontent.com/mongodb/mongo/b41cda4fe697dce6fd9b83b3805362ccc02fbeb3/src/mongo/db/repl/README.md",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/b41cda4fe697dce6fd9b83b3805362ccc02fbeb3/src/mongo/db/repl/README.md",
           "note": null,
           "claimId": "clm:2555f8ef82069a2c81d12430c354e13c0dc4307a70ac1bfe094a9d9d445fecfb",
           "validationStatus": "SUPPORTED",
@@ -134,7 +150,12 @@
             "https://www.mongodb.com/company/blog/engineering/formal-methods-beyond-correctness-isolation-permissiveness-distributed-transactions",
             "https://source.wiredtiger.com/11.0.0/arch-timestamp.html",
             "https://raw.githubusercontent.com/mongodb/mongo/b41cda4fe697dce6fd9b83b3805362ccc02fbeb3/src/mongo/db/repl/README.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:ca52703cb065f66f76515831cd191a29099dc4a2c390dcf6e151ac3cf843f1b4",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:29:53Z"
+          }
         },
         {
           "text": "WiredTiger 11.0.0 documents that ignoring prepared updates does not provide repeatable reads: repeating a read after the prepared transaction resolves can produce a different value. Returning a pre-prepare value must therefore not be treated as proof of snapshot isolation. (low confidence)",

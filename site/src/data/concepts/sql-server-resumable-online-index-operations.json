@@ -8,7 +8,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Resumable operations allow transaction-log truncation while work proceeds because they avoid one large transaction. Recovery state resides in database data files. This reduces log-space pressure but does not remove the need for adequate log throughput and log backups. (high confidence)",
+          "text": "Resumable index operations don't require a large transaction, which allows frequent log truncation during the operation and avoids large log growth. The data required to resume and complete the operation is stored in the database's data files. Resumable operations need additional log throughput during the sorting phase, although overall log space usage is lower than for a regular online index rebuild. Sources: https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations?view=sql-server-ver17 ; https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17",
           "source": "https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations?view=sql-server-ver17",
           "note": null,
           "claimId": "clm:aaeb6c2cc14cc112f6b4e1cf9b094ae26516b11a59426170b11ef8d76c6d6570",
@@ -21,8 +21,14 @@
           "also": [
             "https://learn.microsoft.com/en-gb/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17",
             "https://www.sql.kiwi/2025/01/slow-resumable/",
-            "https://www.vldb.org/pvldb/vol10/p1742-antonopoulos.pdf"
-          ]
+            "https://www.vldb.org/pvldb/vol10/p1742-antonopoulos.pdf",
+            "https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17"
+          ],
+          "remediation": {
+            "claim_id": "clm:23415c7a46057a60525975ac84c2c763e464c7c1ece50d06069a00b14be0b1e6",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:46:44Z"
+          }
         }
       ]
     },
@@ -49,7 +55,7 @@
       "title": "Measurements and reference values",
       "facts": [
         {
-          "text": "Resumable operations preserve progress across explicit pauses, failures, and failovers. In a dbi services SQL Server 2017 experiment, killing the SQL Server process left the rebuild paused at 19% after service restart; ALTER INDEX ... RESUME continued the operation. (high confidence)",
+          "text": "Resumable operations preserve progress across explicit pauses, failures, and failovers. In a dbi services SQL Server 2017 experiment, killing the SQL Server process left the rebuild paused at 19% after service restart; ALTER INDEX... RESUME continued the operation. (high confidence) Sources: https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations?view=sql-server-ver17 ; https://www.dbi-services.com/blog/sql-server-2017-whats-happens-with-an-interruption-during-a-resumable-online-index-rebuild/",
           "source": "https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations?view=sql-server-ver17",
           "note": null,
           "claimId": "clm:d42e9bd59296c87ab19ddc415c09d088d53977ae82c82f443cc044f345db50be",
@@ -60,7 +66,12 @@
           ],
           "also": [
             "https://www.dbi-services.com/blog/sql-server-2017-whats-happens-with-an-interruption-during-a-resumable-online-index-rebuild/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:f0918460970f0af774c8fc32d72e18f773d0e44d9cca8ca9ce01987b39f5d753",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:44:00Z"
+          }
         }
       ]
     },
@@ -79,8 +90,8 @@
           ]
         },
         {
-          "text": "SORT_IN_TEMPDB = ON is incompatible with resumable rebuilds; Niko Neugebauer reproduced error 11438 in the SQL Server 2017 preview, and Microsoft's September 2026 ALTER INDEX reference retains the restriction. (medium confidence) (verified as of 2026-09-21)",
-          "source": "https://learn.microsoft.com/en-gb/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17",
+          "text": "SORT_IN_TEMPDB = ON is incompatible with resumable rebuilds; Niko Neugebauer reproduced error 11438 in a SQL Server 2017 CTP 2.0 build, and Microsoft's current ALTER INDEX reference retains the restriction. Sources: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17 ; https://www.nikoport.com/2017/04/23/resumable-online-index-rebuild/",
+          "source": "https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17",
           "note": null,
           "claimId": "clm:54638e81bf223bf15885560b7300829be29c341eeaabb5cf88b0e031328c28b9",
           "validationStatus": "SUPPORTED",
@@ -90,8 +101,14 @@
             "ev:a6338ce67b0bbf1fc82d4a3472cef51ac4f31007c336ef0ecf9a79113e538705"
           ],
           "also": [
-            "https://www.sqlservercentral.com/blogs/resumable-online-index-rebuild"
-          ]
+            "https://www.sqlservercentral.com/blogs/resumable-online-index-rebuild",
+            "https://www.nikoport.com/2017/04/23/resumable-online-index-rebuild/"
+          ],
+          "remediation": {
+            "claim_id": "clm:ca1520518eba4eb036efb2b38fec44897c1d3b5358652c9e9eb6d2fbcbe99bdf",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:45:50Z"
+          }
         },
         {
           "text": "Use ALTER INDEX <index> ON <table> PAUSE, RESUME, or ABORT to control a resumable operation. Cancellation or failure can leave resumable work paused indefinitely; explicitly ABORT it to discard the operation. Aborted work cannot be resumed. (high confidence)",
@@ -148,8 +165,8 @@
           ]
         },
         {
-          "text": "The documented resumable rebuild restrictions exclude SORT_IN_TEMPDB = ON, explicit user transactions, ALTER INDEX REBUILD ALL, columnstore indexes, filtered indexes, and disabled indexes. A maintenance script must check eligibility rather than apply resumability to every index. (high confidence) (verified as of 2026-09-21)",
-          "source": "https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations?view=sql-server-ver17",
+          "text": "The documented resumable rebuild restrictions exclude SORT_IN_TEMPDB = ON, explicit user transactions, ALTER INDEX REBUILD ALL, columnstore indexes, filtered indexes, and disabled indexes. A maintenance script must check eligibility rather than apply resumability to every index. (high confidence) (verified as of 2026-09-21) Sources: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17",
+          "source": "https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17",
           "note": null,
           "claimId": "clm:29e921ef5864a2fa59445cae33005f298f2c7519de4fee1efe5a113519ff8df5",
           "validationStatus": "SUPPORTED",
@@ -158,7 +175,12 @@
           ],
           "also": [
             "https://learn.microsoft.com/en-gb/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:4fef41db57ee40c24bade1faebbf6589983e525c8f722a32b75fac1aa9443de0",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:45:50Z"
+          }
         }
       ]
     },
@@ -230,27 +252,40 @@
           ]
         },
         {
-          "text": "sys.index_resumable_operations exposes resumable operations and execution state. Redgate demonstrates monitoring percent_complete, state_desc, start_time, last_pause_time, and total_execution_time; dbi services uses the same view to inspect state after a server interruption. (high confidence)",
-          "source": "https://learn.microsoft.com/en-gb/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17",
+          "text": "sys.index_resumable_operations exposes resumable operations and execution state. Redgate demonstrates monitoring percent_complete, state_desc, start_time, last_pause_time, and total_execution_time; dbi services uses the same view to inspect state after a server interruption. (high confidence) Sources: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17 ; https://www.red-gate.com/simple-talk/sql/database-administration/resumable-online-index-create-and-rebuild-operations/ ; https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-index-resumable-operations ; https://www.dbi-services.com/blog/sql-server-2017-whats-happens-with-an-interruption-during-a-resumable-online-index-rebuild/",
+          "source": "https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17",
           "note": null,
           "claimId": "clm:b4e37bbac8c1c218f516719efd7d7a62bc84859a81fe64fb8fdaf22cd144f08c",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
             "https://www.red-gate.com/simple-talk/databases/sql-server/database-administration-sql-server/resumable-online-index-create-and-rebuild-operations/",
-            "https://www.dbi-services.com/blog/sql-server-2017-whats-happens-with-an-interruption-during-a-resumable-online-index-rebuild/"
-          ]
+            "https://www.dbi-services.com/blog/sql-server-2017-whats-happens-with-an-interruption-during-a-resumable-online-index-rebuild/",
+            "https://www.red-gate.com/simple-talk/sql/database-administration/resumable-online-index-create-and-rebuild-operations/",
+            "https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-index-resumable-operations"
+          ],
+          "remediation": {
+            "claim_id": "clm:bd7c2a38f83f3ee82e3ba358af9b9cecf2ae313c49b82da1e9be27377011b13f",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:45:50Z"
+          }
         },
         {
-          "text": "Online operations still need short-lived shared or schema-modification locks at phase boundaries. Resuming also reacquires necessary locks. WAIT_AT_LOW_PRIORITY manages lock waiting; ONLINE and RESUMABLE do not guarantee freedom from blocking. (high confidence)",
+          "text": "Online index operations hold a shared (S) or schema modification (Sch-M) lock in the final phase, which can block other workloads, especially inside an explicit user transaction. Resuming a paused operation has to acquire the necessary locks. WAIT_AT_LOW_PRIORITY lets the operation acquire low-priority locks and manage S or Sch-M lock behavior; ONLINE and RESUMABLE alone do not guarantee freedom from blocking. Sources: https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations?view=sql-server-ver17 ; https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17",
           "source": "https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations?view=sql-server-ver17",
           "note": null,
           "claimId": "clm:d5928887d2b8b7f3970837606b940078689b733d4f1020690037efc16afb71d0",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://learn.microsoft.com/en-gb/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17"
-          ]
+            "https://learn.microsoft.com/en-gb/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17",
+            "https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17"
+          ],
+          "remediation": {
+            "claim_id": "clm:643fd2d497194b183df90a03ecb4d89c72e272c9ef55a09f8156cadfae9c9037",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:45:50Z"
+          }
         },
         {
           "text": "Paul White reproduced a severe log-exhaustion/resume slowdown on SQL Server 2022 CU16 Developer Edition: a build taking about 78 seconds uninterrupted took 3 hours 19 minutes with repeated log-full pauses. This is a specific reproduction, not a general resumable-build performance estimate. (low confidence) (verified as of 2025-01-04)",

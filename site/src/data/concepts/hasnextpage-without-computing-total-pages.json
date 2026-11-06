@@ -8,7 +8,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "For Relay connections, endCursor corresponds to the last returned edge and can be non-null on a final nonempty page. Use hasNextPage for forward completion; when implementing lookahead, construct the continuation cursor from the last item actually returned, not the discarded extra item. (low confidence)",
+          "text": "For Relay connections, endCursor must be the cursor of the last node in edges and may be null only when there are no results, so it is non-null on a final nonempty page. Use hasNextPage for forward completion; if an implementation fetches an extra lookahead row and excludes it from edges, endCursor must be built from the last returned edge, not the discarded extra row (an inference from the spec's rule, not something the spec states about lookahead). Sources: https://relay.dev/graphql/connections.htm",
           "source": "https://relay.dev/graphql/connections.htm",
           "note": null,
           "claimId": "clm:66bc3d78dcedb29e371361da2fd9fd488c851a0863d4241f4ea87fd4edf6fd47",
@@ -16,10 +16,15 @@
           "evidenceIds": [
             "ev:29e8e8f19499f6b0b7f1c0ab7f6bc8dcee69bd869b5452be7d6a9a72c722e233",
             "ev:f985b83669b147bb45877cf2ab549980d6f275bf092096e2d736307bcdd0ca90"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:2d8ece26b9286617d4f2ee5a3c1eca11877cf920d717fe1b72dc5cd9b9fad84f",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T10:07:23Z"
+          }
         },
         {
-          "text": "Do not infer completion from a short or empty response when consuming an API. AIP-158 permits fewer than the requested number, including zero, before collection end; Samsara documents omitted inactive objects and instructs clients to continue while hasNextPage is true. (medium confidence)",
+          "text": "Do not infer completion from a short or empty response when consuming an API. AIP-158 permits fewer than the requested number, including zero, before collection end; Samsara documents omitted inactive objects and instructs clients to continue while hasNextPage is true. (medium confidence) Sources: https://google.aip.dev/158 ; https://developers.samsara.com/docs/pagination",
           "source": "https://google.aip.dev/158",
           "note": null,
           "claimId": "clm:8f5ca42cabcf69faed54e36565f66bd1490bf5e93ef8c783687f15a8f5fa04ad",
@@ -30,7 +35,12 @@
           ],
           "also": [
             "https://developers.samsara.com/docs/pagination"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:dcd35626ce1fc1323ceb1a6709efb8c532aa9aad2d2fada2ccb48792ca5f5328",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T10:07:45Z"
+          }
         }
       ]
     },
@@ -38,7 +48,7 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "In the bounded matching-result pattern, receiving exactly pageSize rows cannot distinguish a full final page from a page with further results. Looking for the additional row resolves that boundary without calculating the total; this follows from Relay's strict greater-than-first condition and Spring's pageSize + 1 retrieval. (medium confidence)",
+          "text": "In the bounded matching-result pattern, receiving exactly pageSize rows cannot distinguish a full final page from a page with further results. Looking for the additional row resolves that boundary without calculating the total; this follows from Relay's strict greater-than-first condition and Spring's pageSize + 1 retrieval. (medium confidence) Sources: https://relay.dev/graphql/connections.htm ; https://raw.githubusercontent.com/spring-projects/spring-data-jpa/main/spring-data-jpa/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryExecution.java",
           "source": "https://relay.dev/graphql/connections.htm",
           "note": null,
           "claimId": "clm:193472ab06ab2fbb9402ed7a201a25df06d548a3c39860ac61c70faaaeb17bc9",
@@ -49,12 +59,18 @@
           ],
           "also": [
             "https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html",
-            "https://github.com/spring-projects/spring-data-jpa/blob/main/spring-data-jpa/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryExecution.java"
-          ]
+            "https://github.com/spring-projects/spring-data-jpa/blob/main/spring-data-jpa/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryExecution.java",
+            "https://raw.githubusercontent.com/spring-projects/spring-data-jpa/main/spring-data-jpa/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryExecution.java"
+          ],
+          "remediation": {
+            "claim_id": "clm:9b8ddf7cc91b3762759d6420fea2377f60a5818221628e46e153b6b28e5bef30",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T10:07:45Z"
+          }
         },
         {
-          "text": "Lookahead removes the need for a count query but does not establish constant-time pagination. MongoDB can coalesce sort and limit to retain only the top N results; with an intervening skip it increases the sort limit by the skip amount. That optimization bounds retained results, not necessarily all work performed. (low confidence)",
-          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/",
+          "text": "Lookahead removes the need for a count query: Spring's reference says a Page triggers a count query, while a Slice knows only whether a next Slice is available. MongoDB can coalesce a $limit into a preceding $sort so the sort maintains only the top n results; with an intervening $skip it increases the $limit value by the $skip amount. Sources: https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html ; https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/",
+          "source": "https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html",
           "note": null,
           "claimId": "clm:9f2c48d0996d2ad555e353f6c3ecd227ad654d871770e56c387115ec15e24995",
           "validationStatus": "SUPPORTED",
@@ -63,11 +79,17 @@
             "ev:9f038bb2022d518c574bed467898a55ecfc1fed88bb3eda44e42346b5d51b393"
           ],
           "also": [
-            "https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html"
-          ]
+            "https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html",
+            "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/"
+          ],
+          "remediation": {
+            "claim_id": "clm:e9512c0e12bb4feed68e58b5736d5093d11ec002eb14ab95cb2620a66352a1e5",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T10:07:45Z"
+          }
         },
         {
-          "text": "A continuation token is not universally proof that another matching record exists. Google requires a token when the service cannot determine exhaustion in time, and DynamoDB explicitly says a nonempty LastEvaluatedKey does not necessarily mean more result data. Distinguish permission to continue scanning from an exact matching-row existence test. (medium confidence)",
+          "text": "A continuation token is not universally proof that another matching record exists. Google requires a token when the service cannot determine exhaustion in time, and DynamoDB explicitly says a nonempty LastEvaluatedKey does not necessarily mean more result data. Distinguish permission to continue scanning from an exact matching-row existence test. (medium confidence) Sources: https://google.aip.dev/158 ; https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html",
           "source": "https://google.aip.dev/158",
           "note": null,
           "claimId": "clm:b5c7ea1ccda3cf917ef88e7a4d242ba04054b54381010c9fbcf1df7d65e86b35",
@@ -78,7 +100,12 @@
           ],
           "also": [
             "https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:895835eae2892fd5cf064eae8002ba48eedb43ef8bd51f4ec9941e13df33e64c",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T10:07:23Z"
+          }
         },
         {
           "text": "Avoiding a total-count query does not remove deep-offset costs. Spring documents that offset-based Slice queries become inefficient at large offsets and separately describes indexed keyset windows that fetch limit + 1 results. (low confidence)",
@@ -108,7 +135,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "Use the cursor of the last returned edge as the next request's after value. With an extra-row probe, the implementation must keep endCursor on the last displayed row, rather than the discarded probe row, so that the probe remains eligible for the next page. (medium confidence)",
+          "text": "Use the cursor of the last returned edge as the next request's after value. If an implementation uses an extra-row probe, it should exclude the probe from edges and derive endCursor from the last displayed row, which the Relay spec's endCursor rule requires; the probe row then remains eligible for the next page. Sources: https://relay.dev/graphql/connections.htm",
           "source": "https://relay.dev/graphql/connections.htm",
           "note": null,
           "claimId": "clm:4f5c7207023999a8673c977fa4c55b4092d5403a94c20600b6c02571a37235f5",
@@ -120,7 +147,12 @@
           ],
           "also": [
             "https://developers.samsara.com/docs/pagination"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:44b1d384edf4fa9ce48c4e29223bb37352d6cd3d06e30fae05e64ba35384c2de",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T10:07:23Z"
+          }
         }
       ]
     },
@@ -128,7 +160,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "For forward pagination over an ordered stream of matching results, fetch pageSize + 1 results, return the first pageSize, and set hasNextPage to whether the extra result exists. This implements Relay's more-than-first test and Spring's documented Slice fetch size without needing a total-count query. (medium confidence)",
+          "text": "For forward pagination over an ordered stream of matching results, fetch pageSize + 1 results, return the first pageSize, and set hasNextPage to whether the extra result exists. This implements Relay's more-than-first test and Spring's documented Slice fetch size without needing a total-count query. (medium confidence) Sources: https://relay.dev/graphql/connections.htm ; https://raw.githubusercontent.com/spring-projects/spring-data-jpa/main/spring-data-jpa/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryExecution.java ; https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html",
           "source": "https://relay.dev/graphql/connections.htm",
           "note": null,
           "claimId": "clm:ff081ee0f722b192ffe36eb4d024b484ed0bc63162bda1466e963ead170b8131",
@@ -140,11 +172,17 @@
           ],
           "also": [
             "https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html",
-            "https://github.com/spring-projects/spring-data-jpa/blob/main/spring-data-jpa/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryExecution.java"
-          ]
+            "https://github.com/spring-projects/spring-data-jpa/blob/main/spring-data-jpa/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryExecution.java",
+            "https://raw.githubusercontent.com/spring-projects/spring-data-jpa/main/spring-data-jpa/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryExecution.java"
+          ],
+          "remediation": {
+            "claim_id": "clm:ed0dcd11b6b31dc8326f4e9762593a231948a7aa94ad0e35b7f6547863783933",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T10:07:45Z"
+          }
         },
         {
-          "text": "Continuation metadata can support forward navigation without total pages: Relay requires edges and pageInfo but does not require a total count, while Google AIP-158 makes total_size optional and communicates completion through next_page_token. (medium confidence)",
+          "text": "Continuation metadata can support forward navigation without total pages: Relay requires edges and pageInfo but does not require a total count, while Google AIP-158 makes total_size optional and communicates completion through next_page_token. (medium confidence) Sources: https://relay.dev/graphql/connections.htm ; https://google.aip.dev/158",
           "source": "https://relay.dev/graphql/connections.htm",
           "note": null,
           "claimId": "clm:7c693299caa307675402cef469edf3dc912af486e83c1ad5c863048e646a0932",
@@ -155,7 +193,12 @@
           ],
           "also": [
             "https://google.aip.dev/158"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:f78a6ed46f304969d0e2941c00cd2d5adc9610bd2cc766af4afed1d2f647e098",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T10:06:39Z"
+          }
         },
         {
           "text": "Cursor pagination and hasNextPage suit sequential loading, but a cursor alone does not provide arbitrary page-number jumps or an exact total. Mironsoft describes both limitations and recommends matching the navigation model to the UI. (low confidence)",
@@ -178,7 +221,7 @@
           ]
         },
         {
-          "text": "Total counts are optional for forward traversal: a response can expose a next-page boolean or continuation token independently of total rows and total pages. Relay specifies pageInfo without requiring totals, Google makes total_size optional, and Spring distinguishes Slice from Page. (high confidence)",
+          "text": "Total counts are optional for forward traversal: a response can expose a next-page boolean or continuation token independently of total rows and total pages. Relay specifies pageInfo without requiring totals, Google makes total_size optional, and Spring distinguishes Slice from Page. (high confidence) Sources: https://relay.dev/graphql/connections.htm ; https://google.aip.dev/158 ; https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html",
           "source": "https://relay.dev/graphql/connections.htm",
           "note": null,
           "claimId": "clm:f939fad9c3cc3a6c6f489c6cc2737d0d53b535a5175ce812f67137d742ae94e6",
@@ -191,10 +234,15 @@
           "also": [
             "https://google.aip.dev/158",
             "https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:9cf81f006b8186f5949df51947bcd064140b04237b2551a7d79c01554d3d12a2",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T10:07:45Z"
+          }
         },
         {
-          "text": "A Next or Load more interface can use continuation metadata alone. A numbered last-page control needs additional information: Spring's Slice does not report total pages, while Google's pagination response permits omitting total_size. (medium confidence)",
+          "text": "A Next or Load more interface can use continuation metadata alone. A numbered last-page control needs additional information: Spring's Slice does not report total pages, while Google's pagination response permits omitting total_size. (medium confidence) Sources: https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html ; https://google.aip.dev/158",
           "source": "https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html",
           "note": null,
           "claimId": "clm:809297e195fc8239cb42502475d1284245c96a553ee4b85cf901bf151a29685f",
@@ -207,10 +255,15 @@
           "also": [
             "https://google.aip.dev/158",
             "https://developers.samsara.com/docs/pagination"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:5598a32e00681e74185b829ba38848d8a6ab587cba11de334a883d23651b221b",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T10:07:23Z"
+          }
         },
         {
-          "text": "Do not infer completion from a short or empty API response. Google permits zero results before collection exhaustion, Samsara documents empty pages with hasNextPage true, and DynamoDB can filter out every evaluated item while returning LastEvaluatedKey. Follow the API's continuation contract. (high confidence)",
+          "text": "Do not infer completion from a short or empty API response. Google permits zero results before collection exhaustion, Samsara documents empty pages with hasNextPage true, and DynamoDB can filter out every evaluated item while returning LastEvaluatedKey. Follow the API's continuation contract. (high confidence) Sources: https://google.aip.dev/158 ; https://developers.samsara.com/docs/pagination ; https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html",
           "source": "https://google.aip.dev/158",
           "note": null,
           "claimId": "clm:cc7550accb31def88c535417b3ddeda3c7202205c814fec2e7a8054bd82177ce",
@@ -223,7 +276,12 @@
           "also": [
             "https://developers.samsara.com/docs/pagination",
             "https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:93dc9cffe579d7f08877ab9c61959eace9be8c810d582914f69a0c9be7d148c0",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T10:07:23Z"
+          }
         }
       ]
     }

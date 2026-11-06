@@ -27,7 +27,7 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "Do not run broad stale-row cleanup after a failed build: $merge can retain earlier writes after an error, leaving valid target rows without the new marker. (medium confidence)",
+          "text": "If the aggregation fails, any writes completed by the $merge before the error are not rolled back, so earlier writes can remain in the target after an error. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md",
           "note": null,
           "claimId": "clm:1c94ab682c55f0efd047e0f4a5a198b35f6e7c2e12e69ffb99432e5e6b685616",
@@ -35,18 +35,29 @@
           "evidenceIds": [],
           "also": [
             "https://www.codevra.org/mongodb/mongodb-merge-refresh-policy"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:fb299bedfae7fa8250de942475727cac0e668dd57d7831789249db8c7a8874a1",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:21:55Z"
+          }
         },
         {
-          "text": "A complete rebuild using $out replaces an existing target collection atomically when the aggregation completes, so rows absent from the rebuilt results disappear. MongoDB builds a temporary collection and renames it over the destination. $out cannot target a sharded collection; $merge can. (high confidence)",
-          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md",
+          "text": "A complete rebuild using $out replaces an existing target collection atomically when the aggregation completes, so rows absent from the rebuilt results disappear. MongoDB builds a temporary collection and renames it over the destination. $out cannot target a sharded collection; $merge can. (high confidence) Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
           "note": null,
           "claimId": "clm:fcd583fc6cf28d9540699179dc0f28b308086f21beedff58be9b598eafb03c86",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md"
-          ]
+            "https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md",
+            "https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:9b64b1debcc71de33fb37df9b1eafa1182ace9b0e8932a530c8c9128b4e3dc1f",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T09:20:48Z"
+          }
         },
         {
           "text": "For grouped summaries, a deleted document's identity alone may not identify its former group or contribution. Design inference: retain that mapping or consume an available pre-image, then recompute affected groups and explicitly remove groups whose result becomes empty. A fresh read cannot retrieve the deleted source document. (medium confidence)",
@@ -65,7 +76,7 @@
           ]
         },
         {
-          "text": "A resume token permits recovery only while the oplog retains the required history. Debezium documents snapshot-based recovery when a saved position is unavailable, subject to snapshot configuration. Design inference for materialized views: after an unrecoverable event gap, rebuild or compare the complete intended key set; merely upserting surviving source rows cannot identify missed deletions. (medium confidence)",
+          "text": "A resume token permits recovery only while the oplog retains the required history. Debezium documents snapshot-based recovery when a saved position is unavailable, subject to snapshot configuration. Design inference for materialized views: after an unrecoverable event gap, rebuild or compare the complete intended key set; merely upserting surviving source rows cannot identify missed deletions. (medium confidence) Sources: https://www.mongodb.com/docs/manual/changeStreams.md ; https://debezium.io/documentation/reference/stable/connectors/mongodb.html",
           "source": "https://www.mongodb.com/docs/manual/changeStreams.md",
           "note": null,
           "claimId": "clm:80824929241981b408812a22d24897afabb295e7a220f643d82dfd51ee48e113",
@@ -79,7 +90,12 @@
           "also": [
             "https://debezium.io/documentation/reference/stable/connectors/mongodb.html",
             "https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:31ba4baf24bcad9c63a1aa2c17ff7e3c07ff9960a26bccdcdb8bc8dcc24c6d8f",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T09:20:48Z"
+          }
         }
       ]
     },
@@ -130,7 +146,7 @@
           ]
         },
         {
-          "text": "Database aggregation $merge processes emitted result documents; it does not remove target documents absent from the results. If deletion removes the last source member of a group, that group emits no replacement row and its old summary can remain indefinitely. (high confidence)",
+          "text": "Database aggregation $merge incorporates pipeline results into an existing output collection rather than performing a full replacement; it can replace only existing documents that match the aggregation results on the `on` fields. To replace an existing collection regardless of the aggregation results, use $out instead. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md",
           "note": null,
           "claimId": "clm:cf07de1c16dcad7ceab3586714be4586e41deaad92a2cadff38e9ce61d247223",
@@ -138,7 +154,12 @@
           "evidenceIds": [],
           "also": [
             "https://www.codevra.org/mongodb/mongodb-merge-refresh-policy"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:8f3c423719073fb3af7f0f5a6a1124c42afd3bb0cf19962107cb7c9faa5d6972",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:21:55Z"
+          }
         },
         {
           "text": "Codevra demonstrates serialized mark-and-sweep reconciliation: stamp every emitted summary with the current refresh identifier, then delete older identifiers only after a complete successful refresh. Cleanup must stay within the refreshed report scope. Failed, partial, or overlapping builds make broad cleanup unsafe without coordination. (low confidence)",

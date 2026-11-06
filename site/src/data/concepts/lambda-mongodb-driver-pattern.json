@@ -8,12 +8,12 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "The reuse boundary is one Lambda execution environment. Because each MongoClient owns its own per-server pool, Lambda scale-out can create separate pools in separate environments; module-scope caching does not set a fleet-wide Atlas connection cap. This is an inference from AWS's environment reuse guidance and MongoDB's per-client pool model. (high confidence)",
+          "text": "The reuse boundary is one Lambda execution environment: AWS says database connections opened in static initialization are reused across invocations to the same execution environment. Each MongoClient has its own connection pool for each server in the topology. Together these imply (an inference, not a documented statement) that Lambda scale-out into multiple environments creates separate clients and pools. Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html ; https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
           "source": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
           "note": null
         },
         {
-          "text": "AWS Lambda Managed Instances can run multiple Node.js requests concurrently in one execution environment, sharing global objects. When using this mode, isolate mutable request state and use a database client pool that supports concurrent operations; the MongoDB Node.js driver documents one MongoClient supporting multiple concurrent requests. (medium confidence) (verified as of 2026-10-22)",
+          "text": "AWS Lambda Managed Instances can run multiple Node.js requests concurrently in one execution environment, sharing global objects. When using this mode, isolate mutable request state and use a database client pool that supports concurrent operations; the MongoDB Node.js driver documents one MongoClient supporting multiple concurrent requests. (medium confidence) (verified as of 2026-10-22) Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-managed-instances-nodejs-runtime.html ; https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
           "source": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-managed-instances-nodejs-runtime.html",
           "note": null
         },
@@ -28,7 +28,7 @@
       "title": "How-to and procedures",
       "facts": [
         {
-          "text": "Use context.callbackWaitsForEmptyEventLoop=false only with callback-style Node.js handlers; MongoDB's Lambda guide says the setting does not apply to async handlers. AWS currently documents callback-based handlers only for Node.js 22 and earlier runtimes. (high confidence) (verified as of 2026-10-22)",
+          "text": "Use context.callbackWaitsForEmptyEventLoop=false only with callback-style Node.js handlers; MongoDB's Lambda guide says the setting does not apply to async handlers. AWS currently documents callback-based handlers only for Node.js 22 and earlier runtimes. (high confidence) (verified as of 2026-10-22) Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md ; https://docs.aws.amazon.com/lambda/latest/dg/nodejs-handler.html",
           "source": "https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
           "note": null
         }
@@ -38,12 +38,12 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "AWS Lambda can purge idle connections, so a later invocation cannot assume an idle socket remains usable. MongoDB's Node.js driver exposes maxIdleTimeMS and minPoolSize to control idle pool behavior; tune these with the workload and test invocations after long idle periods. (medium confidence) (verified as of 2026-10-14)",
+          "text": "AWS Lambda can purge idle connections, so a later invocation cannot assume an idle socket remains usable. MongoDB's Node.js driver exposes maxIdleTimeMS and minPoolSize to control idle pool behavior; tune these with the workload and test invocations after long idle periods. (medium confidence) (verified as of 2026-10-14) Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html ; https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
           "source": "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
           "note": null
         },
         {
-          "text": "Lambda can purge idle connections, so reuse does not guarantee an old socket remains usable. AWS warns that reusing a purged idle connection can error; Atlas recommends maxIdleTimeMS=60000 to reduce serverless timeout errors. (high confidence) (verified as of 2026-10-14)",
+          "text": "Lambda can purge idle connections, so reuse does not guarantee an old socket remains usable. AWS warns that reusing a purged idle connection can error; Atlas recommends maxIdleTimeMS=60000 to reduce serverless timeout errors. (high confidence) (verified as of 2026-10-14) Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html ; https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
           "source": "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
           "note": null
         }
@@ -53,7 +53,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "For standard AWS Lambda, create one Node.js MongoClient outside the handler and reuse it across warm invocations handled by the same execution environment. AWS documents execution-environment resource reuse, MongoDB's Atlas guide shows a module-scope client, and the Serverless Framework example implements the same pattern. Google's Atlas tutorial demonstrates the same instance-local pattern for Cloud Functions. (high confidence)",
+          "text": "For standard AWS Lambda, create one Node.js MongoClient outside the handler and reuse it across warm invocations handled by the same execution environment. AWS documents execution-environment resource reuse, and MongoDB's Atlas guide shows a module-scope client. MongoDB's Atlas guide for Google Cloud Functions recommends the same globally-scoped connection pattern. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html ; https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md ; https://www.mongodb.com/docs/atlas/manage-connections-google-cloud.md",
           "source": "https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
           "note": null
         },

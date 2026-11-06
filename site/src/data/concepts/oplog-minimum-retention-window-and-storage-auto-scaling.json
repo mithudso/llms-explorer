@@ -33,7 +33,7 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "Check rs.printReplicationInfo() for oplog size and time range. Percona also recommends comparing db.getReplicationInfo().timeDiff with migration lagTime and enlarging the window before lag reaches that limit; timeDiff reports available history, not the configured minimum-retention parameter. (high confidence)",
+          "text": "Atlas suggests comparing the migration lag time shown in the Atlas UI with the replication lag time obtained from rs.printReplicationInfo(), and increasing the oplog size if the lag approaches it. Percona also recommends comparing db.getReplicationInfo().timeDiff with the PCSM lagTime and extending the window if the lag approaches it. timeDiff is the difference between the first and last operations in the oplog (available history), whereas the minimum retention parameter (oplogMinRetentionHours) is a separate configuration setting. Sources: https://www.mongodb.com/docs/atlas/cluster-additional-settings.md ; https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html ; https://www.mongodb.com/docs/manual/reference/method/db.getReplicationInfo.md ; https://www.mongodb.com/docs/manual/reference/configuration-options.md",
           "source": "https://www.mongodb.com/docs/atlas/cluster-additional-settings.md",
           "note": null,
           "claimId": "clm:0c4d5003a8a55e0f146a62f17fafb1b27b7c51481af3b5a26d44fd5152887387",
@@ -45,8 +45,15 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/core/replica-set-oplog.md",
-            "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html"
-          ]
+            "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html",
+            "https://www.mongodb.com/docs/manual/reference/method/db.getReplicationInfo.md",
+            "https://www.mongodb.com/docs/manual/reference/configuration-options.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:cf8d41bbbb518b9747bceb278aeb6c7296419aa69b4a101fb4ad5681682c7bff",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:08:17Z"
+          }
         },
         {
           "text": "Atlas explicitly warns against reducing oplog size as a way to free disk for other collections: the saved space remains reusable only by local.oplog.rs. Removing retained history can also remove entries that Atlas cannot restore. (low confidence) (verified as of 2026-10-31)",
@@ -80,7 +87,7 @@
           ]
         },
         {
-          "text": "Atlas Core enables storage auto-scaling by default and uses minimum oplog retention to manage entries when it is enabled. Atlas documents a default minimum window of 24 hours, unlike the server default with no minimum. (high confidence) (verified as of 2026-10-31)",
+          "text": "Atlas Core enables storage auto-scaling by default and uses minimum oplog retention to manage entries when it is enabled. Atlas documents a default minimum window of 24 hours, unlike the server default with no minimum. (high confidence) (verified as of 2026-10-31) Sources: https://www.mongodb.com/docs/atlas/customize-storage.md ; https://www.mongodb.com/docs/manual/reference/configuration-options.md",
           "source": "https://www.mongodb.com/docs/atlas/customize-storage.md",
           "note": null,
           "claimId": "clm:a620b10dd2f02571022e1fed8d19d5bc6b55b7fbed35c4e5ac3970e520d4613a",
@@ -91,8 +98,14 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/atlas/cluster-additional-settings.md",
-            "https://www.mongodb.com/docs/manual/core/replica-set-oplog.md"
-          ]
+            "https://www.mongodb.com/docs/manual/core/replica-set-oplog.md",
+            "https://www.mongodb.com/docs/manual/reference/configuration-options.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:21869b405a1563d6137633cc5c7768129ca70b5ac2305f6370a81fd7edaaebd7",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:08:17Z"
+          }
         }
       ]
     },
@@ -146,8 +159,8 @@
           ]
         },
         {
-          "text": "On Atlas Core, minimum-window configuration requires storage auto-scaling; a fixed oplog-size setting requires opting out. Atlas does not permit replSetResizeOplog for resizing, so self-managed command examples must be translated to Atlas settings. (high confidence) (verified as of 2026-10-31)",
-          "source": "https://www.mongodb.com/docs/atlas/customize-storage.md",
+          "text": "On Atlas Core, minimum-window configuration requires storage auto-scaling; a fixed oplog-size setting requires opting out. Atlas does not permit replSetResizeOplog for resizing, so self-managed command examples must be translated to Atlas settings. (high confidence) (verified as of 2026-10-31) Sources: https://www.mongodb.com/docs/atlas/cluster-additional-settings.md ; https://www.mongodb.com/docs/atlas/customize-storage.md",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-additional-settings.md",
           "note": null,
           "claimId": "clm:99544c63159b40aab5b95cd34fa29bd292a4af1d075cdfda0d1f50a4d7b7c3df",
           "validationStatus": "SUPPORTED",
@@ -155,11 +168,17 @@
             "ev:275d70464bb599d51a1e054209b96dc75dab7235dc718d1ce04a10f3bd2314e3"
           ],
           "also": [
-            "https://www.mongodb.com/docs/atlas/cluster-additional-settings.md"
-          ]
+            "https://www.mongodb.com/docs/atlas/cluster-additional-settings.md",
+            "https://www.mongodb.com/docs/atlas/customize-storage.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:0f2757f8341f835a2b7952f1fd2eab0e79191835fa1376b62b4a4e2b3b1d6280",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:08:17Z"
+          }
         },
         {
-          "text": "Migration and CDC consumers need their required operations to remain available until consumed. Before shortening retention to save storage, compare consumer lag and planned interruptions against the observed oplog window; expiry can force a fresh data load or failed sync. (high confidence)",
+          "text": "Migration and CDC consumers need their required operations to remain available in the source oplog until they are applied; if operations expire from the oplog before being processed, Percona ClusterSync's sync fails. Compare the current sync lag (lagTime) against the oplog window (db.getReplicationInfo().timeDiff) and extend the window if the lag approaches it. Sources: https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html",
           "source": "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html",
           "note": null,
           "claimId": "clm:238c9052eae3acc67e94d4d38999e010bf58144502e56501fc391575ee3d853d",
@@ -170,7 +189,12 @@
           ],
           "also": [
             "https://docs.hevodata.com/sources/dbfs/databases/mongodb/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:20100435d0dd389fa0d1117c15d71f2a058f544969b71ef915623c1014b1d119",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:08:17Z"
+          }
         },
         {
           "text": "A February 2023 Atlas user reported that the observed oplog window shrank during a write surge despite a compute upgrade to M30. This illustrates an operational report to investigate; it does not establish a current Atlas defect or retention guarantee. (low confidence) (verified as of 2026-10-31)",

@@ -1,0 +1,1069 @@
+{
+  "slug": "fast-trading-signals",
+  "concept": "Fast crypto trading signals",
+  "generated": "2026-11-06",
+  "summary": "Fast crypto trading signals are short-horizon, exchange-data-derived inputs (order flow and CVD, order-book imbalance, funding rate, open interest and basis, liquidation feeds and heatmaps, whale and netflow alerts) whose usable edge is bounded by venue feed cadence, rate limits, latency, trading costs and backtest overfitting. Compiled from 192 research units across 108 cited sources covering exchange and vendor APIs (Binance, Bybit, Hyperliquid, Tardis, CoinGlass, Pyth), mechanisms, measured values, problems, comparisons and how-to guidance. Evidence status: research claims ungated (v4 evidence gate not passed); treat as leads with cited sources.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Trade-signed imbalance, the ingredient of CVD, is a weak stand-alone signal in the studies that test it. Kim and Hansen (six Binance USDT-margined perpetuals, 2021-01-01 to 2024-10-31) report that 'Baseline order imbalance and order imbalance at one-minute openings exhibit little predictive association with subsequent returns'. Cont et al. find trade imbalance adds little once OFI is controlled for (US equities, contemporaneous). Coinglass itself says CVD divergence is 'Not recommended' as a standalone strategy.",
+          "source": "https://arxiv.org/html/2607.09426v2",
+          "note": null
+        },
+        {
+          "text": "Combining OI with funding (CoinMarketMan heuristic, untested): rising OI with high positive funding means longs are paying shorts to hold, so the trend may be better to fade than chase; OI and funding together indicate whether crowd positioning is sustainable.",
+          "source": "https://coinmarketman.com/blog/open-interest-on-hyperliquid-what-rising-oi-actually-tells-you--en/",
+          "note": null
+        },
+        {
+          "text": "Open-interest units and conventions are not standardized, so do not sum raw counts across providers. Coin Metrics records exchange-reported contract counts as-is (most exchanges report one-sided open interest, CME two-sided) and advises comparing open interest within a single market. Coinalyze's open-interest history endpoint takes a `convert_to_usd` parameter that defaults to false, so returned values are not USD unless requested.",
+          "source": "https://gitbook-docs.coinmetrics.io/market-data/market-data-overview/market-open-interest",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Inside the clamp region the funding rate is fixed at the interest component and ignores the basis. In He et al.'s Binance sample the clamp region covers about 36-45% of observations, and about 42-50% of realised 8-hour settlements pay exactly the interest component. BitMEX reports BTC funding at exactly 0.01% for 78.19% of Q3 2025 (ETH 87.52%). A settled-funding signal is therefore flat across many regimes; use the premium index or basis to see moves inside the band.",
+          "source": "https://arxiv.org/html/2212.06888v7",
+          "note": null
+        },
+        {
+          "text": "Binance USDⓈ-M funding formula: F = [average premium index + clamp(interest rate - premium index, -0.05%, +0.05%)] / (8/N), where N is the funding interval in hours. The premium index is [max(0, impact bid - price index) - max(0, price index - impact ask)] / price index. The default interest rate is 0.01% per 8 hours (0.03% per day), so funding equals 0.01% whenever the premium sits between about -0.04% and +0.06%. Hyperliquid documents the same structure: average premium + clamp(interest rate - premium, -0.0005, 0.0005), interest 0.01% per 8 hours.",
+          "source": "https://www.binance.com/en/support/faq/introduction-to-binance-futures-funding-rates-360033525031",
+          "note": null
+        },
+        {
+          "text": "In Hudson and Urquhart's daily data the edge sits on the long side. The average return from a buy signal is positive and significant for every coin and rule class, and over 90% of rules have positive buy returns for Litecoin, Ripple and both Bitcoin series. Sell-signal (short) returns are mostly negative, and in 15 of 20 rule-class-by-coin cells no rule earns a significant sell return. The sample is a strong uptrend, so part of this may be market drift.",
+          "source": "https://link.springer.com/article/10.1007/s10479-019-03357-1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Hyperliquid perp prices run on a roughly 3 second clock. Validators publish oracle prices about every 3 seconds, each as a weighted median of CEX spot prices (Binance 3, OKX 2, Bybit 2, Kraken 1, KuCoin 1, Gate IO 1, MEXC 1, Hyperliquid spot 1), and the clearinghouse takes the stake-weighted median across validators. Mark price is the median of three inputs and updates whenever new oracle prices arrive, so mark and oracle both update about every 3 seconds; mark price drives margining, liquidations, TP/SL triggers and unrealized PnL. The funding premium is sampled every 5 seconds and averaged o",
+          "source": "https://hyperliquid.gitbook.io/hyperliquid-docs/hypercore/oracle",
+          "note": null
+        },
+        {
+          "text": "Exchange trade feeds already flag the aggressor, so CVD needs no tick-rule estimation on those venues. Binance trade and aggTrade streams carry m, documented as 'Is the buyer the market maker?' (m = true means the taker sold). Kim and Hansen compute signed order flow on Binance USDT-margined perpetuals as buyer-initiated when isBuyerMaker is False.",
+          "source": "https://raw.githubusercontent.com/binance/binance-spot-api-docs/master/web-socket-streams.md",
+          "note": null
+        },
+        {
+          "text": "Venues encode trade direction differently, so a multi-venue CVD must normalise the sign per venue. Binance m says whether the buyer was the maker (true means the taker sold). Coinbase Exchange match messages put the MAKER order side in 'side': 'sell' means the maker sold, the match is an up-tick, and the taker bought. Bybit v5 public trade field S is documented as 'Side of taker'. Treating the three alike flips delta on some venues.",
+          "source": "https://raw.githubusercontent.com/binance/binance-spot-api-docs/master/web-socket-streams.md",
+          "note": null
+        },
+        {
+          "text": "The premium index comes from order-book impact prices, not last trades. Impact bid and ask are average fill prices for a fixed notional (Binance: 200 USD divided by the initial margin rate at maximum leverage; Hyperliquid: a per-asset impact_notional_usd), so a thin book moves funding. Hyperliquid measures its premium against its oracle price, a validator-computed weighted median of centralised-exchange spot prices. For HIP-3 perps it uses a different, more responsive formula: 0.5 x (impact bid + impact ask) / oracle - 1.",
+          "source": "https://arxiv.org/html/2212.06888v7",
+          "note": null
+        },
+        {
+          "text": "Order-flow toxicity measures predict volatility-type outcomes in crypto, not return direction. Easley, O'Hara, Yang and Zhang (5 major cryptocurrencies, January 2021 to July 2023) use Roll, Kyle lambda, Amihud and VPIN to predict the sign of changes in realized volatility, autocorrelation, skewness, kurtosis and the Jarque-Bera statistic. Average AUC is above 0.55 (0.54 to 0.61 per outcome, skewness 0.50), driven mainly by the Roll measure and VPIN, and results barely change during crypto winter. VPIN is an adjacent order-flow measure; it is not CVD or OBI.",
+          "source": "https://stoye.economics.cornell.edu/docs/Easley_ssrn-4814346.pdf",
+          "note": null
+        },
+        {
+          "text": "Crypto studies on Binance data find top-of-book imbalance informative at second-scale horizons. Bieganowski and Slepaczuk (1-second Binance perpetual books and trades, 2022-01-01 to 2025-10-12; BTC, LTC, ETC, ENJ, ROSE; 3-second mid-return target) report that order flow imbalance, bid-ask spreads and VWAP-to-mid deviations dominate mean absolute SHAP, with a largely monotone OFI effect with concavity at extremes and weaker predictability when spreads are wide. Smutny's 2025 Charles University diploma thesis (Binance BTC, ETH, LTC futures; OLS, VAR, event study) finds bid-ask imbalances signifi",
+          "source": "https://arxiv.org/html/2602.00776",
+          "note": null
+        },
+        {
+          "text": "Funding cash flow uses different notionals by venue. Binance: funding amount = nominal value (mark price x contract size) x funding rate. Hyperliquid: position size x oracle price x funding rate, using the oracle price and not the mark price. The same quoted rate can therefore produce slightly different cash flows across venues.",
+          "source": "https://www.binance.com/en/support/faq/introduction-to-binance-futures-funding-rates-360033525031",
+          "note": null
+        },
+        {
+          "text": "The two big oracle vendors match push and pull to different jobs. Chainlink describes push Data Feeds as suited to lending and liquidations and pull Data Streams to latency-sensitive uses such as perps. Pyth draws the same line: Pyth Pro contracts verify a signed price on each transaction and store none (used for perps and RFQ), while Pyth Core contracts verify and store the price, which stays available until a newer update replaces it (used for lending markets, CDPs and vaults).",
+          "source": "https://chain.link/education-hub/pull-oracles-vs-push-oracles",
+          "note": null
+        },
+        {
+          "text": "Over short intervals the mid-price change is roughly linear in OFI, and the fit is contemporaneous (same interval), not a forecast. Cont, Kukanov and Stoikov regress mid-price change on OFI over 10-second intervals for 50 US stocks (NYSE TAQ). Xu, Gould and Howison fit a linear model of contemporaneous mid-price change on multi-level OFI for 6 Nasdaq stocks. Bugaenko, in equity data, reports that price impact grows linearly with order-flow imbalance for small signed order flows.",
+          "source": "https://ar5iv.labs.arxiv.org/html/1011.6402",
+          "note": null
+        },
+        {
+          "text": "Coinbase warns that messages can be dropped from the matches channel and recommends tracking the last trade ID through the heartbeat channel and fetching missed trades from REST. Inference, not stated by Coinbase: because CVD is a running sum, an unrepaired gap leaves a permanent offset in every later CVD value.",
+          "source": "https://docs.cdp.coinbase.com/exchange/websocket-feed/channels.md",
+          "note": null
+        },
+        {
+          "text": "Binance and Hyperliquid trigger liquidations on mark price, not on last traded price. Binance builds mark price from funding data and a basket of spot-exchange prices. Hyperliquid builds it from external CEX prices combined with its own book state. A wick in one venue's last-trade price therefore does not by itself reach a liquidation trigger.",
+          "source": "https://www.binance.com/en/support/faq/binance-futures-liquidation-protocols-360033525271",
+          "note": null
+        },
+        {
+          "text": "Hyperliquid's liquidation chain differs in detail. Below maintenance margin, the engine sends market orders to the order book. For positions above 100k USDC it sends 20% per attempt, and for 30 seconds after a partial liquidation it sends the whole position. Below 2/3 of maintenance margin, the liquidator vault (part of HLP) can take the position over, and the user's maintenance margin is not returned. ADL is the last step. It ranks opposing users by (mark_price / entry_price) * (notional_position / account_value) and closes them at the previous mark price. Inference: a large cluster at one pr",
+          "source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/liquidations",
+          "note": null
+        },
+        {
+          "text": "What drives the basis: BIS attributes carry variation to a volatile convenience yield from (i) trend-chasing, leverage-seeking smaller investors in booms and (ii) scarce arbitrage capital, because cash-and-carry is risky when margins spike and liquidations hit in drawdowns. He et al. find the perp-spot deviation rises after high trailing spot returns (positive coefficient, 1% significance) and compressed after Binance introduced portfolio margining in April 2022, which made the arbitrage more capital-efficient.",
+          "source": "https://www.bis.org/publ/work1087.htm",
+          "note": null
+        },
+        {
+          "text": "Pull oracles hand freshness control to the consumer. Pyth Core advertises '500+ feeds with 400ms updates across 100+ chains': the app fetches a signed price from the off-chain Hermes service and submits it on-chain for verification in the same transaction. Chainlink Data Streams generates reports continuously off-chain 'on a sub-second basis' and the app fetches them on demand. The Chainlink pages reviewed state no millisecond latency figure.",
+          "source": "https://docs.pyth.network/llms-price-feeds-core.txt",
+          "note": null
+        },
+        {
+          "text": "Settled funding is a lagged, weighted average of the perp-spot premium, not a spot reading. Binance samples the premium index every 5 seconds and time-weights it with linearly increasing weights, so late samples count more. Hyperliquid samples every 5 seconds and averages over the hour. One Trading samples every minute. For a faster read, compute your own premium from mark or impact prices against the index.",
+          "source": "https://arxiv.org/html/2212.06888v7",
+          "note": null
+        },
+        {
+          "text": "Funding-rate arbitrage is not risk-free and earns mostly from convergence. He et al.: the perp cash-and-carry has no predetermined unwind date; in their decomposition price convergence dominates strategy returns while funding payments play a minor, diminishing role; their no-arbitrage result is conditional on exchange solvency. BIS: the arbitrage side is risky because margins spike and liquidations hit in drawdowns, which keeps arbitrage capital scarce.",
+          "source": "https://arxiv.org/html/2212.06888v7",
+          "note": null
+        },
+        {
+          "text": "OFI is computed from best-quote updates. Per book event, e_n = I{P^B_n >= P^B_(n-1)} q^B_n - I{P^B_n <= P^B_(n-1)} q^B_(n-1) - I{P^A_n <= P^A_(n-1)} q^A_n + I{P^A_n >= P^A_(n-1)} q^A_(n-1), where P is the best price, q the best size, B bid, A ask, and I the indicator function. OFI over an interval is the sum of e_n. Multi-level OFI (MLOFI) extends this to a vector over price levels.",
+          "source": "https://ar5iv.labs.arxiv.org/html/1011.6402",
+          "note": null
+        },
+        {
+          "text": "Imbalance carries more information when the tick is large relative to price. Gould and Bonart report considerable improvement in direction classification for large-tick stocks and only moderate improvement for small-tick stocks. Bieganowski and Slepaczuk report that the predictive effect of imbalance (SHAP) is stronger for instruments with larger ticks. Implication to test: expect a cleaner OBI signal on coarse-tick pairs than on very fine-tick ones.",
+          "source": "https://arxiv.org/abs/1512.03492",
+          "note": null
+        },
+        {
+          "text": "Pyth Pro is a permissioned, subscription WebSocket stream for off-chain use. Each subscription picks real_time (updates as soon as available, no slower than 50 ms), fixed_rate@50ms, fixed_rate@200ms (the most common) or fixed_rate@1000ms, and access needs an API token from an authorized Pyth Data Distributor. Pyth Core stays the pull oracle for DeFi, and the Pyth docs say Core contracts were upgraded in August 2026 to use the Pyth Pro backend.",
+          "source": "https://docs.pyth.network/llms-price-feeds-pro.txt",
+          "note": null
+        },
+        {
+          "text": "Elevated basis or funding is a crowding gauge, not a timing tool. BIS finds high crypto carry predicts future price crashes and that rising carry goes with a rising price of crash-risk insurance. CoinMarketMan reads rising OI plus extreme funding plus a nearby liquidation cluster as an overcrowded market at risk of a sharp reversal, while saying it does not give the timing.",
+          "source": "https://www.bis.org/publ/work1087.htm",
+          "note": null
+        },
+        {
+          "text": "Oracle price updates are themselves a tradeable event. Oracle Extractable Value (OEV) is MEV captured by back-running oracle updates, chiefly liquidations in lending markets. Chainlink SVR (introduced December 2024) auctions the right to liquidate, and the protocol briefly holds back publishing the updated price to run the auction, so the on-chain price is deliberately delayed. UMA's Oval estimated that Aave missed about $62 million of revenue over three years by not capturing OEV; this is an estimate, not a measured loss.",
+          "source": "https://chorus.one/articles/an-introduction-to-oracle-extractable-value-oev",
+          "note": null
+        },
+        {
+          "text": "Independent Chainlink oracle networks consume nearly identical off-chain price data but publish at different times, which makes some updates predictable from others. In the paper's true-positive windows for October 10, 2025, an Optimism update preceded the Arbitrum update by 19.4 seconds on average (and trailed it by 10.8 seconds when it came second) and the Base update by 26.7 seconds (12.8 seconds when second); Optimism led more than twice as often as it lagged. Table 10 reports true and false positives of 498 and 1 for Arbitrum, 414 and 0 for Base, and 188 and 155 for Ethereum, so the signa",
+          "source": "https://arxiv.org/html/2606.03434v1",
+          "note": null
+        },
+        {
+          "text": "Do not treat aggregator liquidation totals as complete: they inherit exchange-feed sampling. Hyperliquid co-founder Jeff Yan said (reported 2025-10-13) that actual liquidation volumes could be up to 100 times reported figures in volatile periods because some CEXs, including Binance, disclose one order per second; the article shows no calculation. CoinGlass analysts said the true sum for 2025-10-11 (reported at $19.1bn across more than 1.6m traders) was 'likely much higher' because Binance limits reporting. No published reconciliation measuring the real undercount was found.",
+          "source": "https://forklog.com/en/hyperliquid-co-founder-says-cex-liquidation-totals-may-be-underreported-by-up-to-100x/",
+          "note": null
+        },
+        {
+          "text": "Sign and settlement: when funding is positive, longs pay shorts; when negative, shorts pay longs. The payment is peer-to-peer and the venue takes no fee (Binance, Hyperliquid and One Trading all say so). Binance charges only positions still open at the settlement timestamp, so closing before the timestamp avoids the payment.",
+          "source": "https://www.binance.com/en/support/faq/introduction-to-binance-futures-funding-rates-360033525031",
+          "note": null
+        },
+        {
+          "text": "A signal's decay speed (its half-life) sets how hard to trade it. In Garleanu and Pedersen's model, predictors with slower mean reversion ('alpha decay') get more weight in the aim portfolio, and an investor facing transaction costs trades more aggressively on persistent signals than on fast mean-reverting ones, because the benefits of persistent signals accrue over longer periods. Without trading costs the optimal portfolio does not depend on alpha decay. The paper's empirical test uses commodity futures with 5-day, 12-month and 5-year signals, not intraday data.",
+          "source": "https://archive.nyu.edu/bitstream/2451/28346/2/DynamicTrading.pdf",
+          "note": null
+        },
+        {
+          "text": "Dated futures and perps differ. A dated future converges to spot at expiry, so its annualised basis fixes the cash-and-carry yield at entry. A perp has no expiry and relies on funding; He et al. note a perp cannot be replicated by rolling 8-hour futures because convergence is not guaranteed. Binance's basis endpoint lets you compare PERPETUAL, CURRENT_QUARTER and NEXT_QUARTER basis for one pair.",
+          "source": "https://newsletter.checkonchain.com/p/cash-and-carry-confusion",
+          "note": null
+        },
+        {
+          "text": "On a venue with public positions, a vendor can compute liquidation levels instead of modeling them. MMT says it runs its own Hyperliquid node and shows the actual liquidation prices of open positions, and it calls conventional CEX heatmaps estimates. Even there, the level is conditional. Hyperliquid's docs say a shown liquidation price can differ from the real one because of funding payments and PnL changes in other cross-margin positions. The docs publish the formula liq_price = price - side * margin_available / position_size / (1 - l * side), where l = 1 / MAINTENANCE_LEVERAGE and the mainte",
+          "source": "https://mmt.gg/learn/hyperliquid-heatmaps",
+          "note": null
+        },
+        {
+          "text": "Funding mostly follows price instead of leading it. Presto Research (BTC on Binance, roughly 2021 to 2024): the 7-day change in annualised funding explains 12.5% of contemporaneous price-change variance, but at lag T to T+1 correlation and R-squared are about zero; it concludes single-asset price changes cannot be reliably predicted from funding-rate changes alone. He et al. likewise find trailing spot returns positively predict the perp-spot deviation.",
+          "source": "https://prestolabs.io/research/can-funding-rate-predict-price-change",
+          "note": null
+        },
+        {
+          "text": "Binance's liquidation chain has three steps. First, the system tries a partial liquidation to cure the margin deficit. Second, any unfilled remainder becomes a bankrupt position that the Futures Insurance Fund takes over. Third, if the fund cannot absorb it, auto-deleveraging (ADL) closes opposing profitable positions at the bankrupt trader's bankruptcy price. ADL ranks positions by unrealized PnL percent times effective leverage, so the most profitable and most leveraged positions go first.",
+          "source": "https://www.binance.com/en/support/faq/binance-futures-liquidation-protocols-360033525271",
+          "note": null
+        },
+        {
+          "text": "On October 10, 2025 Hyperliquid used ADL repeatedly, closing about $2.1B of positions in 12 minutes (Chitra, 2026). CoinShares notes Hyperliquid activated ADL on short positions while Lighter avoided ADL because it held enough insurance reserves. CoinGecko says ADL closed profitable short positions in delta-neutral strategies.",
+          "source": "https://arxiv.org/abs/2512.01112",
+          "note": null
+        },
+        {
+          "text": "A Chainlink push feed is only as fresh as two per-feed settings: the deviation threshold (the minimum price move that forces an update) and the heartbeat (the maximum time between updates). Between updates the on-chain price can differ from the off-chain price by up to about the threshold, and a quiet feed can go a full heartbeat without updating. The same pair is configured very differently by chain: ETH/USD heartbeat is about 1 hour on Ethereum, 20 minutes on Optimism and 24 hours on Arbitrum, and a 2026 oracle-extractable-value paper tabulates ETH/USD deviation thresholds of 0.5% (Ethereum)",
+          "source": "https://arxiv.org/html/2606.03434v1",
+          "note": null
+        },
+        {
+          "text": "The heartbeat is a ceiling, not the typical update interval. The 2026 oracle-extractable-value paper reports that Chainlink oracles on Optimism updated every 181 seconds on average, against 1,200 second heartbeats on its ETH/USD and OP/USD feeds, and notes that Layer-2 networks generally show more frequent oracle updates than Ethereum.",
+          "source": "https://arxiv.org/html/2606.03434v1",
+          "note": null
+        },
+        {
+          "text": "Funding is the mechanism that keeps a contract with no expiry near spot, and it approximately equals the average futures-minus-spot spread over the preceding funding window (typically 8 hours). Convergence is not guaranteed. He et al. derive a no-arbitrage perp price proportional to spot and show real prices sit within a band set by trading costs.",
+          "source": "https://arxiv.org/html/2212.06888v7",
+          "note": null
+        },
+        {
+          "text": "Basis ('crypto carry') is large and unstable. BIS Working Paper 1087 reports futures-spot carry averaging above 10% a year and reaching up to 60%, larger than carry in equities, bonds, currencies or commodities; interest-rate differentials explain very little of it. He et al. report mean absolute perp deviations from the no-arbitrage price of roughly 50-90% a year across five coins (Jan 2020 to Mar 2024), larger than in traditional currency markets, co-moving across coins and shrinking about 22 percentage points a year.",
+          "source": "https://www.bis.org/publ/work1087.htm",
+          "note": null
+        },
+        {
+          "text": "A liquidation cascade is a feedback loop. An adverse move pushes leveraged accounts through maintenance margin. The exchange then emits forced, price-insensitive market orders, price moves again, and the next tier of accounts is liquidated. Thin books amplify the loop: Binance's January 2026 report says that with fewer resting orders, small liquidations pushed prices sharply lower.",
+          "source": "https://arxiv.org/html/2607.27070",
+          "note": null
+        },
+        {
+          "text": "The sign of short-horizon autocorrelation in crypto depends on bar size and on coin liquidity. Studies report continuation at daily-to-weekly horizons in large, liquid coins (Liu and Tsyvinski on Bitcoin, Ripple and Ethereum; Zaremba et al.; Begusic and Kostanjcar). They report reversal in 15-minute to 4-hour bars (Kitron and Wengrowicz; De Nicola) and in the daily returns of illiquid coins (Zaremba et al.). Any momentum or mean-reversion rule therefore needs a stated bar size and a stated coin universe.",
+          "source": "https://www.nber.org/system/files/working_papers/w24877/w24877.pdf",
+          "note": null
+        },
+        {
+          "text": "Intraday momentum also exists in Bitcoin. Shen, Urquhart and Wang use trading volume as the clock, because Bitcoin trades 24 hours a day and has no open or close. They find the first half-hour return positively predicts the last half-hour return, with the greatest predictability in the sessions with the highest volume or volatility. They attribute it to liquidity provision, not late-informed trading. Wen et al. (Bitcoin, 2013-03-03 to 2020-05-31) find both intraday momentum and intraday reversal, and the same predictability in Ethereum, Litecoin and Ripple.",
+          "source": "https://research.birmingham.ac.uk/en/publications/bitcoin-intraday-time-series-momentum/",
+          "note": null
+        },
+        {
+          "text": "When sizing a holding window from the Philadelphia Fed paper, use the body regression table, not the abstract. The abstract says whale alerts 'induce a brief 24-hour spike in BTC volatility', but Table 5 shows the BTC-alert effect peaking at +0.22 around 6 to 9 hours and reversing to -0.12 in the 24-hour window; the body text calls it 'a transitory volatility burst that dissipates within a day'.",
+          "source": "https://www.philadelphiafed.org/-/media/frbp/assets/working-papers/2026/wp26-42.pdf",
+          "note": null
+        },
+        {
+          "text": "Do not assume the Philadelphia Fed results describe exchange-deposit alerts, the event type most netflow strategies use. Its text says large exchange and smart-contract wallets are excluded from the analysis and that the analysis 'does not include transactions with crypto exchanges (such as Coinbase)', while the data section also says it controls for exchange counterparties when classifying whale buys and sells.",
+          "source": "https://www.philadelphiafed.org/-/media/frbp/assets/working-papers/2026/wp26-42.pdf",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "Hyperliquid exposes funding and OI through POST https://api.hyperliquid.xyz/info: metaAndAssetCtxs (mark price, current funding, open interest, premium, oracle price, impact prices), fundingHistory (coin, startTime, optional endTime; returns fundingRate, premium, time) and predictedFundings, which lists predicted funding per coin for venues BinPerp, HlPerp and BybitPerp with nextFundingTime (first perp dex only). predictedFundings puts cross-venue funding gaps in one call.",
+          "source": "https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals",
+          "note": null
+        },
+        {
+          "text": "Tardis.dev sells tick-level history and replay by monthly subscription (pricing page undated, read 2026-11-06). Academic / Solo / Professional / Business cost $350 / $700 / $1,000 / $3,000 for Perpetuals, $450 / $900 / $1,350 / $3,500 for Derivatives and $650 / $1,200 / $2,200 / $6,000 for All Exchanges (50+ exchanges). Data-transfer caps are 20 TB per month for Academic through Professional and 60 TB for Business; Business allows up to 10 API keys. Data types include incremental L2 order book, snapshots, trades, derivative ticker (open interest and funding), liquidations and daily-updated CSV",
+          "source": "https://tardis.dev/",
+          "note": null
+        },
+        {
+          "text": "Coinalyze offers a free API (key generated after sign-up, sent as an `api_key` header or query parameter) limited to 40 calls per minute per key; excess calls return HTTP 429 with a `Retry-After` header. Endpoints cover current and historical open interest, funding rate, predicted funding rate, liquidation history, long/short ratio and OHLCV. A symbol list may hold up to 20 symbols but each symbol consumes one call, so one 20-symbol request uses half the per-minute budget. For intraday intervals (1 minute to 12 hours) it keeps only 1,500 to 2,000 data points and deletes older data daily (deriv",
+          "source": "https://api.coinalyze.net/v1/doc",
+          "note": null
+        },
+        {
+          "text": "Binance split USDS-M WebSocket traffic into routed paths on wss://fstream.binance.com: `/public` (bookTicker, !bookTicker, partial and diff book depth), `/market` (aggTrade, markPrice including !markPrice@arr, kline, tickers, forceOrder liquidations, composite index, contract info) and `/private` (listenKey user data). The docs say legacy `/ws` and `/stream` URLs stay available until 2026-04-23, and a connection on a non-routed path receives only `/public` data: `.../ws/btcusdt@depth` keeps working but `.../ws/btcusdt@markPrice` stops pushing. Tardis moved its Binance collector from `/stream`",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Important-WebSocket-Change-Notice",
+          "note": null
+        },
+        {
+          "text": "Binance meters USDS-M REST traffic by IP, not by API key (order limits are per account). The docs page gives no numeric REQUEST_WEIGHT or ORDER limits; they live in the `rateLimits` array of `/fapi/v1/exchangeInfo`, and responses report usage in `X-MBX-USED-WEIGHT-<interval>` headers. The open-interest history and long/short-ratio endpoints under `/futures/data/` carry IP weight 0 but have their own limit of 1000 requests per 5 minutes per IP.",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/general-info",
+          "note": null
+        },
+        {
+          "text": "Hyperliquid meters its API per IP: REST requests share an aggregated weight limit of 1200 per minute (l2Book, allMids, clearinghouseState, orderStatus and exchangeStatus weigh 2; most other documented info requests weigh 20; history endpoints add weight per 20 items returned), and WebSocket is limited to 10 connections, 30 new connections per minute, 1000 subscriptions and 2000 messages sent per minute across all connections.",
+          "source": "https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/rate-limits-and-user-limits",
+          "note": null
+        },
+        {
+          "text": "Every source meters by key or IP and answers over-limit calls with an error you must back off from. Binance returns HTTP 429, then an automated 418 IP ban for repeat violations that scales from 2 minutes to 3 days; Bybit returns 403 'access too frequent' and needs a wait of at least 10 minutes; CoinGlass returns 429 with `API-KEY-MAX-LIMIT` and `API-KEY-USE-LIMIT` headers; Coinalyze returns 429 with a `Retry-After` header giving the seconds to wait.",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/general-info",
+          "note": null
+        },
+        {
+          "text": "Binance funding data endpoints: GET /fapi/v1/premiumIndex returns markPrice, indexPrice, lastFundingRate, interestRate and nextFundingTime (weight 1 with a symbol, 10 without). GET /fapi/v1/fundingRate returns fundingRate, fundingTime, markPrice and rateType (Regular, or Special for stock-dividend funding), default limit 100, max 1000, and the most recent 200 records when no time range is sent. fundingRate shares a 500 per 5 minutes per IP limit with fundingInfo.",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Mark-Price",
+          "note": null
+        },
+        {
+          "text": "Funding interval and caps are set per venue and per symbol, so normalise every rate to one horizon before comparing. Binance defaults to 8 hours (00:00, 08:00, 16:00 UTC) but can run 4 hours or 1 hour. Hyperliquid pays every hour at one eighth of the 8-hour-formula rate. One Trading pays every 4 hours. Binance lists symbols with an adjusted cap, floor or interval at GET /fapi/v1/fundingInfo (fields adjustedFundingRateCap, adjustedFundingRateFloor, fundingIntervalHours).",
+          "source": "https://www.binance.com/en/support/faq/introduction-to-binance-futures-funding-rates-360033525031",
+          "note": null
+        },
+        {
+          "text": "Caps differ by venue. Binance FAQ: cap and floor are +/-0.75 x maintenance margin ratio for most listed symbols and +/-2% for other USDⓈ-M contracts, and Binance reserves the right to adjust them. Hyperliquid caps funding at 0.5% per hour and says this is much less aggressive than centralised exchanges. When a rate sits at its cap it understates the premium, so read the premium index instead (inference).",
+          "source": "https://www.binance.com/en/support/faq/introduction-to-binance-futures-funding-rates-360033525031",
+          "note": null
+        },
+        {
+          "text": "Cost ladder as of 2026-11-06: Coinalyze states 'The API is free' (40 calls/min); Binance's bulk files downloaded with no credentials; Hyperliquid's archive costs only the requester's S3 transfer; CoinGlass costs $29 to $699 per month (heatmap endpoint only from $699); Tardis tick history costs $350 to $6,000 per month depending on exchange scope and tier. A CoinMarketCap comparison describes Kaiko as 'custom enterprise structures' (no public price).",
+          "source": "https://api.coinalyze.net/v1/doc",
+          "note": null
+        },
+        {
+          "text": "Binance moves a USDⓈ-M perpetual from 8-hour or 4-hour to 1-hour settlement when its previous settlement reached the cap or floor (announced 2025-04-25, effective 2025-05-02 08:00 UTC, no announcement per event). The FAQ, last updated 2026-03-06, describes a revert to 4 hours on the 17th cycle after 16 consecutive cycles with an absolute rate of 0.025% or less. A pipeline that assumes a fixed 8-hour cadence will mis-scale rates for these symbols; read the interval per symbol and per time.",
+          "source": "https://www.binance.com/en/support/announcement/3243c81a35bd4f0c86a37315c3dc96cc",
+          "note": null
+        },
+        {
+          "text": "CoinGlass gates its liquidation-heatmap endpoint (docs page 'Liquidation Heatmap (model1)') to the Professional ($699/month) and Enterprise plans; Hobbyist, Startup and Standard are marked unavailable. The same docs page states 'Cache / Update Frequency: Real time for all the API plans', while the pricing page states updates of 1 minute or faster.",
+          "source": "https://docs.coinglass.com/reference/liquidation-heatmap",
+          "note": null
+        },
+        {
+          "text": "CoinGlass serves the heatmap at `GET /api/futures/liquidation/heatmap/model1` with required query parameters exchange (default Binance), symbol (default BTCUSDT) and range (12h, 24h, 3d, 7d, 30d, 90d, 180d or 1y; default 3d). The response holds y_axis price levels, liquidation_leverage_data triples of [x index, y index, value] and price_candlesticks. Access needs a Professional or Enterprise plan and a CG-API-KEY header. The docs label the third value of each triple both 'liquidation leverage' and 'liquidation amount in USD'.",
+          "source": "https://docs.coinglass.com/reference/liquidation-heatmap",
+          "note": null
+        },
+        {
+          "text": "CoinGlass API plans (pricing page, read 2026-11-06, page undated): Hobbyist $29/month, 30 requests/min, personal use; Startup $79, 80/min, personal use; Standard $299, 300/min, commercial use; Professional $699, 1,200/min, commercial use; Enterprise by inquiry with custom limits, granularity and history. Every listed paid tier states updates of 1 minute or faster. The limit depends on the plan; responses report it in `API-KEY-MAX-LIMIT` (per-minute maximum) and `API-KEY-USE-LIMIT` (current usage) headers, and an exceeded limit returns HTTP 429.",
+          "source": "https://coinglass.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Bybit V5 default limits: REST 600 requests within a 5-second window per IP; WebSocket no more than 500 new connections in a 5-minute window and at most 1,000 market-data connections per IP, counted separately for Spot, Linear, Inverse and Options. Breaching the REST limit returns HTTP 403 'access too frequent'; stop all HTTP sessions and wait at least 10 minutes, after which the ban lifts automatically.",
+          "source": "https://bybit-exchange.github.io/docs/v5/rate-limit",
+          "note": null
+        },
+        {
+          "text": "Binance USDS-M WebSocket (base wss://fstream.binance.com): one connection can listen to at most 1024 streams, is valid for only 24 hours (expect a disconnect at the 24-hour mark), and is limited to 10 incoming messages per second (exceeding it disconnects, and repeatedly disconnected IPs may be banned). The server pings every 3 minutes and disconnects a connection that returns no pong within 10 minutes. The page states no connection-rate limit.",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Connect",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Inference from the cadences and limits above: match the source tier to the signal horizon. Sub-second microstructure (depth, trades, mark price, liquidations) comes from exchange WebSockets at 100 ms to 1 s; cross-venue open interest, funding and liquidation context comes from aggregators at about 1-minute resolution (CoinGlass 1 minute or faster, Coinalyze 1-minute intervals at 40 calls/min, Coin Metrics polling about once a minute); history for backtests comes from paid tick vendors (Tardis from $350/month) or free bulk files (Binance public data).",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams",
+          "note": null
+        },
+        {
+          "text": "Measured predictive horizons in crypto perpetuals span seconds to hours, so estimate half-life per signal instead of assuming one. A Binance perpetual study using order book and trade features at 1-second resolution (January 2022 to October 2025) uses a 3-second mid-price return as its target. A separate 2026 preprint on six Binance perpetuals finds that quarter-hour opening order imbalance predicts returns over four to twelve hours, with much weaker effects at finer clock-time frequencies.",
+          "source": "https://arxiv.org/html/2602.00776",
+          "note": null
+        },
+        {
+          "text": "Fast-signal backtests that omit latency report an upper bound. The Binance perpetual study states 'Latency is not explicitly modeled; results should be interpreted as an upper bound in the fastest regime', and says real execution faces latency, network jitter and queue position effects that are hard to simulate.",
+          "source": "https://arxiv.org/html/2602.00776",
+          "note": null
+        },
+        {
+          "text": "Free and low-cost sources keep short intraday history, so record raw streams yourself: Binance's open-interest history endpoint serves only the latest 1 month; Coinalyze keeps only 1,500 to 2,000 intraday data points per interval; CoinGlass's pricing table shows just 6 to 12 days of 1-minute history on its lowest-priced plans (column mapping ambiguous in the fetched text); Hyperliquid's S3 archive is uploaded about once a month with no timeliness guarantee.",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Open-Interest-Statistics",
+          "note": null
+        },
+        {
+          "text": "Vendors advise using the map as a relative risk gauge. CoinGlass says to pair it with market depth and open interest, to match the lookback (12 hours to one year) to the holding period, and that a dense zone with thin depth may see sharp moves or quick reversals while a dense zone with strong depth may see smoother moves. Hyblock says to compare sizes with other levels, not to read them as absolute amounts.",
+          "source": "https://www.coinglass.com/learn/how-to-use-liqmap-to-assist-trading-en",
+          "note": null
+        },
+        {
+          "text": "Constrain the search with theory before computing anything. Bailey and López de Prado say investment theory, not computational power, should decide which experiments are worth running, and suggest an optimal-stopping rule: sample roughly 37% of the theoretically justified configurations, then take the first that beats all of them. Harvey, Liu and Zhu say a factor derived from first principles can face a lower hurdle than one found by empirical search. For order-flow or funding signals, a mechanism written down before the test shrinks N and defends a lower bar; that application is an inference",
+          "source": "https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf",
+          "note": null
+        },
+        {
+          "text": "Enforce an explicit maximum data age per feed and use case instead of trusting an oracle to be fresh. Pyth tells integrators to read prices with getPriceNoOlderThan() rather than getPriceUnsafe(), with suggested max ages of 10 to 30 seconds for derivatives and perps, 60 seconds for lending and 300+ seconds for display, and to pause activity when the confidence-to-price ratio exceeds a threshold such as 2%. An audit finding on Chainlink feeds recommends checking updatedAt against that feed's own heartbeat and warns that heartbeats vary by chain and pair (ETH/USD about 1 hour on Ethereum, 27 sec",
+          "source": "https://docs.pyth.network/llms-price-feeds-core.txt",
+          "note": null
+        },
+        {
+          "text": "Record both the exchange event time and your own receive time; their gap is a direct latency measurement. CoinAPI defines time_exchange (stamped by the exchange) and time_coinapi (stamped on arrival at its ingestion point), calls the difference the 'latency fingerprint' of an event, recommends time_coinapi for latency measurement and cross-exchange sequencing, and sets time_exchange equal to time_coinapi when the exchange sends no timestamp. An open-source feed handler's FAQ likewise records the local machine clock by default and warns that not all API messages carry an exchange timestamp, esp",
+          "source": "https://www.coinapi.io/learn/glossary/time_exchange-vs-time_coinapi",
+          "note": null
+        },
+        {
+          "text": "Price-versus-OI read (a descriptive heuristic, not a forecast): price up and OI up = new longs, trend confirmed; price up and OI down = short covering, weaker rally; price down and OI up = new shorts, bearish conviction building; price down and OI down = longs exiting or liquidated, possible exhaustion. CoinMarketMan adds that the rate of change in OI matters more than its level and that sharp OI spikes or drops are events.",
+          "source": "https://coinmarketman.com/blog/open-interest-on-hyperliquid-what-rising-oi-actually-tells-you--en/",
+          "note": null
+        },
+        {
+          "text": "Store both the exchange event time and your own receive time for every message. Tardis CSVs carry separate `timestamp` and `local_timestamp` columns (local slightly later in its samples), and Glassnode notes that WebSocket ping measures pure network round trip while FIX and REST add server-side work, so only receive-time deltas measured on your own host show the feed latency your signal actually sees.",
+          "source": "https://tardis.dev/",
+          "note": null
+        },
+        {
+          "text": "When live results trail the backtest, separate four documented causes before changing the signal. (1) Selection bias or overfitting from the search: compute DSR or PBO from the trial ledger. (2) Wrong costs or decision-time data: the PBO paper says its own test cannot detect these. (3) Fill, queue and latency assumptions that a replay cannot validate: HftBacktest says to test live and adjust. (4) Genuine decay: published stock predictors lost 26% out-of-sample and 58% after publication. The ordering is a suggestion; the four causes come from the cited sources.",
+          "source": "https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf",
+          "note": null
+        },
+        {
+          "text": "Exchange feed cadences and endpoints change on the exchange's schedule, so pin and monitor them per venue instead of hard-coding. Bybit's V5 changelog records spot tickers moving from real time to 50 ms (2025-11-04), Level 1000 order book from 300 ms to 200 ms (2025-11-25) and spot Level 200 from 200 ms to 100 ms (2026-03-19); Binance moved USDS-M market data to routed /public, /market and /private paths with legacy paths due to end 2026-04-23.",
+          "source": "https://bybit-exchange.github.io/docs/changelog/v5",
+          "note": null
+        },
+        {
+          "text": "Fill and latency assumptions can erase a fast signal's edge, and a replay backtest cannot test them. HftBacktest's documentation says a market-data replay cannot change the market, so one of the most important assumptions is that your order is small enough to have no impact; some partial-fill cases and large liquidity-taking fills may be unrealistic; and you must test in a live market and adjust the backtest to the discrepancies. For passive orders it offers a conservative RiskAverseQueueModel (queue position advances only when a trade prints at your price) and a probabilistic ProbQueueModel.",
+          "source": "https://hftbacktest.readthedocs.io/en/latest/order_fill.html",
+          "note": null
+        },
+        {
+          "text": "The cleanest out-of-sample evidence is a forward test of the exact strategy on new data. Harvey and Liu say a true out-of-sample test of the particular strategy, as opposed to a hold-out of historical data, is cleaner but unavailable for most strategies. HftBacktest's documentation says a replay-based result must be checked in a live market with real participants and the backtest adjusted to the gap. For a fast signal this points to a small, logged shadow or live run whose fills, fees and latency are compared with the backtest's assumptions before sizing up.",
+          "source": "https://people.duke.edu/~charvey/Research/Published_Papers/P120_Backtesting.pdf",
+          "note": null
+        },
+        {
+          "text": "A signal's gross edge per trade must exceed its round-trip cost. Kitron and Wengrowicz report that their 15-minute reversal edge peaks near 1.3 bp per trade against a 5 bp round-trip benchmark cost, so it is statistically detectable but does not clear costs. Hudson and Urquhart report breakeven costs for daily-bar rules from 7.88 bp (support-resistance, Litecoin) to 147.56 bp (filter, Ethereum), and up to 66.41 bp and 57.51 bp for the two Bitcoin series, against a 50 bp reference cost taken from a 2017 estimate.",
+          "source": "https://arxiv.org/abs/2608.21888",
+          "note": null
+        },
+        {
+          "text": "Presto Research's January 2025 design is a usable template for an exchange-deposit event study: Dune deposit data; entity labels from Arkham Intelligence plus the authors' own investigation; a window of 2021-01-01 to 2024-12-27 chosen to match the operating life of Binance's current deposit-aggregating wallet addresses; size thresholds scaled from Whale Alert's $50M/$50M/$20M down to $20M/$20M/$8M (BTC/ETH/SOL) using Binance's 40% share of global spot volume; and price impact measured as maximum drawdown over 1 hour and 6 hours after an on-chain-confirmed deposit. The authors warn that R-squar",
+          "source": "https://prestolabs.io/research/whale-alerts-are-they-tradable",
+          "note": null
+        },
+        {
+          "text": "Random k-fold leaks when labels span a horizon or features are serially correlated, so split by time and remove the overlap. scikit-learn's TimeSeriesSplit keeps temporal order (each training set is a superset of the previous one) and has a gap parameter: the 'number of samples to exclude from the end of each train set before the test set'. skfolio's CombinatorialPurgedCV removes from training every observation whose label overlaps in time with the test labels (purging), removes observations that immediately follow a test observation because financial features often show serial correlation (em",
+          "source": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html",
+          "note": null
+        },
+        {
+          "text": "Keep a trial ledger from the first experiment: every signal variant, feature, horizon, asset and threshold tried, with its full P&L series, failures included. The ledger supplies N, the variance of trial Sharpe ratios for DSR, and the T-by-N matrix that PBO needs. Bailey and López de Prado say investors and referees should demand the trial count, and that multiple-testing exercises should be planned in advance because each extra trial raises the false-positive probability. Whether correlated variants count as one trial or many is a judgement to disclose.",
+          "source": "https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf",
+          "note": null
+        },
+        {
+          "text": "Build the coin universe point-in-time. Zarattini et al. use a survivorship-bias-free dataset of all coins traded since 2015 and trade the 20 most liquid. Grobys et al. fix the 30 largest coins by market capitalization at the end of each prior December to avoid illiquid small coins, which Zaremba et al. link to daily reversal. These choices target survivorship bias and illiquid-coin artifacts.",
+          "source": "https://ideas.repec.org/p/chf/rpseri/rp2580.html",
+          "note": null
+        },
+        {
+          "text": "Kitron and Wengrowicz validate with walk-forward folds. For 15-minute bars each fold trains on 5,760 candles (60 days) and tests on the next 960 candles (10 days). For 1-hour bars the sizes are 2,160 and 360 candles, and for 4-hour bars 720 and 120. The out-of-sample blocks are concatenated and scored once per asset, interval and model. The authors add a frozen six-month holdout.",
+          "source": "https://github.com/nadav2/short-horizon-reversion",
+          "note": null
+        },
+        {
+          "text": "The Kitron and Wengrowicz replication package (MIT license, github.com/nadav2/short-horizon-reversion, last pushed 2026-08-22) rebuilds the 15-minute reversal measurement from public data. It fetches Binance klines for BTC, ETH, SOL and XRP at 5m, 15m, 1h and 4h, uses a frozen universe of 183 Binance USDT pairs and 187 US stocks and ETFs, seeds every bootstrap and permutation, and hashes the frozen result files with SHA-256 (verify with shasum -a 256 -c HASHES.sha256). The stock fetchers need free Alpaca keys.",
+          "source": "https://github.com/nadav2/short-horizon-reversion",
+          "note": null
+        },
+        {
+          "text": "Philadelphia Fed WP 26-42 gives a reusable event-study design for alert data. A whale wallet is any wallet that has transferred more than $50 million at least once (matching Whale Alert's practice). Large exchange and smart-contract wallets are excluded from the analysis. Events are kept only if no other whale transaction falls within 120 minutes either side. Outcomes are compared with time-matched control windows (the 15 minutes before each alert) using hour-of-day and day-of-week fixed effects. Non-whale size tiers are fixed per six-month window to stay exogenous to alerts. About 1,000 whale",
+          "source": "https://www.philadelphiafed.org/-/media/frbp/assets/working-papers/2026/wp26-42.pdf",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Venue-published update cadences set a floor on how fast any derived signal can change, and they differ by orders of magnitude. Bybit's V5 public ticker pushes derivatives and options every 100 ms and spot every 50 ms, and its linear and inverse ticker carries openInterest, fundingRate, nextFundingTime, markPrice and indexPrice. Hyperliquid's oracle and mark price update about every 3 seconds. The Bybit page gives the push interval, not how often the underlying openInterest value is recalculated.",
+          "source": "https://bybit-exchange.github.io/docs/v5/websocket/public/ticker",
+          "note": null
+        },
+        {
+          "text": "Snapshot-style imbalance is only as fine as the feed. Binance spot partial book depth streams carry 5, 10 or 20 levels, and both partial and diff depth streams update every 1000 ms or 100 ms. Coinbase Exchange level2_batch sends batches every 50 ms. A local book rebuilt from a diff stream must be discarded and restarted after any sequence gap, and sizes at levels outside the initial snapshot stay unknown until they change.",
+          "source": "https://raw.githubusercontent.com/binance/binance-spot-api-docs/master/web-socket-streams.md",
+          "note": null
+        },
+        {
+          "text": "Kim and Hansen find that order imbalance in the opening 10 seconds of quarter-hour boundaries predicts cumulative returns over four to twelve hours, with much weaker effects at finer clock-time frequencies. The cumulative effect is small or negative at short horizons (negative over the first half hour, read as a short-run reversal), turns positive at medium horizons in every market and typically peaks at eight to twelve hours. Between four and twelve hours it is significant at 95% for four of six contracts at every horizon. The authors warn that this is an observed imbalance, not an identified",
+          "source": "https://arxiv.org/html/2607.09426v2",
+          "note": null
+        },
+        {
+          "text": "Input representation matters more than model depth. Kolm et al. find models trained on order flow (stationary inputs derived from the book) significantly outperform most models trained directly on raw order book states (115 Nasdaq stocks). Xu et al. find the out-of-sample fit of the contemporaneous OFI relationship improves with each added price level (6 Nasdaq stocks). Wang (Bybit BTC/USDT snapshots at 100 ms to multi-second intervals) reports simpler models can match or beat deeper networks when preprocessing is good.",
+          "source": "https://ideas.repec.org/a/bla/mathfi/v33y2023i4p1044-1081.html",
+          "note": null
+        },
+        {
+          "text": "Fastest public cadences the exchanges document as of early Nov 2026: Binance USDS-M diff and partial book depth stream at 100 ms, 250 ms or 500 ms (the 250 ms value appears only in the page's description text, not in its update-speed enum), the individual-symbol book ticker updates in real time and the all-symbols book ticker every 5 s; Bybit V5 derivatives and options tickers push every 100 ms (spot 50 ms) and the allLiquidation topic every 500 ms. Binance's liquidation snapshot stream is slower, at 1000 ms.",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams",
+          "note": null
+        },
+        {
+          "text": "Extreme funding has become rarer and shorter-lived, so fixed absolute thresholds drift in meaning. BitMEX says extreme XBTUSD funding occurrences fell about 90% between 2016 and May 2025 (it does not state the threshold for 'extreme') and that large arbitrage inflows cap extreme positive rates. He et al. find perp deviations shrinking about 22 percentage points a year. Prefer rolling percentiles or z-scores per symbol and venue (recommendation).",
+          "source": "https://www.dlnews.com/external/bitmex-study-reveals-90-drop-in-extreme-bitcoin-perpetual-futures-funding-rates-since-2016-signalling-market-maturation",
+          "note": null
+        },
+        {
+          "text": "Venue matching engines are clustering in AWS Tokyo, which makes ap-northeast-1 the natural low-latency host for derivatives feeds. BitMEX moved its engine from AWS Europe (Ireland) to Tokyo (AWS case study: more than 200 ms between Ireland and Japan before, single-digit-millisecond order latency after). Bybit's docs banner says it will move its trading and matching engine to AWS Tokyo apne1-az4 on 12 Nov 2026. Glassnode's latency monitor says Binance's WS API and FIX endpoints go directly to AWS Tokyo; no first-party Binance statement of its engine location was found.",
+          "source": "https://aws.amazon.com/solutions/case-studies/bitmex/",
+          "note": null
+        },
+        {
+          "text": "Binance's public liquidation stream (all-market `!forceOrder@arr`, per-symbol `<symbol>@forceOrder`) updates every 1000 ms. For each symbol it pushes only the latest liquidation order in the window, and it pushes nothing if no liquidation occurs. Summing its messages therefore undercounts bursts. Coin Metrics documents that Binance made this change on 2021-04-27, that its earlier data is accurate, and that from 2021-08-31 it stores each interval's total quantity and average price.",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/All-Market-Liquidation-Order-Streams",
+          "note": null
+        },
+        {
+          "text": "Bybit's `allLiquidation.{symbol}` WebSocket topic covers USDT, USDC and inverse contracts and pushes at a 500 ms frequency as `snapshot` messages. The `S` field is the position side, so a `Buy` update means a long position was liquidated (easy to invert by mistake).",
+          "source": "https://bybit-exchange.github.io/docs/v5/websocket/public/all-liquidation",
+          "note": null
+        },
+        {
+          "text": "After the October 10, 2025 cascade on Hyperliquid, the median quoted spread across five perpetuals peaked at 9.4 bps in hour 21 UTC (p95 87.5 bps). Within 23 days spreads on all five contracts returned to within 1.2x of pre-event levels, but inside-quote depth ended at 66% to 79% of pre-event levels for four of five contracts. The author concludes that spread-only metrics understate post-event impairment ('two-regime recovery').",
+          "source": "https://journals.lincoln.ac.nz/index.php/JFDA/article/view/1395",
+          "note": null
+        },
+        {
+          "text": "A 2021 study of BitMEX perpetual bitcoin futures (sample period not stated in the abstract) estimates daily forced liquidations at about 3.51% of outstanding long positions and 1.89% of shorts. It finds that assuming normally distributed returns underestimates the margin needed, and it uses generalized extreme value tails instead. Inference: liquidations are routine flow, and cascades are the tail.",
+          "source": "https://arxiv.org/abs/2102.04591",
+          "note": null
+        },
+        {
+          "text": "Published latency numbers are not signal latency. Glassnode's monitor measures public-network TCP+TLS handshakes, WebSocket ping RTT, FIX logon RTT or REST time-to-first-byte from probes in Asia, Europe, the Americas and Oceania; it says WS, FIX and REST figures are not directly comparable, calls its numbers 'estimates and directional baselines' and says they are 'not a prediction of end-to-end order execution time'. A CoinMarketCap comparison quotes a REST response 'typically' in the 100 to 200 ms range (attributed to CoinAPI's FAQ) with no method, region or sample size. Measure latency from",
+          "source": "https://latency.glassnode.com/cex/about",
+          "note": null
+        },
+        {
+          "text": "October 10-11, 2025 is the reference cascade. More than $19B of leveraged positions were liquidated, and Coinglass data is cited for about 1.6 million accounts. The trigger was a 100% tariff announcement on Chinese imports. The latest source reviewed (2026-07-29) still calls it the record liquidation cascade.",
+          "source": "https://www.coingecko.com/learn/october-10-crypto-crash-explained",
+          "note": null
+        },
+        {
+          "text": "Liquidation feeds differ by venue. Bybit's `allLiquidation.{symbol}` topic pushes every 500 ms and says it carries all liquidations on Bybit, with `S` giving the liquidated position's side (`Buy` means a long was liquidated) and `p` giving the bankruptcy price. Coin Metrics says some venues report the side of the original position, as Bybit does, and it inverts that to normalize. It also says some exchanges report one liquidation as several rows.",
+          "source": "https://bybit-exchange.github.io/docs/v5/websocket/public/all-liquidation",
+          "note": null
+        },
+        {
+          "text": "Intraday crypto bars show reversal. Kitron and Wengrowicz (arXiv preprint, 22 Aug 2026) test 15-minute bars. They find significant directional reversal in 90% of 183 Binance pairs, against 2.7% of 187 US-listed stocks and ETFs, and in every focal coin-year since 2021. De Nicola (Ledger, 2021) reports significant negative first-order autocorrelation of Bitcoin returns over 1-, 2- and 4-hour windows, with larger price moves followed by stronger reversals.",
+          "source": "https://arxiv.org/abs/2608.21888",
+          "note": null
+        },
+        {
+          "text": "Whale-signal results are not interchangeable because the sources test very different horizons: minutes (Saggu: 5 to 30 minutes; Philadelphia Fed: 15 to 60 minutes of retail participation), hours (Presto: 1-hour and 6-hour windows; Philadelphia Fed: volatility peak at 6 to 9 hours), and weeks (Sak: forward cumulative abnormal return after whale-activity days of +0.79% at 7 days, +1.66% at 14 days and +2.44% at 28 days). None of the sources reviewed measures sub-minute latency between block inclusion, alert broadcast and price reaction; the Philadelphia Fed uses 15-minute windows and Saggu 5-min",
+          "source": "https://www.blockchainresearchlab.org/2022/07/29/the-role-of-whale-alerts-and-sentiment-in-bitcoins-reaction-to-minting-and-burning-of-tethers-usdt",
+          "note": null
+        },
+        {
+          "text": "Sak (JOEEP vol. 11 no. 1, published 2026-06-25) runs an event study on the top 100 non-custodial Bitcoin wallets (BitInfoCharts rich list retrieved 2025-03-31) with 2,647 daily observations from January 2018 to March 2025. The available text reports forward cumulative abnormal returns on whale-activity days of +0.79% (7 days), +1.66% (14 days) and +2.44% (28 days) and calls them statistically and economically significant, but it does not define an event day, report t-statistics, test out of sample, or address trading costs or multiple testing.",
+          "source": "https://dergipark.org.tr/tr/pub/joeep/article/1837177",
+          "note": null
+        },
+        {
+          "text": "Two studies tie stablecoin on-chain events to Bitcoin activity at intraday horizons. Saggu reports Bitcoin up 0.4% to 0.8% within 5 to 30 minutes after $1 billion USDT mints, stronger in bull or greed regimes, with no reaction to burns. Ante, Fiedler and Strehle (2021), as summarised in the Philadelphia Fed paper, find significant increases in BTC trading volume around stablecoin transfers above $1 million. Both findings are historical (Saggu's blog warns they 'do not necessarily hold true in the future'), and the Ante result is known here only second-hand.",
+          "source": "https://www.blockchainresearchlab.org/2022/07/29/the-role-of-whale-alerts-and-sentiment-in-bitcoins-reaction-to-minting-and-burning-of-tethers-usdt",
+          "note": null
+        },
+        {
+          "text": "Kitron and Wengrowicz test the 15-minute reversal against measurement artifacts (their package includes flat-bar-excluded and one-bar-gap refits) and report that it survives, but the effect is small. The class-mean AUC gap between crypto and equities is +0.031 as designed and +0.011 (95% CI +0.008 to +0.014) under the most conservative accounting. The result also survives an exact permutation null and a frozen holdout.",
+          "source": "https://arxiv.org/abs/2608.21888",
+          "note": null
+        },
+        {
+          "text": "Crypto momentum has severe crashes. In December 2020 the weekly long-short momentum return fell by 255.23% because one coin in the short leg jumped, not because the market reversed. Trimming that one event lifts the average payoff to 1.51% per week (t-statistic 2.63). One outlier accounts for 37% of the strategy's compounded return, and a power-law exponent below 3 implies undefined variance. Volatility management raises the average raw return by more than 200% in most variants but leaves the tail exponent statistically unchanged.",
+          "source": "https://link.springer.com/article/10.1007/s11408-025-00474-9",
+          "note": null
+        },
+        {
+          "text": "Following labelled wallets can lose money even when the leaders profit. Luo et al. (arXiv 2601.08641, WWW 2026), studying 6,000 pump.fun meme-coin projects on Solana, define an 'imitation penalty': on a bonding curve a copier 'strictly overpays on every replicated buy'. Smart-money wallets averaged a 14% return; copier returns were lower in every model and stayed negative for the statistics-driven models; only the authors' multi-agent LLM system reached about +3% per investment under realistic frictions. Sniper bots buy within one to five Solana blocks (about 0.4 to 2 seconds). The setting is",
+          "source": "https://arxiv.org/html/2601.08641v3",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Venue fees set a per-trade cost floor before spread, slippage or funding. Hyperliquid's published perps schedule starts at 0.045% taker and 0.015% maker at the lowest volume tier, falls to 0.028% taker and 0% maker above $500M of 14-day weighted volume, pays small maker rebates (-0.001% to -0.003%) to the largest maker-volume shares, and offers staking discounts of 5% to 40%. Binance's help-center worked example for a Regular User on USDⓈ-M futures uses 0.02% maker and 0.05% taker; the page calls these hypothetical rates and points to a live fee table, which this research could not read. A rou",
+          "source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/fees",
+          "note": null
+        },
+        {
+          "text": "Three different quantities are called 'order flow' and should not be mixed up. CVD counts executed taker volume only. Order book imbalance (OBI, also called queue imbalance) is a snapshot ratio of resting size at the best quotes: I(t) = (n_b - n_a) / (n_b + n_a), range -1 to +1 (some authors use only n_b in the numerator, a linear rescale to 0..1). Order flow imbalance (OFI) sums event-by-event changes in best-bid and best-ask price and size over an interval, so it reflects new limit orders and cancellations as well as trades.",
+          "source": "https://www.coinglass.com/cvd",
+          "note": null
+        },
+        {
+          "text": "A venue's own price can diverge from the broader market in stress, and venue liquidations follow the venue's price. On 2025-10-10 USDe printed about $0.65 on Binance spot while staying near $1 on-chain; 21Shares says the dislocation was confined to Binance's order books and resolved in about 40 minutes, and that margin systems marking against the distressed spot price forced liquidations. Binance compensated users for the window 21:36 to 22:16 UTC, paying about $283 million within 24 hours to Margin, Futures and Loan users liquidated while holding the affected assets as collateral. Binance cal",
+          "source": "https://www.21shares.com/research/why-did-ethenas-stablecoin-remain-stable-onchain-but-depegged-on-binance",
+          "note": null
+        },
+        {
+          "text": "Binance serves OI and basis history for only a short window, so backtests need your own archive. GET /futures/data/openInterestHist (symbol, period 5m up to 1d, limit default 30 max 500; fields sumOpenInterest, sumOpenInterestValue, timestamp) says only the latest 1 month is available. GET /futures/data/basis (pair; contractType PERPETUAL, CURRENT_QUARTER or NEXT_QUARTER; fields indexPrice, futuresPrice, basis, basisRate, annualizedBasisRate) says only the latest 30 days. Periods with no trades are omitted and not backfilled.",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Open-Interest-Statistics",
+          "note": null
+        },
+        {
+          "text": "A 2026 preprint on seven BTC perpetual cascades (May 2022 to October 2025) finds no early-warning variable that is event-invariant. Price shows critical slowing down in five of seven events but not in the two sudden tariff shocks. Compression of taker order-flow variance appears in every event with data (Fisher-combined p about 5e-6 against a 300-onset placebo), but the author calls it a population-level precursor, not a per-event alarm. Limits: one venue, seven events, moderate effect sizes, and leverage variables are proxies because intraday liquidations are not observed.",
+          "source": "https://arxiv.org/abs/2607.27070",
+          "note": null
+        },
+        {
+          "text": "Binance's public liquidation feed is a sample, not a full tape: the `!forceOrder@arr` stream (1000 ms update speed) pushes, for each symbol, only the latest liquidation order within each 1000 ms window and pushes nothing if no liquidation happened. Tardis, which records the stream, documents the same limit ('only the latest liquidation per symbol in each 1000ms window'), so earlier liquidations for the same symbol in that window are not captured by anyone recording the stream.",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/All-Market-Liquidation-Order-Streams",
+          "note": null
+        },
+        {
+          "text": "Binance's report on October 10, 2025 lists amplifiers beyond leverage. It cites market makers' automated risk controls that cut exposure and pulled liquidity, with Kaiko data showing bid-side depth nearly vanished on several major exchanges, and Ethereum congestion that slowed cross-venue arbitrage. Independent evidence of lasting depth loss comes from Hyperliquid, where inside-quote depth stayed at 66% to 79% of pre-event levels for four of five contracts over the next 23 days.",
+          "source": "https://finance.yahoo.com/news/binance-pins-cryptos-worst-ever-085054129.html",
+          "note": null
+        },
+        {
+          "text": "Multiple-testing statistics fix selection bias only; they do not check that the backtest is correct. The PBO paper says its procedure 'does nothing to evaluate the correctness of a backtest', and names incorrect transaction costs and use of data not available at decision time as errors that would feed it flawed information. Harvey and Liu state that the Sharpe ratios in their worked examples reflect no transaction costs, so they are overstated 'before-costs' figures. Remove cost, fill, latency and timestamp errors first, then count trials and deflate the net, decision-time-correct returns.",
+          "source": "https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf",
+          "note": null
+        },
+        {
+          "text": "The N in DSR must count independent trials. If M correlated variants were run but only N are independent, using M overstates the expected maximum Sharpe. Bailey and López de Prado derive an implied independent N from the average correlation between trials, and warn that this estimate can itself overfit when M exceeds the sample length T. Harvey and Liu's Haircut_SR program takes the strategy's autocorrelation, the number of tests and the average correlation among strategy returns as inputs. Their example (annualised Sharpe 1.0 over 120 months, monthly autocorrelation 0.1, 100 tests, average co",
+          "source": "https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf",
+          "note": null
+        },
+        {
+          "text": "Inference: a leverage-tier heatmap cannot show liquidations caused by collateral repricing. On October 10, reporting says Binance's index deviations in USDe, BNSOL and WBETH revalued collateral and triggered liquidations, with no need for the perpetual's price to reach a modeled level. The vendor pages describe their inputs only as market data and leverage levels.",
+          "source": "https://news.bitcoin.com/binance-october-flash-crash-was-a-macro-liquidation-spiral-not-exchange-failure",
+          "note": null
+        },
+        {
+          "text": "The Probability of Backtest Overfitting (PBO) measures how often the in-sample winner ranks below the median of all trials out-of-sample. CSCV (combinatorially symmetric cross-validation) builds a T-by-N matrix of P&L series, one column per trial; splits the rows into an even number S of blocks; forms every combination of S/2 blocks as in-sample, with the rest out-of-sample; ranks the in-sample winner out-of-sample; and takes the logit of that relative rank. PBO is the share of combinations where it falls below the median. The method is model-free and non-parametric, and the authors say a cust",
+          "source": "https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf",
+          "note": null
+        },
+        {
+          "text": "Do not trust equal-weighted or small, illiquid universe backtests. Novy-Marx and Velikov find anomaly spreads are often larger in smaller stocks, but those stocks are much costlier to trade, so equal-weighted results are 'misleading and should be viewed skeptically' and often show worse net performance. By analogy (an inference, not tested in the paper), a signal that looks strongest on thin altcoin perpetuals deserves the most cost and impact scrutiny.",
+          "source": "https://mysimon.rochester.edu/novy-marx/research/ToAatTC.pdf",
+          "note": null
+        },
+        {
+          "text": "Costs bite hardest on high-turnover signals, in two independent studies that disagree on size. Novy-Marx and Velikov (Review of Financial Studies, 2016) find that costs cut realised long-short spreads by more than 1% of monthly one-sided turnover (a side that turns over 20% a month loses at least 20 bps a month), that costs always reduce profitability and so raise data-snooping concerns, and that of strategies with over 50% one-sided monthly turnover only two stayed significant after cost mitigation. Frazzini, Israel and Moskowitz (NBER draft, Dec 2012) find an institutional arbitrageur's real",
+          "source": "https://mysimon.rochester.edu/novy-marx/research/ToAatTC.pdf",
+          "note": null
+        },
+        {
+          "text": "PBO needs the full set of trials. Hiding trials makes the test understate overfitting (the authors compare it to removing non-responders from a drug trial), and for guided searches the matrix columns should hold each search's final converged result, not its intermediate steps. Bailey and López de Prado add that PBO is non-parametric but 'requires a large amount of information'. The PBO paper also lists design limits: strong autocorrelation in the performance series can make the symmetric block division obscure it, especially when S is large.",
+          "source": "https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf",
+          "note": null
+        },
+        {
+          "text": "Expect out-of-sample decay even from real effects, and expect the best in-sample signals to decay most. McLean and Pontiff (Journal of Finance, Feb 2016) study 97 published cross-sectional stock-return predictors: portfolio returns are 26% lower out-of-sample (which they treat as an upper bound on data-mining effects) and 58% lower after publication, leaving about 32 points attributed to publication-informed trading. Post-publication declines are larger for predictors with higher in-sample returns. A May 2013 draft with 82 predictors reported about 10% (not statistically different from zero) a",
+          "source": "https://gwern.net/doc/economics/2016-mclean.pdf",
+          "note": null
+        },
+        {
+          "text": "A backtest's Sharpe ratio cannot be interpreted without the number of independent trials behind it. Even if every strategy has zero true skill, the best Sharpe among N independent trials rises with N, so more searching produces better-looking winners; Bailey and López de Prado give an extreme-value approximation for this expected maximum. They call the number of trials attempted the most important piece of information missing from virtually all published backtests, and say a backtest whose author has not controlled for the extent of the search is 'worthless, regardless of how excellent the rep",
+          "source": "https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf",
+          "note": null
+        },
+        {
+          "text": "A single hold-out or out-of-sample split does not fix multiple testing. Bailey and López de Prado: hold-out 'assesses the generality of a model as if a single trial had taken place'; apply it about 20 times at 95% confidence and false positives are expected, not unlikely. The PBO paper adds that public data means the hold-out was probably used in design, that researchers know how markets behaved in the out-of-sample window, that a short hold-out has little power (it cites Weiss and Kulikowski: do not hold out with under 1,000 observations, about 20 years of weekly data), and that taking the ou",
+          "source": "https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf",
+          "note": null
+        },
+        {
+          "text": "Harvey, Liu and Zhu (Review of Financial Studies, 2016) catalogue 316 factors from 313 articles and conclude that a newly proposed factor should clear a t-statistic above 3.0 (p about 0.27%) instead of the conventional 2.0, arguing that most claimed findings in financial economics are likely false. Harvey and Liu (2015) cite the 316-factor count as an example of the number of prior tests when they convert a Sharpe ratio into a multiple-testing-adjusted 'haircut' Sharpe ratio. Both papers analyse monthly cross-sectional equity research; neither calibrates a hurdle for intraday crypto signals.",
+          "source": "https://people.duke.edu/~charvey/Research/Published_Papers/P118_and_the_cross.PDF",
+          "note": null
+        },
+        {
+          "text": "Harvey, Liu and Zhu's adjusted benchmarks depend on the correction used. Bonferroni rises from 1.96 to 3.78 by 2012; the false-discovery-rate benchmark (BHY, 1%) stabilises near 3.39 after 2010. They estimate that 71% of tried factors are missing from the published record. Allowing for that, Bonferroni and Holm rise to about 4.01 and 3.96, BHY at 1% to 3.68, and BHY at 5% to 3.18, which they call the minimum plausible threshold. They add that a factor motivated by theory can face a lower bar than a purely empirical one, but 2.0 is no longer appropriate for either.",
+          "source": "https://people.duke.edu/~charvey/Research/Published_Papers/P118_and_the_cross.PDF",
+          "note": null
+        },
+        {
+          "text": "Harvey and Liu show the multiple-testing haircut on a Sharpe ratio is nonlinear. The common 50% rule of thumb (which they say is the industry standard) is too lenient for marginal strategies: the haircut is almost always above 50%, and sometimes much larger, when the annualised Sharpe ratio is below 0.4. It is too harsh for strong ones: when the Sharpe ratio is above 1.0 the haircut is at most 25%. They also warn that a high observed Sharpe ratio can come from non-normal payoffs, such as an option-like strategy with negative skew.",
+          "source": "https://people.duke.edu/~charvey/Research/Published_Papers/P120_Backtesting.pdf",
+          "note": null
+        },
+        {
+          "text": "The Deflated Sharpe Ratio (DSR) is a Probabilistic Sharpe Ratio whose rejection threshold is raised to reflect the multiplicity of trials. Beyond the mean and standard deviation of returns it needs five more inputs: skewness, kurtosis, sample length T, the variance of Sharpe ratios across trials, and the number of independent trials N. Non-normality matters because negative skew and fat tails can inflate a Sharpe ratio; Harvey and Liu raise the same caveat for option-like strategies with negative skew.",
+          "source": "https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf",
+          "note": null
+        },
+        {
+          "text": "Overfitting can be worse than zero skill. Bailey and López de Prado argue that for financial series with memory, the extreme in-sample patterns that backtest overfitting selects are later undone, so overfitting leads to 'loss maximization' out of sample rather than merely no gain. Harvey and Liu, summarising López de Prado and coauthors, say only seven trials are needed to obtain a spurious two-year backtest with an in-sample Sharpe ratio above 1.0 while the expected out-of-sample Sharpe ratio is zero.",
+          "source": "https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf",
+          "note": null
+        },
+        {
+          "text": "Liu and Tsyvinski's momentum results are gross, in-sample predictive statistics on a strong uptrend. In the 1-week quintile test the top quintile earned 11.22% per week (Sharpe 0.45) and the bottom quintile still earned 2.60% per week (Sharpe 0.19). The text reports no transaction-cost test of the momentum results, and the daily regressions have R-squared of 0.00 to 0.01.",
+          "source": "https://www.nber.org/system/files/working_papers/w24877/w24877.pdf",
+          "note": null
+        },
+        {
+          "text": "The Python arch package implements the data-snooping tests used to compare many strategies against a benchmark. Its README lists the Test of Superior Predictive Ability, 'also known as the Reality Check or Bootstrap Data Snooper', Stepwise (StepM) and the Model Confidence Set, plus IID, Stationary, Circular Block, Moving Block and Local Block bootstraps. This is a feature listing only; the arch documentation pages and version were not retrievable.",
+          "source": "https://github.com/bashtage/arch",
+          "note": null
+        },
+        {
+          "text": "Bailey and López de Prado's worked example: a strategist reports an annualised Sharpe of 2.5 on 5 years of daily data (1,250 observations) with non-normal returns. The investor rejects it at 95% confidence because the deflated result gives only about a 90% chance that the true Sharpe is above zero. The same result would have passed (0.9505) had only 46 independent trials been run, and with Normal returns up to 88 trials would have been tolerable. A high headline Sharpe needs the trial count and the return moments before it means anything.",
+          "source": "https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf",
+          "note": null
+        },
+        {
+          "text": "A passing PBO does not certify the regime, and a high PBO does not prove absence of skill. The PBO paper says the procedure accounts for structural breaks only if they occur inside the dataset; if a break lies outside it, the strategy may be overfit to one regime and PBO will not show it, so the data must be representative of future states. If all tested strategies have high and similar Sharpe ratios, none stands out and PBO is high even though skill exists.",
+          "source": "https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf",
+          "note": null
+        },
+        {
+          "text": "Hudson and Urquhart's best in-sample rules lost money out of sample for Bitcoin. The in-sample winners were channel-breakout rules for both Bitcoin series and Litecoin, and moving-average rules for Ripple and Ethereum. In January to June 2018 both Bitcoin series had negative annualized return, Sharpe and Sortino ratios, while the other three coins stayed positive. The window is six months long and falls in a bear market, so it is a weak test in either direction. The authors suggest Bitcoin is more efficient because more investors watch it.",
+          "source": "https://link.springer.com/article/10.1007/s10479-019-03357-1",
+          "note": null
+        },
+        {
+          "text": "The reading that most published factors are false is disputed, so treat t above 3 as a conservative screen rather than a verdict. Chen and Zimmermann (Federal Reserve FEDS 2021-037) reproduce 98% of 161 clearly significant stock-return predictors with long-short t-statistics above 1.96, and about 2 on average for 44 mixed-evidence ones. Jensen, Kelly and Pedersen (NBER w28432, 2021) use a Bayesian model of factor replication and report that the majority of factors replicate, work out-of-sample in a data set covering 93 countries, and that the large number of factors strengthens rather than wea",
+          "source": "https://www.federalreserve.gov/econres/feds/open-source-cross-sectional-asset-pricing.htm",
+          "note": null
+        },
+        {
+          "text": "Nansen's Smart Money labels are rankings by realised PnL over fixed windows (30D, 90D, 180D and two-year Smart Trader, plus Smart Fund). Nansen publishes no numeric thresholds and no refresh cadence; its methodology note names only factors (minimum win rates, required ROI percentages, realised-profit thresholds, token diversity, consistency through downturns). The label set changes: 7-Day Smart DEX Trader was permanently retired; First Mover LP, First Mover Staking, Profitable LP, Airdrop Pro and Private Sale Investor were removed from Smart Money; 'Former Smart Trader' marks wallets that no l",
+          "source": "https://nansen.ai/post/wallet-labels-emojis-what-do-they-mean",
+          "note": null
+        },
+        {
+          "text": "Entity attribution is a noisy input with documented failure modes. Moser and Narayanan (Financial Cryptography 2022) say Bitcoin address-clustering techniques 'rely on heuristics that have not been rigorously evaluated or optimized' and describe 'cluster collapse', where clusters wrongly merge unrelated addresses. BIT notes that not all exchange wallets are labelled, that hot/cold rebalancing and an exchange's own wallet transfers can be misread as user flows, and that OTC settlements never touch exchange addresses. The Philadelphia Fed authors concede that, without off-chain data, wallets may",
+          "source": "https://arxiv.org/abs/2107.05749",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Published crypto results carry cost and latency caveats. In Bieganowski and Slepaczuk's top-of-book taker backtest (3-second target), BTC taker ARC is 0.13 with IR* 0.25 and LTC is 0.07 with IR* 0.07, versus ETC 5.78, ENJ 4.06 and ROSE 7.00; t-tests show significant outperformance at the 5% level only for ETC, ENJ and ROSE. Latency is 'not explicitly modeled; results should be interpreted as an upper bound in the fastest regime', and the text gives no fee rate and does not label which table figures are fee-adjusted. Smutny's thesis likewise notes that transaction costs, latency and adversarial",
+          "source": "https://arxiv.org/html/2602.00776",
+          "note": null
+        },
+        {
+          "text": "CVD (cumulative volume delta) is the running sum of per-bar delta, where delta = taker (aggressor) buy volume minus taker sell volume. Only the aggressing side of each trade is counted, so unlike total volume it is signed. Because it is a running sum, its level depends on where the window starts; the change over a window is what carries information.",
+          "source": "https://www.coinglass.com/cvd",
+          "note": null
+        },
+        {
+          "text": "Cont et al. report that OFI explains about 65% of the variance of 10-second mid-price changes on average across 50 stocks (about 68% with a quadratic term), while signed trade imbalance explains about 32%. With both regressors, the trade-imbalance coefficient is significant in only 31% of subsamples, and the authors conclude trades carry 'little to no information about price changes' once OFI is included. The impact slope scales as 1/average depth (fitted exponent about 0.98; mean constant c about 0.45 versus 0.5 in the stylised model). Equities only; no crypto replication of these R-squared f",
+          "source": "https://ar5iv.labs.arxiv.org/html/1011.6402",
+          "note": null
+        },
+        {
+          "text": "On Bybit V5 one linear or inverse `tickers` subscription (100 ms push, a snapshot followed by deltas where a missing field means unchanged) carries openInterest, openInterestValue, fundingRate, nextFundingTime, markPrice, indexPrice and best bid/ask, so open interest and funding can be consumed from the stream instead of polled. The docs do not say how often the open-interest value itself changes.",
+          "source": "https://bybit-exchange.github.io/docs/v5/websocket/public/ticker",
+          "note": null
+        },
+        {
+          "text": "Tardis says its history comes from real-time WebSocket feeds rather than REST polling, but several Binance Futures series are its own REST polls: openInterest about every 6 s per instrument (since 2020-05-12), premiumIndex about every 6 s (since 2026-04-11), fundingInfo every minute (since 2026-03-17) and fundingRate at startup then hourly at HH:05 UTC (since 2026-10-16), with settlements missed during a recording interruption not recorded. markPrice is the `@markPrice@1s` stream (1 s since 2020-02-13, 3 s before). Tardis also warns that data before 2020-05-14 had gaps and latency spikes in vo",
+          "source": "https://docs.tardis.dev/historical-data-details/binance-futures",
+          "note": null
+        },
+        {
+          "text": "Displayed depth can be manipulated, and top-of-book imbalance is cheap to move. Fabre and Challet (Coinbase BTC-USD and ETH-USD level-3 data) note that 'placing a large order at one best queue generally reverses the imbalance' and that spoofers 'hardly place non-bona fide orders at the best prices'; they find suspicious large orders sit deeper in the book (average 7.45 bps from mid versus 4.06 bps for large normal orders). Inference, not tested in the paper: depth-weighted or multi-level OBI can absorb non-bona fide quotes, so pair it with cancellation-rate or persistence filters.",
+          "source": "https://arxiv.org/html/2504.15908v1",
+          "note": null
+        },
+        {
+          "text": "He et al. report backtest Sharpe ratios for a perp-versus-spot dislocation strategy on BTC: 1.8 under retail fees and up to 3.5 for market makers in v5 (2024-06-29); v7 (2026-09-17) restates 3.35 and 11.65 after switching to a clamp-adjusted benchmark. These are in-sample academic backtests on historical Binance data with deviations shrinking, so treat them as an upper bound for today (inference).",
+          "source": "https://arxiv.org/html/2212.06888v5",
+          "note": null
+        },
+        {
+          "text": "OI units: Binance returns both sumOpenInterest and sumOpenInterestValue. The value series moves mechanically with price (inference from the field names), so for price-versus-OI divergence tests use the contract- or coin-denominated series. CoinMarketCap defines OI as the total number of outstanding contracts, which is not volume.",
+          "source": "https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Open-Interest-Statistics",
+          "note": null
+        },
+        {
+          "text": "Latency-arbitrage windows shrink as competition for speed rises, but the prize per opportunity does not. In E-mini S&P 500 futures versus the SPY ETF, the median arbitrage duration fell from 97 ms in 2005 to 7 ms in 2011, while median profit stayed about 0.08 index points per unit traded; the authors conclude the speed race 'just continually raises the bar for capturing' the opportunities. A Federal Reserve Bank of Richmond summary reports the same 97 ms to 7 ms decline with unchanged profit per opportunity.",
+          "source": "https://conference.nber.org/conf_papers/f69665.pdf",
+          "note": null
+        },
+        {
+          "text": "A March 2026 preprint proposes Slippage-at-Risk (SaR, ESaR, TSaR), which scores liquidation execution risk from the current order-book state, with an adjustment for liquidity concentrated in a few market makers, instead of from leverage levels. Its abstract claims predictive validity as a leading indicator of systemic stress on Hyperliquid's October 10 event but gives no numbers. It is a single-author first version covering one venue and one event.",
+          "source": "https://arxiv.org/abs/2603.09164",
+          "note": null
+        },
+        {
+          "text": "Perp-DEX wallets can be tracked from positions rather than transfers. Hyperliquid's info endpoint request type 'clearinghouseState' takes a required `user` address (42-character hex) and returns that account's positions (coin, szi, entryPx, liquidationPx, leverage) plus margin used, unrealized PnL and withdrawable balance; 'userNonFundingLedgerUpdates' returns deposits, transfers and withdrawals; 'userFunding' returns funding payments. The page states no authentication requirement. Nansen's smart-money API exposes a 'Smart HL Perps Trader' label, so labelled perp wallets are treated as smart m",
+          "source": "https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals",
+          "note": null
+        },
+        {
+          "text": "Channel-breakout rules on daily bars have positive published evidence in crypto. Hudson and Urquhart test 14,919 rules in five classes on daily data to 31 Dec 2017. Filter and channel-breakout rules earn the highest average annualized returns before costs, up to 16.45% for Ripple. Zarattini, Pagani and Barbon combine Donchian-channel models with different lookbacks into one signal, size positions by volatility, and trade a rotating portfolio of the 20 most liquid coins. They report a Sharpe ratio above 1.5 net of fees and an annualized alpha of 10.8% versus Bitcoin (working paper, last revised",
+          "source": "https://link.springer.com/article/10.1007/s10479-019-03357-1",
+          "note": null
+        },
+        {
+          "text": "Intraday responses to whale events are measured from the public alert, last minutes, and in one study appear only when the alert is published. The Philadelphia Fed paper timestamps events at the Whale Alert broadcast so that its estimates capture 'market responses to the dissemination of information on whale activity rather than to the underlying transactions themselves', and retail reaction concentrates in the first 15 minutes. Saggu (Finance Research Letters, 2022, summarised by the Blockchain Research Lab) reports Bitcoin rising 0.4% at 5 minutes, 0.5% at 10, 0.6% at 15 and 0.8% at 30 after",
+          "source": "https://www.philadelphiafed.org/-/media/frbp/assets/working-papers/2026/wp26-42.pdf",
+          "note": null
+        },
+        {
+          "text": "Whale Alert's developer docs describe a real-time WebSocket Alerts API (14 blockchains, over 100 assets; transaction types transfer, mint, burn, lock, unlock, freeze and unfreeze; minimum min_value_usd of $100,000) and an Enterprise REST API with attribution fields `owner` and `owner_type` and address types such as deposit_wallet, hot_wallet and cold_wallet. The docs say `from` and `to` owners help exclude self-transfers and internal movements, and that attribution depth depends on the plan. USD values are price-feed estimates, described as suited to ranking and thresholds rather than exact re",
+          "source": "https://developer.whale-alert.io/api-account/documentation",
+          "note": null
+        },
+        {
+          "text": "Intraday momentum and reversal switch with market state. Wen et al. report that Bitcoin's intraday predictability pattern changes around large intraday price jumps, FOMC announcements, liquidity levels and the COVID-19 outbreak. A timing strategy built on their intraday predictors earns more economic value than always-long or buy-and-hold. Shen et al. find momentum strongest in high-volume, high-volatility sessions. Both studies point toward conditioning the momentum-or-reversal bet on volatility, volume, jump and liquidity state instead of running one static rule.",
+          "source": "https://ideas.repec.org/a/eee/ecofin/v62y2022ics1062940822000833.html",
+          "note": null
+        },
+        {
+          "text": "Philadelphia Fed WP 26-42 (preliminary working paper) volatility profile after Whale Alert alerts, as coefficients on annualized realized volatility versus time-matched control windows. BTC alerts on BTC volatility: +0.11 at 15 minutes, +0.12 at 30 minutes, +0.15 at 1 hour, +0.22 at 6 hours, +0.22 at 9 hours, +0.16 at 12 hours, then -0.12 at 24 hours (all p<0.01; BTC-alert sample 38,419 observations). WBTC alerts have the largest BTC effect (+0.20 at 15 minutes, +0.33 at 6 to 9 hours, -0.01 and not significant at 24 hours). ETH volatility falls after alerts (-0.21 at 15 minutes to -0.63 at 24",
+          "source": "https://www.philadelphiafed.org/-/media/frbp/assets/working-papers/2026/wp26-42.pdf",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Vendors publish CVD per exchange or aggregated across exchanges. Glassnode shows spot CVD per exchange or aggregated ('All Exchanges'). Coinglass builds CVD from taker volume on 22 exchanges (13 futures, 9 spot), offers futures-only, spot-only and combined views, and says Binance, OKX, Bybit and Coinbase stream tick by tick while the others update within 15 seconds.",
+          "source": "https://www.coinglass.com/cvd",
+          "note": null
+        },
+        {
+          "text": "Forward-looking evidence on book imbalance sits at very short horizons. Gould and Bonart predict the direction of the next mid-price move from queue imbalance (10 Nasdaq stocks). Kolm, Turiel and Westray find the effective horizon of stock-specific forecasts is about two average price changes (115 Nasdaq stocks). Bieganowski and Slepaczuk use a 3-second log mid-price return target on 1-second Binance perpetual data. Horizon half-life is owned by a sibling concept; this claim only records the horizons the studies tested.",
+          "source": "https://arxiv.org/abs/1512.03492",
+          "note": null
+        },
+        {
+          "text": "Coinglass publishes CVD divergence heuristics. It compares swing highs or lows 4 to 60 bars apart, confirms 5 bars late and says signals do not repaint. It reads spot and futures CVD moving together as a sturdier move, and a 'Perp-driven' reading as a leverage-led rally that tends not to last. These are untested vendor heuristics; the page itself calls CVD divergence 'Not recommended' as a standalone strategy and suggests treating it as an alert.",
+          "source": "https://www.coinglass.com/cvd",
+          "note": null
+        },
+        {
+          "text": "Open interest is mostly a polled series, not a push stream, so its real time resolution is the polling interval: Tardis builds Binance Futures open interest by polling the REST open-interest endpoint about every 6 seconds per instrument; Coin Metrics polls most venues about once per minute (streamed venues such as Coinbase Derivatives and Crypto.com can yield several observations per minute); CoinGlass lists updates of 1 minute or faster on every listed paid plan.",
+          "source": "https://docs.tardis.dev/historical-data-details/binance-futures",
+          "note": null
+        },
+        {
+          "text": "Do not treat a missing field in a Bybit linear or inverse ticker delta as zero or as a fresh value. The docs say these tickers send snapshot and delta messages and that 'If a response param is not found in the message, then its value has not changed', so a client must carry the last known openInterest and fundingRate forward between deltas. Spot and option tickers are snapshot only.",
+          "source": "https://bybit-exchange.github.io/docs/v5/websocket/public/ticker",
+          "note": null
+        },
+        {
+          "text": "Venue differences matter for cross-venue divergence. BitMEX's own Q3 2025 study (BitMEX, Binance, Hyperliquid) says BitMEX funding was the most stable and Hyperliquid showed much higher funding volatility. The study is BitMEX partner content and promotes the company.",
+          "source": "https://www.dlnews.com/external/bitmex-study-finds-cryptocurrency-funding-rates-positive-92-of-the-time-revealing-a-structural-market-bias",
+          "note": null
+        },
+        {
+          "text": "Coverage is partial. The Hyblock page reviewed lists Binance Futures, BitMEX and Bybit with BTC and ETH products only. MMT says its Hyperliquid map describes the participants on that exchange, not the whole market. A cluster is therefore a statement about a subset of venues.",
+          "source": "https://academy.hyblockcapital.com/tools/liquidation-levels-1",
+          "note": null
+        },
+        {
+          "text": "Historical liquidation records are hard to rebuild. Coin Metrics says most venues are real-time only, so an outage leaves a permanent gap. A July 2026 preprint reports that Binance's per-event liquidationSnapshot dumps are discontinued and no longer served for any date, so it used a daily panel of long and short liquidation notionals plus 5-minute leverage proxies. Implication: record the live streams yourself before you need a backtest.",
+          "source": "https://gitbook-docs.coinmetrics.io/market-data/market-data-overview/liquidations/futures-liquidations",
+          "note": null
+        },
+        {
+          "text": "Hyperliquid's historical archive sits in S3 buckets with requester-pays transfer (`--request-payer requester`): `hyperliquid-archive` holds L2 book snapshots and asset contexts, and `hl-mainnet-node-data` holds node fills, trades and non-trade events including funding. The archive is uploaded about once a month with no guarantee of timely updates or completeness, and candles and spot data are not provided (record them through the API).",
+          "source": "https://hyperliquid.gitbook.io/hyperliquid-docs/historical-data",
+          "note": null
+        },
+        {
+          "text": "Vendors describe the output as a relative, predicted intensity, not a count of real liquidations. Hyblock says its heatmap predicts where liquidation levels open but not where they close, so the actual number of liquidations will be lower, and that sizes should be read relative to other levels. CoinGlass calls its output a relative intensity indicator and says actual liquidations may be smaller than shown.",
+          "source": "https://academy.hyblockcapital.com/tools/liquidation-levels-1",
+          "note": null
+        },
+        {
+          "text": "The cascade ran fast, in UTC: onset around 20:50, the most volatile window 21:10 to 21:20, and prices at their lowest around 21:20 to 21:21. Severe depegging of USDe, BNSOL and WBETH on Binance came after 21:36, and Binance's compensation window is 21:36 to 22:16. Seuma pins the onset at 20:50 UTC, and CoinGecko says the cascade entered its violent phase then.",
+          "source": "https://arxiv.org/abs/2607.27070",
+          "note": null
+        },
+        {
+          "text": "Binance compensated Futures, Margin and Loan users who held USDe, BNSOL or WBETH as collateral and were affected between 21:36 and 22:16 UTC on October 10. The payout is the gap between the market price at 00:00 UTC on October 11 and the user's liquidation price. Binance's October 13 statement put payments at about $283M in two batches. Its January 30, 2026 report says total compensation exceeded $328M.",
+          "source": "https://www.theblock.co/post/374278/binance-to-compensate-some-users-after-several-markets-depeg-there-are-no-excuses",
+          "note": null
+        },
+        {
+          "text": "Centralized-exchange liquidation heatmaps are vendor models, not observed position books. Hyblock and CoinGlass both say they compute liquidation levels from market data and assumed leverage levels, then add the results to price buckets. The pages reviewed do not publish the leverage tiers, the entry-price assumptions or the bucket width.",
+          "source": "https://academy.hyblockcapital.com/tools/liquidation-levels-1",
+          "note": null
+        },
+        {
+          "text": "Binance publishes bulk market history at data.binance.vision (repository license MIT; data use is governed by a separate TERMS_AND_CONDITIONS document that was not read). New daily files appear the next day and monthly files on the first Monday of the month. On 2026-11-06 the USD-M futures daily folder listed aggTrades, bookDepth, bookTicker, indexPriceKlines, klines, markPriceKlines, metrics, premiumIndexKlines and trades, with no liquidationSnapshot or fundingRate folder at the daily level.",
+          "source": "https://github.com/binance/binance-public-data",
+          "note": null
+        },
+        {
+          "text": "CoinGlass documents one WebSocket, `wss://open-ws.coinglass.com/ws-api?cg-api-key={key}`, with a single listed channel, `liquidationOrders` (example fields baseAsset, exName, price, side, symbol, time, volUsd). The docs recommend sending 'ping' every 20 seconds and do not state push frequency, exchange coverage, plan availability or connection limits.",
+          "source": "https://docs.coinglass.com/reference/ws-getting-started.md",
+          "note": null
+        },
+        {
+          "text": "Do not trade raw exchange netflow or large-deposit alerts as a standalone short-horizon signal. BIT calls netflow 'a powerful context tool but not a standalone or reliable short-term price signal'. CryptoQuant says its MA7 local-top and local-bottom readings need 'other complementary indicators'. Presto Research regressed large Binance deposits (BTC, ETH, SOL; January 2021 to December 2024; 12 scenarios) against price drawdown over the next 1 hour and 6 hours and got R-squared of only 0.0017 to 0.0537, concluding that whale exchange deposits 'lack sufficient predictive power to be a reliable t",
+          "source": "https://www.bit.com/insights/knowledge-hub/exchange-net-flow",
+          "note": null
+        },
+        {
+          "text": "CoinGecko relays Amberdata figures: $6.93B liquidated in the 40 minutes from 20:50 UTC, including $3.21B in 60 seconds around 21:15 UTC. This is a single secondary source. Per-minute totals can depend on how a provider rebuilt events from exchange feeds that keep one liquidation per symbol per second.",
+          "source": "https://www.coingecko.com/learn/october-10-crypto-crash-explained",
+          "note": null
+        },
+        {
+          "text": "Glassnode's latency monitor notes that Binance blocks its WebSocket and FIX APIs from US IPs and some other regulated regions, so hosting region decides whether the feed is reachable at all, not only how fast it is.",
+          "source": "https://latency.glassnode.com/cex/about",
+          "note": null
+        },
+        {
+          "text": "Whale Alert's research index summarises Magner and Sanhueza (Finance Research Letters 85, 2025, 'The Moby Dick effect: Contagious Bitcoin whales in the crypto market') as building a whale signal from exchange transfers reported in the Whale Alert Telegram group and testing returns of the 15 largest cryptocurrencies at 1, 6 and 24 hours, finding 'significant contagion of Bitcoin whales, mainly after 6 and 24 h'. The Philadelphia Fed paper cites it as using whale alerts to measure contagion on crypto returns after Bitcoin whale transactions. The ScienceDirect abstract returned HTTP 403, so the h",
+          "source": "https://whale-alert.io/research.html",
+          "note": null
+        },
+        {
+          "text": "Near-zero autocorrelation does not rule out a reversal edge. In the Kitron and Wengrowicz data, lag-one return autocorrelation is near zero on major coins, yet a rule that bets against the sign of the previous 15-minute candle captures most of the effect. The authors write that the signal lives in signs, not magnitudes. A linear autocorrelation test alone can therefore miss it.",
+          "source": "https://arxiv.org/abs/2608.21888",
+          "note": null
+        },
+        {
+          "text": "On-chain wallet tracking is adversarial. Luo et al. report that bots 'front-run trades, conceal positions, and fabricate sentiment' in meme-coin copy trading, that bundle bots appear in roughly one quarter of projects, and that gradual bundles 'obscure temporal signals and attribution', making them much harder to detect.",
+          "source": "https://arxiv.org/html/2601.08641v3",
+          "note": null
+        },
+        {
+          "text": "Exchange netflow is inflow minus outflow of a coin into or out of labelled exchange wallets (CryptoQuant: 'Exchange Inflow - Outflow = Netflow'). CryptoQuant reads rising inflows as 'mostly a Bearish sign' and rising outflows as 'mostly a Bullish sign'; BIT's glossary (dated 2026-06-03) calls the same relationship 'probabilistic and heavily context-dependent'. CryptoQuant's own support is qualitative: charts that 'roughly well-explain' bullish or bearish sentiment over three years, with no backtest statistics shown.",
+          "source": "https://userguide.cryptoquant.com/exchange-flows-indicators/exchange-in-outflow-and-netflow",
+          "note": null
+        },
+        {
+          "text": "Nansen's Smart Money netflow endpoint (POST /api/v1/smart-money/netflow) returns rolling net_flow_1h_usd, net_flow_24h_usd, net_flow_7d_usd and net_flow_30d_usd windows that end at request time, plus trader_count, and combines DEX trades with CEX transfers. Per the docs, the most recent 24 hours come from live CEX and DEX activity within minutes, while older hours come from an hourly batch that can lag the chain by up to about an hour. History is a rolling 30 days with no backfill. Stablecoins and native tokens are excluded by default.",
+          "source": "https://docs.nansen.ai/api/smart-money/netflows",
+          "note": null
+        },
+        {
+          "text": "Inference to guard against: Nansen's Smart Trader labels are assigned from trailing PnL windows and wallets move in and out of the label, so applying today's labels to historical flows lets future performance choose the wallets (look-ahead bias). Luo et al. (WWW 2026) avoid this in their copy-trading study by selecting wallets only from training-set statistics: t-statistic above 1.645, positive mean return, return standard deviation below 1, and trade count above the training-set 25th percentile.",
+          "source": "https://nansen.ai/post/wallet-labels-emojis-what-do-they-mean",
+          "note": null
+        },
+        {
+          "text": "In the sources reviewed, whale-alert activity is more consistently linked to volatility than to price direction. The Philadelphia Fed working paper (WP 26-42, 2026-08-28) finds BTC realized volatility is higher after Whale Alert alerts (own-asset effect +0.11 at 15 minutes and +0.22 at 6 to 9 hours, p<0.01), although the pooled regression R-squared is only 0.04 to 0.05 for BTC and ETH alerts. Herremans and Low (arXiv 2211.08281) forecast next-day Bitcoin volatility spikes from whale-alert tweets plus CryptoQuant data and report beating prior models on extreme spikes, but the abstract gives no",
+          "source": "https://www.philadelphiafed.org/-/media/frbp/assets/working-papers/2026/wp26-42.pdf",
+          "note": null
+        },
+        {
+          "text": "Philadelphia Fed WP 26-42 finds the retail response to BTC whale alerts is fast and short-lived. The share of active non-whale BTC wallets rises most in the first 15 minutes, with the largest increase among small and medium wallets. Non-whale buying and selling follows the direction of a whale buy or sell in that window (buy-model intercepts of 14.81, 23.72 and 3.50 percentage points for small, medium and large wallets; sell-model intercepts of 12.95, 29.52 and 2.95). Raw participation returns to normal within 60 minutes. The pattern is largely absent for ETH and WBTC on Ethereum, except among",
+          "source": "https://www.philadelphiafed.org/-/media/frbp/assets/working-papers/2026/wp26-42.pdf",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Contested",
+      "facts": [
+        {
+          "text": "Misbelief: Funding is positive by construction, so read the excess over the baseline, not the sign. The default interest component is 0.01% per 8 hours, which is 0.03% per day or about 10.95% a year simple on Binance (Hyperliquid's docs quote 11.6% APR). BitMEX reports funding was positive in over 92% of Q3 2025 even while contracts traded at a slight discount to spot. Normalise per 8 hours, subtract the baseline, and compare against a rolling percentile (recommendation).",
+          "source": "https://www.binance.com/en/support/faq/introduction-to-binance-futures-funding-rates-360033525031",
+          "note": null
+        },
+        {
+          "text": "Misbelief: Do not read a bright band as a price target or a timing signal. CoinGlass calls dense zones 'magnetic zones' that price may gravitate toward. Hyblock lists the magnet reading beside support, resistance and reversal readings. MMT says a map shows where orders sit, not when they trigger, that a cluster can stay untouched indefinitely, and that once clusters are visible, participants may avoid them or target them. The three pages cite no test of the magnet effect.",
+          "source": "https://www.coinglass.com/learn/how-to-use-liqmap-to-assist-trading-en",
+          "note": null
+        },
+        {
+          "text": "Misbelief: OI growth is not proof of directional leverage. Each contract has a long and a short, and delta-neutral cash-and-carry (long spot or ETF, short futures) adds futures OI without price exposure. Checkonchain (2024-06-11) argued that CME OI growth matching spot-ETF inflows suggested much of it was hedged. CoinDesk (2024-10-29) shows analysts split: one saw rising net CME shorts as more cash-and-carry, another saw directional ETF inflows. Neither measured the hedged/directional split directly.",
+          "source": "https://newsletter.checkonchain.com/p/cash-and-carry-confusion",
+          "note": null
+        },
+        {
+          "text": "Misbelief: A large exchange deposit is not reliably sell intent. CryptoQuant lists three motives for sending coins to an exchange (sell, trade derivatives, use exchange services such as staking, airdrops or IEOs), says part of large inflows are transfers among exchanges explained by arbitrage, says institutional custody moves are mixed into both inflows and outflows, and says inflows to derivatives wallets 'should be interpreted as increased volatility risk' rather than a direction. Presto found venture funds and market makers made up 61% of ETH whale deposits to Binance (538 of 879), 13% of BTC deposits",
+          "source": "https://userguide.cryptoquant.com/exchange-flows-indicators/exchange-in-outflow-and-netflow",
+          "note": null
+        },
+        {
+          "text": "Open question: Public crypto evidence on how long cross-venue price gaps last is coarser than the equity race studies. Makarov and Schoar (Journal of Financial Economics, 2020) find large, recurrent cross-exchange arbitrage opportunities and tie cross-country gaps to capital controls that limit the movement of arbitrage capital, so persistent gaps are not latency races. A 2025 preprint comparing Binance with Uniswap v2 finds centralized markets typically lead ETH price discovery, with mixed results in high-volatility periods. Neither abstract reports sub-second race durations.",
+          "source": "https://researchonline.lse.ac.uk/id/eprint/100409/",
+          "note": null
+        },
+        {
+          "text": "Open question: Cross-sectional use is the untested alternative. Presto ranks many assets by a decay-linear funding difference (24 vs 6 periods) on the top 50 Binance USDⓈ-M assets at 5-minute data, industry-neutralised. It calls the result favourable, but the result table is an image, no transaction costs are modelled, and daily turnover is described as extremely high.",
+          "source": "https://prestolabs.io/research/can-funding-rate-predict-price-change",
+          "note": null
+        },
+        {
+          "text": "Controversy: The cause of the October 10 cascade is disputed. Binance's January 30, 2026 report says about 75% of the day's liquidations came before the 21:36 UTC index-price deviations in USDe, WBETH and BNSOL, so the macro shock was the main driver. Binance also reports a transfer-subsystem slowdown from 21:18 to 21:51 UTC. Bitcoin.com News and CoinGecko attribute the Binance-only USDe dislocation (about $0.65 on Binance, about $0.99 elsewhere) to Binance pricing off its own thin order books, which revalued Unified Account collateral and set off a second wave of liquidations.",
+          "source": "https://finance.yahoo.com/news/binance-pins-cryptos-worst-ever-085054129.html",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Controversy: The size of Hyperliquid's ADL overshoot is contested, and the framing changed. The revised paper (v3, 2026-02-16) estimates the excess profit lost by profitable traders at $45.0M to $51.7M, equal to roughly $653.6M of positions closed, and says Binance overused ADL more than Hyperliquid. A December 9, 2025 post quoted by Protos asked whether Hyperliquid autodeleveraged '$650m of PNL' it did not have to, 28x the minimum. Hyperliquid's Jeff Yan rejects the analysis and says ADL net made users hundreds of millions of dollars by closing profitable shorts at favorable prices.",
+          "source": "https://arxiv.org/abs/2512.01112",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Controversy: Aggregator figures for the same event differ. Pre-event futures open interest is cited as $175B falling to $125B in under a day (Amberdata, via CoinShares) and as a record $217B (CoinGecko). The 'over $19B' liquidation total in CoinGecko's account comes from Coinglass.",
+          "source": "https://etp.coinshares.com/us/insights/knowledge/billions-in-liquidations-what-happened/",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Controversy: CoinShares states that the officially reported $19B is likely understated, with real losses possibly above $50B, and gives no method. Binance's one-event-per-second liquidation feed is a documented undercount mechanism, but no source reviewed quantifies its effect on the October 10 total.",
+          "source": "https://etp.coinshares.com/us/insights/knowledge/billions-in-liquidations-what-happened/",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Controversy: In 2015 London Stock Exchange message data for FTSE 100 stocks, Aquilina, Budish and O'Neill find latency-arbitrage races about once per minute per symbol. The modal race lasts 5 to 10 millionths of a second and races account for about 20% of trading volume. The top 6 firms take over 80% of race wins and losses. The authors estimate a roughly 0.5 basis point tax on trading and about $5 billion a year across global equity markets.",
+          "source": "https://www.nber.org/papers/w29011",
+          "note": null,
+          "group": "c2"
+        },
+        {
+          "text": "Controversy: Do not quote the equity latency-arbitrage prize as settled: market makers contest it. FIA EPTA (28 European principal trading firms) argues that in most counted races the liquidity provider never tried to cancel its quote. It says counting only races with a cancel attempt cuts the race count by about 70% and leaves 20 to 30% of measured profit. It also objects that the sample is 9 weeks of 2015 LSE data, that the LSE is about 2.6% of global electronic order-book share trading, and that profit is measured against mid-price. FIA's recomputed UK figure is about GBP 13.5 million a year against GBP",
+          "source": "https://www.fia.org/sites/default/files/2020-05/20200430_FIA%20EPTA%20Review_FCA%20Occasional%20Paper_0.pdf",
+          "note": null,
+          "group": "c2"
+        },
+        {
+          "text": "Controversy: Liu and Tsyvinski (NBER Working Paper 24877; Bitcoin data 2011-01-01 to 2018-05-31) report time-series momentum in daily and weekly returns. A one-standard-deviation rise in today's Bitcoin return predicts a 0.33% higher next-day return (coefficient 0.06, t-statistic 2.96, R-squared 0.00). A one-standard-deviation rise in this week's return predicts weekly returns that are 3.16%, 3.66%, 3.49% and 1.50% higher over the next four weeks. Ripple is significant at 1 to 5 days. Ethereum is weaker, and its 5-day coefficient is negative.",
+          "source": "https://www.nber.org/system/files/working_papers/w24877/w24877.pdf",
+          "note": null,
+          "group": "c3"
+        },
+        {
+          "text": "Controversy: Zaremba et al. (International Review of Financial Analysis, 2021) sort more than 3,600 coins on the previous day's return. Coins with a low previous-day return significantly outperform coins with a high previous-day return. The authors attribute this daily reversal to the illiquidity of most traded coins. The handful of largest, most tradeable coins show daily momentum instead. Begusic and Kostanjcar find a strong momentum effect in the most liquid coins, and Grobys et al. find that momentum appears to be a phenomenon of large-cap coins.",
+          "source": "https://ideas.repec.org/a/eee/finana/v78y2021ics1057521921002349.html",
+          "note": null,
+          "group": "c3"
+        },
+        {
+          "text": "Controversy: Cross-sectional crypto momentum depends on the sample. Grobys and Sapkota (143 coins, 2014 to 2018, monthly) find no evidence of significant momentum payoffs. Grobys et al. (the 30 largest coins by market capitalization, weekly, 2016 to 2023) find an insignificant average payoff of 0.90% per week. Liu et al., as summarized by Grobys et al., report about 3% per week on 1,827 coins to July 2020. Do not carry a momentum premium from one sample or universe to another.",
+          "source": "https://econpapers.repec.org/RePEc:eee:ecolet:v:180:y:2019:i:c:p:6-10",
+          "note": null,
+          "group": "c3"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Binance",
+      "relation": "is a instance of Fast crypto trading signals",
+      "note": null
+    },
+    {
+      "concept": "latency",
+      "relation": "is a problem of Fast crypto trading signals",
+      "note": null
+    },
+    {
+      "concept": "liquidation",
+      "relation": "is a synonym of Fast crypto trading signals",
+      "note": null
+    },
+    {
+      "concept": "funding rate",
+      "relation": "is a synonym of Fast crypto trading signals",
+      "note": null
+    },
+    {
+      "concept": "open interest",
+      "relation": "is a synonym of Fast crypto trading signals",
+      "note": null
+    },
+    {
+      "concept": "backtest",
+      "relation": "is a problem of Fast crypto trading signals",
+      "note": null
+    },
+    {
+      "concept": "order book",
+      "relation": "is a part of Fast crypto trading signals",
+      "note": null
+    },
+    {
+      "concept": "liquidation heatmap",
+      "relation": "is a variant of Fast crypto trading signals",
+      "note": null
+    }
+  ]
+}

@@ -8,15 +8,21 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Treat a multi-shard explain plan as evidence of fan-out, not automatic evidence of a missing prefix: targeted operations may legitimately contact several shards. Inspect actual shard participation when checking isolation. (medium confidence)",
+          "text": "Targeted operations route to a specific shard or a set of shards, so contacting several shards does not by itself mean the prefix is missing. Depending on data distribution and query selectivity, mongos may also broadcast queries that include the shard key. Explain output includes a SHARD_MERGE stage for merging results from shards. Sources: https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md ; https://www.mongodb.com/docs/manual/reference/explain-results.md",
           "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
           "note": null,
           "claimId": "clm:a58f2df8f506d0da466452d481b5e0af13612822ce372e6b130380159a5ba2c4",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://oneuptime.com/blog/post/2026-03-31-mongodb-compound-shard-keys/view"
-          ]
+            "https://oneuptime.com/blog/post/2026-03-31-mongodb-compound-shard-keys/view",
+            "https://www.mongodb.com/docs/manual/reference/explain-results.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:f89a73542b048f0a5e099ee8e9332db8e38d76441c0293265656da142781a959",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:03:01Z"
+          }
         }
       ]
     },
@@ -24,7 +30,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "Design inference: for tenant-scoped reads, putting tenantId first in {tenantId: 1, entityId: 1} makes the tenant predicate available for prefix targeting; adding entityId alone does not supply that leading prefix. Choose field order from common query predicates rather than only from document cardinality. (medium confidence)",
+          "text": "mongos can route a query to a specific shard or set of shards when it includes the full shard key or a leading prefix of a compound shard key, so for tenant-scoped reads a key such as {tenantId: 1, entityId: 1} makes the tenant predicate available for prefix targeting, while a predicate on entityId alone is not a prefix. Consider your most common query patterns when choosing a shard key, not only cardinality. Sources: https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md ; https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key.md",
           "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
           "note": null,
           "claimId": "clm:d16662322f9fd20f4094bcb7409bfef8060d7b0415a023ccc37dd8119a6c3c1d",
@@ -37,11 +43,17 @@
           ],
           "also": [
             "https://www.percona.com/blog/choosing-a-good-sharding-key-in-mongodb-and-mysql/",
-            "https://github.com/yorkie-team/yorkie/blob/main/docs/design/mongodb-sharding.md"
-          ]
+            "https://github.com/yorkie-team/yorkie/blob/main/docs/design/mongodb-sharding.md",
+            "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:365ca6bf3c8d30a9004c7a0753b6cdb57e2ca87ee12f1e6572825eb7590ddac7",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:03:01Z"
+          }
         },
         {
-          "text": "Design inference: verify the actual contacted shards for representative prefix queries and deployed data placement instead of assuming an efficient local index or a selective-looking filter proves single-shard routing. Mongos merges results from its targeted shards, so broader fan-out adds distributed work. (medium confidence)",
+          "text": "Even queries that include the shard key or a prefix may still be broadcast depending on data distribution and query selectivity, so do not assume a selective-looking filter proves single-shard routing; verify contacted shards for representative queries. mongos merges the data from each targeted shard, and scatter/gather queries can be long running. Sources: https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
           "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
           "note": null,
           "claimId": "clm:7836c38d6f03f82178a742c58dff8dfae652587e328c3ed433dcbfdb4c4c3497",
@@ -53,7 +65,12 @@
           ],
           "also": [
             "https://www.percona.com/blog/choosing-a-good-sharding-key-in-mongodb-and-mysql/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:b47ddc9ffab2d2f6c03474d07f0540171b482246a0c382c07a9c19020e7ff4ed",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:03:01Z"
+          }
         }
       ]
     },
@@ -138,26 +155,38 @@
           ]
         },
         {
-          "text": "Design implication: leading tenant equality can preserve routing locality while suffix fields permit one tenant to span multiple chunks and shards. Yorkie explicitly describes splitting within a project using a compound key; prefix targeting therefore must not be treated as guaranteed tenant co-location. (medium confidence)",
-          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
+          "text": "A query with leading tenant equality on a compound shard key can be routed to a specific shard or set of shards. Because the suffix fields allow chunk splits within one tenant, a tenant may span multiple chunks and shards, so prefix targeting is not guaranteed tenant co-location. Yorkie moved to a (project_id, key) compound shard key so large chunks can be split by key values and migrated to newly added shards. Sources: https://github.com/yorkie-team/yorkie/issues/673 ; https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
+          "source": "https://github.com/yorkie-team/yorkie/issues/673",
           "note": null,
           "claimId": "clm:71c2bcf5b8059cb76267fafc5689697d03ed763d0cff733d7ad9034169e42802",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://github.com/yorkie-team/yorkie/blob/main/docs/design/mongodb-sharding.md"
-          ]
+            "https://github.com/yorkie-team/yorkie/blob/main/docs/design/mongodb-sharding.md",
+            "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:7f757d7d76e2b6839fad987f0c77e470238df25cdae8958811d61dce427982c9",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:03:01Z"
+          }
         },
         {
-          "text": "Choose fields around real query filters and aim to minimize shards contacted. Percona describes each shard as a coarse index and warns that an apparently transparent mongos query can hide expensive cross-shard execution. (medium confidence)",
+          "text": "Choose shard-key fields around real query filters and favor targeted operations, which route to a subset of shards, over broadcast operations. Queries that omit the shard key are scatter/gather and can be long running. Sources: https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md ; https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key.md",
           "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
           "note": null,
           "claimId": "clm:9957cf497b9dfb2e668b6a5d28e17035a2ef47a4770334b55eb8117e880fadf2",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://www.percona.com/blog/choosing-a-good-sharding-key-in-mongodb-and-mysql/"
-          ]
+            "https://www.percona.com/blog/choosing-a-good-sharding-key-in-mongodb-and-mysql/",
+            "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:188e47951241120f59aa5f0a1b7ce7ac68e1736de5ee3cca1ee685bb07620c4b",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:03:01Z"
+          }
         }
       ]
     }

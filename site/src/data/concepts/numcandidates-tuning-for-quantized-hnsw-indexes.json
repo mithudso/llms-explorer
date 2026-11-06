@@ -8,7 +8,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Treat graph exploration and rescoring depth as distinct controls when comparing engines. Qdrant exposes hnsw_ef separately from quantization oversampling; Elastic retrieves candidates using num_candidates and rescores a top k-times-oversample set. These factors do not define a portable Atlas numCandidates multiplier. (medium confidence)",
+          "text": "Treat graph exploration and rescoring depth as distinct controls when comparing engines. Qdrant exposes hnsw_ef separately from quantization oversampling; Elastic retrieves num_candidates candidates per shard and rescores the top k * oversample of them with the original vectors. The 'no portable Atlas numCandidates multiplier' conclusion is the pack's own inference, not a sourced fact; MongoDB itself recommends testing on your own data. Sources: https://qdrant.tech/course/essentials/day-4/rescoring-oversampling-indexing/ ; https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/knn-retriever ; https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "source": "https://qdrant.tech/course/essentials/day-4/rescoring-oversampling-indexing/",
           "note": null,
           "claimId": "clm:fcdf488245e21eb47b7c1ec5a46c80c7327b991ae597b91e44726f05cb41456d",
@@ -18,8 +18,15 @@
             "ev:a47cca0ae357f9881da65982337f92741b20975713c39dc17af776f809c24831"
           ],
           "also": [
-            "https://www.elastic.co/docs/solutions/search/vector/knn/optimize-performance-accuracy"
-          ]
+            "https://www.elastic.co/docs/solutions/search/vector/knn/optimize-performance-accuracy",
+            "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/knn-retriever",
+            "https://www.mongodb.com/docs/vector-search/benchmark/results.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:9184984e7369da6de8f1c1edf6dfab3123b30131aa914a0490d722058401e450",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:06:15Z"
+          }
         }
       ]
     },
@@ -27,7 +34,7 @@
       "title": "How-to and procedures",
       "facts": [
         {
-          "text": "Use full-precision exact nearest-neighbor results as the retrieval-recall reference and measure latency while sweeping candidate settings. Atlas documents ENN for measuring ANN recall and states that automatically quantized indexes use full-fidelity vectors for ENN; Elastic requires measuring recall and latency on the actual data. (medium confidence)",
+          "text": "Use full-precision exact nearest-neighbor (ENN) results as the retrieval-recall reference and measure latency while sweeping candidate settings. Atlas documents ENN for measuring ANN recall and states that with automatic quantization, ENN queries use only the full-fidelity vectors; Elastic advises measuring recall and latency on your own data when choosing quantization oversampling. Sources: https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md ; https://www.elastic.co/docs/solutions/search/vector/knn/optimize-performance-accuracy",
           "source": "https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "note": null,
           "claimId": "clm:c509539e2e84fad9b9e05a0a7b6e3c74335bad5f32de2bba06fb3b9abf4c382f",
@@ -38,7 +45,12 @@
           ],
           "also": [
             "https://www.elastic.co/docs/solutions/search/vector/knn/optimize-performance-accuracy"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:4f65c92781c5254762ea722183962f618f4e896336f4037f54a394aa5dab2eae",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:05:02Z"
+          }
         }
       ]
     },
@@ -83,7 +95,7 @@
           ]
         },
         {
-          "text": "MongoDB binary quantization rescores retrieved candidates with retained full-precision vectors; its scalar path in these experiments does not. Wider binary candidate pools can therefore repair final ordering, but rescoring cannot recover a true neighbor absent from the pool. (medium confidence)",
+          "text": "MongoDB binary quantization rescores retrieved candidates with full-fidelity vectors; in MongoDB's benchmark, scalar quantization is described as running without rescoring. Because rescoring reorders only the top numCandidates accumulated during search, a true neighbor absent from that pool is not recovered by rescoring. Sources: https://www.mongodb.com/docs/vector-search/benchmark/results.md ; https://www.mongodb.com/docs/vector-search/benchmark/overview.md",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "note": null,
           "claimId": "clm:ecf3e60a707c33139f559944b3d4631bcbdf4f7d216c977f2b6165065acfa880",
@@ -94,8 +106,14 @@
             "ev:f14f8c1bb9b181e2c3c2911dc374fc7a4f077857560dfa7a36dd0b007347c8dc"
           ],
           "also": [
-            "https://www.tintinwinata.my.id/article/mongodb-binary-quantization-75m/"
-          ]
+            "https://www.tintinwinata.my.id/article/mongodb-binary-quantization-75m/",
+            "https://www.mongodb.com/docs/vector-search/benchmark/overview.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:6bf8d7a4de5835a87b8b300d797e1c47a3597913e4bccba8d56df79f9a768482",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:05:02Z"
+          }
         },
         {
           "text": "Qdrant exposes hnsw_ef separately from quantization oversampling and rescoring. Its example sets hnsw_ef=128, limit=10, oversampling=3.0 and rescore=true. This illustrates separate graph-exploration and reranking controls; those example values are not a direct translation of MongoDB numCandidates. (low confidence) (verified as of 2026-10-30)",
@@ -108,7 +126,7 @@
           ]
         },
         {
-          "text": "TCO implication, inferred from the evidence: compare configurations at matched recall and production concurrency. Binary rescoring and larger candidate budgets add query work; MongoDB’s benchmark reports reduced concurrent throughput from rescoring, while Qdrant likewise treats oversampling and rescoring as accuracy/performance tradeoffs. Compression alone cannot establish serving-cost savings. (medium confidence)",
+          "text": "Compare configurations at matched recall and production concurrency. MongoDB's benchmark reports that the additional cost of rescoring for binary quantization shows up as reduced throughput under highly concurrent workloads, although it also reports that binary quantization costs about one fourth as much to serve the index. Qdrant describes oversampling as a way to tune the tradeoff between search speed and search quality. Compression alone does not settle serving cost: weigh the lower index-serving price against the extra query work and lower throughput. Sources: https://www.mongodb.com/docs/vector-search/benchmark/results.md ; https://qdrant.tech/documentation/guides/quantization/",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "note": null,
           "claimId": "clm:316e0b20b7a92fadf0d29b3667df964bbeb5ce7d20d1e587b2fff2428b2413fe",
@@ -120,8 +138,14 @@
           "also": [
             "https://qdrant.tech/course/essentials/day-4/rescoring-oversampling-indexing/",
             "https://engineering.gohighlevel.com/post/ai-knowledgebase-vector-db-migration",
-            "https://www.elastic.co/docs/solutions/search/vector/knn/optimize-performance-accuracy"
-          ]
+            "https://www.elastic.co/docs/solutions/search/vector/knn/optimize-performance-accuracy",
+            "https://qdrant.tech/documentation/guides/quantization/"
+          ],
+          "remediation": {
+            "claim_id": "clm:be32b0437d574dd3891595fbf5b83f36ab4e76b23cd1f506140adf824452189d",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:06:15Z"
+          }
         },
         {
           "text": "MongoDB recommends at least 20 times limit as an initial numCandidates setting, then workload-specific tuning. Its documented ANN range requires limit <= numCandidates <= 10000. This is guidance and a parameter constraint, not a quantized-recall guarantee. (low confidence) (verified as of 2026-10-14)",
@@ -135,7 +159,7 @@
           ]
         },
         {
-          "text": "In MongoDB binary-quantization search, the accumulated top numCandidates are rescored with full-fidelity vectors before returning limit results. Qdrant independently documents retrieving extra quantized candidates and rescoring them using original vectors. (medium confidence)",
+          "text": "In MongoDB binary-quantization search, the accumulated top numCandidates are rescored with full-fidelity vectors before returning limit results. Qdrant independently documents retrieving extra quantized candidates and rescoring them using original vectors. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/benchmark/overview.md ; https://qdrant.tech/documentation/guides/quantization/",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/overview.md",
           "note": null,
           "claimId": "clm:5fa8b9f236c95094efbdd957ec8c07f2aa1a4f2085aa0a00ff35f38a9cd662f8",
@@ -145,8 +169,14 @@
             "ev:a47cca0ae357f9881da65982337f92741b20975713c39dc17af776f809c24831"
           ],
           "also": [
-            "https://qdrant.tech/course/essentials/day-4/rescoring-oversampling-indexing/"
-          ]
+            "https://qdrant.tech/course/essentials/day-4/rescoring-oversampling-indexing/",
+            "https://qdrant.tech/documentation/guides/quantization/"
+          ],
+          "remediation": {
+            "claim_id": "clm:665fac05a13198fb6e5dfa2c4ad80a9e462729add15e26796f6c49173f86e47a",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:05:02Z"
+          }
         }
       ]
     },
@@ -154,14 +184,19 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "MongoDB numCandidates controls the HNSW candidate priority-queue size, rather than an exact count of all visited vectors. MongoDB recommends starting at 20 times limit and tuning for the dataset; quantized vectors may require more exploration than float32. (low confidence) (verified as of 2026-10-14)",
+          "text": "MongoDB numCandidates controls the size of the HNSW priority queue used to accumulate results, which determines how long the search runs before returning the top limit results. MongoDB recommends a numCandidates at least 20 times limit as a starting point and tuning it for the dataset; quantized vectors (int8 or int1) might require higher numCandidates than float32 to maintain similar recall. Sources: https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "source": "https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "note": null,
           "claimId": "clm:4abd7bd5c133bd5101bb73b59688312c609e754694cf6c93c3c59fdc66a50be1",
           "validationStatus": "SUPPORTED",
           "evidenceIds": [
             "ev:555ee80c5874a088a86d3f4cfc24e07567b4f2e7a3f96a76bd0b3b1ebebc2588"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:475f603e1e82211ec2fe86dacd254b2e7786a7d64d49c7b3670bb78c6d24bbe3",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:05:02Z"
+          }
         },
         {
           "text": "The August 2026 Winata experiment used 75,000,649 visual embeddings, 512 dimensions, 300 queries, and document-ID recall@72. At 10,000 candidates it reported binary mean recall of 95.8% versus scalar 73.1%. It excluded self-matches and used independently recomputed float32 cosine ground truth; it tested no query-time filters. (low confidence)",
@@ -175,7 +210,7 @@
           ]
         },
         {
-          "text": "Atlas numCandidates controls the HNSW search priority-queue size. Increasing it explores more of the graph and can improve recall at increased latency; Elastic documents the same direction of trade-off for its HNSW num_candidates control. (medium confidence)",
+          "text": "Atlas numCandidates controls the HNSW search priority-queue size. Increasing it explores more of the graph and can improve recall at increased latency; Elastic documents the same direction of trade-off for its HNSW num_candidates control. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md ; https://www.elastic.co/docs/solutions/search/vector/knn/optimize-performance-accuracy",
           "source": "https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "note": null,
           "claimId": "clm:cc422069547f454eb87bc73d1e67098572e0225a113f465ac3bb89b3e282fca1",
@@ -183,7 +218,12 @@
           "evidenceIds": [],
           "also": [
             "https://www.elastic.co/docs/solutions/search/vector/knn/optimize-performance-accuracy"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:560fa39ead594e729edba828061b8092910f95a6eef4d7a88260c34c612310af",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:05:02Z"
+          }
         },
         {
           "text": "HighLevel reports that increasing numCandidates worsened its retrieval latency rather than fixing the bottleneck. It separately found scalar quantization retained quality better than binary on its slow-query sample. This is one operator's experience, not a universal Atlas outcome or controlled cross-engine benchmark. (low confidence)",
@@ -199,7 +239,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "Increasing numCandidates does not guarantee recovery of quantization loss. MongoDB benchmarks and an independently executed 75-million-vector experiment both show scalar recall plateauing while binary recall continues improving with additional candidates. This scopes blanket advice to raise candidates slightly after quantization. (medium confidence)",
+          "text": "Increasing numCandidates does not guarantee recovery of quantization loss. MongoDB's benchmark shows scalar quantized recall staying at an asymptotic level as numCandidates increases, while binary quantized recall keeps improving with more candidates, approaching and in some cases passing the scalar asymptote, at the cost of higher latency. Sources: https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "note": null,
           "claimId": "clm:78fe1b49bc94052df514bcb0c2bae32624c2b3555cc37f6f5c9f64aa714c3e10",
@@ -210,10 +250,15 @@
           ],
           "also": [
             "https://www.tintinwinata.my.id/article/mongodb-binary-quantization-75m/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:988bbfdf570ddd14b4dafd9afeaad150deb4bb660c83a286583dc49f9c8996b3",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:06:15Z"
+          }
         },
         {
-          "text": "Measure ANN recall against exact full-precision neighbors using top-k document-ID overlap, keeping query vectors and k fixed. MongoDB describes ENN as the accuracy baseline, and Elastic demonstrates the same control using a separate flat float32 field. Nearest-neighbor recall does not itself establish application relevance. (medium confidence)",
+          "text": "Measure ANN recall against exact full-precision neighbors by comparing the ANN top-k result IDs with the exact top-k IDs, running the same queries against both. MongoDB describes ENN as the baseline for judging ANN recall and accuracy, and Elastic demonstrates the same control using a separate flat field of full Float32 vectors with Recall@10. Sources: https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md ; https://www.elastic.co/search-labs/blog/recall-vector-search-quantization",
           "source": "https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "note": null,
           "claimId": "clm:e3d4ab7b37d527d79267af1aa641f9b7adb66158afa6b551c121c40129e2b03b",
@@ -226,7 +271,12 @@
           "also": [
             "https://www.elastic.co/search-labs/blog/recall-vector-search-quantization",
             "https://www.tintinwinata.my.id/article/mongodb-binary-quantization-75m/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:9e866a1868d12b023403fd59fbaa139d8b8bcff3ab906431c920fec52248ec39",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:06:15Z"
+          }
         },
         {
           "text": "HighLevel’s May 4, 2026 production write-up reports that increasing MongoDB numCandidates, including an example increase from 100 to 2,000, worsened latency. This is a workload-specific counterexample to treating a larger candidate budget as a speed optimization; the write-up does not isolate that test’s quantization setting. (low confidence)",
@@ -240,7 +290,7 @@
           ]
         },
         {
-          "text": "OneUptime’s example compares quantized ANN IDs with unquantized ANN IDs at numCandidates=100 and labels the overlap recall. That measures agreement with another approximate result set. MongoDB’s ENN baseline and Elastic’s flat-search control are better suited to measuring absolute nearest-neighbor recall; the example’s 150/300-candidate settings do not establish portable recall guarantees. (medium confidence)",
+          "text": "OneUptime’s example compares quantized ANN IDs with unquantized ANN IDs at numCandidates=100 and labels the overlap recall. That measures agreement with another approximate result set. MongoDB’s ENN baseline and Elastic’s flat-search control are better suited to measuring absolute nearest-neighbor recall; the example’s 150/300-candidate settings do not establish portable recall guarantees. (medium confidence) Sources: https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-vector-search-quantization/view ; https://www.mongodb.com/docs/atlas/atlas-vector-search/vector-search-stage.md ; https://www.elastic.co/search-labs/blog/recall-vector-search-quantization",
           "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-vector-search-quantization/view",
           "note": null,
           "claimId": "clm:995f1cc0114433055f9878267546ff1c2c052f655546901080fbdf5e05461770",
@@ -252,11 +302,17 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
-            "https://www.elastic.co/search-labs/blog/recall-vector-search-quantization"
-          ]
+            "https://www.elastic.co/search-labs/blog/recall-vector-search-quantization",
+            "https://www.mongodb.com/docs/atlas/atlas-vector-search/vector-search-stage.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:d5cb18ba8befa15f7193d2128171adce4254a2f2bf52cb6b2842dce468be6332",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:04:48Z"
+          }
         },
         {
-          "text": "Quantized Atlas vectors may require more candidates than float32 to maintain recall. MongoDB observed substantially greater candidate requirements for binary quantization in its 15.3M-vector, 2048-dimensional benchmark; the measured requirement is workload-specific. (medium confidence)",
+          "text": "Quantized Atlas vectors may require more candidates than float32 to maintain recall. MongoDB observed substantially greater candidate requirements for binary quantization in its 15.3M-vector, 2048-dimensional benchmark; the measured requirement is workload-specific. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md ; https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "source": "https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "note": null,
           "claimId": "clm:9f23b9e814ea7e1bae1b690936b73c38cc4661839e45493fe43a1e0a4ff40442",
@@ -267,7 +323,12 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/vector-search/benchmark/results.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:bc0825da8f0fcc2bca95a2d9194278f7933642a11bb224c74943eba779e59057",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:06:15Z"
+          }
         },
         {
           "text": "In MongoDB's 5.5M-document multidimensional benchmark, scalar recall plateaued as candidates increased, while binary recall improved with a latency penalty especially above 1000 candidates. More candidates therefore did not uniformly repair quantization loss. (low confidence)",

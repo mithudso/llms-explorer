@@ -18,7 +18,7 @@
       "title": "Structure and components",
       "facts": [
         {
-          "text": "Exit waivers do not fund a partial move or a dual-run. Google's program bars migrating only part of a service; AWS scopes its waiver to all data off AWS or off one AWS service; Azure scopes its waiver to customers leaving Azure. A team that keeps part of its estate on the old cloud should assume list egress rates apply to the data it moves. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Exit waivers are scoped to full exits and do not cover a partial move. Google's program does not permit migrating only a portion of a given Google Cloud service. AWS offers free data transfer out when customers move all of their data off AWS, or all of their data off a particular AWS service. Azure's credit is applied once all Azure subscriptions associated with the account have been canceled. Sources: https://cloud.google.com/exit-cloud ; https://aws.amazon.com/blogs/aws/free-data-transfer-out-to-internet-when-moving-out-of-aws/ ; https://mc.merill.net/message/AZ-now-available-free-data-transfer-out-to-internet-when-leaving-azure",
           "source": "https://cloud.google.com/exit-cloud",
           "note": null
         },
@@ -28,7 +28,7 @@
           "note": null
         },
         {
-          "text": "A migration bill has these parts. This list is derived from the sources; it is not a published formula. Destination hours at the elevated tier through initial sync, lag drain, cutover and any hold. Source environment hours until the rollback window closes. Any staging cluster from a rehearsal. The mongosync host for standalone runs. Egress billed by the source provider. Application downtime. Exit-program credits offset only the egress part. The CMA's customer research found switches usually run two sets of services at once and keep the old one for a while in case of problems. (medium confidence)",
+          "text": "A migration bill has these parts. This list is derived from the sources; it is not a published formula. Destination hours at the elevated tier through initial sync, lag drain, cutover and any hold. Source environment hours until the rollback window closes. Any staging cluster from a rehearsal. The mongosync host for standalone runs. Egress billed by the source provider. Application downtime. Google's exit program credit represents the data transfer cost of the migration. Sources: https://cloud.google.com/exit-cloud",
           "source": "https://www.mongodb.com/docs/atlas/live-migration/",
           "note": null
         }
@@ -38,7 +38,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Moving data into Atlas incurs no ingress fee: Atlas does not charge for incoming data transfer to an Atlas cluster, and AWS states there is no charge for inbound data transfer across all services in all Regions. The metered leg is the sender's egress, billed by the source's provider, or by Atlas when the source is an Atlas cluster. (high confidence) (verified as of 2026-10-20)",
+          "text": "Moving data into Atlas incurs no ingress fee: Atlas does not charge for incoming data transfer to an Atlas cluster, and AWS states there is no charge when resources on the public internet send data into resources within AWS. The metered leg is the sender's outbound data transfer, which AWS meters as data transfer out to the internet (with a free monthly allowance) and which Atlas bills for transfers out of an Atlas cluster to locations outside the cloud region. Sources: https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/ ; https://aws.amazon.com/about-aws/global-infrastructure/global-network/faqs",
           "source": "https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/",
           "note": null
         },
@@ -53,7 +53,7 @@
           "note": null
         },
         {
-          "text": "Google Cloud's free exit transfer (announced 11 January 2024) covers internet transfers off a Google Cloud service when the customer leaves that service completely, and only for products listed in Google's data-portability terms. Steps: submit an Exit Notice; Google assigns a billing-support agent within 14 days; the customer starts migrating within a 30-day Initiation Period; the Migration Period lasts at least 30 days; the customer sends a Completion Notice within 180 days after the Migration Period; the credit appears on the final invoice; the agreement for that service ends after at least 30 more days. (high confidence) (verified as of 2026-10-20)",
+          "text": "Google Cloud's free exit transfer (announced 11 January 2024) covers internet transfers off a Google Cloud service when the customer leaves that service completely, and only for products listed in Google's data-portability terms. Steps: submit an Exit Notice; Google assigns a billing-support agent within 14 days; the customer starts migrating within a 30-day Initiation Period; the Migration Period lasts at least 30 days; the customer sends a Completion Notice within 180 days after the Migration Period; the credit appears on the final invoice; the agreement for that service ends after at least 30 more days. (high confidence) (verified as of 2026-10-20) Sources: https://cloud.google.com/exit-cloud ; https://www.cnbc.com/2024/01/11/google-vows-not-to-charge-data-transfer-fees-when-cloud-customers-exit.html",
           "source": "https://cloud.google.com/exit-cloud",
           "note": null
         },
@@ -83,22 +83,22 @@
           "note": null
         },
         {
-          "text": "Respect the write rules or lose data. Atlas blocks writes on the destination when a live migration starts. Other clients must not write to the destination while mongosync runs. A write to the source during commit can cause data loss. (high confidence)",
+          "text": "Respect the write rules or lose data. Atlas blocks writes on the destination when a live migration starts. Other clients must not write to the destination while mongosync runs. A write to the source during commit can cause data loss. (high confidence) Sources: https://www.mongodb.com/docs/atlas/live-migration/ ; https://www.mongodb.com/docs/mongosync/current/reference/limitations/ ; https://www.mongodb.com/docs/mongosync/current/reference/api/commit/",
           "source": "https://www.mongodb.com/docs/atlas/live-migration/",
           "note": null
         },
         {
-          "text": "A reversible rollback window lengthens the dual-running bill. Both clusters stay in service, and reverse sync replicates every post-cutover write on the destination back to the old source. When the destination is Atlas, that flow is outbound transfer, which Atlas bills (Atlas charges outbound but not inbound). This cost is derived from the reverse-sync and Atlas pricing docs; neither states it. (medium confidence) (verified as of 2026-10-14)",
+          "text": "Reverse sync replicates writes made on the destination cluster, including those after mongosync reached canWrite=true, back to the original source; the original source must not be used until the reverse sync is committed. Atlas does not charge for incoming data transfer to an Atlas cluster but does charge for outgoing transfer, so when the destination is Atlas, replicating its post-cutover writes back to the old source is outbound transfer that Atlas bills. This cost is inferred from the reverse-sync and Atlas pricing docs; neither states it. Sources: https://www.mongodb.com/docs/mongosync/current/reference/api/reverse/ ; https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/api/reverse/",
           "note": null
         },
         {
-          "text": "The Atlas Live Migrate (Pull) procedure does not describe a reverse sync. A 2021 customer request asks for a fallback sync because there is no way to sync data in reverse after a Live Migrate cutover. MongoDB's comparison page lists reverse sync as a row that differs between Atlas Live Migration and standalone mongosync. Treat rollback from a managed pull migration as unavailable until MongoDB confirms otherwise. (low confidence) (verified as of 2026-10-20)",
+          "text": "A 2021 customer feedback request asks for a fallback sync after Live Migrate cutover, because there is no way to sync data in reverse. MongoDB's comparison page lists \"Reverse sync/migration\" as a row in the Atlas Live Migration versus standalone mongosync table, but the pinned text does not show which mode supports it. Standalone mongosync documents a reverse endpoint, and the Atlas pull-migration page has no reverse-sync procedure. Treat rollback from a managed pull migration as unconfirmed until MongoDB confirms it. Sources: https://feedback.mongodb.com/ideas/CUSTOMER-I-9638 ; https://www.mongodb.com/docs/atlas/import/live-migration-comparison-modes/ ; https://www.mongodb.com/docs/mongosync/current/reference/api/reverse.md",
           "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-9638",
           "note": null
         },
         {
-          "text": "Documents updated very frequently (hot documents) cause replication lag that delays a low-lag commit. mongosync 1.18 added --hotDocIDs to copy named hot documents at the commit stage. The option is not retained on a reverse sync, so restart mongosync with hot document IDs for the reverse direction. (high confidence) (verified as of 2026-10-20)",
+          "text": "Documents updated very frequently (hot documents) can cause replication lag during a migration. mongosync 1.18 added --hotDocIDs to copy named hot documents at the commit stage. The option is not retained on a reverse sync, so restart mongosync with hot document identifiers for the reverse direction. Sources: https://www.mongodb.com/docs/mongosync/current/release-notes/1.18.md ; https://www.mongodb.com/docs/mongosync/current/reverse.md",
           "source": "https://www.mongodb.com/docs/mongosync/current/release-notes/1.18/",
           "note": null
         }
@@ -108,12 +108,12 @@
       "title": "Measurements and reference values",
       "facts": [
         {
-          "text": "The mongosync destination needs disk for the logical data plus the destination oplog entries the initial sync writes. The mongosync FAQ example: migrating 10 GB of data needs 10 GB for the data and another 10 GB for insert oplog entries. From mongosync 1.22, /start estimates on-disk size, applies a 1.25x safety factor, and returns InsufficientDestinationDiskSpace if the destination lacks room. skipDiskSpaceCheck: true turns the check off. The check is best effort only. (high confidence) (verified as of 2026-10-20)",
+          "text": "The mongosync destination needs disk for the logical data plus the destination oplog entries the initial sync writes. The mongosync FAQ example: migrating 10 GB of data needs 10 GB for the data and another 10 GB for insert oplog entries. From mongosync 1.22, /start estimates on-disk size, applies a 1.25x safety factor, and returns InsufficientDestinationDiskSpace if the destination lacks room. skipDiskSpaceCheck: true turns the check off. The check is best effort only. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/mongosync/current/faq/ ; https://www.mongodb.com/docs/mongosync/current/reference/limitations/ ; https://www.mongodb.com/docs/mongosync/current/release-notes/1.22/",
           "source": "https://www.mongodb.com/docs/mongosync/current/faq/",
           "note": null
         },
         {
-          "text": "MongoDB says the vast majority of Atlas customers spend less than 10% of their budget on data transfer (Atlas docs), and that data transfer fees are under 10% of the bill for most customers (AWS pricing page). These are vendor statements about steady-state spend, not about migrations. (medium confidence) (verified as of 2026-10-20)",
+          "text": "MongoDB says the vast majority of Atlas customers spend less than 10% of their budget on data transfer (Atlas docs), and that data transfer fees are under 10% of the bill for most customers (AWS pricing page). These are vendor statements about steady-state spend, not about migrations. (medium confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/ ; https://www.mongodb.com/products/platform/atlas-cloud-providers/aws/pricing",
           "source": "https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/",
           "note": null
         },
@@ -123,12 +123,12 @@
           "note": null
         },
         {
-          "text": "Azure gives free internet egress to customers leaving Azure for another cloud or on-premises: the first 100 GB per month is free in all regions, and larger moves claim credits through Azure Support. When Microsoft announced the waiver in March 2024, press reports said the move had to finish within 60 days and that credits apply only after all Azure subscriptions on the account are cancelled. The current Azure pricing page does not repeat those two terms. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Azure gives free internet egress to customers leaving Azure for another cloud or on-premises: the first 100 GB per month is free in all regions, and customers moving more than 100 GB/month follow Azure's steps to claim a credit. When Microsoft announced the waiver in March 2024, press reports said customers file a support request, have 60 days to egress their data (with fees charged as normal and then credited), and must cancel all Azure subscriptions on the account. The current Azure pricing page does not repeat the 60-day and cancel-all-subscriptions terms. Sources: https://azure.microsoft.com/en-us/pricing/details/bandwidth/ ; https://www.itpro.com/cloud/cloud-computing/microsoft-scraps-egress-fees-for-azure-was-its-hand-forced-by-google-and-aws",
           "source": "https://azure.microsoft.com/en-us/pricing/details/bandwidth/",
           "note": null
         },
         {
-          "text": "Estimate egress as gigabytes moved times the sending provider's per-GB rate. Arithmetic example, not a quoted figure: 10 TB (10,240 GB) out of Atlas on AWS at the $0.09-$0.16/GB internet list range is about $920-$1,640 before any waiver. mongosync's default network compression lowers wire bytes, and change-stream traffic during the overlap adds to them. (low confidence) (verified as of 2026-10-20)",
+          "text": "Estimate egress as gigabytes moved times the sending provider's per-GB rate. Arithmetic example, not a quoted figure: 10 TB (10,240 GB) out of Atlas on AWS at the $0.09-$0.16/GB internet list range is about $920-$1,640 before any waiver. mongosync supports network compression and enables it by default, provided source and destination share at least one common compressor, and it applies ongoing source changes via change streams after the collection copy phase, which adds transfer during the overlap. Sources: https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/ ; https://www.mongodb.com/docs/mongosync/current/faq/ ; https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing/",
           "source": "https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/",
           "note": null
         },
@@ -138,7 +138,7 @@
           "note": null
         },
         {
-          "text": "mongosync protects small destinations: for migrations of 64 GB or less into destinations with 4 or fewer vCPUs, the collection copy issues fewer concurrent writes. Setting an explicit load level turns this off, and the user can change the load level during a sync. On Atlas destinations mongosync runs 12 createIndexes commands at once, capped by maxNumActiveUserIndexBuilds. Raising that value speeds index builds but raises destination CPU and can trigger unintended Atlas auto-scaling events. (high confidence) (verified as of 2026-10-20)",
+          "text": "mongosync protects small destinations: for migrations of 64 GB or less into destinations with 4 or fewer vCPUs, the collection copy issues fewer concurrent writes. Setting an explicit load level turns this off, and the user can change the load level during a sync. On Atlas destinations mongosync runs 12 createIndexes commands at once, capped by maxNumActiveUserIndexBuilds. Raising that value speeds index builds but raises destination CPU and can trigger unintended Atlas auto-scaling events. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/mongosync/current/about-mongosync.md ; https://www.mongodb.com/docs/mongosync/current/reference/mongosync-binary.md ; https://www.mongodb.com/docs/mongosync/current/reference/mongosync-behavior.md",
           "source": "https://www.mongodb.com/docs/mongosync/current/about-mongosync/",
           "note": null
         },
@@ -168,32 +168,32 @@
           "note": null
         },
         {
-          "text": "Atlas Live Migration (pull) is the managed wrapper around mongosync: it needs little setup, the destination must be in Atlas, and the source may be on-premises or in Atlas. MongoDB recommends it for source clusters of 5 TB or less or up to 3 shards. It recommends standalone mongosync above those thresholds, and whenever the user must use VNet peering or Private Link, cannot allow a third party to reach the source, or will not import the source into Cloud Manager or Ops Manager. Standalone mongosync adds tunable parameters, pause and resume, detailed progress, direct logs, filtered sync, and a destination that may be on-premises, but the user hosts it. (high confidence) (verified as of 2026-10-20)",
+          "text": "Atlas Live Migration (pull) is the managed wrapper around mongosync: it is fully managed in Atlas-hosted infrastructure with low setup effort, the destination must be in Atlas, and the source may be on-premises or in Atlas. MongoDB recommends it for source clusters of 5 TB or less or up to 3 shards, and recommends standalone mongosync above those thresholds. Standalone mongosync adds tunable parameters, pause and resume, detailed progress tracking, direct log access, and filtered sync, and its destination may be on-premises or in Atlas, but the user hosts it. Sources: https://www.mongodb.com/docs/atlas/import/live-migration-comparison-modes/",
           "source": "https://www.mongodb.com/docs/atlas/import/live-migration-comparison-modes/",
           "note": null
         },
         {
-          "text": "Pull live migration needs a publicly reachable source and cannot use VPC peering or private endpoints as the migration data path; both stay usable for application connectivity. The destination cannot be a Free or Flex cluster. Clusters on 'Latest Version With Auto Upgrades' are unsupported. MongoDB Search (Atlas Search) indexes are not migrated. Push live migration supports VPC peering or private endpoints between the migration host and Atlas, with private endpoints only within a single cloud provider and region. (high confidence) (verified as of 2026-10-20)",
+          "text": "Pull live migration needs a publicly reachable source and cannot use VPC peering or private endpoints as the migration data path; both stay usable for application connectivity. The destination cannot be a Free or Flex cluster. Clusters on 'Latest Version With Auto Upgrades' are unsupported. MongoDB Search (Atlas Search) indexes are not migrated. Push live migration supports VPC peering or private endpoints between the migration host and Atlas, with private endpoints only within a single cloud provider and region. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/atlas/architecture/current/migration ; https://www.mongodb.com/docs/atlas/live-migration/ ; https://www.mongodb.com/docs/atlas/import/c2c-push-live-migration/",
           "source": "https://www.mongodb.com/docs/atlas/architecture/current/migration",
           "note": null
         },
         {
-          "text": "mongomirror reached end of life on 31 July 2025 and works only with MongoDB 6.0 and below; MongoDB says mongosync replaces it. mongomirror does not import users or roles, does not copy the config database, cannot move time-series data, and needs TTL indexes dropped and rebuilt. The Atlas architecture page still lists mongomirror as a manual migration tool without the end-of-life note. (medium confidence) (verified as of 2026-10-20)",
+          "text": "mongomirror reached end of life on 31 July 2025, and MongoDB says mongosync takes its place. mongomirror is not supported for migrations from a 6.0+ source to a 6.0+ destination; it can migrate older source versions to a destination on MongoDB 6.0. mongomirror does not import user or role data, does not copy the config database, cannot migrate sources containing time series collections, and is not compatible with TTL indexes (drop and rebuild them after migration). The Atlas architecture migration page still lists mongomirror as a migration tool without an end-of-life note. Sources: https://www.mongodb.com/docs/atlas/import/mongomirror/ ; https://www.mongodb.com/docs/atlas/architecture/current/migration/",
           "source": "https://www.mongodb.com/docs/atlas/import/mongomirror/",
           "note": null
         },
         {
-          "text": "mongosync makes two round trips to the destination for each source operation, so latency between mongosync and the destination slows the sync. It uses majority reads and writes, so replica-set nodes spread across regions slow it further. It can run on hardware separate from either cluster, and it enables network compression by default when both clusters share a compressor. (high confidence)",
+          "text": "mongosync makes two round trips to the destination for each source operation, so latency between mongosync and the destination slows the sync. It uses majority reads and writes, so replica-set nodes spread across regions slow it further. It can run on hardware separate from either cluster, and it enables network compression by default when both clusters share a compressor. (high confidence) Sources: https://www.mongodb.com/docs/mongosync/current/reference/mongosync-behavior/ ; https://www.mongodb.com/docs/mongosync/current/faq/",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/mongosync-behavior/",
           "note": null
         },
         {
-          "text": "Size the source oplog window to cover the whole migration: raise the minimum oplog window when storage auto-scaling is on, or the fixed oplog size when it is off. If operations that mongosync has not applied roll off the source oplog, the sync fails. If a source outage or pause outlasts the oplog window, mongosync cannot resume, and the user must restart from the beginning, which removes all migrated data from the destination. (high confidence)",
+          "text": "Size the source oplog window to cover the whole migration: raise the minimum oplog window when storage auto-scaling is on, or the fixed oplog size when it is off. If operations that mongosync has not applied roll off the source oplog, the sync fails and mongosync exits. If you plan to pause synchronization for an extended period, you might exceed the oplog window and should increase the source oplog size. Sources: https://www.mongodb.com/docs/atlas/live-migration/ ; https://www.mongodb.com/docs/cluster-to-cluster-sync/current/reference/oplog-sizing/",
           "source": "https://www.mongodb.com/docs/atlas/live-migration/",
           "note": null
         },
         {
-          "text": "The embedded verifier is on by default in mongosync (since 1.9) and keeps its state in memory. The limitations page sizes it at about 10 GB plus 500 MB per 1 million documents; the start-up disclaimer says about 0.5 GB per 1 million documents and that verification fails if memory is insufficient. Verification cannot resume after a pause or restart. Atlas Live Migration verifies by default and then needs a large destination oplog; the 'Verify data post-migration' switch turns it off. (medium confidence) (verified as of 2026-10-20)",
+          "text": "The embedded verifier is available from mongosync 1.9; mongosync enables it by default on replica set clusters, and since 1.10 also on sharded clusters. It keeps its state in memory and needs about 10 GB of memory plus 500 MB per 1 million documents; if memory is insufficient, the /start endpoint returns an error. The verifier cannot be resumed: after a stop or pause and restart, verification starts over. Atlas Live Migration performs embedded verification by default, which needs a large destination oplog; unchecking the 'Verify data post-migration' option turns it off. Sources: https://www.mongodb.com/docs/mongosync/current/reference/limitations.md ; https://www.mongodb.com/docs/mongosync/current/reference/verification/embedded.md ; https://www.mongodb.com/docs/atlas/live-migration.md",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/limitations/",
           "note": null
         },
@@ -203,12 +203,12 @@
           "note": null
         },
         {
-          "text": "mongosync does not check that a deployment meets its limitations; running it in the presence of a limitation 'could lead to undefined behavior on the destination cluster', and the limits apply for the whole migration, including pauses. Operations that break or slow a sync include DDL on the source, movePrimary, moveChunk, moveRange, reshardCollection, shard-key refinement, rolling index builds, writes by other clients to the destination, and a balancer that is enabled after start. (high confidence) (verified as of 2026-10-20)",
+          "text": "mongosync does not check that a deployment meets its documented limitations; running it in the presence of a limitation 'could lead to undefined behavior on the destination cluster', and the limitations apply for the full duration of the migration, including when it is paused or stopped if it will be resumed. Documented restrictions include: other clients must not write to the destination while mongosync runs; movePrimary cannot be used while syncing; moveChunk and moveRange must not be run on the source or destination; the shard key cannot be refined while syncing; reshardCollection on the source is not supported during sync; rolling index builds are not supported; the balancer must be disabled (the destination balancer always, the source balancer unless namespace filtering is used). Writes that produce DDL events on the source are prohibited only for pre-6.0 migrations. Sources: https://www.mongodb.com/docs/mongosync/current/reference/limitations/",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/limitations/",
           "note": null
         },
         {
-          "text": "For sharded migrations without namespace filtering, mongosync needs the balancers stopped. Since version 1.17 it disables them during initialization and waits 15 minutes for in-flight chunk migrations, and it fails if a balancer is enabled later. Atlas Live Migration stops the balancers on both clusters for the whole procedure and restarts them at the end; if it cannot restart one, a banner tells the user to restart it manually. mongosync does not preserve chunk distribution, so the user rebalances the destination after cutover. (high confidence) (verified as of 2026-10-20)",
+          "text": "For sharded migrations without namespace filtering, mongosync needs the balancers stopped. Since version 1.17 it disables them during initialization and waits 15 minutes for in-flight chunk migrations, and it fails if a balancer is enabled later. Atlas Live Migration stops the balancers on both clusters for the whole procedure and restarts them at the end; if it cannot restart one, a banner tells the user to restart it manually. mongosync does not preserve chunk distribution, so the user rebalances the destination after cutover. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/mongosync/current/reference/mongosync-behavior.md ; https://www.mongodb.com/docs/atlas/live-migration.md",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/mongosync-behavior/",
           "note": null
         },
@@ -233,7 +233,7 @@
           "note": null
         },
         {
-          "text": "An undersized destination slows the sync. The collection copy phase can exhaust a small destination's CPU or memory. For migrations of 64 GB or less into destinations with 4 or fewer vCPUs, mongosync issues fewer concurrent writes; larger migrations use the default concurrency. Slow-operation warnings point to CPU, memory or network strain, and the FAQ says to upgrade underprovisioned clusters. (medium confidence) (verified as of 2026-10-20)",
+          "text": "An undersized destination slows the sync. The collection copy phase can exhaust a small destination's CPU or memory. For migrations of 64 GB or less into destinations with 4 or fewer vCPUs, mongosync issues fewer concurrent writes; larger migrations use the default concurrency. Slow-operation warnings point to CPU, memory or network strain, and the FAQ says to upgrade underprovisioned clusters. (medium confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/mongosync/current/about-mongosync/ ; https://www.mongodb.com/docs/mongosync/current/faq/",
           "source": "https://www.mongodb.com/docs/mongosync/current/about-mongosync/",
           "note": null
         },
@@ -253,7 +253,7 @@
           "note": null
         },
         {
-          "text": "Cutover downtime runs from stopping source writes until canWrite is true on the destination. The steps: confirm lag is near zero, stop writes, wait for open transactions to end, call commit, poll /progress for canWrite, verify, then repoint applications. Since mongosync 1.21, canCommit is false and /commit returns an error when mongosync or the embedded verifier lags more than 30 seconds. If lag is not near zero when cutover starts, the cutover can take a long time. (high confidence) (verified as of 2026-10-20)",
+          "text": "Cutover downtime runs from stopping source writes until canWrite is true on the destination. The steps: confirm lag is near zero, stop writes, wait for open transactions to end, call commit, poll /progress for canWrite, verify, then repoint applications. Since mongosync 1.21, canCommit is false and /commit returns an error when mongosync or the embedded verifier lags more than 30 seconds. If lag is not near zero when cutover starts, the cutover can take a long time. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/mongosync/current/reference/api/commit.md ; https://www.mongodb.com/docs/mongosync/current/reference/cutover-process.md",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/api/commit/",
           "note": null
         },
@@ -263,12 +263,12 @@
           "note": null
         },
         {
-          "text": "Reverse sync is the rollback path for standalone mongosync. Plan it at /start with reversible=true, which cannot change later. Reverse also needs the COMMITTED state, the same shard count and major version on both clusters, no legacy-format unique indexes on the source, and no destination oplog rollover between canWrite=true and /reverse. You must commit the reverse sync, or the original source stays unusable. Filtered sync and pre-6.0 sources cannot reverse, and dropping mongosync's metadata databases ends the option. (high confidence) (verified as of 2026-10-20)",
+          "text": "Reverse sync is the rollback path for standalone mongosync. Plan it at /start with reversible=true, which cannot change later. Reverse also needs the COMMITTED state, the same shard count and major version on both clusters, no legacy-format unique indexes on the source, and no destination oplog rollover between canWrite=true and /reverse. You must commit the reverse sync, or the original source stays unusable. Filtered sync and pre-6.0 sources cannot reverse, and dropping mongosync's metadata databases ends the option. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/mongosync/current/reference/api/reverse.md ; https://www.mongodb.com/docs/mongosync/current/reference/mongosync-behavior.md ; https://www.mongodb.com/docs/mongosync/current/reverse-sync/",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/api/reverse/",
           "note": null
         },
         {
-          "text": "A managed pull migration tries to survive elections and network interruptions but can fail. If it cannot recover on its own, you restart from the beginning. Standalone mongosync keeps its restart state on the destination, so restarting it with the same parameters resumes the sync, and since 1.18 it retries network or availability errors for up to 30 minutes. A restart from zero extends the time you pay for both environments. (high confidence) (verified as of 2026-10-20)",
+          "text": "A managed pull migration tries to survive elections and network interruptions but can fail. If it cannot recover on its own, you restart from the beginning. Standalone mongosync keeps its restart state on the destination, so restarting it with the same parameters resumes the sync, and since 1.18 it retries network or availability errors for up to 30 minutes. A restart from zero extends the time you pay for both environments. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/atlas/live-migration/ ; https://www.mongodb.com/docs/mongosync/current/faq/ ; https://www.mongodb.com/docs/mongosync/current/release-notes/1.18/",
           "source": "https://www.mongodb.com/docs/atlas/live-migration/",
           "note": null
         },
@@ -283,7 +283,7 @@
           "note": null
         },
         {
-          "text": "Application-level dual writing is the alternative to database-level sync, and it has its own cost. Stripe's four phases are dual write, read from the new store, write only to the new store, then remove old data. Stripe's backfill was costly because finding records through production queries was slow, so it moved discovery to offline jobs on database snapshots, and it used GitHub's Scientist to compare old and new reads. Haptik warns that running two change streams at once for zero downtime risks duplicate operations, race conditions and complex conflict resolution. (medium confidence)",
+          "text": "Application-level dual writing is the alternative to database-level sync, and it has its own cost. Stripe's four phases are dual write, read from the new store, write only to the new store, then remove old data. Stripe's backfill was costly because finding records through production queries was slow, so it moved discovery to offline jobs on database snapshots, and it used GitHub's Scientist to compare old and new reads. Haptik warns that running two change streams at once for zero downtime risks duplicate operations, race conditions and complex conflict resolution. (medium confidence) Sources: https://stripe.com/blog/online-migrations ; https://www.haptik.ai/tech/migrating-terabytes-of-mongodb-across-clouds-with-minimal-disruption",
           "source": "https://stripe.com/blog/online-migrations",
           "note": null
         }
@@ -303,7 +303,7 @@
           "note": null
         },
         {
-          "text": "Vendor statements that egress is a minor part of switching cost are unmeasured for database migrations. Bloomberg reported Google's position that switching fees are about 2% of the total cost of migrating to a new provider. AWS said about 90% of its customers already pay nothing for data transfer out because of the 100 GB/month free allowance. Gartner's Lydia Leong said the cost of the move is trivial compared with the ongoing cost of storing data. None of these sources measured a database-cluster migration. (medium confidence)",
+          "text": "Vendor statements that egress is a minor part of switching cost are unmeasured for database migrations. Bloomberg reported Google's position that switching fees are about 2% of the total cost of migrating to a new provider. AWS said that over 90% of its customers have paid nothing to transfer data out since 2021, and The Register reported that AWS's free 100 GB a month of data egress is, by its account, more than enough for 90 percent of its customers. None of these sources measured a database-cluster migration. Sources: https://www.datacenterknowledge.com/cloud/google-ends-cloud-switching-fees-pressuring-amazon-and-microsoft ; https://www.cnbc.com/2024/01/11/google-vows-not-to-charge-data-transfer-fees-when-cloud-customers-exit.html ; https://www.theregister.com/2024/03/05/aws_data_egress/",
           "source": "https://www.datacenterknowledge.com/cloud/google-ends-cloud-switching-fees-pressuring-amazon-and-microsoft",
           "note": null
         }
@@ -313,7 +313,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "Atlas Live Migration carries no tool fee: the Atlas data-transfer docs call it 'the free Atlas Live Migration Service'. MongoDB's migration guidance frames the cost the user controls as destination-cluster sizing: temporary scaling during the sync, then resizing to the right tier after cutover. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Atlas Live Migration carries no tool fee: the Atlas data-transfer docs call it 'the free Atlas Live Migration Service'. MongoDB's migration guidance frames the cost the user controls as destination-cluster sizing: temporary scaling during the sync, then resizing to the right tier after cutover. (medium confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/ ; https://www.mongodb.com/docs/atlas/architecture/current/migration.md",
           "source": "https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/",
           "note": null
         },
@@ -338,22 +338,22 @@
           "note": null
         },
         {
-          "text": "Atlas docs list data transfer prices by provider (checked 2026-10-20). AWS clusters: same region $0.00-$0.01/GB, different region $0.02-$0.15/GB, out to internet $0.09-$0.16/GB. Azure clusters: internet data transfer $0.087-$0.181/GB. Google Cloud clusters: internet $0.12-$0.23/GB, between regions $0.02-$0.15/GB. The Atlas-on-AWS pricing page shows the base figures $0.01 same region, $0.02 cross-region, $0.09 internet. Ranges depend on region. Atlas charges no incoming transfer and charges no outgoing transfer on Free and Flex tiers. (high confidence) (verified as of 2026-10-20)",
+          "text": "Atlas docs list data transfer prices by provider (checked 2026-10-20). AWS clusters: same region $0.00-$0.01/GB, different region $0.02-$0.15/GB, out to internet $0.09-$0.16/GB. Azure clusters: internet data transfer $0.087-$0.181/GB. Google Cloud clusters: internet $0.12-$0.23/GB, between regions $0.02-$0.15/GB. The Atlas-on-AWS pricing page shows the base figures $0.01 same region, $0.02 cross-region, $0.09 internet. Ranges depend on region. Atlas charges no incoming transfer and charges no outgoing transfer on Free and Flex tiers. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/ ; https://www.mongodb.com/products/platform/atlas-cloud-providers/aws/pricing",
           "source": "https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/",
           "note": null
         },
         {
-          "text": "In a push live migration the user provisions, secures, and runs the migration host, and Cloud Manager must monitor the source cluster. MongoDB's push page requires source and destination at MongoDB 6.0.17 or later. AWS Prescriptive Guidance still says 6.0.8 or later for guided pull or push migration. (medium confidence) (verified as of 2026-10-20)",
+          "text": "In a push live migration the user provisions, secures, and runs the migration host, and Cloud Manager must monitor the source cluster. MongoDB's push page requires source and destination at MongoDB 6.0.17 or later. AWS Prescriptive Guidance still says 6.0.8 or later for guided pull or push migration. (medium confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/atlas/import/c2c-push-live-migration.md ; https://docs.aws.amazon.com/prescriptive-guidance/latest/migration-mongodb-atlas/live-migration.html",
           "source": "https://www.mongodb.com/docs/atlas/import/c2c-push-live-migration/",
           "note": null
         },
         {
-          "text": "Budget a migration overlap from these documented terms: source run-rate, plus destination run-rate at least two tiers above the source, for the initial copy plus up to 120 hours of sync and the cutover window; destination disk for data plus sync oplog; a migration host for push or standalone mongosync; source-side egress; and a staging cluster if the user rehearses. MongoDB publishes no copy throughput and no downtime figure, so the duration term must come from a test run. (medium confidence)",
+          "text": "For Atlas Live Migration, MongoDB recommends a destination cluster tier at least two tiers above the source, and Atlas starts an extendable 120-hour (5-day) timer once the clusters are nearly in sync, after which it stops synchronizing. The destination needs oplog capacity sized for the migration and verification, and the pull procedure suggests an optional staging cluster for rehearsal. A budget for the overlap would add source and destination run-rate over that period; the overlap-budget composition (destination disk for data plus oplog, a migration host for push or standalone mongosync, source-side egress) is this pack's own synthesis, not a documented formula. Sources: https://www.mongodb.com/docs/atlas/live-migration/",
           "source": "https://www.mongodb.com/docs/atlas/live-migration/",
           "note": null
         },
         {
-          "text": "A migration started with reversible: true can be reversed after commit, which keeps the old cluster usable as a rollback target. Reversal needs the same number of shards and the same major version on both clusters and no filtered sync, and the user must not drop the mongosync metadata databases. The rollback window is therefore an extra dual-running period. (medium confidence)",
+          "text": "A migration started with reversible: true can be reversed after commit. Reversal needs the same number of shards and the same MongoDB major version on both clusters and does not support filtered sync, and the user must not drop the mongosync metadata databases, because reversing is not possible after they are dropped. Sources: https://www.mongodb.com/docs/mongosync/current/reverse.md ; https://www.mongodb.com/docs/mongosync/current/reference/mongosync-behavior.md",
           "source": "https://www.mongodb.com/docs/mongosync/current/about-mongosync/",
           "note": null
         },
@@ -363,12 +363,12 @@
           "note": null
         },
         {
-          "text": "Relocating only the application tier to another cloud while the Atlas cluster stays put turns in-region traffic into billed internet transfer. One user reported an Atlas bill rising from about $250 to $850 a month, all of it on the line 'Data Transfer: Atlas AWS Internet Transfer', after moving an app from Heroku to Railway, which runs on Google Cloud (thread dated 2 May 2024). Atlas docs say queries from on-premises, across cloud providers, or between continents incur the greatest data transfer costs. (medium confidence)",
+          "text": "Relocating only the application tier to another cloud while the Atlas cluster stays put turns same-region traffic into billed internet transfer. One user reported an Atlas bill rising from about $250 to $850 a month, all of the change on the line 'Data Transfer: Atlas AWS Internet Transfer', after moving an app from Heroku to Railway, which runs on Google Cloud (Atlas on AWS us-east-1, Railway app in US East, Virginia). Atlas docs say queries from on-premises environments into Atlas, across cloud providers, or between continents on the same cloud provider incur the greatest data transfer costs. Sources: https://station.railway.com/questions/heroku-railway-mongo-db-cloud-atlas-ch-a4870eb9 ; https://www.mongodb.com/docs/atlas/billing/data-transfer-costs.md",
           "source": "https://station.railway.com/questions/heroku-railway-mongo-db-cloud-atlas-ch-a4870eb9",
           "note": null
         },
         {
-          "text": "If mongosync crashes during commit with default write blocking, source writes can stay blocked. Run db.adminCommand({ setUserWriteBlockMode: 1, global: false }) on the source to unblock them. If mongosync disabled a balancer and then failed before commit, run balancerStart manually unless the user will run mongosync again. (high confidence)",
+          "text": "If mongosync crashes during commit with default write blocking, source writes can stay blocked. Run db.adminCommand({ setUserWriteBlockMode: 1, global: false }) on the source to unblock them. If mongosync disabled a balancer and then failed before commit, run balancerStart manually unless the user will run mongosync again. (high confidence) Sources: https://www.mongodb.com/docs/mongosync/current/reference/cutover-process/ ; https://www.mongodb.com/docs/mongosync/current/reference/mongosync-behavior/",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/cutover-process/",
           "note": null
         },
@@ -383,7 +383,7 @@
           "note": null
         },
         {
-          "text": "Atlas bills a dedicated cluster per hour by tier, and Atlas migration guidance is temporary scaling followed by resizing. The cost of the oversized destination therefore grows with how long the sync, cutover and any hold period last. (medium confidence)",
+          "text": "Atlas bills a dedicated cluster per hour by tier, and Atlas migration guidance is temporary scaling followed by resizing. The cost of the oversized destination therefore grows with how long the sync, cutover and any hold period last. (medium confidence) Sources: https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/ ; https://www.mongodb.com/docs/atlas/architecture/current/migration/ ; https://www.mongodb.com/docs/atlas/live-migration/",
           "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
           "note": null
         },
@@ -393,7 +393,7 @@
           "note": null
         },
         {
-          "text": "AWS changed the move window on 2026-10-08. Eligible customers outside the EU now have 180 days to finish the move and must tell AWS Support at once if they need longer. EU customers follow the AWS EU Data Act Addendum (Section 2.3). The CMA's July 2025 appendix recorded a 60-day window. (medium confidence) (verified as of 2026-10-08)",
+          "text": "AWS updated the move window on 2026-10-08. Eligible customers outside the EU now have 180 days to complete their move and must tell AWS Customer Support immediately if they need longer. EU customers exercising a switch under the EU Data Act follow the AWS EU Data Act Addendum (Section 2.3). The CMA's cloud services market investigation Appendix N recorded a 60-day window for AWS's free switching programme. Sources: https://aws.amazon.com/blogs/aws/free-data-transfer-out-to-internet-when-moving-out-of-aws/ ; https://assets.publishing.service.gov.uk/media/<object-id>/Appendix_N_-_Egress_fees___free_switching_programmes.pdf",
           "source": "https://aws.amazon.com/blogs/aws/free-data-transfer-out-to-internet-when-moving-out-of-aws/",
           "note": null
         },
@@ -403,12 +403,12 @@
           "note": null
         },
         {
-          "text": "Do not budget the exit programs as zero-rated transfer. Google and Azure pay after the move: Google puts the credit on the final invoice, and Azure issues it only after the data is out and every subscription is cancelled. The customer carries the egress bill until then and has no certainty over the credit value. (high confidence) (verified as of 2026-07-25)",
+          "text": "Do not budget the exit programs as zero-rated transfer. Google and Azure pay after the move: Google puts the credit on the final invoice for the services you are leaving, and Azure issues an invoice-level credit only after the data is out and every subscription is cancelled. Azure caps the credit at 60 calendar days of egress charges (180 for UK customers transferring from UK datacenters), may decline requests that don't follow the documented process, and may change the policy. Sources: https://cloud.google.com/exit-cloud ; https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/cancel-azure-subscription",
           "source": "https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/cancel-azure-subscription",
           "note": null
         },
         {
-          "text": "File the exit notice before moving data. Google requires the Exit Notice before any migration the customer expects a credit for. Azure requires advance notice through a support request. The CMA found AWS requests ineligible where the migration was already underway or notice came late. (high confidence) (verified as of 2025-09-11)",
+          "text": "File the exit notice before moving data. Google's process has the customer submit an Exit Notice first, then start the migration within an Initiation Period that follows. Azure's process has the customer create an Azure Support request to signal intent to transfer data, so Azure can validate before processing a refund (this page covers Azure's at-cost transfer for EEA, EFTA and UK customers using multiple providers in parallel). Sources: https://cloud.google.com/exit-cloud ; https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/data-transfer-fees",
           "source": "https://cloud.google.com/exit-cloud",
           "note": null
         },
@@ -423,17 +423,17 @@
           "note": null
         },
         {
-          "text": "Google Data Transfer Essentials (EU and UK customers, launched 2025-09-10) meters qualifying multicloud traffic at zero charge and bills other traffic at normal rates. It targets in-parallel processing of one organization's workloads across providers, and customers opt in by specifying the multicloud traffic. Google's exit page points European customers to it for partial moves. (high confidence) (verified as of 2025-09-10)",
+          "text": "Google Data Transfer Essentials (EU and UK customers, launched 2025-09-10) meters qualifying multicloud traffic at zero charge and bills other traffic at normal rates. It targets in-parallel processing of one organization's workloads across providers, and customers opt in by specifying the multicloud traffic. Google's exit page points European customers to it for partial moves. (high confidence) (verified as of 2025-09-10) Sources: https://cloud.google.com/blog/products/networking/new-for-the-uk-and-eu-no-cost-multicloud-data-transfer-essentials ; https://cloud.google.com/exit-cloud",
           "source": "https://cloud.google.com/blog/products/networking/new-for-the-uk-and-eu-no-cost-multicloud-data-transfer-essentials",
           "note": null
         },
         {
-          "text": "Pull live migration needs the source reachable from MongoDB's live migration servers, so you must allow their IP ranges through the source firewall. It does not support VPC peering or private endpoints for the migration path. If you need private networking, or will not open the source to a third party, MongoDB recommends standalone mongosync. (high confidence) (verified as of 2026-10-14)",
+          "text": "Pull live migration needs the source reachable from MongoDB's live migration servers, so you must allow their IP ranges through the source firewall. It does not support VPC peering or private endpoints as the migration data path. If your organization has strict network requirements and cannot enable that network access, the Atlas docs point to Live Migrate a Community Deployment to Atlas. Sources: https://www.mongodb.com/docs/atlas/live-migration/",
           "source": "https://www.mongodb.com/docs/atlas/live-migration/",
           "note": null
         },
         {
-          "text": "Standalone mongosync can run on its own hardware, apart from the cluster hosts. Adding CPU or memory to that host raises the copy rate. The destination should have more CPU, memory and disk I/O than the source so it can absorb mongosync writes. (high confidence)",
+          "text": "Standalone mongosync can run on its own hardware, apart from the servers that host the clusters. For most migrations the destination cluster should have higher CPU, memory and disk I/O than the source, so it can handle mongosync writes and the sync can keep up with the source workload. Sources: https://www.mongodb.com/docs/mongosync/current/faq.md",
           "source": "https://www.mongodb.com/docs/mongosync/current/faq/",
           "note": null
         },
@@ -453,12 +453,12 @@
           "note": null
         },
         {
-          "text": "A live migration does not carry everything across. Atlas migrates no users or roles, and neither migration path syncs MongoDB Search (Atlas Search) indexes. mongosync does not replicate system.* collections, and it rejects time-series collections, serverless clusters, Queryable Encryption and client-side field-level encryption. Persistent Query Settings need a manual move. Budget time to recreate these after cutover. (high confidence) (verified as of 2026-10-20)",
+          "text": "A live migration does not carry everything across. Atlas migrates no users or roles, and neither migration path syncs MongoDB Search (Atlas Search) indexes. mongosync does not replicate system.* collections, and it rejects time-series collections, serverless clusters, Queryable Encryption and client-side field-level encryption. Persistent Query Settings need a manual move. Budget time to recreate these after cutover. (high confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/atlas/live-migration/ ; https://www.mongodb.com/docs/cluster-to-cluster-sync/current/reference/limitations/",
           "source": "https://www.mongodb.com/docs/atlas/live-migration/",
           "note": null
         },
         {
-          "text": "Destination indexes can end up larger than source indexes. mongosync builds indexes before the copy by default and copies in _id order. The fixes cost time or load: buildIndexes=never means you build indexes by hand afterward, buildIndexes=beforeDataCopy can lengthen the migration, and a rolling initial sync or compact after migration adds load. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Destination indexes can end up larger than source indexes. mongosync builds indexes before the copy by default and copies in _id order. The fixes cost time or effort: buildIndexes=never means you build indexes manually after the migration, buildIndexes=beforeDataCopy can increase the migration time, and compact after migration may impact cluster performance. A rolling initial sync on the destination is another documented mitigation. Sources: https://www.mongodb.com/docs/mongosync/current/faq/ ; https://www.mongodb.com/docs/mongosync/current/reference/limitations/",
           "source": "https://www.mongodb.com/docs/mongosync/current/faq/",
           "note": null
         },
@@ -468,12 +468,12 @@
           "note": null
         },
         {
-          "text": "Pick the destination region for low latency to the application servers, ideally the same cloud region. Atlas bills the most for queries from on-premises, across cloud providers or between continents, so a distant destination adds recurring transfer cost after cutover. (high confidence) (verified as of 2026-10-14)",
+          "text": "Pick the destination region for low latency to the application servers, ideally the same cloud region. Atlas bills the most for queries from on-premises, across cloud providers or between continents, so a distant destination adds recurring transfer cost after cutover. (high confidence) (verified as of 2026-10-14) Sources: https://www.mongodb.com/docs/atlas/live-migration/ ; https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/",
           "source": "https://www.mongodb.com/docs/atlas/billing/data-transfer-costs/",
           "note": null
         },
         {
-          "text": "Rehearse on a staging cluster. Run the live migration up to the cutover step to get a current Atlas-backed staging cluster for testing with the target driver version, then run the full migration into a separate Atlas cluster for production. This adds one more destination cluster to the bill. (low confidence)",
+          "text": "Rehearse on a staging cluster. Run the live migration as a partial migration that stops at the Perform the Cutover step to get an up-to-date Atlas-backed staging cluster for testing with the latest driver version that supports the Atlas cluster's MongoDB version, then run the full migration into a separate Atlas cluster for production. Sources: https://www.mongodb.com/docs/atlas/live-migration/",
           "source": "https://www.mongodb.com/docs/atlas/live-migration/",
           "note": null
         },

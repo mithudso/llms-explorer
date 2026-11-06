@@ -24,7 +24,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Do not assume that every read path excludes orphans. SERVER-91030 explains that the analyzed internal aggregate uses readConcern available to skip shard-version checking and shard filtering for performance; the replication design README also warns that available reads can return orphan documents when routing metadata is stale. This exception must not be treated as a safe performance workaround for ordinary queries. (medium confidence) (verified as of 2025-08-08)",
+          "text": "Do not assume that every read path excludes orphans. SERVER-91030 explains that analyzeShardKey runs an internal cluster aggregate with readConcern \"available\" to avoid the cost of shard filtering, and that this causes commands to skip both the shard version check and shard filtering. The MongoDB read concern \"available\" documentation warns that such queries can return orphaned documents if the shard was undergoing chunk migration, and that mongos does not guarantee they route to the correct shards. Do not treat this as a safe performance workaround for ordinary queries. Sources: https://jira.mongodb.org/browse/SERVER-91030 ; https://www.mongodb.com/docs/manual/reference/read-concern-available.md",
           "source": "https://jira.mongodb.org/browse/SERVER-91030",
           "note": null,
           "claimId": "clm:e7bcfc8367500a44f044068ad14407434b00044098b61510fc91d2d419436942",
@@ -34,8 +34,14 @@
             "ev:6696d357bbd8b9813374347fbff12cdca78b820b3ab2b26c07e0a16dd0bee370"
           ],
           "also": [
-            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md"
-          ]
+            "https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md",
+            "https://www.mongodb.com/docs/manual/reference/read-concern-available.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:d80e2aaecd4f47afb395a18f9cd0d99ab676e06fff47789702b07482e64b6d2e",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:33:26Z"
+          }
         },
         {
           "text": "Huawei's unrestricted secondary/local explain procedure scans the collection across all shard nodes and can create substantial query pressure. Its guide advises against running the diagnostic when the data volume makes the scan expensive. (low confidence) (verified as of 2025-07-24)",
@@ -78,8 +84,8 @@
           ]
         },
         {
-          "text": "SHARDING_FILTER alone does not establish whether a query is covered. MongoDB defines coverage by satisfying the query entirely from index keys, with no document examination; the documented example that places FETCH below SHARDING_FILTER has already fetched documents. Inspect the underlying stages and execution statistics instead of treating the filtering stage name as proof of coverage. (high confidence)",
-          "source": "https://www.mongodb.com/docs/v8.3/reference/explain-results/",
+          "text": "SHARDING_FILTER alone does not establish whether a query is covered. MongoDB defines coverage by satisfying the query entirely from index keys, with no document examination. Alibaba Cloud's example places FETCH below SHARDING_FILTER, so documents have already been fetched. Inspect the underlying stages and execution statistics instead of treating the filtering stage name as proof of coverage. Sources: https://www.mongodb.com/docs/v8.3/reference/explain-results.md ; https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster",
+          "source": "https://www.mongodb.com/docs/v8.3/reference/explain-results.md",
           "note": null,
           "claimId": "clm:b5d7d021106e6707a418168ada41bc0edd19c42895ee7afcf53eaf880cc31930",
           "validationStatus": "NOT-SAMPLED",
@@ -87,7 +93,12 @@
           "also": [
             "https://www.mongodb.com/docs/manual/reference/explain-results/",
             "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:8d693531cbc609a2ddb65b7620d98f9526b89af7e962f46f7712e0ad09cec772",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:33:48Z"
+          }
         },
         {
           "text": "SHARDING_FILTER removes candidate documents that are physically present on a shard but do not logically belong to it according to the collection filtering metadata; it is an ownership check rather than an application predicate. (high confidence)",
@@ -134,8 +145,8 @@
           ]
         },
         {
-          "text": "For the executed plan, a nonzero chunkSkips at SHARDING_FILTER identifies documents rejected on that shard. Alibaba's example has 102 FETCH results, two skips, and 100 filter results. A filtered or limited explain is not a collection-wide orphan inventory; that conclusion follows from the per-input counter and the guides' use of an unrestricted find for a collection-wide check. (high confidence)",
-          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp",
+          "text": "For the executed plan, a nonzero chunkSkips at SHARDING_FILTER identifies documents rejected on that shard. Alibaba's example has 102 FETCH results, two skips, and 100 filter results. Alibaba's guide checks for orphans with an unrestricted find().explain(\"executionStats\") on each shard. A limited explain can stop early, so it is not a collection-wide orphan inventory (an inference from the stage code and that guide). Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/shard_filter.cpp ; https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/shard_filter.cpp",
           "note": null,
           "claimId": "clm:d51509f7cda1df33ae9738ab5785c2eb175c09804e83acf33777422ac10a77c5",
           "validationStatus": "SUPPORTED",
@@ -147,22 +158,33 @@
           "also": [
             "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster",
             "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:c56117fc35e04e01d95a7b56cadc762881892f8390b0e93e2c2b645f32374f5e",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:33:48Z"
+          }
         },
         {
-          "text": "Orphan filtering suppresses results without deleting their stored documents. This follows from the stage freeing its working-set result while the operational guide separately prescribes cleanupOrphaned for physical cleanup. (medium confidence)",
-          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp",
+          "text": "Orphan filtering suppresses results without deleting their stored documents: the stage skips and frees the working-set member and counts it in chunkSkips. Physical cleanup is separate; Alibaba Cloud's guide prescribes the cleanupOrphaned command. MongoDB documents that cleanupOrphaned does not itself clean up orphans but waits for MongoDB's own cleanup, and the command is deprecated since 8.0. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/shard_filter.cpp ; https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster ; https://www.mongodb.com/docs/manual/reference/command/cleanupOrphaned.md",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/shard_filter.cpp",
           "note": null,
           "claimId": "clm:9730b91f0e7d8cbe0d2b363c7455e8b304e163b26d514fecac31682d8b8e2407",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster"
-          ]
+            "https://www.alibabacloud.com/help/en/dts/support/how-do-you-clean-up-orphaned-documents-in-a-mongodb-sharded-cluster",
+            "https://www.mongodb.com/docs/manual/reference/command/cleanupOrphaned.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:4d06af26478e214a8abc6b4ddb206f0ff63b472f3688a4bacb8e0f19f72995e4",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:33:48Z"
+          }
         },
         {
-          "text": "Treat explain stage details and internal counters as version-sensitive diagnostics. Both the current manual and the versioned 8.3 explain reference say that internal fields may be undocumented and listed output fields can change. (medium confidence)",
-          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "text": "Treat explain stage details and internal counters as version-sensitive diagnostics. Both the current manual and the versioned 8.3 explain reference say that internal fields may be undocumented and listed output fields can change. (medium confidence) Sources: https://www.mongodb.com/docs/manual/reference/explain-results.md ; https://www.mongodb.com/docs/v8.3/reference/explain-results.md",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md",
           "note": null,
           "claimId": "clm:f723d9bac5ab7e32464232161f4550c3b20e49458febbbef1c98ee63b47589ba",
           "validationStatus": "SUPPORTED",
@@ -171,8 +193,14 @@
             "ev:803a75ad73526de8cfd936f7c4d7fa4923a724b895158543572f50ea54895e51"
           ],
           "also": [
-            "https://www.mongodb.com/docs/v8.3/reference/explain-results/"
-          ]
+            "https://www.mongodb.com/docs/v8.3/reference/explain-results/",
+            "https://www.mongodb.com/docs/v8.3/reference/explain-results.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:d4aa41bcb08bfd69ae61acbb04f024bf764e41f18a62e8842ccc814306929991",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:33:48Z"
+          }
         },
         {
           "text": "SERVER-19643 is historical evidence that direct, unversioned shard connections had different filtering behavior from routed reads: the report reproduced an aggregation/find inconsistency in 3.0.4 and lists fix version 3.3.2. It does not establish behavior for a modern deployment. (low confidence) (verified as of 2016-03-07)",
@@ -185,15 +213,20 @@
           ]
         },
         {
-          "text": "Treat chunkSkips as a statistic for the executed scan, not automatically a collection-wide orphan census. The classic implementation increments it for both non-owned candidates and candidates for which shard-key extraction fails; Huawei obtains a collection check by scanning the whole collection. (high confidence)",
-          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/classic/shard_filter.cpp",
+          "text": "Treat chunkSkips as a statistic for the executed scan, not automatically a collection-wide orphan census. The classic implementation increments it for both non-owned candidates and candidates for which shard-key extraction fails; Huawei obtains a collection check by scanning the whole collection. (high confidence) Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/shard_filter.cpp ; https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/shard_filter.cpp",
           "note": null,
           "claimId": "clm:5d0478fae5c233b189e83526673feca54fbb1f0e93f471ff9f40dedbeaa94b9f",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
             "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:e3726b144ec47140c45b6d78962984527afa8f2c1cbc42b80b00ad5634646a63",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:33:26Z"
+          }
         },
         {
           "text": "The inspected master ShardFilterStage retains a ScopedCollectionFilter for the query lifetime. Its header explains that this prevents cleanup from deleting migrated-away data still needed by an active query using the associated metadata. (low confidence) (verified as of 2026-10-30)",
@@ -207,7 +240,7 @@
           ]
         },
         {
-          "text": "Read concern available can return orphaned documents during migration and does not guarantee authoritative shard routing. MongoDB 8.0 documentation explicitly scopes secondary orphan protection to reads that do not use available; therefore orphan filtering must not be described as universal for all reads. (high confidence)",
+          "text": "Read concern available can return orphaned documents during migration and does not guarantee authoritative shard routing. MongoDB 8.0 documentation explicitly scopes secondary orphan protection to reads that do not use available; therefore orphan filtering must not be described as universal for all reads. (high confidence) Sources: https://www.mongodb.com/docs/manual/reference/read-concern-available.md ; https://www.mongodb.com/docs/v8.0/core/distributed-queries.md",
           "source": "https://www.mongodb.com/docs/manual/reference/read-concern-available.md",
           "note": null,
           "claimId": "clm:ed8fc65daf86758697d43de38e4e3791c70b74fc8b06791bdf9fb60647622533",
@@ -217,12 +250,18 @@
             "ev:cfdacb7312d4ebd1cd2c344fd08795e769d3d0e148500112340844efed462431"
           ],
           "also": [
-            "https://www.mongodb.com/docs/v8.0/core/distributed-queries/"
-          ]
+            "https://www.mongodb.com/docs/v8.0/core/distributed-queries/",
+            "https://www.mongodb.com/docs/v8.0/core/distributed-queries.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:d372babdc292a196e419ba1ecfef6ef85a10e465e9d8b72b3ba38d68d8efd95a",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:33:48Z"
+          }
         },
         {
-          "text": "MongoDB 8.0 documentation says all shard replica-set members maintain chunk metadata for orphan protection, including secondaries. Huawei documents an operational orphan check through mongos using readPref(\"secondary\"), readConcern(\"local\"), and explain(\"executionStats\"). Older secondary-read reports must be version-scoped. (high confidence)",
-          "source": "https://www.mongodb.com/docs/v8.0/core/distributed-queries/",
+          "text": "MongoDB 8.0 documentation says all shard replica-set members maintain chunk metadata for orphan protection, including secondaries. Huawei documents an operational orphan check through mongos using readPref(\"secondary\"), readConcern(\"local\"), and explain(\"executionStats\"). Older secondary-read reports must be version-scoped. (high confidence) Sources: https://www.mongodb.com/docs/v8.0/core/distributed-queries.md ; https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html",
+          "source": "https://www.mongodb.com/docs/v8.0/core/distributed-queries.md",
           "note": null,
           "claimId": "clm:b1b41aa6fbdaf3ba188fa7b96fc0b702779f025dc9dbc6c3c463a8a6ba665098",
           "validationStatus": "SUPPORTED",
@@ -232,7 +271,12 @@
           ],
           "also": [
             "https://support.huaweicloud.com/intl/en-us/drs_faq/drs_09_0101.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:e742d1354b81e402ba2ff7782df300cdbeeda1af4f401ef82192c543bdc9a081",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:33:26Z"
+          }
         },
         {
           "text": "The inspected master ShardFilterer interface is shared by find, aggregation execution trees, and slot-based execution. This establishes a shared ownership abstraction, not a guarantee that every engine exposes an identically named explain stage. (low confidence) (verified as of 2026-10-30)",

@@ -8,7 +8,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "The older SERVER-9507 optimization uses a matching index to skip many entries for `$sort` + `$group` + `$first`; the current group header documents `$topN`/`$bottomN` with `n: 1` as a separate desugaring that may enable `DISTINCT_SCAN` when a suitable index exists. Treat the accumulator rewrite and index-scan selection as related but distinct optimizations. (medium confidence) (verified as of 2026-10-22)",
+          "text": "The older SERVER-9507 optimization uses a matching index to skip many entries for `$sort` + `$group` + `$first`; the current group header documents `$topN`/`$bottomN` with `n: 1` as a separate desugaring that may enable `DISTINCT_SCAN` when a suitable index exists. Treat the accumulator rewrite and index-scan selection as related but distinct optimizations. (medium confidence) (verified as of 2026-10-22) Sources: https://jira.mongodb.org/browse/SERVER-9507 ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_group.h",
           "source": "https://jira.mongodb.org/browse/SERVER-9507",
           "note": null
         }
@@ -38,12 +38,12 @@
           "note": null
         },
         {
-          "text": "The current `DocumentSourceGroup::tryToAbsorbTopKSort()` comment says this rewrite is invoked only from time-series and names SERVER-28980 as TODO work to lift the restriction. The time-series README also requires `$_internalUnpackBucket` immediately before `$sort` and `$group`, so ordinary collection pipelines should not be assumed to receive this rewrite. (high confidence) (verified as of 2026-10-22)",
+          "text": "The current `DocumentSourceGroup::tryToAbsorbTopKSort()` comment says this rewrite is currently invoked only from time-series and names SERVER-28980 as a TODO to lift the restriction. The time-series rewrite ticket SERVER-87589 limits the optimization to cases where `$_internalUnpackBucket` is followed by `$sort` followed by `$group`, so ordinary collection pipelines should not be assumed to receive this rewrite. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_group.h ; https://jira.mongodb.org/browse/SERVER-87589",
           "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/pipeline/document_source_group.h",
           "note": null
         },
         {
-          "text": "Two independent operator guides describe the rationale: `$sort` is blocking and must consume all input, while `$top` carries its own `sortBy` and keeps one candidate per group. This explains the logical opportunity to remove a full-stream sort, but it does not establish a workload-specific speedup or physical plan. (medium confidence)",
+          "text": "Two sources describe the rationale: the MongoDB manual says `$sort` is a blocking stage that waits for all input data, and a third-party guide says `$top` carries its own `sortBy` and keeps a single candidate per group, whereas sorting the whole stream and taking `$first` forces a blocking sort. This explains the logical opportunity to remove a full-stream sort, but it does not establish a workload-specific speedup or physical plan. Sources: https://webcodingcenter.com/mongodb/the-aggregation-pipeline--grouping-and-accumulator-expressions.html ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md",
           "source": "https://webcodingcenter.com/mongodb/the-aggregation-pipeline--grouping-and-accumulator-expressions.html",
           "note": null
         }

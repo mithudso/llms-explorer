@@ -1,0 +1,1288 @@
+{
+  "slug": "sol-defi-sdk-and-api-surface",
+  "concept": "SDK and API surface of Solana DeFi protocols: Drift/Velocity, Kamino, MarginFi/P0, Jupiter",
+  "generated": "2026-11-06",
+  "summary": "Evidence status: research claims ungated (v4 evidence gate not passed); treat as leads with cited sources. The SDK and API surface of four Solana DeFi protocol families (Drift/Velocity, Kamino, MarginFi/P0, Jupiter) as recorded from 237 cited research units across about 20 hosts: client packages and versions, REST/OpenAPI endpoints, program IDs and account layouts, authentication and rate limits, and RPC requirements.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "The public Solana RPC endpoints are rate-limited and are not meant for production. The Solana docs say they are 'not intended for production applications', that limits may change without prior notice, and that high-traffic websites may be blocked without prior notice. The Velocity and Drift gateway READMEs say api.mainnet-beta.solana.com is 'not recommend for production use cases'. Kamino's SDK docs say the SDK needs 'a private RPC connection or the public rate-limited RPC endpoint'. OnFinality, an RPC provider, calls public endpoints heavily rate-limited and advises a dedicated endpoint.",
+          "source": "https://raw.githubusercontent.com/solana-foundation/solana-com/main/apps/docs/content/docs/en/references/clusters.mdx",
+          "note": null
+        },
+        {
+          "text": "The `velocity-exchange/gateway` repo is a self-hosted Rust API gateway for Velocity. It offers an HTTP API (market info, orderbook, orders, positions, margin, leverage, collateral, place, modify and cancel orders, Swift signed-message orders, Jupiter and Titan swaps, atomic cancel/modify/place) and a WebSocket API. It signs with `VELOCITY_GATEWAY_KEY`, needs an already-initialised Velocity user account, supports delegated signing and an optional gRPC feed (`GRPC_HOST`, `GRPC_X_TOKEN`), ships a Docker image at `ghcr.io/velocity-exchange/gateway`, and builds from source with Rust 1.89 or newer.",
+          "source": "https://github.com/velocity-exchange/gateway",
+          "note": null
+        },
+        {
+          "text": "A Jupiter Perps Position account is a PDA derived from the trader's wallet, the custody, the collateral custody and constant seeds, so a trader holds one Position per combination. Per the IDL its fields are owner, pool, custody, collateralCustody, openTime, updateTime, side, price, sizeUsd, collateralUsd, realisedPnlUsd, cumulativeInterestSnapshot (u128), lockedAmount and bump. sizeUsd = 0 marks a closed position, and amounts are atomic units (USD with 6 decimals).",
+          "source": "https://developers.jup.ag/docs/perps/position-account.md",
+          "note": null
+        },
+        {
+          "text": "Every money value in the SDK is a `BN` scaled by a fixed power of ten: `PRICE_PRECISION` 1e6, `BASE_PRECISION` 1e9, `QUOTE_PRECISION` 1e6. Spot token balances use the mint's own decimals, so `convertToSpotPrecision` takes a market index. The docs call mis-scaling the mistake most likely to move real funds the wrong way. The Data API returns the same protocol precision (base 1e9, quote 1e6), so divide before display.",
+          "source": "https://docs.velocity.exchange/developers/velocity-sdk/precision-and-types.md",
+          "note": null
+        },
+        {
+          "text": "Ultra to V2 is a base-URL change: https://ultra-api.jup.ag becomes https://api.jup.ag/swap/v2, GET /order and POST /execute keep their paths, and the migration guide lists the same request parameters and response format. The guide adds that future improvements ship to V2 first, and Jupiter's migration skill rates the effort as minimal.",
+          "source": "https://developers.jup.ag/docs/swap/migration/ultra-to-order.md",
+          "note": null
+        },
+        {
+          "text": "An Anchor account discriminator is the first 8 bytes of sha256('account:<TypeName>'); instruction discriminators use the 'global:' prefix, and since Anchor 0.30 the IDL carries the discriminator arrays. Generated clients embed them, for example klend-sdk's Reserve class hardcodes [43, 242, 204, 202, 26, 247, 59, 127].",
+          "source": "https://www.anchor-lang.com/docs/basics/idl",
+          "note": null
+        },
+        {
+          "text": "In the new SDK a marginfi account is a PDA derived from the wallet, an account index and an optional third-party id. `client.createMarginfiAccountTx(authority, index)` creates one, `client.getAccountAddresses(authority)` lists a wallet's accounts, `client.fetchAccount(address)` loads one and simulates its health cache, and `deriveMarginfiAccount` derives an address without an RPC call. Accounts made by the old SDK used random keypairs and still load.",
+          "source": "https://docs.0.xyz/typescript-sdk/migration",
+          "note": null
+        },
+        {
+          "text": "MarginFi and P0 are one on-chain program under two brands. Project 0's 2025-09-11 announcement says P0 'will power the marginfi program, the marginfi dApp, and the MRGN validators'. The current SDK docs call `@0dotxyz/p0-ts-sdk` 'the official TypeScript SDK for the marginfi program that powers Project 0'. SolanaFloor reports that P0 'builds on the infrastructure of the marginfi protocol'.",
+          "source": "https://blog.0.xyz/blog/introducing-project-0",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The hosted DLOB server is `https://dlob.velocity.exchange`. REST routes include `/l2` (depth up to 100), `/batchL2`, `/batchL2Cache`, `/l3`, `/topMakers`, `/priorityFees`, `/batchPriorityFees`, `/unsettledPnlUsers`, `/auctionParams`, `/pythLazer` (restricted) and `/health`. The websocket is `wss://dlob.velocity.exchange/ws` with `orderbook`, `orderbook_indicative`, `trades` and `priorityfees` channels, a 5-second heartbeat, close code 1003 for an unknown channel and 1008 when the client falls more than 300,000 bytes behind. Most reads come from a Redis cache, so judge staleness by the `slot` o",
+          "source": "https://docs.velocity.exchange/developers/ecosystem-builders/orderbook-and-ws.md",
+          "note": null
+        },
+        {
+          "text": "Convert `auctionDuration` to wall-clock time with 400 ms units: the agent guide says 5 equals 2,000 ms, and the Swift page says 50 equals 20 seconds. The human migration page conflicts, telling readers to derive the window from the live slot duration; the agent guide explicitly says not to multiply by the live slot duration. Use the 400 ms encoding and check it against the installed SDK.",
+          "source": "https://docs.velocity.exchange/developers/migrate-from-drift/agent-guide.md",
+          "note": null
+        },
+        {
+          "text": "On /order, Jupiter charges a platform fee by pair: 0 bps when buying Jupiter tokens (SOL or stable to JUP, JLP, jupSOL) and for pegged pairs (LST-LST, stable-stable), 2 bps SOL-stable, 5 bps LST-stable, 10 bps for everything else, and 50 bps for tokens under 24 hours old. Integrator referral fees run 50 to 255 bps; Jupiter keeps 20% of the integrator fee and charges no separate platform fee; if the referralTokenAccount for the fee mint is missing, the order still executes but without the integrator fee. The top-level feeBps is the total fee (platform fee plus any gasless cost recoup) and platf",
+          "source": "https://developers.jup.ag/docs/swap/fees",
+          "note": null
+        },
+        {
+          "text": "Every perps action in the CLI goes through `signAndExecute`. It signs the base64 transaction locally and POSTs `{action, serializedTxBase64}` to `transaction/execute`, which returns the txid; PerpsCommand.ts contains no sendRawTransaction call. With `--dry-run` the CLI stops before signing and prints the unsigned base64 transaction plus a quote: entry price, size, leverage, liquidation price and fees.",
+          "source": "https://raw.githubusercontent.com/jup-ag/cli/main/src/commands/PerpsCommand.ts",
+          "note": null
+        },
+        {
+          "text": "The Lend AMM, a concentrated-liquidity AMM on the Liquidity Layer, has no REST API yet: Jupiter's page says REST endpoints for quoting and building Lend AMM swaps are 'coming soon'. The July 2026 changelog (2026-07-21) published a swap guide: quote with @jup-ag/lend-read, build with @jup-ag/lend/dex, or call swap_in and swap_out by CPI.",
+          "source": "https://developers.jup.ag/docs/lend/dex/api.md",
+          "note": null
+        },
+        {
+          "text": "The SDK exposes four layers. Layer 4: `MarginfiAccountWrapper` methods such as `wrappedAccount.makeBorrowTx(bankAddress, '100')`. Layer 3: free transaction-builder functions that add oracle cranks, integration refreshes, lookup tables and splitting. Layer 2: instruction builders that return only instructions. Layer 1: raw Anchor instructions from the `/instructions` entry, which the docs rate 'almost never' because a program upgrade can break them with no compatibility shim. Layer 1 exists only in 2.x.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/architecture",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "There are three ways to read Velocity state. Use the subscribed `VelocityClient` and `User` caches for synchronous reads. Use the stateless `VelocityCore` decoders (`fetchUserAccount`, `decodeUserAccount`, `pdas.getUserAccountPublicKeySync`, `coder().accounts.decode`) for indexers and serverless code. Use the Data API for history. Account names are PascalCase ('PerpMarket', 'User'); other casings throw 'Unknown account'. Decode against the shipped IDL. Do not validate by exact data length or filter `getProgramAccounts` by `dataSize`, because accounts can grow through `extend_account`; use a `m",
+          "source": "https://docs.velocity.exchange/developers/ecosystem-builders/reading-data.md",
+          "note": null
+        },
+        {
+          "text": "Kamino's selection guidance: use the REST API for vault lists with APR and TVL, APY charts, a user's historical rewards, client-side signing flows and non-JS backends such as Python. Use the TypeScript SDK for fully customized transaction execution, simulation and vault creation, and when the integration must 'Require zero rate limits' (SDK with a private RPC). SDK reads need a private RPC or the rate-limited public endpoint.",
+          "source": "https://kamino.com/docs/build/developers/api-vs-sdk.md",
+          "note": null
+        },
+        {
+          "text": "Metis V1 to /build: GET /swap/v1/quote plus POST /swap/v1/swap-instructions become one GET /swap/v2/build. userPublicKey is renamed taker; swapMode is dropped; feeAccount is new and required when platformFeeBps is positive; mode (fast) is new; inputMint, outputMint, amount, slippageBps (default 50), dexes, excludeDexes, maxAccounts (default 64) and platformFeeBps are unchanged. In the response, addressLookupTableAddresses (an array) becomes addressesByLookupTableAddress (an object keyed by table address, so no RPC lookup), otherInstructions and blockhashWithMetadata are new, and route-plan per",
+          "source": "https://developers.jup.ag/docs/swap/v2/migration.md",
+          "note": null
+        },
+        {
+          "text": "The action builders (KaminoAction.buildDepositTxns, buildBorrowTxns, buildWithdrawTxns, buildRepayTxns) take one props object. Kamino's current examples pass kaminoMarket, amount, reserveAddress, owner, obligation, useV2Ixs, scopeRefreshConfig and currentLedgerInstant. The builders address a reserve, not a mint, because one token can have several reserves: a variable-rate reserve plus fixed-rate ones. currentLedgerInstant comes from getCurrentLedgerInstant(rpc), and the README advises fetching it once per workflow and reusing it.",
+          "source": "https://kamino.com/docs/skill.md",
+          "note": null
+        },
+        {
+          "text": "Integrator-sponsored gas: set payer to a wallet other than taker (no effect if equal). Dflow and OKX become ineligible while Metis and JupiterZ still compete. On a Metis route the payer covers all gas types and must sign; on a JupiterZ route the market maker pays signature and priority fees, the payer funds only the missing output-token-account rent, and the payer is a required signer only when the output is an SPL token (match signers by public key). Jupiter advises pairing payer with referralAccount and referralFee so the fee recovers the gas. On /build the payer replaces the taker as fee pa",
+          "source": "https://developers.jup.ag/docs/swap/advanced/gasless.md",
+          "note": null
+        },
+        {
+          "text": "Some 'rate limits' live on chain, not in an API gateway. Project 0 banks and the group can carry hourly and daily net-outflow rate limiters that cap withdrawals plus borrows. A transaction that breaks one fails with program errors 6115 to 6118 (Bank/GroupHourly/DailyRateLimitExceeded). The SDK mirrors the window math: computeBankRateLimitRemaining and computeGroupRateLimitRemainingUsd return the remaining outflow, or null when no limiter is enabled, and computeMaxBorrowForBank and computeMaxWithdrawForBank already clamp to it unless ignoreBankLimits is passed.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/errors",
+          "note": null
+        },
+        {
+          "text": "Jupiter bills credits per endpoint on top of the RPS cap. /swap/v2/order and /swap/v2/build cost 1 credit, /swap/v2/execute costs 0, Tokens v2 search costs 10, tag 50 and category/interval 5, Price v3 costs 1, and every Lend v1 earn endpoint and every Trigger v2 endpoint costs 1. The Free plan has unlimited credits. Paid plans bill usage beyond their included credits, and the plans page lists no overage rate. The page warns that credit costs can change.",
+          "source": "https://developers.jup.ag/docs/portal/plans.md",
+          "note": null
+        },
+        {
+          "text": "Account sizes differ between Drift v2 and Velocity (full account-data length): User 4376 to 4496, PerpMarket 1216 to 1560, SpotMarket 776 to 1064, State 992 to 1752, UserStats 240 on both. Discriminators of surviving accounts are unchanged because Anchor hashes names, but the layouts differ, so a Drift decoder must not be pointed at Velocity accounts. Velocity can still grow accounts through extend_account, so these sizes are current-program values, not constants.",
+          "source": "https://raw.githubusercontent.com/drift-labs/protocol-v2/master/programs/drift/src/state/user.rs",
+          "note": null
+        },
+        {
+          "text": "Automatic gasless on /order: Jupiter sponsors the signature fee, priority fee and ATA and other account rent when the taker holds under 0.01 SOL, the trade is at least roughly 10 USD (a dynamic minimum), no JupiterZ market maker wins the quote, and no integrator payer or referral parameters are set. Jupiter recoups the cost by raising the swap fee, so the taker gets less output and feeBps exceeds platformFee.feeBps; below the minimum, aggregator routers return errorCode 3. On JupiterZ routes the market maker pays signature and priority fees, and Jupiter's gas wallet pays output-token-account r",
+          "source": "https://developers.jup.ag/docs/swap/advanced/gasless.md",
+          "note": null
+        },
+        {
+          "text": "MarginFi seeds in the type-crate: \"feestate\" for the global fee state, \"liquidity_vault\", \"insurance_vault\" and \"fee_vault\" (with matching _auth authority seeds) for bank vaults, and \"marginfi_account\" for PDA accounts: MarginfiAccount::derive_pda uses [\"marginfi_account\", group, authority, account_index u16 LE, third_party_id u16 LE (0 when absent)]. The function applies only to accounts created as PDAs, so do not assume every MarginfiAccount address derives from its authority.",
+          "source": "https://raw.githubusercontent.com/0dotxyz/marginfi-v2/main/type-crate/src/constants.rs",
+          "note": null
+        },
+        {
+          "text": "Choose the path by whether the transaction must change. Use /order + /execute by default (all routers compete, managed landing, RTSE, automatic gasless). Use /build only when the integrator must modify the transaction (CPI, custom instructions, SOL transfers, memo, token-account creation, Jito bundles via forJitoBundle), and accept Metis-only routing, no RFQ quotes and self-managed landing.",
+          "source": "https://developers.jup.ag/changelog/2026-03",
+          "note": null
+        },
+        {
+          "text": "In klend-sdk's vault builders, the optional payer argument is the rent payer for ATAs the instructions create, not the transaction fee payer. The Solana Foundation integration renamed the field rentPayer to keep the two apart, because its gasless fee-payer path sets the fee payer separately at compile time.",
+          "source": "https://raw.githubusercontent.com/solana-foundation/solana-developer-platform/main/packages/sdp-kamino/CLAUDE.md",
+          "note": null
+        },
+        {
+          "text": "In 2.x, `makeDepositTx` and `makeRepayTx` return a single legacy `ExtendedTransaction` with the fee payer set and no blockhash, so set `recentBlockhash` before signing. `makeBorrowTx` returns `TransactionBuilderResult` (`{ transactions, actionTxIndex }`) whose v0 transactions already carry a blockhash and lookup tables. Always pass `tx.signers` when signing, because the SDK may add extra keypairs such as a temporary wSOL account.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/transactions",
+          "note": null
+        },
+        {
+          "text": "POST /execute takes JSON {signedTransaction (base64), requestId from /order, optional lastValidBlockHeight} and returns status (Success or Failed), signature, code (0 = success), totalInputAmount and totalOutputAmount (what the user's wallet saw), inputAmountResult and outputAmountResult (route-side amounts), plus slot and swapEvents in the API reference. The fee collected in feeMint is totalInputAmount minus inputAmountResult when feeMint is the input mint, or outputAmountResult minus totalOutputAmount when it is the output mint.",
+          "source": "https://developers.jup.ag/docs/swap/order-and-execute.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter returns x-ratelimit-remaining (signed, so it can be zero or negative), x-ratelimit-current and x-ratelimit-reset (absolute Unix seconds when the oldest request leaves the window) only on 200 and 429 responses. It does not send them on 401, 403 or 5xx. A 429 adds no cooldown or lockout, and retrying at once is not penalised, but Jupiter recommends waiting until x-ratelimit-reset. Each response reports one bucket only, either the main bucket or a path bucket such as /swap/v2/execute. Every response also carries x-api-gateway-request-id, which matches the team's request log and belongs in",
+          "source": "https://developers.jup.ag/docs/portal/rate-limits.md",
+          "note": null
+        },
+        {
+          "text": "Borrowing uses one universal operate call. Signed string `colAmount` (collateral) and `debtAmount` (debt), both in base units, select the action: positive colAmount deposits, negative withdraws, positive debtAmount borrows, negative repays; `positionId: 0` creates a new position NFT. POST /borrow/operate returns {nftId, transaction} (a base64 unsigned VersionedTransaction). POST /borrow/operate-instructions returns {nftId, instructions, addressLookupTableAddresses}, so the caller must load those lookup tables when compiling a v0 message.",
+          "source": "https://developers.jup.ag/docs/lend/borrow/api.md",
+          "note": null
+        },
+        {
+          "text": "Project 0 publishes an open-source Agent Skill for coding agents: `npx skills add 0dotxyz/p0-agents`. Read-only queries need no configuration because the skill calls ai.0.xyz. On-chain actions are signed locally and need an `RPC_URL`.",
+          "source": "https://docs.0.xyz/llms.mdx/guides/agent-skill",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Prefer the IDL bundled with the SDK or repo over an on-chain IDL. P0 says not to fetch MarginFi's IDL from chain because the on-chain IDL account is not kept current, Velocity says to decode against the SDK's velocity.json, and Anchor describes on-chain IDL storage as something the program author uploads (anchor idl init, via Program Metadata).",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/program-upgrade-0-1-11",
+          "note": null
+        },
+        {
+          "text": "To detect a sponsored (gasless) quote, compare the nullable signatureFeePayer field in the /order response with the taker; Jupiter calls signatureFeePayer == taker the most reliable check. excludeRouters=jupiterz removes the JupiterZ path, but automatic Jupiter sponsorship can still apply, so the check is still needed.",
+          "source": "https://developers.jup.ag/docs/swap/advanced/gasless.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "VelocityClient` builds a `RetryTxSender` around a `TxHandler` unless you inject your own. The four senders are `RetryTxSender` (resend every 2,000 ms, 35,000 ms timeout), `WhileValidTxSender`, `FastSingleTxSender` (send once, optionally skip or background the confirmation) and `ForwardOnlyTxSender` (hand the transaction to relay callbacks such as a Jito bundler). Default `txParams` are 600,000 compute units and a compute-unit price of 0, so the default pays no priority fee. A confirmation timeout raises `TxSendError` code -1001 (`NOT_CONFIRMED_ERROR_CODE`), which means the outcome is unknown:",
+          "source": "https://docs.velocity.exchange/developers/velocity-sdk/transactions.md",
+          "note": null
+        },
+        {
+          "text": "Retry signals differ by API, so a client needs one policy that reads each of them. The Solana public RPC and Project 0 send Retry-After on a 429. Jupiter sends x-ratelimit-reset (Unix seconds) and recommends waiting until then, with a fixed fallback delay (its example uses 1,000 ms) when the header is absent, plus exponential backoff and spreading requests. Helius recommends waiting about 1 second, doubling up to 30 seconds, adding plus or minus 25% jitter, and giving up after 5 attempts. It retries only 408, 429, 500, 502, 503, 504 and network errors, and never 400, 401, 403, 404, 409 or 422.",
+          "source": "https://raw.githubusercontent.com/solana-foundation/solana-com/main/apps/docs/content/docs/en/references/clusters.mdx",
+          "note": null
+        },
+        {
+          "text": "The mainnet MarginFi program (MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA) flipped from 0.1.9 to 0.1.10 at 2026-08-25 15:00 UTC. Until then the SDK gated the 0.1.10 instruction layout on a per-program-id activation timestamp; the gate was removed once the upgrade was final, and the SDK now emits the 0.1.10 wire format unconditionally.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/program-upgrade",
+          "note": null
+        },
+        {
+          "text": "MarginFi v2 / Project 0 lending program IDs, selected by cargo feature in the id-crate: mainnet-beta MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA, devnet neetcne3Ctrrud7vLdt2ypMm21gZHGN2mCmqWaMVcBQ, staging stag8sTKds2h4KzjUw3zKTsxbqvT4XKHdaR9X9E6Rct, stagingalt 5UDghkpgW1HfYSrmEj2iAApHShqU44H6PKTAar9LL9bY, and 2jGhuVUuy3umdzByFx8sNWUAaf5vaeuDm78RDPEnhrMr for localnet and default builds. P0's docs list the mainnet and staging IDs and say staging is updated about two weeks before each mainnet release; DefiLlama's adapter also hardcodes the mainnet ID.",
+          "source": "https://raw.githubusercontent.com/0dotxyz/marginfi-v2/main/id-crate/src/lib.rs",
+          "note": null
+        },
+        {
+          "text": "Per the Solana docs source, the public mainnet endpoint allows each IP 100 requests per 10 seconds, 40 requests per 10 seconds to a single RPC method, 40 concurrent connections, 40 new connections per 10 seconds, and 100 MB of data per 30 seconds. Devnet and Testnet list the same limits. A 403 means the IP or website is blocked. A 429 means the IP is over the limits, and the Retry-After header says how long to wait. No second source repeats these figures.",
+          "source": "https://raw.githubusercontent.com/solana-foundation/solana-com/main/apps/docs/content/docs/en/references/clusters.mdx",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Kamino's REST API is served from https://api.kamino.finance. The Kamino docs index says no API key is required for public endpoints. The Public API OpenAPI description says the API is rate-limited for unauthenticated users and asks heavy users to reach out. Neither OpenAPI document (117 paths in the Public API, 12 in the Transactions API) declares a security scheme or a 429 response, and Kamino publishes no numeric limit. Kamino's own comparison table sends integrators who need zero rate limits to the SDK with a private RPC.",
+          "source": "https://kamino.com/docs/llms.txt",
+          "note": null
+        },
+        {
+          "text": "Account state reaches the client through one of three subscription types set in `accountSubscription`. `websocket` is the default and pushes per account. `polling` uses `BulkAccountLoader(connection, commitment, pollingFrequencyMs)` to batch `getMultipleAccounts`. `grpc` uses a Yellowstone/Geyser stream with `grpcConfigs: {endpoint, token}` and needs a Geyser-enabled, usually paid provider. Subscription errors are emitted on `velocityClient.eventEmitter` as 'error' and are not thrown, and a broken feed leaves reads returning the last good value.",
+          "source": "https://docs.velocity.exchange/developers/velocity-sdk/sdk-internals.md",
+          "note": null
+        },
+        {
+          "text": "The Data API has no API key and the spec declares no security scheme, so Market, User, Authority, Stats, AMM, Public and WebSocket reads are open. Only Notifications is authenticated, with per-request wallet-signed headers `x-wallet-address`, `x-signature` and `x-signed-message` (JSON with `action`, `ts`, `walletAddress`, optional `isDelegate` and `velocityUserAccount`). The spec declares no rate limit, quota header or 429 response, and the docs say to treat limits as undocumented, back off on any non-2xx response and prefer the WebSocket to tight polling. Response bounds per endpoint are `lim",
+          "source": "https://docs.velocity.exchange/developers/data-api.md",
+          "note": null
+        },
+        {
+          "text": "The Velocity Data API at data.velocity.exchange needs no API key. Its OpenAPI spec has 101 paths, declares no security scheme, and declares no rate limit, quota header or 429 response. The docs say to treat that as undocumented, not unlimited: budget polling, back off on any non-2xx response, and prefer the WebSocket over tight polling. Only the Notifications endpoints are authenticated, with per-request wallet-signed headers x-wallet-address, x-signature and x-signed-message (JSON with action, ts, walletAddress and optional isDelegate and velocityUserAccount). The timestamp bounds signature r",
+          "source": "https://docs.velocity.exchange/developers/data-api.md",
+          "note": null
+        },
+        {
+          "text": "Status of the predecessors on 2026-11-06: the Ultra Swap API (/ultra/v1/order and /ultra/v1/execute) and Metis Swap V1 (https://api.jup.ag/swap/v1: /quote, /swap, /swap-instructions) are still documented but carry notices that they are no longer actively maintained and have been superseded by Swap V2. The Metis custom-swap guide goes further and says 'Metis Swap V1 is deprecated', pointing readers to /build. The March 2026 changelog says both remain available and that new integrations should use the Swap API.",
+          "source": "https://developers.jup.ag/docs/ultra/get-started.md",
+          "note": null
+        },
+        {
+          "text": "Third-party RPC providers host Metis-style V1 endpoints. OrbitFlare exposes /swap/v1/quote, /swap/v1/swap and /swap/v1/swap-instructions under a /jup path prefix on its Dedicated Nodes. QuickNode sells a paid hosted Swap API with /quote, /swap and /swap-instructions (plus /price, /tokens, pump.fun, limit-order and websocket endpoints) and says its free plan and the public.jupiterapi.com endpoint are no longer available. Neither fetched page documents V2 /order or /build.",
+          "source": "https://docs.orbitflare.com/trading-apis/metis-swap.md",
+          "note": null
+        },
+        {
+          "text": "The Drift-to-Velocity port has no back-compat aliases, so old names fail at build time. `DriftClient` is now `VelocityClient`; `DRIFT_PROGRAM_ID` is `VELOCITY_PROGRAM_ID`; `DriftEnv` is `VelocityEnv`; the `*DriftClientAccountSubscriber*` classes are `*VelocityClientAccountSubscriber*`; `Program<Drift>` is `Program<Velocity>`; the IDL file `drift.json` is `velocity.json`; `User.calculateFeeForQuoteAmount` is `User.calculatePerpTakerFee`; and `Order.oraclePriceOffset` widened from number to BN. Anchor moved from `@coral-xyz/anchor@0.29.0` to `@anchor-lang/core@1.0.1` (aliased), and the package k",
+          "source": "https://docs.velocity.exchange/developers/migrate-from-drift.md",
+          "note": null
+        },
+        {
+          "text": "new KaminoVault(rpc, vaultAddress, recentSlotDurationMs, state?, programId?) stores programId for account reads but builds its own KaminoVaultClient(rpc, recentSlotDurationMs) without forwarding it, so instruction building uses the default mainnet kvault program. With a non-default programId (for example on devnet) the vault reads that program's state and emits instructions for the mainnet program, with no error. KaminoVault.loadWithClientAndState(client, vaultAddress, state) passes client.getProgramID() and assigns vault.client, which keeps both sides on one program. Kamino's own Earn SDK rec",
+          "source": "https://registry.npmjs.org/@kamino-finance/klend-sdk/-/klend-sdk-13.0.6.tgz",
+          "note": null
+        },
+        {
+          "text": "Jupiter retires old hosts by cutting their limits step by step, with no fixed cutoff date. In August 2025 it listed quote-api.jup.ag/v6, tokens.jup.ag, price.jup.ag, lite-api.jup.ag/tokens/v1 and lite-api.jup.ag/price/v2 as legacy. The April 2026 Developer Platform guide says lite-api.jup.ag will be phased out once the new gateway is stable, and that its rate limit will be reduced progressively until it is fully retired. Keyless access on api.jup.ag at 0.5 RPS replaces lite-api. Existing API keys carried over. Users who chose no paid plan fell to the Free tier (1 RPS) when the three-month grac",
+          "source": "https://developers.jup.ag/changelog/2025-08",
+          "note": null
+        },
+        {
+          "text": "The data API's OpenAPI description says 'The API is rate-limited for unauthenticated users. If you feel you need to make more requests or run into rate-limit issues, please reach out.' Kamino's docs index says 'No API key required for public endpoints.' Neither OpenAPI document defines a security scheme, and no request thresholds are published. Rate limits and auth belong to a sibling concept.",
+          "source": "https://api.kamino.finance/openapi/json?openapi=3.0.0",
+          "note": null
+        },
+        {
+          "text": "Project 0's hosted agent API (ai.0.xyz) needs no API key and no session handshake. It limits by client IP: 120 requests per minute on /mcp, 60 on /v1, 10 on /v1/tx/*, and 4 on the loop and close-position endpoints. A 429 carries Retry-After, and the error code is RATE_LIMITED. The OpenAPI document says x402-priced operations are served free but rate-limited on this host; the paid route is https://x402.0.xyz. A caller can pass its own Jupiter or Titan key in the x-jupiter-api-key and x-titan-api-key headers.",
+          "source": "https://docs.0.xyz/llms.mdx/guides/mcp-server",
+          "note": null
+        },
+        {
+          "text": "velocity-rs` (crate version 1.0.1, Rust 1.89 or newer) is the Rust SDK. It lives in the separate `rust/` Cargo workspace of velocity-v1, beside `keep-rs` and `swift`, and is not published to crates.io, so `cargo add velocity-rs` fails. Consume it as a git dependency pinned to a `rev`. Its features are all off by default: `unsafe_pub` (needed for DLOB work), `titan`, `dlob_dbg` and `rpc_tests`. On Apple Silicon use an x86_64 Rust toolchain, because a native aarch64 build compiles but can fail at runtime (for example with `InvalidSize`) when zero-copy account layouts differ.",
+          "source": "https://docs.velocity.exchange/developers/velocity-rs/setup.md",
+          "note": null
+        },
+        {
+          "text": "Velocity removed several Drift features, so their SDK exports are gone and their onchain error variants survive only as deprecated stubs. Removed: spot DLOB trading (`place_spot_order` and relatives now fail with `SpotDlobTradingDisabled`, 6350; spot markets remain for collateral and borrow-lend, with swaps for exchange), Serum, Phoenix and OpenBook fulfillment, Fuel, vAMM LP shares, protected maker mode, high-leverage mode, prediction markets, legacy Pyth pull/push (Pyth Lazer is the supported path), Switchboard clients, gov-token stake fee discounts, and insurance-fund rebalancing.",
+          "source": "https://docs.velocity.exchange/developers/migrate-from-drift.md",
+          "note": null
+        },
+        {
+          "text": "Third-party guidance lags the deprecation. SendAI's marginfi skill (`sendaifun/skills`, one commit, 2026-02-04) tells readers to `npm install @mrgnlabs/marginfi-client-v2` and call `MarginfiClient.fetch(config, wallet, connection)`. That is the deprecated API, and the package is flagged deprecated on every npm version. Check the package name and the initialisation call before copying any marginfi example.",
+          "source": "https://github.com/sendaifun/skills/blob/main/skills/marginfi/SKILL.md",
+          "note": null
+        },
+        {
+          "text": "Error \"TypeError: Cannot read properties of null (reading 'property')\" on Project0Client.initialize or any bank decode means an SDK 2.7.4 or older IDL (18 OracleSetup variants) met a bank whose oracle-setup byte is 18 or higher (program 0.1.11 added variants 18 to 26); upgrade to p0-ts-sdk 2.8.0 or later.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/program-upgrade-0-1-11",
+          "note": null
+        },
+        {
+          "text": "V2 calls send an x-api-key header. /execute and /submit each have their own rate-limit bucket (Keyless 20, Free 50, Paid 100 requests per second), separate from the general limit; the general tiers belong to the rate-limits concept.",
+          "source": "https://developers.jup.ag/docs/swap/order-and-execute.md",
+          "note": null
+        },
+        {
+          "text": "The Project 0 TypeScript SDK needs an RPC endpoint that supports simulateBundle, because health-cache simulation calls that method. In 3.x, Project0Client.initialize takes both the Kit rpc object and the rpcEndpoint string for this reason. simulateBundle(rpcEndpoint, transactions) throws an error named BundleSimulationError when the RPC does not support the method. Helius lists simulateBundle as a metered method: 10, 50, 200 and 500 requests per second on Free, Developer, Business and Professional.",
+          "source": "https://github.com/0dotxyz/p0-ts-sdk/blob/main/README.md",
+          "note": null
+        },
+        {
+          "text": "The legacy SDK `@mrgnlabs/marginfi-client-v2` is deprecated. All 52 of its npm versions carry the message 'Deprecated — migrate to https://github.com/0dotxyz/p0-ts-sdk for continued support of the marginfi program.' The last release, 6.4.2, was published 2026-06-03, and its README opens with a deprecation warning. Project 0's migration guide says the package has been deprecated since 2026-03-15 and gets no updates or fixes.",
+          "source": "https://registry.npmjs.org/@mrgnlabs/marginfi-client-v2",
+          "note": null
+        },
+        {
+          "text": "Jupiter meters api.jup.ag by plan tier. Keyless needs no API key and gets 0.5 requests per second (30 per minute). Free gets 1 RPS. Developer gets 10 RPS ($25 a month, 25M credits). Launch gets 50 RPS ($100 a month, 100M credits). Pro gets 150 RPS ($500 a month, 500M credits). Enterprise terms go through a contact form. The limit is a 60-second sliding window and applies per organisation, so extra keys or teams do not raise it. Jupiter says keyless access suits prototypes and agents, and production apps should use a key.",
+          "source": "https://developers.jup.ag/docs/portal/rate-limits.md",
+          "note": null
+        },
+        {
+          "text": "The standalone API docs site api-docs.kamino.com answers HTTP 301 and redirects to https://kamino.com/build/api-reference/introduction, for both the site root and a deep endpoint path (checked 2026-11-06). Search results that still link to api-docs.kamino.com therefore land on the new docs. The new introduction page does not mention rate limits; the rate-limit sentence appears in the OpenAPI info.description.",
+          "source": "https://api-docs.kamino.com",
+          "note": null
+        },
+        {
+          "text": "2.x publishes four entry points: `@0dotxyz/p0-ts-sdk` (client, wrapper, builders, types), `/vendor` (Pyth, deprecated Switchboard, Kamino, Jupiter Lend and Exponent integrations, split out to keep bundles small), `/jupiter` (`createJupiterClient`) and `/instructions` (raw Anchor builders). The 3.0.0-next.3 package drops `/instructions`. In the migration, vendor exports move from the main entry to `/vendor`, while `fetchOracleData` stays on the main entry.",
+          "source": "https://docs.0.xyz/typescript-sdk/overview",
+          "note": null
+        },
+        {
+          "text": "Loops and position swaps route through a multi-provider swap engine. In 3.0.0-next.2 the Jupiter adapter calls the Router `/build` endpoint at `https://api.jup.ag/swap/v2` and Titan quotes arrive over `wsUrl`; `SwapApiConfig.basePath` is deprecated and unused. The hosted API likewise routes loop and close-position swaps through Jupiter and Titan.",
+          "source": "https://github.com/0dotxyz/p0-ts-sdk/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter authenticates with an x-api-key header sent to api.jup.ag. A request with no header counts as keyless and is not rejected. HTTP 401 means the key was invalid or unknown. HTTP 403 means either the key's endpoint allow-list blocks the path (message 'API key does not have access to this endpoint') or a firewall rule fired (message 'Request blocked by firewall'). HTTP 429 carries '[API Gateway] Too many requests' for the plan limit and 'Too many requests' for a firewall rate-limit rule. New keys, permission changes and deletions take effect in about 15 seconds. A key allow-list matches by",
+          "source": "https://developers.jup.ag/docs/portal/responses.md",
+          "note": null
+        },
+        {
+          "text": "The Reading Data page's REST examples do not match the Data API spec. The page shows `GET /fundingRates?symbol=SOL-PERP` and `GET /trades?symbol=SOL-PERP&limit=100` with a `pageIndex` parameter, but the spec has no `/trades` or `/fundingRates` root path and no `pageIndex` parameter. The real routes are `/market/{symbol}/trades` and `/market/{symbol}/fundingRates` with a `page` cursor. Copy routes from `/openapi.json`, not from that page.",
+          "source": "https://docs.velocity.exchange/developers/ecosystem-builders/reading-data.md",
+          "note": null
+        },
+        {
+          "text": "A port that compiles can still misbehave, because several behaviors changed that the compiler cannot see. The funding floor and ceiling rose from 7.3% to 10.95% annualized. `MarketStatus` discriminants shifted (`ReduceOnly`, `Settlement`, `Delisted` went from 6, 7, 8 to 2, 3, 4), so custom raw-byte decoders misclassify markets. Bulk `place_orders` now checks initial margin per risk scope. Same-market deposits and transfers enforce per-market admission checks. The perp fee tier now comes from 30-day volume, with the gov-token stake discount removed. The agent guide lists 20 such items (sections",
+          "source": "https://docs.velocity.exchange/developers/migrate-from-drift.md",
+          "note": null
+        },
+        {
+          "text": "If a builder result has `mustBeAtomicBundle: true`, the transactions must land together as one atomic Jito bundle. The SDK sets it when the action transaction contains Kamino or Jupiter Lend refreshes, or when a bridged double-hop swap must land as one operation. The SDK ships no bundle sender; a bundle holds at most five transactions and needs a tip, which `makeBundleTipIx` builds. The hosted API says the same: sending bundle transactions one by one 'will fail or leave a position half-open'.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/transactions",
+          "note": null
+        },
+        {
+          "text": "The Lend SDK packages cannot be checked against public source from their own metadata. The registry entries for @jup-ag/lend and @jup-ag/lend-read declare no repository, homepage or bugs URL, and the latest versions carry no npm provenance attestation. The jup-ag/jupiter-lend repository that Jupiter's docs link holds only docs, Rust CPI reference code and Anchor IDLs and types (README.md, docs, references, target). @jup-ag/lend-read also lists vitest and unbuild as runtime dependencies.",
+          "source": "https://registry.npmjs.org/@jup-ag/lend",
+          "note": null
+        },
+        {
+          "text": "/build returns individual instructions, not a transaction: computeBudgetInstructions (price only, no limit), setupInstructions, swapInstruction, cleanupInstruction (nullable), otherInstructions, tipInstruction (when tipAmount is set), plus addressesByLookupTableAddress (a map from each lookup table address to its accounts, so no extra RPC fetch) and blockhashWithMetadata. Jupiter's recipe for a v0 transaction: order the instructions setup, swap, your own, cleanup, other, tip; simulate with a 1,400,000 compute-unit limit; set the final limit to 1.2 times unitsConsumed, capped at 1,400,000; clam",
+          "source": "https://developers.jup.ag/docs/swap/build/index.md",
+          "note": null
+        },
+        {
+          "text": "Program 0.1.10 went live on mainnet at 2026-08-25 15:00 UTC and inserts required accounts into six instructions, including `lending_account_end_flashloan` and `lending_account_pulse_health`. Project 0's docs say SDK versions below 2.7.0, and `marginfi-client-v2`, then fail on flash-loan flows (loops, swaps, repay-with-collateral), health simulation and account transfers, while reads still work. A symptom is `AnchorError caused by account: group. AccountNotEnoughKeys`; the fix is `@0dotxyz/p0-ts-sdk >= 2.7.0`. Only Project 0's own docs report this breakage.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/program-upgrade",
+          "note": null
+        },
+        {
+          "text": "Transactions from /build cannot be landed with /execute, because /build has no requestId and /execute validates that the transaction is unchanged. The caller sends through its own RPC, or through POST https://api.jup.ag/tx/v1/submit, which the April 2026 changelog made public: it accepts any signed Solana transaction and requires a minimum tip of 0.001 SOL to a supported tip receiver address.",
+          "source": "https://developers.jup.ag/docs/swap/build/index.md",
+          "note": null
+        },
+        {
+          "text": "@drift-labs/sdk` is frozen. Its last publish was 2.163.0-beta.13 on 2026-05-11, the `latest` dist-tag still points at that beta, and the package carries no deprecation flag. It targets the Drift program, which Velocity's migration guide says is paused. An integration must migrate to `@velocity-exchange/sdk`; it cannot upgrade in place.",
+          "source": "https://registry.npmjs.org/@drift-labs/sdk",
+          "note": null
+        },
+        {
+          "text": "Builder codes let a frontend charge its own fee on the order flow it routes. The fee rides on top of the taker fee and is capped at 1,000 tenth-bps (1% of filled notional); an order above the cap is rejected with `InvalidBuilderFee` (6319). Builders need a `RevenueShareAccount` and users need a `RevenueShareEscrow` with `numOrders` of at least 1. If the program's builder-code feature bit is clear, fills charge no builder fee and compute no referral rewards, and most paths fail silently.",
+          "source": "https://docs.velocity.exchange/developers/builder-codes.md",
+          "note": null
+        },
+        {
+          "text": "Error handling. /order errorCode depends on the router. Aggregator routers (metis, dflow, okx): 1 insufficient input balance, 2 insufficient SOL for gas, 3 swap below the gasless minimum. jupiterz: 1 insufficient balance, 2 missing associated token account, 3 quote could not be built into a transaction. /execute code: 0 success; -1 missing or expired requestId; -2 invalid signed transaction; -3 invalid message bytes; -1000 to -1005 aggregator failures (failed to land, unknown, invalid transaction, not fully signed, invalid block height, expired before landing); -2000 to -2004 RFQ failures (fai",
+          "source": "https://developers.jup.ag/docs/swap/order-and-execute.md",
+          "note": null
+        },
+        {
+          "text": "Importing @kamino-finance/klend-sdk into a Next.js client component fails with \"Module not found: Can't resolve 'fs'\" at ./node_modules/@kamino-finance/klend-sdk/dist/utils/signer.js:7:43 (issue #10, opened 2025-12-24, no replies). The cause is parseKeypairFile, which calls require('fs').readFileSync and ships in the main entry; line 7 of dist/utils/signer.js in 13.0.6 still does this. The package declares no exports or browser map. PR #4, which removes the fs imports for React Native, has been open since 2025-07-01. Keep the SDK server-side, or call the REST API from browser code.",
+          "source": "https://github.com/Kamino-Finance/klend-sdk/issues/10",
+          "note": null
+        },
+        {
+          "text": "REST paths mix unversioned, /v2 and /v3 prefixes. Kamino's APY recipe lists markets at GET /v2/kamino-market but reads reserve metrics at the unversioned GET /kamino-market/{pubkey}/reserves/metrics. The data spec marks two operations deprecated, GET /v2/kamino-market/{marketPubkey}/obligations/{obligationPubkey}/interest-fees and .../interest-paid; /v3 versions of both exist. The spec gives no sunset dates.",
+          "source": "https://api.kamino.finance/openapi/json?openapi=3.0.0",
+          "note": null
+        },
+        {
+          "text": "Health-cache simulation and explicit bundle simulation call the RPC method `simulateBundle`, so the RPC endpoint must support it. `simulateBundle(rpcEndpoint, transactions)` throws an error named `BundleSimulationError` when the RPC does not support it. The 3.x `initialize` takes the endpoint string next to the Kit `rpc` for this reason.",
+          "source": "https://github.com/0dotxyz/p0-ts-sdk/blob/main/README.md",
+          "note": null
+        },
+        {
+          "text": "Accounts are resized in place, so a dataSize filter rots. Velocity's extend_account grows zero-copy accounts (grow-only, idempotent, permissioned), and its docs say to decode length-tolerantly, never assert data.length equals the compiled size, and filter getProgramAccounts by the 8-byte discriminator with memcmp. MarginFi's 0.1.10 deploy resized MarginfiGroup and FeeState on chain, and its v1-sized FeeState cannot be loaded until resized.",
+          "source": "https://docs.velocity.exchange/developers/concepts/account-model.md",
+          "note": null
+        },
+        {
+          "text": "The /swap/v2/execute endpoint has its own rate-limit bucket, separate from the main limit: Keyless 20 RPS, Free 50 RPS, and 100 RPS for Developer, Launch and Pro. Execute calls cost 0 credits and do not count against the main bucket, so a Developer organisation can make 10 main requests and 100 /execute requests in the same second. Heavy /order polling therefore does not throttle transaction landing.",
+          "source": "https://developers.jup.ag/docs/portal/rate-limits.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter's Pool Account page is out of sync with the IDL it links: it lists increasePositionBps and decreasePositionBps under Pool.fees and prints a shifted type column (decreasePositionBps as publicKey, swapBps as Limit), while the community IDL's Fees struct is swapMultiplier, stableSwapMultiplier, addRemoveLiquidityBps, swapBps, taxBps, stableSwapBps, stableSwapTaxBps, liquidationRewardBps and protocolShareBps (all u64) and the two position fees sit on Custody. Take field types from the IDL, not the docs table.",
+          "source": "https://developers.jup.ag/docs/perps/pool-account.md",
+          "note": null
+        },
+        {
+          "text": "GET /order needs inputMint, outputMint and amount (smallest input unit). A taker wallet is needed to get a transaction (the guide lists it as required, the API reference as optional): without taker the response is a quote with transaction: null. If a router can price the swap but cannot build a transaction, transaction is an empty string and errorCode/errorMessage explain why, so a 200 response is executable only when transaction is non-empty. Match on router plus errorCode, not on errorMessage, which may be parameterised.",
+          "source": "https://developers.jup.ag/docs/swap/order-and-execute.md",
+          "note": null
+        },
+        {
+          "text": "Do not edit, delay or reuse an /order transaction. Transactions routed through JupiterZ cannot be modified after /order returns them, and the Metis-to-Meta-Aggregator guide says the transaction cannot be modified at all, pointing CPI and custom-instruction needs to /build. Sign with partial signing (partiallySignTransaction in @solana/kit) because a JupiterZ market maker adds its signature during /execute, and submit immediately: aggregator transactions expire after lastValidBlockHeight and RFQ quotes expire at expireAt, usually sooner.",
+          "source": "https://developers.jup.ag/docs/swap.md",
+          "note": null
+        },
+        {
+          "text": "POST /ktx/klend/deposit requires wallet, market, reserve and amount, and accepts an optional memo of 1 to 64 bytes. amount is a decimal string in token units ('0.1234'), not lamports. The wallet must also sign the returned transaction. The spec documents only 200 and 400 responses, and lists these error code values: KLEND_MARKET_NOT_FOUND, KLEND_RESERVE_NOT_FOUND, KLEND_OBLIGATION_NOT_FOUND, KVAULT_NOT_FOUND, DECIMAL_TO_LAMPORTS_OVERFLOW, TRANSACTION_SIZE_ERROR.",
+          "source": "https://api.kamino.finance/ktx/documentation/json",
+          "note": null
+        },
+        {
+          "text": "Do not ship a Jupiter server key in a browser, mobile app or extension. A server key exposes the organisation's full rate limit and credits to anyone who copies it. Since October 2026 Jupiter offers publishable keys for public clients. A publishable key behaves like a keyless request: same per-IP keyless rate limits, same endpoints, 0 credits, never billed. It only adds attribution in analytics and Swap routing. Conversion of an existing key is one-way and takes effect in about 15 seconds. Keep calls that need plan limits or protected endpoints on a backend with a server key.",
+          "source": "https://developers.jup.ag/changelog/2026-10",
+          "note": null
+        },
+        {
+          "text": "To close out fully, the REST API takes the literal string MIN_I128 (-170141183460469231731687303715884105728) as `debtAmount` to repay all debt, clearing accrued-interest dust, or as `colAmount` to withdraw all collateral. The TypeScript SDK instead exports the already-negative sentinels MAX_REPAY_AMOUNT and MAX_WITHDRAW_AMOUNT from @jup-ag/lend/borrow; pass them as-is, without .neg(). Repaying the exact displayed `borrow` can leave dust below `minimumBorrowing` and fail with VaultUserDebtTooLow.",
+          "source": "https://developers.jup.ag/docs/lend/borrow/api.md",
+          "note": null
+        },
+        {
+          "text": "Error 'AnchorError caused by account: group. AccountNotEnoughKeys' on a loop/swap or simulateBundle health simulation means a 0.1.9-style end_flashloan or pulse_health instruction reached a 0.1.10 program, which inserted required accounts (group, and fee_state for transfer_to_new_account) into six instructions; build with p0-ts-sdk 2.7.0 or later.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/program-upgrade",
+          "note": null
+        },
+        {
+          "text": "A perps trade is an on-chain request. The trader's action creates a PositionRequest account, a PDA derived from the Position account, constant seeds and a random counter, plus a PositionRequestATA token account that holds the tokens in transit. Non-TP/SL requests close as soon as they are executed or rejected. TP/SL requests stay on-chain until triggered. Each request has an `executed` flag. The CLI's types identify both limit orders and TP/SL orders by `positionRequestPubkey`.",
+          "source": "https://developers.jup.ag/docs/perps/position-request-account.md",
+          "note": null
+        },
+        {
+          "text": "Program 0.1.11 adds nine oracle setups (`OracleSetup` variants 18 to 26: `Scope`, `PythMSOL`, `KaminoMSOL`, `JuplendMSOL`, `PythLST`, `KaminoLST`, `JuplendLST`, `PTPyth`, `PTFixed`). The docs say banks start moving to them from 2026-09-04. SDK 2.7.x and older then throw `TypeError: Cannot read properties of null (reading 'property')`, because `Project0Client.initialize` decodes every bank; the fix is `>= 2.8.0`. Callers of `fetchOracleData` must pass the new `scopeOpts` and `oracleMultiplierOpts`, or those banks price at 0.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/program-upgrade-0-1-11",
+          "note": null
+        },
+        {
+          "text": "Kamino reserves carry two on-chain caps that throttle net flow over a sliding interval: depositWithdrawalCap for the collateral side and debtWithdrawalCap for the debt side. Each is set in token base units with configCapacity and configIntervalLengthSeconds (the example uses 86400), and configCapacity of 0 disables the cap. The next operation that would push net flow above the cap reverts. The docs name no error code. download-reserve-config returns currentTotal and lastIntervalStartTimestamp, so a client can check the remaining capacity before it sends. These caps are separate from depositLim",
+          "source": "https://kamino.com/docs/curators/markets/withdrawal-caps.md",
+          "note": null
+        },
+        {
+          "text": "The first-party Jupiter CLI calls an undocumented hosted Perps API at https://perps-api.jup.ag/v2. Its client uses GET market-stats, positions, orders/limit and trades; POST positions/increase, positions/decrease, positions/close-all, orders/limit, tpsl and transaction/execute; PATCH orders/limit and tpsl; DELETE orders/limit and tpsl. The write endpoints return `serializedTxBase64` with a quote and `txMetadata` for the caller to sign.",
+          "source": "https://raw.githubusercontent.com/jup-ag/cli/main/src/clients/PerpsClient.ts",
+          "note": null
+        },
+        {
+          "text": "SDK 2.10.0 tracks marginfi program 0.1.12 (GitHub release 'marginfi 0.1.12 + variable borrow premium'). `makeDepositTx`, `makeKaminoDepositTx`, `makeDriftDepositTx`, `makeJuplendDepositTx`, `makeLoopTx` and `makeSwapCollateralTx` throw `COSTLY_POSITION_LIMIT_EXCEEDED` when a deposit would open a fifth integration or staked position (on-chain error 6073); `MAX_COSTLY_POSITIONS` is 4 in 2.12.0 and 3.0.0-next.3. `makeRollPtTx` now refreshes held integration banks first, because 0.1.12 `end_flashloan` reverts with error 6615 when collateral cannot be priced.",
+          "source": "https://github.com/0dotxyz/p0-ts-sdk/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "Upgrade workflow: the staging deployments run the next program version ahead of each mainnet flip (`staging` ran 0.1.10 from 2026-08-03 and mainnet flipped on 2026-08-25; `staging-mainnet-clone` already ran 0.1.11), so test the new SDK against `getConfig('staging-mainnet-clone')` before the flip. Simulate every builder result before signing (`connection.simulateTransaction`, or `simulateBundle` for multi-transaction results) and treat a non-null `err` as a failure.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/program-upgrade",
+          "note": null
+        },
+        {
+          "text": "On JLP-pool markets a keeper, an automated off-chain service run by Jupiter, executes trades in one of two modes. In 'Request' mode the trader signs a request and the keeper detects, validates and executes it in a second transaction; limit and TP/SL orders always run this way. In 'Single transaction' mode the trader signs one transaction that the keeper co-signs and executes at once. A confirmed request transaction therefore does not mean the position opened. The CLI's TP/SL and cancel responses carry a `requireKeeperSignature` flag.",
+          "source": "https://docs.jup.ag/user-docs/trade/perps",
+          "note": null
+        },
+        {
+          "text": "Per the developer docs, a Position account address derives from the trader's wallet, the custody, the collateral custody and constant seeds. A trader therefore holds at most one position per market, side and collateral token: Long SOL, wETH and wBTC, and Short on each with USDC or USDT collateral, nine in total. Jupiter's integrating-jupiter skill repeats the limit of nine. Jupiter's user docs give a different limit (see disagreements).",
+          "source": "https://developers.jup.ag/docs/perps/position-account.md",
+          "note": null
+        },
+        {
+          "text": "The CLI's perps scope is the JLP-pool markets only. Its asset list is hard-coded to SOL, BTC and ETH. Collateral can be SOL, BTC, ETH or USDC, the minimum collateral is $10 per new position, and slippage defaults to 200 bps. TP/SL cannot be combined with a limit order. There is no add-collateral command; the documented workaround is to open on the same asset and side at minimum leverage.",
+          "source": "https://raw.githubusercontent.com/jup-ag/cli/main/docs/perps.md",
+          "note": null
+        },
+        {
+          "text": "The Borrow API does not wrap or unwrap native SOL. A deposit into a vault whose supply token is WSOL (So11111111111111111111111111111111111111112) fails with a token-program 'insufficient funds' error until the signer's WSOL account is funded. Wrap slightly more than the deposit, because the transfer rounds up by a few base units. Borrowing or withdrawing WSOL leaves wrapped SOL in the WSOL token account.",
+          "source": "https://developers.jup.ag/docs/lend/borrow/api.md",
+          "note": null
+        },
+        {
+          "text": "Do not assume Borrow vaults are risk-isolated from Earn. Instadapp's README says all protocols 'share the same liquidity pool' through one Liquidity layer. Coin-Turk reported on 2025-12-07 that Jupiter Lend's COO conceded earlier 'zero contagion risk' wording was not entirely accurate and that Fluid's co-founder confirmed 'rehypothecation'. The API exposes the shared-pool limits to read before acting: withdrawable and withdrawalLimit for Earn, borrowable and borrowLimitUtilization for Borrow.",
+          "source": "https://raw.githubusercontent.com/Instadapp/fluid-solana-programs/main/README.md",
+          "note": null
+        },
+        {
+          "text": "A gateway that starts against a rate-limited RPC fails with 429 errors while it pulls market data and opens subscriptions in bursts. The README shows the error 'Some(GetProgramAccounts), kind: Reqwest(reqwest::Error { kind: Status(429), ...'. Set INIT_RPC_THROTTLE to the number of seconds to pause between bursts; the README suggests 2 or more, and 0 is fine on a high-spec RPC node. The README also says the free public RPC has limited support because of its rate limits.",
+          "source": "https://github.com/velocity-exchange/gateway",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Velocity is a fork of Drift Protocol v2 taken at Drift SDK v2.163.0-beta.0. It is a new onchain program deployment with its own program ID and its own SDK package, not an upgrade of Drift in place. The Drift program is paused, no onchain state carries over, and every PDA address differs from Drift's.",
+          "source": "https://docs.velocity.exchange/developers/migrate-from-drift.md",
+          "note": null
+        },
+        {
+          "text": "The DLOB is scheduled for removal. The DLOB docs page opens with a note that 'the DLOB is to be removed' and that an order will rest in one CLOB market account instead of the owner's `User` account, with PropAMM order flow alongside. Solana Compass says the CLOB and Prop AMM were still planned on 2026-09-29, and npm carries a `propamm` pre-release dist-tag (0.27.0-propamm.1, 2026-10-14). Code that rebuilds the book from `User` accounts (`OrderSubscriber`, `DLOBSubscriber`, velocity-rs DLOB) will need rework when that ships.",
+          "source": "https://docs.velocity.exchange/developers/ecosystem-builders/orderbook-and-ws.md",
+          "note": null
+        },
+        {
+          "text": "Client libraries lag the API. The jup-ag/jupiter-swap-api-client Rust README builds its client with https://quote-api.jup.ag/v6 and wraps /quote, /swap and /swap-instructions, shows no V2 usage and carries no deprecation notice. Jupiter's V2 guides call the REST API with plain fetch and sign with @solana/kit or @solana/web3.js rather than a Jupiter SDK.",
+          "source": "https://github.com/jup-ag/jupiter-swap-api-client",
+          "note": null
+        },
+        {
+          "text": "Legacy V1 (Metis) pitfalls that still bite old code: the Metis guide says to always pass instructionVersion=V2 (needed for native SOL output and Token-2022 platform fees), set dynamicComputeUnitLimit true, never set both a compute-unit price and prioritizationFeeLamports (error INVALID_COMPUTE_UNIT_PRICE_AND_PRIORITIZATION_FEE), re-quote instead of reusing stale quotes, and treat priceImpactPct as a 0 to 1 decimal. OrbitFlare adds that maxAccounts should stay at 64 or more because a lower value silently drops DEXes that need more accounts, and that Jito tips have no effect unless the transacti",
+          "source": "https://developers.jup.ag/docs/guides/how-to-build-a-custom-swap-with-metis",
+          "note": null
+        },
+        {
+          "text": "@velocity-exchange/sdk` is the Velocity TypeScript SDK (Apache-2.0). npm lists 39 versions since the package was created on 2026-05-18. `latest` was 0.27.0 (published 2026-10-26), and a `propamm` dist-tag points at 0.27.0-propamm.1. The package needs Node 20.18.0 or newer, ships CommonJS only, and bundles pinned `@solana/web3.js` 1.99.0 and `@anchor-lang/core` 1.0.1 (aliased as `@coral-xyz/anchor`) instead of using peer dependencies.",
+          "source": "https://registry.npmjs.org/@velocity-exchange/sdk",
+          "note": null
+        },
+        {
+          "text": "Since October 2026 the Swap API supports opt-in Solana v1 transactions (4096-byte limit instead of 1232, up to 64 accounts inlined, no address lookup tables needed). /build takes transactionVersion=1 and then returns empty computeBudgetInstructions and addressesByLookupTableAddress plus a computeUnitPrice to set on the message config. /order takes maxSupportedTransactionVersion=1, which is a ceiling: v1 comes back only when Metis wins and the order is not gasless, so read the response transactionVersion. v1 needs @solana/kit v8 or later (web3.js v1 cannot read v1), v0 stays the default and is",
+          "source": "https://developers.jup.ag/changelog/2026-10",
+          "note": null
+        },
+        {
+          "text": "Both Lend read endpoints answered without an API key on 2026-11-06, consistent with Jupiter's keyless tier of 0.5 RPS on api.jup.ag, although the OpenAPI specs mark every operation with ApiKeyAuth. GET /lend/v1/earn/tokens returned 7 Earn tokens. GET /lend/v1/borrow/vaults returned one unpaginated array of at least 36 vaults, about 237,000 characters of JSON, with oracle, liquidity, rewards and minimumBorrowing fields beyond the OpenAPI example. Cache the vault list instead of polling it.",
+          "source": "https://api.jup.ag/lend/v1/earn/tokens",
+          "note": null
+        },
+        {
+          "text": "On Velocity mainnet-beta the cross-margin quote asset (spot market 0) is USDT, not USDC; devnet uses a dUSDT placeholder. Both are 6-decimal tokens, so nothing type-checks differently, and a desk that funds accounts with USDC deposits the wrong token. The SDK config field `USDC_MINT_ADDRESS` is now `QUOTE_MINT_ADDRESS`; read `getConfig().QUOTE_MINT_ADDRESS` instead of hardcoding a mint. Solana Compass reports the April 2026 recovery deal moved the exchange from Circle's USDC to Tether's USDT.",
+          "source": "https://docs.velocity.exchange/developers/migrate-from-drift.md",
+          "note": null
+        },
+        {
+          "text": "Any optional /order parameter (for example slippageBps, referralAccount, payer, priorityFeeLamports, excludeRouters) switches the response mode from 'ultra' to 'manual' and may restrict routing; Jupiter says that by opting into custom parameters the integrator takes responsibility for the swap outcome. The API reference lists these optional inputs: receiver (a wallet that must differ from taker), swapMode (ExactIn only), slippageBps (0 to 10000), referralAccount with referralFee, payer, priorityFeeLamports, jitoTipLamports, broadcastFeeType (maxCap or exactFee), excludeRouters (comma-separated",
+          "source": "https://developers.jup.ag/docs/swap/order-and-execute.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter's Trigger Order API V2 (limit orders and DCA) authenticates orders with a wallet-signature challenge and verify flow instead of API keys, per the March 2026 changelog. The gateway still meters the login calls: the plans page lists /trigger/v2/auth/challenge and /trigger/v2/auth/verify at 1 credit each.",
+          "source": "https://developers.jup.ag/changelog/2026-03",
+          "note": null
+        },
+        {
+          "text": "New major versions arrive 19 to 39 days apart. The registry shows 8.0.0 on 2026-05-20, then 9.0.0 (06-18), 10.0.0 (07-27), 11.0.0 (08-21), 12.0.0 (09-09) and 13.0.0 (09-30). The previous major, 7.0.0, came out 2025-07-22. The repo's EPIC_CHANGELOG.md shows how large the breaks can be: reserve lookups switch from mint to reserveAddress, slot becomes a required argument, and every KaminoAction builder moves from positional arguments to a props object. That file does not say which npm major carries these changes. The Solana Foundation's integration pins the exact version 10.0.0 instead of a range",
+          "source": "https://registry.npmjs.org/@kamino-finance/klend-sdk",
+          "note": null
+        },
+        {
+          "text": "As of 2026-11-06 docs.drift.trade answers HTTP 307 and redirects to docs.velocity.exchange, so old Drift doc URLs such as /developers/concepts/account-model return Velocity content (PerpMarket 1560 bytes, velocity_state) rather than Drift v2 layouts. Use the drift-labs/protocol-v2 repo for Drift v2 layouts.",
+          "source": "https://docs.drift.trade/developers/concepts/account-model",
+          "note": null
+        },
+        {
+          "text": "Treat perps-api.jup.ag as an unsupported surface. Jupiter's docs call the Perps API work in progress. The CLI that uses it is labelled 'pre-v1 (early alpha)' with 'Breaking changes may be introduced without warning'. The CLI's npm latest (0.10.1, published 2026-06-02) trails its GitHub repository (last push 2026-10-10), so endpoints read from main may differ from the published binary. The pages read state no versioning or deprecation policy for /v1 and /v2.",
+          "source": "https://developers.jup.ag/docs/ai/cli.md",
+          "note": null
+        },
+        {
+          "text": "The Borrow REST API is recent. Jupiter's June 2026 changelog (2026-06-30) lists 'Borrow REST API documented' and says integrators can now borrow 'from any language without the TypeScript SDK', so pre-June 2026 material that says the REST API lacks Borrow is outdated. Jupiter's own API vs SDK page still recommends the Lend SDK for Borrow transactions and the Read SDK for Borrow positions.",
+          "source": "https://developers.jup.ag/changelog/2026-06",
+          "note": null
+        },
+        {
+          "text": "The CLI's Lend integration reads through three REST endpoints only: GET earn/tokens, earn/positions and earn/earnings. It calls api.jup.ag when an API key is configured and lite-api.jup.ag otherwise. Its `lend earn deposit` builds a Jupiter Swap from the underlying asset mint to the jlToken mint instead of calling POST /lend/v1/earn/deposit.",
+          "source": "https://raw.githubusercontent.com/jup-ag/cli/main/src/clients/LendClient.ts",
+          "note": null
+        },
+        {
+          "text": "klend-sdk converts every Decimal to mint atoms and floors silently. A value finer than the mint (for example 1.0000009 on a six-decimal mint) moves only 1.000000 on chain, and a minSharesOut below one atom becomes 0, which gives no slippage protection. The Solana Foundation integration rejects values finer than the mint instead of clamping them.",
+          "source": "https://raw.githubusercontent.com/solana-foundation/solana-developer-platform/main/packages/sdp-kamino/CLAUDE.md",
+          "note": null
+        },
+        {
+          "text": "Anchor 0.31 keeps the default 8-byte hash but lets a program override it, for example #[account(discriminator = 1)], with any length (the IDL generator rejects empty ones); renaming a type also changes its default hash. Read discriminators from the program's IDL instead of assuming sha256('account:Name')[..8] for every Anchor program.",
+          "source": "https://anchor-lang.com/docs/updates/release-notes/0-31-0",
+          "note": null
+        },
+        {
+          "text": "Jupiter's Custody Account page lists six JLP custodies (SOL, ETH, BTC, USDC, USDT, JupUSD), but the community repo that Jupiter links hardcodes only five custody addresses (SOL 7xS2gz2bTp3fwCC7knJvUWTEU9Tycczu6VhJYKgi1wdz, ETH AQCGyheWPLeo6Qp9WpYS9m3Qj479t7R636N9ey1rEjEn, BTC 5Pv3gM9JrFFH883SWAhvJC9RPYmo8UNxuFtv5bMMALkm, USDC G18jKKXQwBbrHeiK3C9MRXhkHsLHf7XgCSisykV46EZa, USDT 4vkNeXiYEUizLdrpdPS1eC2mccyM4NUPRtERrk6ZETkk), and the Position page still enumerates nine position combinations. Read the custody list from the Pool account's custodies vector instead of hardcoding it.",
+          "source": "https://developers.jup.ag/docs/perps/custody-account.md",
+          "note": null
+        },
+        {
+          "text": "Live Earn token payloads differ from the published spec. The live `asset` object uses camelCase keys (chainId, logoUrl, coingeckoId) plus uiSymbol and updatedAt, and liquiditySupplyData has decayAmount and decayEndTimestamp. lend.yaml documents snake_case keys (chain_id, logo_url, coingecko_id), and the CLI's LendAsset type follows the snake_case form. Code generated from the spec, or typed like the CLI, can silently read undefined.",
+          "source": "https://api.jup.ag/lend/v1/earn/tokens",
+          "note": null
+        },
+        {
+          "text": "Jupiter's Lend guides pin integrators to @solana/web3.js v1 ('Using v1 of web3.js instead of v2'). @jup-ag/lend 0.4.0, 0.5.0-beta.1 and 1.0.0-alpha.1 all depend on @solana/web3.js ^1.98.4; the 1.0.0-alpha.1 build swaps @coral-xyz/anchor ^0.31.1 for @anchor-lang/core ^1.2.1. Jupiter's CLI uses @solana/kit ^6.7.0 and @jup-ag/lend-read also declares @solana/kit ^5.0.0, so a project that mixes them carries two Solana client generations.",
+          "source": "https://developers.jup.ag/docs/lend/earn/api.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Changes and history",
+      "facts": [
+        {
+          "text": "SIMD-0525 cut mainnet slot time in four steps: 400 to 350 ms at epoch 1020 (2026-08-21), 300 ms at epoch 1024 (2026-08-28), 250 ms at epoch 1037, and 200 ms at epoch 1053 (began 2026-10-09). Measured averages were 365.4 to 366.8 ms, 315.0 to 317.4 ms, 265.8 to 268.6 ms, and 218.3 ms for the first full 200 ms epoch. A slot duration hard-coded before October 2026 therefore overstates real slot time.",
+          "source": "https://solanacompass.com/news/solanas-first-full-epoch-at-the-200ms-slot-time-target-averaged-2183ms-and-lasted-262-hours",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "A `VelocityClient` takes `{connection, wallet, env}`, where `env` is `devnet` or `mainnet-beta` (default `mainnet-beta`). Call `subscribe()` before reading state and `unsubscribe()` on shutdown. Install with `npm i @velocity-exchange/sdk` or `bun add @velocity-exchange/sdk`. The wallet needs SOL for transaction fees and account rent, and the docs recommend `confirmed` commitment.",
+          "source": "https://docs.velocity.exchange/developers/velocity-sdk/setup.md",
+          "note": null
+        },
+        {
+          "text": "Swift lets a taker sign an order offchain and have a keeper land the fill. The taker builds params with `getMarketOrderParams`, signs with `velocityClient.signSignedMsgOrderParamsMessage` using a unique `generateSignedMsgUuid()` uuid, and POSTs `message` (hex text), `signature` (base64), `taker_authority` and optional `signing_authority` to `https://swift.velocity.exchange/orders`. The websocket is `wss://swift.velocity.exchange/ws` (mainnet) or `wss://swift.master.velocity.exchange/ws` (devnet). The taker pays no transaction fee and waits on no confirmation; settlement is onchain. The Gateway",
+          "source": "https://docs.velocity.exchange/developers/velocity-sdk/swift.md",
+          "note": null
+        },
+        {
+          "text": "A PDA depends on the program ID as well as the seeds. Velocity reuses Drift's seed strings under a new program ID, so every Drift-derived address is wrong on Velocity even where the seeds match; delete cached Drift addresses and re-derive them with the SDK helpers, which run offchain at no RPC cost.",
+          "source": "https://docs.velocity.exchange/developers/migrate-from-drift.md",
+          "note": null
+        },
+        {
+          "text": "Helius caps getProgramAccounts separately, at 5, 25, 50 and 75 requests per second on Free, Developer, Business and Professional. That is the heaviest read pattern in the Kamino Rust recipe and the Velocity gateway startup, so a free tier throttles it first. Helius Sender keyless /fast requests get 1 request per second per egress IP per region, and a project API key raises that to 50 per second per key per region.",
+          "source": "https://www.helius.dev/docs/billing/rate-limits",
+          "note": null
+        },
+        {
+          "text": "As of 2026-11-06 OtterSec's verification API returns is_verified=false (message 'On chain program not verified') for Drift v2, MarginFi v2, Velocity, Jupiter Swap v6 and Jupiter Perps; for Drift and MarginFi a repo URL is recorded but no verified build matches the on-chain program. For these programs a struct definition in a repo is not proven to match the deployed binary, so check discriminator and account length against a live account.",
+          "source": "https://verify.osec.io/status/dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH",
+          "note": null
+        },
+        {
+          "text": "The Velocity Data API is served from `https://data.velocity.exchange`. It indexes protocol events (fills, funding payments, liquidations, deposits, settlements, insurance-fund movements) and exposes them as REST for dashboards, portfolio views, tax exports, charts and backtests. Its OpenAPI 3.0 contract at `/openapi.json` is titled 'Velocity Data API' version 1.0.0 and lists 101 paths with 104 operations in 11 tags (User 29, Stats 20, Market 17, Authority 12, Transactions 8, Notifications 7, AMM 5, Public 2, Recovery Pool 2, WebSocket 1, External 1). It does not serve live orders, positions, m",
+          "source": "https://docs.velocity.exchange/developers/data-api.md",
+          "note": null
+        },
+        {
+          "text": "The Data API WebSocket at `GET /ws` takes a `subscribe` message with a `channelType`. The `candle` (symbol, resolution), `markets`, `pricing` and `notifications` (authority) channels work; `candle` messages omit the usual `channelType` and `channel` envelope. The `orderbook` and `user` channels are listed but have no server handler and return 'Unknown channel type'. For a live book, use the DLOB websocket instead.",
+          "source": "https://docs.velocity.exchange/developers/data-api.md",
+          "note": null
+        },
+        {
+          "text": "VelocityClient reads account state in one of three modes, and each puts a different load on the RPC. Websocket is the default and pushes updates per account, but many RPC endpoints cap concurrent subscriptions. Polling uses BulkAccountLoader(connection, commitment, pollingFrequencyMs) to batch getMultipleAccounts calls, which gives predictable request volume on any RPC. The grpc mode uses a Yellowstone/Geyser stream and needs a gRPC-enabled provider such as Jito or Triton, an auth token, and usually a paid plan. Helius gates gRPC the same way: LaserStream gRPC is off on Free, devnet-only on De",
+          "source": "https://docs.velocity.exchange/developers/velocity-sdk/sdk-internals.md",
+          "note": null
+        },
+        {
+          "text": "The Kamino TypeScript SDK needs an RPC that the caller supplies. The docs say it requires 'a private RPC connection or the public rate-limited RPC endpoint', and the samples build the connection with createSolanaRpc('https://api.mainnet-beta.solana.com'), plus a wss:// subscription client for confirmation. The Rust market-data recipe reads reserves with getProgramAccounts, using a memcmp filter on the lending market and a data-size filter. Treat the public endpoint in these samples as a placeholder and swap in a private RPC before production.",
+          "source": "https://kamino.com/docs/build/developers/borrow/data/market-data.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter's current swap API is Swap API V2, served from https://api.jup.ag/swap/v2. The March 2026 changelog announced it as a single entry point that consolidates the earlier Ultra and Metis APIs: GET /order (assembled transaction with the best price across routers, the default path), POST /execute (managed landing for /order transactions) and GET /build (advanced path that returns raw swap instructions).",
+          "source": "https://developers.jup.ag/changelog/2026-03",
+          "note": null
+        },
+        {
+          "text": "Project 0 hosts an agent API. MCP is at `https://ai.0.xyz/mcp` (stateless Streamable HTTP, no API key or session handshake) and REST is under `https://ai.0.xyz/v1`. The OpenAPI 3.1 document ('Project 0 Agent API' 0.1.0) lists 25 paths: reads (banks, strategies, wallet, account, health, history, vaults, activity) and `POST /v1/tx/*` builders for create-account, deposit, borrow, withdraw, repay, loop, close-position, swap-collateral, swap-debt, swap, vault, simulate and submit. Transaction endpoints return unsigned base64 transactions; the caller's wallet signs.",
+          "source": "https://docs.0.xyz/llms.mdx/guides/mcp-server",
+          "note": null
+        },
+        {
+          "text": "Account size constants do not share one convention, so add 8 or not per codebase. Kamino's LENDING_MARKET_SIZE 4656, RESERVE_SIZE 8616 and OBLIGATION_SIZE 3336 are size_of struct sizes, and klend-sdk adds 8 for dataSize filters (Obligation.layout.span + 8). MarginFi's type-crate describes a v1 account as 8 + V1_LEN bytes. Velocity's docs and Size constants (User 4496, PerpMarket 1560, SpotMarket 1064, State 1752) are full account-data lengths including the discriminator.",
+          "source": "https://raw.githubusercontent.com/Kamino-Finance/klend/master/programs/klend/src/utils/consts.rs",
+          "note": null
+        },
+        {
+          "text": "Metis V1 to Meta-Aggregator: GET /swap/v1/quote plus POST /swap/v1/swap plus self-managed sending become GET /swap/v2/order (taker replaces the userPublicKey body field, and there is no quoteResponse) plus POST /swap/v2/execute (signedTransaction and requestId). Managed execution removes RPC management and priority-fee tuning and adds automatic gasless for takers with under 0.01 SOL, but gives up transaction modification.",
+          "source": "https://developers.jup.ag/docs/swap/migration/metis-to-meta-aggregator.md",
+          "note": null
+        },
+        {
+          "text": "The velocity-rs Setup page says the crate needs Solana 3.x crates (`solana-rpc-client` 3.1). The repo is newer: the `rust/Cargo.toml` comment says velocity-rs, keep-rs and swift use the solana 4.x RPC and transaction crate line while the program crate stays on solana-program 3 and Anchor 1.0, and the README asks for Solana CLI 4.3 or newer. Trust the manifest over the Setup page, and import Solana types from the `velocity_rs` re-exports to avoid version mismatches.",
+          "source": "https://docs.velocity.exchange/developers/velocity-rs/setup.md",
+          "note": null
+        },
+        {
+          "text": "Kamino publishes two machine-readable OpenAPI documents. 'Kamino Public API' v1.0.0 (OpenAPI 3.0.0, 117 operations) is at https://api.kamino.finance/openapi/json?openapi=3.0.0 and covers reads. 'Kamino Transactions API' v1.0.0 (OpenAPI 3.1.0, 12 POST operations) is at https://api.kamino.finance/ktx/documentation/json and builds transactions. Both name https://api.kamino.finance as the only server.",
+          "source": "https://api.kamino.finance/openapi/json?openapi=3.0.0",
+          "note": null
+        },
+        {
+          "text": "Velocity (the Drift v2 fork) program ID is vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P, the same string on devnet and mainnet-beta. The SDK keeps two constants, VELOCITY_PROGRAM_ID and VELOCITY_DEVNET_PROGRAM_ID, so the two can diverge without a code change. Velocity's docs, its monorepo README and Solana Compass's Drift profile all list this address.",
+          "source": "https://docs.velocity.exchange/developers/concepts/program-vault-addresses.md",
+          "note": null
+        },
+        {
+          "text": "Kamino offers three programmatic surfaces for Kamino Lend. The REST API (base URL https://api.kamino.finance) serves data, analytics and unsigned transactions in any language. The TypeScript SDK @kamino-finance/klend-sdk reads on-chain state and builds transactions, in TS/JS only. The Rust klend-interface crate is a lightweight instruction builder for Rust clients, bots and on-chain CPI.",
+          "source": "https://kamino.com/docs/build/developers/api-vs-sdk.md",
+          "note": null
+        },
+        {
+          "text": "Project0Client.initialize` loads the group, every bank, oracle prices, mint data, lookup tables and integration metadata once; the docs say to reuse one client per application. `client.banks` is an array (the old SDK used a `Map`) with `getBank(address)` and `getBanksByMint(mint, assetTag?)`. One mint can have several banks, for example a standard bank plus Kamino or Jupiter Lend wrapper banks, so filter with `AssetTag` (such as `AssetTag.DEFAULT`).",
+          "source": "https://docs.0.xyz/docs/typescript-sdk/getting-started",
+          "note": null
+        },
+        {
+          "text": "The Jupiter Lend IDs above are for the main market only. The jupiter-lend README says the SDK's market parameter also selects an ethena market, which is a separate deployment with its own program IDs, and that the devnet programs in the CPI guides were last deployed in May 2025 and do not match the current IDLs.",
+          "source": "https://raw.githubusercontent.com/jup-ag/jupiter-lend/main/README.md",
+          "note": null
+        },
+        {
+          "text": "The velocity-v1 monorepo is public on GitHub under Apache-2.0 (created 2026-04-07, last push 2026-11-04). It holds the onchain program (`programs/velocity`), the TypeScript SDK (`packages/sdk`), the Rust workspace (`rust/velocity-rs`, `rust/keep-rs`, `rust/swift`), the services (`apps/dlob-server`, `apps/keeper-bots-v2`, `apps/usermap-server`) and the Drift migration reference `docs/DRIFT-TO-VELOCITY.md`.",
+          "source": "https://api.github.com/repos/velocity-exchange/velocity-v1",
+          "note": null
+        },
+        {
+          "text": "The Drift-named GitHub repositories moved into the velocity-exchange organisation and were archived: protocol-v2, driftpy, drift-rs, dlob-server, keeper-bots-v2, jit-proxy, swift, usermap-server, v2-teacher and drift-vaults (last pushes 2026-06-23 to 2026-07-08). The gateway and velocity-common (formerly drift-common) repos stay active. The drift-labs organisation now lists only drift-fork-rehearsal and drift-labs.github.io.",
+          "source": "https://api.github.com/orgs/velocity-exchange/repos?per_page=100",
+          "note": null
+        },
+        {
+          "text": "The docs describe an older SDK than npm serves. The Developers page, the migration guide and the agent guide all name `@velocity-exchange/sdk` 0.20.0 (published 2026-09-02), but `latest` was 0.27.0 on 2026-10-26. The package is pre-1.0 and shipped seven further minor releases in the eight weeks after 0.20.0, so pin an exact version and check symbols against the installed package, not the docs.",
+          "source": "https://docs.velocity.exchange/developers.md",
+          "note": null
+        },
+        {
+          "text": "Velocity has no Python SDK. The Developers page says so, and `driftpy`, the Drift-era Python client, is stale: PyPI's latest release is 0.8.89 from 2026-02-18, before the exploit, and its GitHub repo is archived under the velocity-exchange organisation. A Python integration has to call the REST surfaces (Data API, Gateway, DLOB server) or port the client itself.",
+          "source": "https://docs.velocity.exchange/developers.md",
+          "note": null
+        },
+        {
+          "text": "Do not build production writes on the Data API's `POST /tx/*` endpoints. The eight endpoints (`/tx/deposit`, `/tx/withdraw`, `/tx/execute`, `/tx/order/place`, `/tx/order/cancel`, `/tx/builder/init`, `/tx/builder/approve`, `/tx/settlePnl`) build unsigned transactions server-side, and the spec marks each BETA for test use. The docs say to build transactions with the SDK instead.",
+          "source": "https://docs.velocity.exchange/developers/data-api.md",
+          "note": null
+        },
+        {
+          "text": "The migration guide says the Data API drops `spotFulfillmentMethodFee` from the Trades tables, drops `periodRevenue` and `baseAssetAmountWithUnsettledLp` from Funding Rates, and has no equivalent of the Drift LP table. The OpenAPI spec still declares all three fields and still lists `/user/{accountId}/lp` and `/market/{symbol}/predictions`. Treat those fields and routes as legacy, and do not build on them.",
+          "source": "https://docs.velocity.exchange/developers/migrate-from-drift.md",
+          "note": null
+        },
+        {
+          "text": "Hosts changed with the rebrand. The migration guide maps the Data API host from `data.api.drift.trade` to `data.velocity.exchange`. The old docs URL `https://docs.drift.trade/developers/data-api` now redirects to the Velocity docs page at `https://docs.velocity.exchange/developers/data-api` (HTTP 307 on 2026-11-06). Bookmarks and clients pinned to Drift hostnames must be repointed to the velocity.exchange hosts (`data.`, `dlob.`, `swift.`).",
+          "source": "https://docs.velocity.exchange/developers/migrate-from-drift.md",
+          "note": null
+        },
+        {
+          "text": "The `@velocity-exchange` npm scope publishes more than the SDK: `@velocity-exchange/common` (0.13.2, 2026-10-26; the renamed drift-common), `@velocity-exchange/jit-proxy` (0.3.22, 2026-09-28) and `@velocity-exchange/vaults-sdk` (0.1.3, 2026-06-18). The JIT client therefore does not need monorepo access.",
+          "source": "https://registry.npmjs.org/@velocity-exchange/common",
+          "note": null
+        },
+        {
+          "text": "History exists only in the REST API. Kamino's docs say 'Historical market data is only available via the API', and the SDK has 'No history tracking. Developers must persist snapshots manually if needed.' Vault creation is the reverse case: only the SDK has the admin tools. The SDK reads live account state over RPC.",
+          "source": "https://kamino.com/docs/build/developers/api-vs-sdk.md",
+          "note": null
+        },
+        {
+          "text": "klend-sdk 13.0.6 depends on @solana/kit ^2.3.0, while the current @solana/kit on npm is 8.6.0, so an app on current Kit carries two Kit copies. The Solana Foundation's SDP integration (Kit 6.8.0) reports that the mismatch is type-level only: the SDK's instructions are plain objects with a numeric AccountRole and Uint8Array data, which newer Kit compiles and signs unchanged. SDP confines every klend-sdk import to one module and passes only Kit types, its own types or decimal strings across that boundary.",
+          "source": "https://registry.npmjs.org/@kamino-finance/klend-sdk/latest",
+          "note": null
+        },
+        {
+          "text": "The klend-sdk repo includes a CLI. The README shows 'yarn cli deposit --url <RPC> --owner ./keypair.json --token SOL --amount 10' and commands that print lending-market and reserve account data. Kamino's skill file says the Kamino CLI via the Klend SDK can create and manage curator vaults.",
+          "source": "https://github.com/Kamino-Finance/klend-sdk",
+          "note": null
+        },
+        {
+          "text": "Do not copy the GitHub `main` README into a default install. That README documents the 3.x Kit API (`createSolanaRpc` from `@solana/kit`), but `npm install @0dotxyz/p0-ts-sdk` resolves `latest`, 2.12.0, whose `initialize` takes a web3.js `Connection`. The docs site pins `@0dotxyz/p0-ts-sdk@^2.8.0`. Read the README at the tag you installed (the `v2.12.0` README uses `new Connection(...)`) and pin an exact version.",
+          "source": "https://github.com/0dotxyz/p0-ts-sdk/blob/main/README.md",
+          "note": null
+        },
+        {
+          "text": "The loop, close-position, swap-collateral and swap-debt endpoints carry `x-payment-required` in the OpenAPI document. They are priced through an x402 gateway at https://x402.0.xyz, but ai.0.xyz serves them free and rate-limited. The docs list per-client-IP limits of 120 requests per minute on `/mcp`, 60 on `/v1`, 10 on `/v1/tx/*` and 4 on loop and close-position, with `Retry-After` on a 429. Own Jupiter or Titan keys go in the `x-jupiter-api-key` and `x-titan-api-key` headers.",
+          "source": "https://ai.0.xyz/v1/openapi.json",
+          "note": null
+        },
+        {
+          "text": "Drift v2 program ID is dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH. protocol-v2 declares it with declare_id! (the same string for the mainnet-beta feature and the default build) and in Anchor.toml; MarginFi's type-crate (DRIFT_PROGRAM_ID) and Velocity's migration page also use it as the Drift ID.",
+          "source": "https://raw.githubusercontent.com/drift-labs/protocol-v2/master/programs/drift/src/lib.rs",
+          "note": null
+        },
+        {
+          "text": "Self-hosting Drift's open-source DLOB server needs the operator's own RPC. The README takes ENDPOINT and WS_ENDPOINT (http and websocket URLs of a private RPC node), a RATE_LIMIT_CALLS_PER_SECOND cap, and Redis for the websocket server. It supports websocket, gRPC and polling subscriptions, and DISABLE_GPA_REFRESH turns off the periodic getProgramAccounts refresh. The repository now resolves to velocity-exchange/dlob-server and is archived (last push 2026-06-23).",
+          "source": "https://raw.githubusercontent.com/drift-labs/dlob-server/master/README.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter's August 2025 changelog labelled these hosts legacy and began sunsetting them by gradually cutting access and rate limits, with 'no fixed cutoff date': quote-api.jup.ag/v6, tokens.jup.ag, price.jup.ag, lite-api.jup.ag/tokens/v1 and lite-api.jup.ag/price/v2. Code and clients that still point at quote-api.jup.ag/v6, such as the Rust client README, may be throttled.",
+          "source": "https://developers.jup.ag/changelog/2025-08",
+          "note": null
+        },
+        {
+          "text": "In 13.0.6, KaminoMarket.load(rpc: Rpc<KaminoMarketRpcApi>, marketAddress: Address, recentSlotDurationMs: number, programId?, withReserves?, farmsProgramId?, includeUnconfiguredReserves?) returns Promise<KaminoMarket | null>. The slot duration is a required third argument. The return type includes null, so callers must null-check; Kamino's docs use market!. Kamino's tutorials pass await getMedianSlotDurationInMsFromLastEpochs() as the slot duration.",
+          "source": "https://registry.npmjs.org/@kamino-finance/klend-sdk/-/klend-sdk-13.0.6.tgz",
+          "note": null
+        },
+        {
+          "text": "The klend-sdk README does not match 13.0.6. It loads a market with two arguments (KaminoMarket.load(connection, address(...))), passes currentSlot to action builders, and mixes Kit-style rpc.getSlot().send() with web3.js-style env.provider.connection. The published types require a Kit Rpc, recentSlotDurationMs and currentLedgerInstant, and Kamino's docs site uses those. Issue #11, 'Docs is outdated' (opened 2026-01-14, still open), reports that following the README forced a package downgrade. A third-party agent skill (SendAI) still shows the older new Connection(...) plus KaminoMarket.load(co",
+          "source": "https://github.com/Kamino-Finance/klend-sdk",
+          "note": null
+        },
+        {
+          "text": "If KaminoMarket.load or LendingMarket.fetch throws 'TypeError: rpc.getAccountInfo(...).send is not a function' from @solana/kit/node_modules/@solana/accounts/dist/index.node.cjs, the rpc argument is probably not a Kit Rpc object, for example a web3.js Connection copied from an older guide. Build the argument with createSolanaRpc(url) from @solana/kit. This diagnosis is an inference: issue #9 (open since 2025-12-22) has no maintainer reply and does not show the caller's code.",
+          "source": "https://github.com/Kamino-Finance/klend-sdk/issues/9",
+          "note": null
+        },
+        {
+          "text": "The Drift v2 program is paused after the April 1, 2026 exploit. Drift's 2026-05-05 recovery plan says a new Drift program will be deployed at a fresh address with fully rotated keys. Velocity's docs describe Velocity as a separate deployment of a Drift v2 fork (taken at SDK v2.163.0-beta.0) with a new program ID, where no onchain state carries over.",
+          "source": "https://www.drift.trade/updates/recovery-plan-for-affected-users",
+          "note": null
+        },
+        {
+          "text": "Kamino's developer docs are built for agents. Every page is fetchable as raw markdown by appending .md, https://kamino.com/docs/llms.txt indexes all pages, and https://kamino.com/docs/skill.md lists endpoints and SDK calls for each product. The Solana Foundation's integration note tells agents to start from skill.md and not to answer Kamino questions from memory.",
+          "source": "https://kamino.com/docs/llms.txt",
+          "note": null
+        },
+        {
+          "text": "Reading historical perps trades by scanning on-chain events over RPC hits rate limits. Community issue #7 reports '429 Too Many Requests: Too many requests for a specific RPC call' from getPerpetualsEvents() despite batching and delays. The hosted API's GET trades endpoint (filters: walletAddress, action, mint, side, time range) returns trades with fees, PnL and transaction hash, and backs `jup perps history`.",
+          "source": "https://api.github.com/repos/julianfssen/jupiter-perps-anchor-idl-parsing/issues?state=all&per_page=30",
+          "note": null
+        },
+        {
+          "text": "V2 has two paths. The Meta-Aggregator path (/order + /execute) lets Metis (Jupiter's onchain router), JupiterZ (RFQ market makers), Dflow and OKX compete for each quote, and Jupiter lands the transaction with its Jupiter Beam pipeline and its own priority-fee strategy. The Router path (/build) uses Metis only, returns raw instructions, charges no Jupiter swap fee, and leaves assembly, signing and sending to the caller.",
+          "source": "https://developers.jup.ag/docs/swap/order-and-execute.md",
+          "note": null
+        },
+        {
+          "text": "In May 2026 Jupiter renamed the onchain router value from 'iris' to 'metis' in /order responses and labelled the change Breaking, so code that tests router === 'iris' must be updated. The same release shipped Metis V8, a server-side routing upgrade (slippage penalties, just-in-time onchain finalisation, sub-2-slot state, opt-in Rapid Quotation Mode) aimed at quote-to-execution drift.",
+          "source": "https://developers.jup.ag/changelog/2026-05",
+          "note": null
+        },
+        {
+          "text": "Jupiter publishes agent skills for coding agents in the jup-ag/agent-skills repository, including integrating-jupiter and jupiter-swap-migration; the latter is described as helping agents migrate Metis (v1) or Ultra integrations to Swap API v2.",
+          "source": "https://github.com/jup-ag/agent-skills",
+          "note": null
+        },
+        {
+          "text": "Do not trust third-party provider docs for current Jupiter behaviour. OrbitFlare's Metis page says Ultra is the only option with RTSE and that Dynamic Slippage was discontinued with Ultra recommended for production, but Jupiter's April 2026 changelog made RTSE opt-in on /build (slippageBps=rtse) and automatic on /order, and Ultra is now labelled superseded by Swap V2.",
+          "source": "https://docs.orbitflare.com/trading-apis/metis-swap.md",
+          "note": null
+        },
+        {
+          "text": "The MarginFi program has moved past the 0.1.10 and 0.1.11 upgrades that P0's upgrade pages document. The p0-ts-sdk changelog records support for program 0.1.12 and variable borrow premium (VBP) fields on Bank, Group and balances, with the bundled IDL bumped from marginfi_0.1.11 to marginfi_0.1.12, and the type-crate defines the premium matrix (PremiumSettings plus up to 64 PremiumEntry in MarginfiGroup). Take layouts from the SDK-bundled IDL or the type-crate, not from the older upgrade pages.",
+          "source": "https://github.com/0dotxyz/p0-ts-sdk/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "MarginFi publishes its account types as a standalone Rust type-crate (types and helpers only, a stub Pubkey, and a DISCRIMINATOR constant per on-chain struct) beside an id-crate for program IDs, and P0's SDK docs say to decode accounts with the SDK-bundled IDL.",
+          "source": "https://raw.githubusercontent.com/0dotxyz/marginfi-v2/main/type-crate/README.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter says its Perps API is still a work in progress and sends integrators to the Perps program IDL on Solscan (the programIdl view) or to the community repo julianfssen/jupiter-perps-anchor-idl-parsing, which ships jupiter-perpetuals-idl.ts. The official account pages and the IDL can disagree, so treat the on-chain program as the final check.",
+          "source": "https://developers.jup.ag/docs/perps/index.md",
+          "note": null
+        },
+        {
+          "text": "Drift and Velocity share these PDA seeds (the u16 values are little-endian): user [\"user\", authority, subAccountId], user_stats [\"user_stats\", authority], perp_market [\"perp_market\", marketIndex], spot_market [\"spot_market\", marketIndex], plus spot_market_vault and insurance_fund_vault keyed by market index. The State seed differs: \"drift_state\" on Drift, \"velocity_state\" on Velocity.",
+          "source": "https://raw.githubusercontent.com/drift-labs/protocol-v2/master/sdk/src/addresses/pda.ts",
+          "note": null
+        },
+        {
+          "text": "Kamino klend PDA seeds (identical in the Rust program and klend-sdk): \"lma\" with the lending market for the market authority, and \"reserve_liq_supply\", \"fee_receiver\", \"reserve_coll_mint\" and \"reserve_coll_supply\" per reserve, plus \"user_meta\", \"referrer_acc\", \"ref_state\" and \"short_url\" for user and referral accounts.",
+          "source": "https://raw.githubusercontent.com/Kamino-Finance/klend/master/programs/klend/src/utils/seeds.rs",
+          "note": null
+        },
+        {
+          "text": "Velocity's MarketStatus values are Initialized 0, Active 1, ReduceOnly 2, Settlement 3, Delisted 4; on Drift, ReduceOnly, Settlement and Delisted were 6, 7 and 8. A custom raw-byte decoder silently misclassifies market state until rebuilt, while IDL-based decoding is unaffected.",
+          "source": "https://docs.velocity.exchange/developers/migrate-from-drift.md",
+          "note": null
+        },
+        {
+          "text": "The Velocity gateway, and the Drift gateway it descends from, take an RPC provider URL as the first argument. Both READMEs say JUPITER_API_KEY is required for the /v2/swap route (a free key from portal.jup.ag). Their gRPC mode needs GRPC_HOST and GRPC_X_TOKEN, an authentication token from a Geyser gRPC provider, and starts with the --grpc flag. The Velocity README also needs VELOCITY_GATEWAY_KEY to sign and an already-initialised Velocity user account.",
+          "source": "https://github.com/velocity-exchange/gateway",
+          "note": null
+        },
+        {
+          "text": "The REST API returns an unsigned transaction that the caller must sign client-side. The SDK returns instructions that the caller assembles, signs and sends. Either way the signing key stays with the caller.",
+          "source": "https://kamino.com/docs/build/developers/api-vs-sdk.md",
+          "note": null
+        },
+        {
+          "text": "The `mfi` Rust CLI covers the command groups `group`, `bank`, `profile`, `account`, `kamino`, `juplend` and `util`. Build it with `cargo build -p marginfi-v2-cli`, or install with `cargo install --path clients/rust/marginfi-cli --locked --force`. A profile stores cluster, keypair path, RPC URL and an optional default group and account. Project 0 positions it for operators, integrators and power users. API Evangelist's profile of marginfi also lists a Rust CLI SDK.",
+          "source": "https://docs.0.xyz/llms.mdx/guides/cli",
+          "note": null
+        },
+        {
+          "text": "Two third parties point at the same public perps data service. The APIs.io profile by API Evangelist lists https://perps-api.jup.ag as the base URL of a 'Jupiter Perps API' (markets, positions, funding, pricing, and open, close and modify transactions) but gives no spec, auth method or date, and links only to Jupiter's work-in-progress page. An Apify scraper says it reads 'the same public feed that the Jupiter UI uses' and needs no RPC endpoint or API key.",
+          "source": "https://apis.io/apis/jupiter-ag/perps-api/",
+          "note": null
+        },
+        {
+          "text": "The Lend REST surface is 15 endpoints in two OpenAPI 3.0.3 specs, both version 1.0.0 with server https://api.jup.ag/lend/v1 and the `x-api-key` ApiKeyAuth scheme on every operation. Earn has 11: POST /earn/deposit, /withdraw, /mint and /redeem with an -instructions twin each, plus GET /earn/tokens, /earn/positions?users= and /earn/earnings?user=&positions=. Borrow has 4: GET /borrow/vaults, GET /borrow/positions?users=, POST /borrow/operate and POST /borrow/operate-instructions.",
+          "source": "https://developers.jup.ag/docs/openapi-spec/lend/lend.yaml",
+          "note": null
+        },
+        {
+          "text": "Every Borrow endpoint accepts a `market` parameter, `main` (default) or `ethena`. Vault and position IDs are scoped per market, so the same vaultId is a different vault in each. The ethena market is a separate deployment with its own program IDs. The Earn OpenAPI spec defines no market parameter.",
+          "source": "https://developers.jup.ag/docs/lend/borrow/api.md",
+          "note": null
+        },
+        {
+          "text": "Client initialisation differs by line. In 2.x: `Project0Client.initialize(connection: Connection, config: Project0Config)` with a web3.js `Connection`. In 3.0.0-next: `Project0Client.initialize({ rpc, rpcEndpoint }, config)` with a Kit `Rpc<SolanaRpcApi>` and the endpoint URL string. Both signatures appear in the published type declarations. The docs site documents the 2.x form and the GitHub `main` README documents the 3.x form.",
+          "source": "https://registry.npmjs.org/@0dotxyz/p0-ts-sdk/-/p0-ts-sdk-2.12.0.tgz",
+          "note": null
+        },
+        {
+          "text": "Beyond P0's own banks, the SDK builds for several venues. Documented methods cover Kamino (`makeKaminoDepositTx`) and Jupiter Lend (`makeJuplendDepositTx`) banks, Exponent PT rolls (`makeRollPtTx`) and native-stake LSTs (`makeMintStakedLstTx`). The changelog and README also show Drift (`makeDriftDepositTx`) and Gamma LP vault code.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/architecture",
+          "note": null
+        },
+        {
+          "text": "MarginFi's type-crate encodes Jupiter Lend PDA seeds: \"lending_admin\" (lending program), \"liquidity\" and \"auth_list\" (liquidity program), \"reserve\" + mint, \"rate_model\" + mint, \"f_token_mint\" + mint (lending program), \"lending\" + mint + f_token_mint (lending program) and \"user_supply_position\" + mint + protocol (liquidity program). One source only.",
+          "source": "https://raw.githubusercontent.com/0dotxyz/marginfi-v2/main/type-crate/src/pdas.rs",
+          "note": null
+        },
+        {
+          "text": "Drift lost between roughly $200 million and $295 million on 1 April 2026, depending on the source. Decrypt reported more than $200 million, Arkham traced more than $250 million, PeckShield estimated up to $285 million, and The Defiant later cited $295 million. Early coverage pointed to leaked or compromised admin keys, and no smart-contract bug was reported. In September 2026 Cindy Leow attributed the attack to a DPRK state-level actor after six months of social engineering.",
+          "source": "https://decrypt.co/363087/solana-drift-protocol-exploited-285-million",
+          "note": null
+        },
+        {
+          "text": "Solana Compass reports that Velocity published its code and an OtterSec audit on 17 September 2026, turned off its beta whitelist on 21 September, and called 29 September its relaunch. A CLOB and a Prop AMM were still planned, not shipped, on that date. The Defiant had earlier reported the Drift-to-Velocity rebrand, with a private beta planned in the coming days.",
+          "source": "https://solanacompass.com/news/drift-co-founder-cindy-leow-steps-down-hands-rebuilt-velocity-exchange-to-new-team",
+          "note": null
+        },
+        {
+          "text": "Velocity's own docs lag the repo on open-source status. The Developers, Contributing and velocity-rs pages still say the program is not open source, the velocity-v1 monorepo is not public, and DRIFT-TO-VELOCITY.md must be requested from the team. GitHub shows the repo public. Treat the repo as current, and read `docs/DRIFT-TO-VELOCITY.md` there for the Rust and raw-ABI detail.",
+          "source": "https://docs.velocity.exchange/developers.md",
+          "note": null
+        },
+        {
+          "text": "Data API request conventions: rolling paths such as `GET /market/{symbol}/trades` return the last 31 days, newest first, as JSON only. Dated paths serve the archive (`/market/{symbol}/trades/{year}/{month}/{day}`, `/user/{accountId}/trades/{year}/{month}`), start at year 2022, and accept `format=csv` for bulk pulls. Pagination uses the `page` cursor taken from `meta.nextPage`, not an offset. `symbol` is a market name such as SOL-PERP, `accountId` is a subaccount public key, and `authorityId` is the wallet; `GET /authority/{authorityId}/accounts` maps one to the other. Authority statement expor",
+          "source": "https://docs.velocity.exchange/developers/data-api.md",
+          "note": null
+        },
+        {
+          "text": "The OtterSec audit covers only the surface Velocity added after the fork: audit period 19 June to 20 July 2026, final report 3 September 2026. The upstream Drift v2 code that Velocity inherited unchanged is covered by older reports: Trail of Bits (7 November to 2 December 2022, re-review 23 to 25 January 2023) and Neodyme (May 2024, updated June 2024). Solana Compass dates publication of the code and audit to 17 September 2026.",
+          "source": "https://github.com/velocity-exchange/velocity-v1/blob/master/AUDIT.md",
+          "note": null
+        },
+        {
+          "text": "Velocity's introduction page states that the OtterSec report found 154 findings, no Critical, and that every High is fixed in the deployed code. No other fetched source gives the count, and the PDF was not read.",
+          "source": "https://docs.velocity.exchange",
+          "note": null
+        },
+        {
+          "text": "The Jupiter swap path decides whether an integrator needs an RPC. The Meta-Aggregator path (/order then /execute) needs no RPC node: Jupiter builds the transaction and lands it, and the integrator only signs. The Router path (/build) leaves compiling and sending to the integrator, through its own RPC or through POST https://api.jup.ag/tx/v1/submit. The April 2026 changelog made /submit public; it accepts any signed Solana transaction and requires a minimum tip of 0.001 SOL to a supported tip receiver.",
+          "source": "https://developers.jup.ag/docs/swap.md",
+          "note": null
+        },
+        {
+          "text": "With no official perps SDK, the route Jupiter documents is community IDL tooling. julianfssen/jupiter-perps-anchor-idl-parsing (TypeScript samples linked from Jupiter's docs) had 96 stars, no detected licence and a last push on 2025-09-07. Its open issues ask whether it can open and close positions (#5, since 2025-03-06) and whether it supports JLP Loans (#9, since 2025-07-22). jup-perps-client is a Rust client 'auto-generated from IDL using Codama' under a personal GitHub account (version 1.2.0).",
+          "source": "https://api.github.com/repos/julianfssen/jupiter-perps-anchor-idl-parsing",
+          "note": null
+        },
+        {
+          "text": "On npm, @kamino-finance/klend-sdk 'latest' is 13.0.6, published 2026-10-27. The 'beta' tag is 13.1.0-beta.4 (2026-10-19). The registry lists 425 versions since 2.10.6 on 2024-04-30. The package is MIT per its package.json, unpacks to 14,050,684 bytes in 3,090 files, and ships dist plus src/**/*.ts and src/**/*.json. It declares no exports map, browser field, engines or peer dependencies.",
+          "source": "https://registry.npmjs.org/@kamino-finance/klend-sdk",
+          "note": null
+        },
+        {
+          "text": "The public GitHub repo Kamino-Finance/klend-sdk appears to be a periodic mirror, not the place npm publishes from (an inference from three facts). GitHub lists no Releases. The latest commits are all titled 'Update klend-sdk' (2026-10-20, 2026-10-07, 2026-08-24). The gitHead that npm records for 13.0.6, aa7a20743c5a53e13939448bb616f6fce99ec90c, does not exist in the repo (GitHub API: 'No commit found for SHA'). Treat npm and the shipped .d.ts as the source of truth for versions.",
+          "source": "https://api.github.com/repos/Kamino-Finance/klend-sdk",
+          "note": null
+        },
+        {
+          "text": "The successor package `@0dotxyz/p0-ts-sdk` is MIT-licensed and built from github.com/0dotxyz/p0-ts-sdk (repository created 2026-01-07, first npm publish 2026-01-15). It had 165 npm versions by 2026-11-03. On 2026-11-06 the dist-tags were `latest` = 2.12.0, `next` = 3.0.0-next.3 and `alpha` = 2.10.1-alpha.0.",
+          "source": "https://registry.npmjs.org/@0dotxyz/p0-ts-sdk",
+          "note": null
+        },
+        {
+          "text": "Both API lines ship together. On 2026-11-03 npm published 2.11.1 and 3.0.0-next.2 at 08:35 UTC, then 2.12.0 and 3.0.0-next.3 at 09:22 UTC. GitHub has `main` (3.x) and `main-v2` branches, and recent pull requests carry '(v2)' tags. 3.x is still a pre-release (`next`), so choose a line deliberately and pin an exact version.",
+          "source": "https://registry.npmjs.org/@0dotxyz/p0-ts-sdk",
+          "note": null
+        },
+        {
+          "text": "Other Kamino mainnet program IDs: kvault KvauGMspG5k6rtzrqqn7WNn3oZdyKqLKwK2XWQ8FLjd (staging stKvQfwRsQiKnLtMNVLHKS3exFJmZFsgfzBPWHECUYK), kfarms FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr (no staging address listed), and the Scope oracle aggregator HFn8GnPADiny6XqUoWE8uRPPxb29ikn4yTuPa9MF2fWJ (staging scpStzYvKzE7DHwsGMP5XLhcMTuLr3feoiC9mJ3yHr5). MarginFi's type-crate hardcodes the same kfarms and Scope IDs.",
+          "source": "https://kamino.com/docs/build/resources/program-addresses.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter Lend mainnet program IDs (main market): Earn/lending jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9; Liquidity jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC; Lending Rewards Rate Model jup7TthsMgcR9Y3L277b8Eo9uboVSmu1utkuXHNUKar; Vaults (Borrow) jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi; Oracle jupnw4B6Eqs7ft6rxpzYLJZYSnrpRgPcr589n5Kv4oc; Flashloan jupgfSgfuAXv4B6R2Uxu85Z1qdzgju79s6MfZekN6XS; AMM (named dex in the repo) jupZ4m2GqUCJ5iueMfzQf8khFfH31d4XAQt3RzCT9Vd. MarginFi's type-crate independently hardcodes the lending, liquidity and rewards IDs.",
+          "source": "https://developers.jup.ag/docs/lend/program-addresses",
+          "note": null
+        },
+        {
+          "text": "Slippage: /order applies the Real-Time Slippage Estimator (RTSE) automatically at order time, and passing slippageBps overrides it with a fixed value without by itself restricting routing to Metis. /build defaults to a fixed 50 bps, and RTSE is opt-in by passing the string 'rtse' as slippageBps; the estimate then appears in otherAmountThreshold. Jupiter recommends RTSE for most cases and a fixed value for memecoins, fast exits, user-set slippage UIs and deterministic tests.",
+          "source": "https://developers.jup.ag/docs/swap/advanced/slippage.md",
+          "note": null
+        },
+        {
+          "text": "OtterSec's verification API reports Kamino's klend, kvault, kfarms and Scope as verified builds tied to Kamino-Finance repo commits: klend 77e81854909ab7ffea3a2e898b2554d96e07daac (last verified 2026-10-26), kvault 3b53fa0b9bd2f8ce52b9b7eeaa3025155edc7b1c (2026-10-26), kfarms bfa186034ba8ecd36e7faf27cae6b38ee24d0bc4 (2026-09-03), Scope 086e2145722b2e9d176b2a8963c549da6bdf8b09 (2026-10-13). Read the struct layout from the commit named in the record.",
+          "source": "https://verify.osec.io/status/KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD",
+          "note": null
+        },
+        {
+          "text": "Kamino layout sources: the Rust state structs in klend (reserve.rs is #[account(zero_copy)] and #[repr(C)] with a const_assert that RESERVE_SIZE equals size_of::<Reserve>()) and klend-sdk's generated TypeScript classes under src/@codegen/klend/accounts, which pair each account with a borsh layout and its discriminator; the generated programId.ts sets PROGRAM_ID to KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD.",
+          "source": "https://raw.githubusercontent.com/Kamino-Finance/klend/master/programs/klend/src/state/reserve.rs",
+          "note": null
+        },
+        {
+          "text": "npm state on 2026-11-06. @jup-ag/lend: latest 0.4.0 (published 2026-10-02), beta 0.5.0-beta.1 (2026-10-07), next 1.0.0-alpha.1 (2026-10-27), legacy 0.0.108; 145 versions since 2025-07-22; MIT; subpath exports ./api, ./dex, ./earn, ./borrow, ./flashloan and ./refinance. @jup-ag/lend-read: latest 0.0.14 (2026-09-04), 14 versions since 2026-02-03, no licence field. Jupiter's lend repo README says its SDK guides match @jup-ag/lend 0.4.0.",
+          "source": "https://registry.npmjs.org/@jup-ag/lend",
+          "note": null
+        },
+        {
+          "text": "Jupiter Perpetuals program ID is PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu: Jupiter's account pages link it as the program whose IDL to read on Solscan, and the community IDL-parsing repo that Jupiter's docs recommend hardcodes it. The JLP Pool is a single account, 5BUwFW4nRbftYTDMbgxykoFWqWHPzahFSNAaaaJtVKsq.",
+          "source": "https://developers.jup.ag/docs/perps/pool-account.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter's docs describe four Perps account types (Pool, Custody, Position, PositionRequest), but the community IDL lists seven (borrowPosition, custody, perpetuals, pool, positionRequest, position, tokenLedger), so the official account pages do not cover borrowPosition, perpetuals or tokenLedger.",
+          "source": "https://developers.jup.ag/docs/perps/index.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter Swap v6 aggregator program ID is JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4: Jupiter's own jupiter-cpi crate declares it with declare_id! and generates its interface with anchor-gen from the Jupiter Anchor JSON IDL (idl.json), and Helius's parsed-data page for Jupiter Aggregator v6 lists the same ID.",
+          "source": "https://raw.githubusercontent.com/jup-ag/jupiter-cpi/main/src/lib.rs",
+          "note": null
+        },
+        {
+          "text": "Jupiter Lend IDLs and TypeScript types are published in the jup-ag/jupiter-lend repo under target/idl and target/types, and Jupiter's program-addresses page points to the same directories. The README records IDL versions lending 0.1.9, liquidity 0.1.9, lending_reward_rate_model 0.1.9, vaults 0.1.8, oracle 0.1.8, dex 0.1.8 and flashloan 0.1.4.",
+          "source": "https://raw.githubusercontent.com/jup-ag/jupiter-lend/main/README.md",
+          "note": null
+        },
+        {
+          "text": "/build charges no Jupiter swap fee. An integrator can add a platform fee with platformFeeBps (0 to 10000) plus feeAccount, which must be an SPL token account the integrator controls and is required whenever platformFeeBps is positive. tipAmount is a SOL tip for transaction submission, not a swap fee.",
+          "source": "https://developers.jup.ag/docs/swap/build/index.md",
+          "note": null
+        },
+        {
+          "text": "The Transactions API has 12 POST operations: for klend, deposit, borrow, repay and withdraw; for kvaults, deposit and withdraw. Each action has two forms. /ktx/<product>/<action> returns { transaction }, a base64 transaction. /ktx/<product>/<action>-instructions returns { instructions, lutsByAddress }, for callers who build their own transaction. The klend actions take wallet, market, reserve and amount (deposit also accepts memo). The kvault actions accept wallet, kvault, useStagingProgram, amount and memo, plus skipFarm on deposit or closeUserState on withdraw.",
+          "source": "https://api.kamino.finance/ktx/documentation/json",
+          "note": null
+        },
+        {
+          "text": "Kamino's API deposit recipe signs and sends the returned transaction with @solana/kit. It decodes the base64 with getTransactionDecoder() and getCompiledTransactionMessageDecoder(), decompiles with decompileTransactionMessageFetchingLookupTables so address lookup tables resolve, sets a blockhash fetched at 'finalized' commitment, signs with signTransactionMessageWithSigners, then sends with sendAndConfirmTransactionFactory at commitment 'confirmed' and skipPreflight false. The recipe sets the blockhash at signing time and does not discuss expiry.",
+          "source": "https://kamino.com/docs/build/borrow/recipes/deposit-via-api.md",
+          "note": null
+        },
+        {
+          "text": "The SDK builds transactions but does not send them. `make*Tx` builders return unsigned transactions, `make*Ix` builders return instructions, and `Project0Client` holds no signer, so the caller signs with a wallet adapter or a `Keypair`. In 3.x, `fetchAccount(address, false, walletSigner)` embeds the caller's Kit `TransactionSigner` in the built messages, and sending is still the caller's job. The legacy client signed and sent inside methods such as `account.deposit()`; SendAI's skill still shows `const signature = await account.deposit(amount, bank.address)`.",
+          "source": "https://docs.0.xyz/typescript-sdk/overview",
+          "note": null
+        },
+        {
+          "text": "Kamino Lend (klend) mainnet program ID is KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD. A separate staging deployment on mainnet is SLendK7ySfcEzyaFqy93gDnD3RtrpXJcnRwb6zFHJSh, and devnet reuses the mainnet ID. The klend source picks the staging ID with a `staging` cargo feature.",
+          "source": "https://kamino.com/docs/build/resources/program-addresses.md",
+          "note": null
+        },
+        {
+          "text": "MarginFi's mainnet main group is 4qp6Fx6tnZkY5Wropq9wUYgtFxXKwE6viZxFHg3rdAG8 (also hardcoded in DefiLlama's adapter). P0's 0.1.10 upgrade page pairs the staging program stag8sTKds2h4KzjUw3zKTsxbqvT4XKHdaR9X9E6Rct with a different group, FCPfpHA69EbS8f9KKSreTRkXbzFpunsKuYf5qNmnJjpo, so a group address is tied to one deployment.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/program-upgrade",
+          "note": null
+        },
+        {
+          "text": "MarginFi keeps each earlier layout as a byte-identical prefix of the current one and records its size as V1_LEN: Bank 1856, MarginfiGroup 1056, FeeState 256. Accounts created before the padding existed are v1-sized, and a v1-sized FeeState must be grown with resize_global_fee_state before the current program can load it. P0 says the 0.1.10 mainnet deploy grew MarginfiGroup 1,056 to 9,248 bytes and FeeState 256 to 512 bytes, with a short outage while accounts were resized.",
+          "source": "https://raw.githubusercontent.com/0dotxyz/marginfi-v2/main/type-crate/src/types/group.rs",
+          "note": null
+        },
+        {
+          "text": "Jupiter publishes no Perps REST API in its developer documentation. The Perps overview warns 'The Perps API is still a work in progress, stay tuned!'. The docs index lists only that overview plus the Pool, Custody, Position and PositionRequest account pages for Perps, with no Perps API-reference pages. Jupiter's own integrating-jupiter agent skill (v1.2.0) says 'No REST endpoints yet. Interact on-chain via Anchor IDL.'",
+          "source": "https://developers.jup.ag/docs/perps/index.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter Lend has three integration surfaces. The REST API at https://api.jup.ag/lend/v1 works from any language and covers Earn and Borrow as unsigned transactions or raw instructions. The Read SDK @jup-ag/lend-read reads Earn and Borrow state on-chain (lending tokens, token details, user positions, vaults, vault positions) and is TypeScript only. The Lend SDK @jup-ag/lend builds Earn and Borrow instructions and is TypeScript only. Jupiter's comparison table lists earnings data under the REST API only.",
+          "source": "https://developers.jup.ag/docs/lend/api-vs-sdk.md",
+          "note": null
+        },
+        {
+          "text": "Routing eligibility on /order: with no optional parameters all four routers compete; receiver or payer (different from taker) removes Dflow and OKX; excludeRouters=jupiterz removes the RFQ router; referralAccount with referralFee keeps all four eligible (JupiterZ gained integrator-fee support in June 2026).",
+          "source": "https://developers.jup.ag/docs/swap/order-and-execute.md",
+          "note": null
+        },
+        {
+          "text": "Swap V2 supports ExactIn only: the /order reference lists swapMode with the single value ExactIn, /build has no swapMode input, and the migration guides say swapMode is dropped, so V1 ExactOut flows must be redesigned.",
+          "source": "https://developers.jup.ag/docs/api-reference/swap/order.md",
+          "note": null
+        },
+        {
+          "text": "Notable /build inputs and defaults: slippageBps default 50 or 'rtse'; maxAccounts 1 to 64 (default 64); blockhashSlotsToExpiry 1 to 300 (default 150); computeUnitPricePercentile of medium, high, veryHigh or 0 to 10000; forJitoBundle (default false) excludes DEXes incompatible with Jito bundles; transactionVersion '0' (default) or '1'; mode='fast' (BETA) trades quote optimality for lower latency; dexes and excludeDexes are mutually exclusive and labels are case sensitive; wrapAndUnwrapSol defaults to true; payer defaults to taker.",
+          "source": "https://developers.jup.ag/docs/swap/build/index.md",
+          "note": null
+        },
+        {
+          "text": "Version 13.0.6 depends on @solana/kit ^2.3.0, not @solana/web3.js. It also depends on @coral-xyz/anchor ^0.28.0 and Kamino's own @kamino-finance/farms-sdk, scope-sdk and kliquidity-sdk. The last release that declared @solana/web3.js was 7.3.18 (2026-01-30). The first release that declared @solana/kit was 5.15.2 (2025-06-20).",
+          "source": "https://registry.npmjs.org/@kamino-finance/klend-sdk/latest",
+          "note": null
+        },
+        {
+          "text": "The package ships two API lines. `latest` (2.12.0) depends on `@solana/web3.js` 1.98.4 and `@coral-xyz/anchor` 0.30.1 and needs Node 18 or newer. `next` (3.0.0-next.3) removes web3.js, Anchor, bn.js, borsh and Switchboard, generates every program client with Codama, takes `@solana/kit ^8.3.0` as a peer dependency, and needs Node 20.18 or newer. The 3.0.0-next.0 changelog entry lists these as major changes.",
+          "source": "https://registry.npmjs.org/@0dotxyz/p0-ts-sdk",
+          "note": null
+        },
+        {
+          "text": "The docs are built for agents. `https://docs.0.xyz/llms.txt` indexes pages, `https://docs.0.xyz/llms-full.txt` holds all content, per-page markdown is at `https://docs.0.xyz/llms.mdx/<path>`, and a docs MCP server is at `https://docs.0.xyz/api/mcp`. There is no hosted TypeDoc reference: clone the repo and run `pnpm docs`. Repo examples in `examples/` run in simulation mode by default.",
+          "source": "https://docs.0.xyz/llms.txt",
+          "note": null
+        },
+        {
+          "text": "The Velocity JIT proxy program ID is J1TPRoXCtGuMcWiWFE6RB9eZU8U35PBMETCwNQLCNPhQ; Velocity's README and its docs agree, and the docs say it is the same on both environments.",
+          "source": "https://raw.githubusercontent.com/velocity-exchange/velocity-v1/master/README.md",
+          "note": null
+        },
+        {
+          "text": "Other Velocity-related program IDs rest on one page each: the vaults program vAuLTsyrvSfZRuRB3XgvkPwNGgYSs9YRYymVebLKoxR (README only), the oracle receiver G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha and the Pyth Lazer program pytd2yyk641x7ak7mkaasSJVXh6YYZnC7wTmtgAyxPt (docs only, both carried by the SDK config).",
+          "source": "https://raw.githubusercontent.com/velocity-exchange/velocity-v1/master/README.md",
+          "note": null
+        },
+        {
+          "text": "A toolchain change can alter zero-copy layouts. Velocity's PerpMarket went from 1216 to 1240 bytes for Anchor 1.0's 16-byte PoolBalance alignment (before later AMM, fee and padding changes brought it to 1560), and its README warns that native aarch64 toolchains break the memory-layout expectations of zero-copy accounts, which must match the on-chain x86_64 representation.",
+          "source": "https://raw.githubusercontent.com/velocity-exchange/velocity-v1/master/docs/DRIFT-TO-VELOCITY.md",
+          "note": null
+        },
+        {
+          "text": "Earn deposit and withdraw take `amount` (underlying base units as a string); mint and redeem take `shares` (jlToken units). Endpoints without the -instructions suffix return an unsigned base64 transaction for the signer to sign and send. The -instructions endpoints return instructions to compose with other instructions or use in CPI. Jupiter marks both the Earn and the Borrow REST guides '(Beta)'.",
+          "source": "https://developers.jup.ag/docs/lend/earn/api.md",
+          "note": null
+        },
+        {
+          "text": "The March 2026 changelog (2026-03-31) changed GET /lend/v1/earn/earnings: it removed totalDeposits, totalWithdraws, totalBalance and totalAssets, changed `earnings` from string to number, and added `slot`. The OpenAPI schema for that response is still typed `object`, although its own example and the Earn guide show an array of {address, ownerAddress, earnings, slot}.",
+          "source": "https://developers.jup.ag/changelog/2026-03",
+          "note": null
+        },
+        {
+          "text": "Helius publishes per-second limits by plan. RPC and DAS/Enhanced requests: Free 10 and 2, Developer 50 and 10, Business 200 and 50, Professional 500 and 100, Enterprise custom. sendTransaction: 1, 5, 50 and 100 per second on Free, Developer, Business and Professional. Professional teams can buy 100 more RPS for $100 a month; Developer and Business teams must upgrade to raise limits.",
+          "source": "https://www.helius.dev/docs/billing/rate-limits",
+          "note": null
+        },
+        {
+          "text": "Kamino's address page also lists Limo (LiMoM9rMhrdYrfzUCxQppvxCSG1FcrUK9G8uLq4A1GF, staging sLim6uuAFC8kAWstWpu1r6oJD4T8VR6raukSpU2Zim7) and Kliquidity (6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc). No second source confirms either ID, and OtterSec has no verified build for them.",
+          "source": "https://kamino.com/docs/build/resources/program-addresses.md",
+          "note": null
+        },
+        {
+          "text": "Kamino's main lending market account is 7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF: Kamino's deposit recipe names it MAIN_MARKET and two other docs pages hardcode it as the market address (one tutorial comments it as 'SOL/BTC Market', a label that does not match the other pages).",
+          "source": "https://kamino.com/docs/build/borrow/recipes/deposit-via-api.md",
+          "note": null
+        },
+        {
+          "text": "The marginfi program repository moved: `github.com/mrgnlabs/marginfi-v2` answers HTTP 301 to `github.com/0dotxyz/marginfi-v2` (Apache-2.0, last push 2026-11-05). The legacy SDK monorepo `github.com/mrgnlabs/mrgn-ts` is not archived, and its last push (2026-06-03) matches the last npm release. The old docs URL `docs.marginfi.com/ts-sdk` returned HTTP 404 on 2026-11-06; current SDK docs are under `docs.0.xyz/typescript-sdk/`.",
+          "source": "https://api.github.com/repos/0dotxyz/p0-ts-sdk",
+          "note": null
+        },
+        {
+          "text": "getConfig(environment?)` returns `{ environment, programId, groupPk }`. Valid 2.x environments are `production`, `staging`, `staging-mainnet-clone` and `staging-alt`, all on the Solana mainnet cluster; there is no devnet deployment. `staging` runs the next program version about two weeks before each release, `staging-mainnet-clone` mirrors production bank configs, and `staging-alt` is internal and not recommended for integrators. The legacy SDK's `dev` environment has no equivalent.",
+          "source": "https://docs.0.xyz/docs/typescript-sdk/getting-started",
+          "note": null
+        },
+        {
+          "text": "Builders can return several transactions. `result.transactions` is in send order (oracle-crank transactions first, the action transaction last) and `actionTxIndex` marks the action. Send them in order and confirm each before the next. The docs name borrow, withdraw, repay-with-collateral and loop flows as multi-transaction cases. A crank transaction that lands without the action is harmless; it only refreshes prices.",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/transactions",
+          "note": null
+        },
+        {
+          "text": "Jupiter's user docs describe a second perps engine. Beta markets (JUP, HYPE, ZEC and the stock perps SPCX, SNDK, SKHYNIX) run on GUM, an orderbook trading engine, with USDC collateral and hourly funding. They do not use the JLP pool, they have no TP/SL, and their orders are signed in the wallet and processed by the market's own engine. The developer-docs account pages and the CLI cover only the JLP-pool markets, and no programmatic interface for the Beta markets was found.",
+          "source": "https://docs.jup.ag/user-docs/trade/perps",
+          "note": null
+        },
+        {
+          "text": "On 2026-11-06 unauthenticated GET requests to perps-api.jup.ag succeeded on both API versions. /v2/market-stats for the wrapped-SOL mint returned price, priceChange24H, priceHigh24H, priceLow24H and volume. /v2/positions and the older /v1/positions for an empty wallet both returned an empty dataList with count 0. The host root returned HTTP 404, so the host publishes no index or docs page. The shapes match the CLI's MarketStatsResponse and GetPositionsResponse types.",
+          "source": "https://perps-api.jup.ag/v2/market-stats?mint=So11111111111111111111111111111111111111112",
+          "note": null
+        },
+        {
+          "text": "Jupiter's hosted Trading MCP server (https://mcp.jup.ag) has a Lend domain limited to depositing into Lend Earn, withdrawing and reading lending positions. Its domain table lists no Borrow and no Perps domain. The live page counts 72 tools in 10 domains, while the 2026-07-21 changelog announced 75 tools in 11 domains. The CLI, by contrast, covers Perps and Lend Earn.",
+          "source": "https://developers.jup.ag/docs/ai/trading-mcp.md",
+          "note": null
+        },
+        {
+          "text": "Jupiter Lend's on-chain programs are published by Instadapp in the fluid-solana-programs repository, whose README is titled 'Jupiter Lend Solana Program'. Jupiter's lend skill calls the protocol 'powered by Fluid Protocol'. Instadapp's README says the upgrade authority is a 12-hour timelock multisig jointly controlled by Jupiter and Fluid team signers.",
+          "source": "https://raw.githubusercontent.com/Instadapp/fluid-solana-programs/main/README.md",
+          "note": null
+        },
+        {
+          "text": "The Earn API guide's snippets do not run as pasted. The deposit, withdraw, mint and redeem examples never call .json() on the fetch response, and the positions example is missing a comma after the URL argument.",
+          "source": "https://developers.jup.ag/docs/lend/earn/api.md",
+          "note": null
+        },
+        {
+          "text": "Amounts are strings in UI token units ('100' for 100 USDC). Since SDK 2.7.1, `computeMaxBorrowForBank` is also capped by bank borrow limits, available liquidity and rate limiters, not only account health; pass `{ ignoreBankLimits: true }` for the health-only figure. `computeMaxWithdrawForBank` and `computeMaxDepositForBank` are bank-aware in the same way.",
+          "source": "https://docs.0.xyz/typescript-sdk/migration",
+          "note": null
+        },
+        {
+          "text": "Builders throw `TransactionBuildingError` with a machine-readable `code` and typed `details`. Documented codes include `SWAP_SIZE_EXCEEDED_LOOP`, `SWAP_SIZE_EXCEEDED_REPAY`, `SWAP_SIZE_EXCEEDED_POSITION_SWAP`, `SWAP_QUOTE_FAILED`, `ORACLE_CRANK_FAILED`, `KAMINO_RESERVE_NOT_FOUND`, `JUPLEND_STATE_NOT_FOUND`, `BRIDGE_CONFLICT` and the `TRANSFER_POSITIONS_*` family; the changelog adds `COSTLY_POSITION_LIMIT_EXCEEDED` and `DRIFT_STATE_NOT_FOUND`. `isDecomposableSwapError(e)` is true for swap-size and quote failures, which the bridged builders (such as `makeBridgedLoopTx`) can often retry through a",
+          "source": "https://docs.0.xyz/llms.mdx/typescript-sdk/errors",
+          "note": null
+        },
+        {
+          "text": "Public adoption signals are small. On 2026-11-06 the SDK repository had 7 stars, 4 forks and 0 open issues, and only 1 of the latest 70 issue-or-PR entries was an issue (the rest were pull requests). Support runs through Discord and pull requests. No independent download or usage statistics were found.",
+          "source": "https://api.github.com/repos/0dotxyz/p0-ts-sdk",
+          "note": null
+        },
+        {
+          "text": "On marginfi-v2 main (repo last pushed 2026-11-05) the type-crate asserts these struct sizes, which exclude the 8-byte Anchor discriminator: MarginfiAccount 2304 (its LendingAccount is 1728 and holds 16 Balance entries of 104 bytes), Bank 3904, MarginfiGroup 9248, FeeState 512. Each struct exposes a LEN constant and a DISCRIMINATOR constant.",
+          "source": "https://raw.githubusercontent.com/0dotxyz/marginfi-v2/main/type-crate/src/types/user_account.rs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Contested",
+      "facts": [
+        {
+          "text": "Open question: No fetched page gives a sunset date for Ultra or Metis V1. The March 2026 changelog sets no deadline, and the changelog index summaries for April through October 2026 list no Swap endpoint sunset.",
+          "source": "https://developers.jup.ag/docs/changelog.md",
+          "note": "sources leave Ultra/Metis V1 sunset date unanswered"
+        },
+        {
+          "text": "Controversy: The slot duration passed to KaminoMarket.load drives fixed-rate APY math. Kamino's docs say a hard-coded 400 ms shows fixed-rate APYs at about half their real rate, because mainnet slots are closer to 210 ms. They tell callers to pass await getMedianSlotDurationInMsFromLastEpochs().",
+          "source": "https://kamino.com/docs/build/borrow/get-market-reserve-apys.md",
+          "note": "slot duration value differs by source and date (210/300/416 ms); see s01u000123 for the SIMD-0525 timeline",
+          "group": "c1"
+        },
+        {
+          "text": "Controversy: The SDK's own fallback constant DEFAULT_RECENT_SLOT_DURATION_MS is 300 in 13.0.6 (dist/classes/reserve.js). Its doc comment says mainnet slots are 300 ms since epoch 1024 (SIMD-0525) and are stepping down towards 200 ms, and tells callers to prefer getMedianSlotDurationInMsFromLastEpochs() or a getRecentPerformanceSamples measurement over the constant.",
+          "source": "https://registry.npmjs.org/@kamino-finance/klend-sdk/-/klend-sdk-13.0.6.tgz",
+          "note": "slot duration value differs by source and date (210/300/416 ms); see s01u000123 for the SIMD-0525 timeline",
+          "group": "c1"
+        },
+        {
+          "text": "Controversy: A Solana Foundation integration note measured mainnet at about 416 ms per slot and devnet at about 265 ms on 2026-08-15, over a 4,000-slot span, and said klend-sdk's own default was then 400. It warns that a wrong slot duration yields 'plausible WRONG NUMBERS with no error' for exchange rate, APY and farm rewards. The mainnet figure predates the first SIMD-0525 step (2026-08-21).",
+          "source": "https://raw.githubusercontent.com/solana-foundation/solana-developer-platform/main/packages/sdp-kamino/CLAUDE.md",
+          "note": "slot duration value differs by source and date (210/300/416 ms); see s01u000123 for the SIMD-0525 timeline",
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Jupiter",
+      "relation": "is a instance of SDK and API surface of Solana DeFi protocols: Drift/Velocity, Kamino, MarginFi/P0, Jupiter",
+      "note": null
+    },
+    {
+      "concept": "Velocity",
+      "relation": "is a synonym of SDK and API surface of Solana DeFi protocols: Drift/Velocity, Kamino, MarginFi/P0, Jupiter",
+      "note": null
+    },
+    {
+      "concept": "Drift",
+      "relation": "is a instance of SDK and API surface of Solana DeFi protocols: Drift/Velocity, Kamino, MarginFi/P0, Jupiter",
+      "note": null
+    },
+    {
+      "concept": "Kamino",
+      "relation": "is a instance of SDK and API surface of Solana DeFi protocols: Drift/Velocity, Kamino, MarginFi/P0, Jupiter",
+      "note": null
+    },
+    {
+      "concept": "program ID",
+      "relation": "is a part of SDK and API surface of Solana DeFi protocols: Drift/Velocity, Kamino, MarginFi/P0, Jupiter",
+      "note": null
+    },
+    {
+      "concept": "MarginFi",
+      "relation": "is a instance of SDK and API surface of Solana DeFi protocols: Drift/Velocity, Kamino, MarginFi/P0, Jupiter",
+      "note": null
+    },
+    {
+      "concept": "RPC",
+      "relation": "is a part of SDK and API surface of Solana DeFi protocols: Drift/Velocity, Kamino, MarginFi/P0, Jupiter",
+      "note": null
+    },
+    {
+      "concept": "transaction",
+      "relation": "is a related of SDK and API surface of Solana DeFi protocols: Drift/Velocity, Kamino, MarginFi/P0, Jupiter",
+      "note": null
+    }
+  ]
+}

@@ -82,15 +82,14 @@
           ]
         },
         {
-          "text": "The upstream [redacted] proposal describes standalone restart and configuration changes as cumbersome in Kubernetes and explicitly requires external sequencing and replication catch-up for a full rolling build; it is a proposal rather than evidence of an implemented operator automation feature. (low confidence)",
-          "source": "https://example.test/withheld-reference",
+          "text": "The upstream SERVER-55558 proposal describes standalone restart and configuration changes as cumbersome in Kubernetes and explicitly requires external sequencing and replication catch-up for a full rolling build; it is a proposal rather than evidence of an implemented operator automation feature. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-55558",
           "note": null,
           "claimId": "clm:7f772f57883bd6c15feba7f6e8b803e5269278a0ab21989efe9c4514e44aab00",
-          "validationStatus": "REDACTED-PROJECTION",
+          "validationStatus": "SUPPORTED",
           "evidenceIds": [
             "ev:ecded3adfa09abaaa57d33965ed9bd506e7af1082344c48a6958bdbc6b23ea96"
-          ],
-          "originValidationStatus": "SUPPORTED"
+          ]
         }
       ]
     },
@@ -98,16 +97,22 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "A rolling build constructs the index on one non-primary member as a standalone, restores that member, and proceeds sequentially; after the secondaries finish, a controlled primary stepdown allows processing the former primary. This requires an election and temporarily reduces replica set resilience. (high confidence)",
-          "source": "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "text": "A rolling build constructs the index on one non-primary member as a standalone, restores that member, and proceeds sequentially; after the secondaries finish, a controlled primary stepdown allows processing the former primary. This requires an election and temporarily reduces replica set resilience. (high confidence) Sources: https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md ; https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
           "note": null,
           "claimId": "clm:672f3c45d8a6cb191b43addd8e96d3b839626d4999dacdbe7721c531672ea8fc",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
             "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
-            "https://www.mongodb.com/docs/manual/core/rolling-index-builds.md"
-          ]
+            "https://www.mongodb.com/docs/manual/core/rolling-index-builds.md",
+            "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/"
+          ],
+          "remediation": {
+            "claim_id": "clm:d64a0604a4238b5755b401648ef5f5be4c9473f92f3985dda8e5cfc53469b252",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:01:35Z"
+          }
         },
         {
           "text": "Kubernetes liveness failures can kill and restart a container according to its restart policy. This explains why simply stopping mongod inside a managed pod can interfere with manual maintenance; Percona uses a container maintenance mode for its rolling-build procedure. (high confidence)",
@@ -140,7 +145,7 @@
           ]
         },
         {
-          "text": "For the standalone build, retain the existing data path and applicable storage/encryption settings, omit replica set configuration, and use a different port. Percona demonstrates building with createIndex(), shutting down the standalone, removing the maintenance sentinel, and waiting for replication catch-up before repeating. (high confidence)",
+          "text": "For the standalone build, retain the existing data path and applicable storage/encryption settings, omit replica set configuration, and use a different port. Percona demonstrates building with createIndex(), shutting down the standalone with db.shutdownServer(), and removing the sleep-forever sentinel file, after which the node should eventually catch up via oplog apply and return to Secondary state. Percona then says to repeat the steps on each remaining secondary; the MongoDB tutorial is the source that explicitly says to allow replication to catch up before repeating. Sources: https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
           "source": "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
           "note": null,
           "claimId": "clm:d611a7388485a849ee1a3f56c8565dd45ef3bc72ee3046bc37c901445f6b3575",
@@ -151,10 +156,15 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:6d92785a4143517eaefd17f1f8bf0736221c18d433c3dd16a4b3f5aab4337bb2",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:01:49Z"
+          }
         },
         {
-          "text": "Size the oplog window to cover the indexing outage with margin, and allow the restored member to catch up before taking another member offline. Otherwise the offline member can fall too far behind to catch up from retained oplog entries. (high confidence)",
+          "text": "Size the oplog window to cover the indexing outage with margin, and allow the restored member to catch up before taking another member offline. Otherwise the offline member can fall too far behind to catch up from retained oplog entries. (high confidence) Sources: https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/ ; https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
           "source": "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
           "note": null,
           "claimId": "clm:9398d9cca0ed68eacd1e2f0e26c5a2f2c21fcba7d22a225da5bbf55edc3c2bd9",
@@ -166,7 +176,12 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:1f6ab5d352bf6c934c8a85d9dd5be7e8b7ee9836ed0291881c43dc15dc3f8aec",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:01:49Z"
+          }
         },
         {
           "text": "Do not run rolling and replicated index-build processes concurrently; MongoDB warns of broken builds and crash loops. The Kubernetes maintenance technique does not remove this server-level restriction. (high confidence)",
@@ -192,19 +207,25 @@
           ]
         },
         {
-          "text": "Build on one secondary as a standalone, restore replica-set operation, and wait for replication to catch up before proceeding to another member. After all secondaries have the index, step down the primary and build on the former primary. (medium confidence)",
-          "source": "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "text": "Build on one secondary as a standalone, restore replica-set operation, and wait for replication to catch up before proceeding to another member. After all secondaries have the index, step down the primary and build on the former primary. (medium confidence) Sources: https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md ; https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
           "note": null,
           "claimId": "clm:669de0263f5d9c678e5b5380a8cbfe4dd424d1bb3be3cff45a7df09d03093b1d",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md"
-          ]
+            "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
+            "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/"
+          ],
+          "remediation": {
+            "claim_id": "clm:d2d6fac57c36eed99ca9398e874f1931c8bfc5881ee7d7b27f580f8c4646a63e",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:01:35Z"
+          }
         },
         {
-          "text": "Standalone startup must use the existing data path, omit replica-set configuration and use a different port to prevent normal replica-set and client connections. Preserve deployment-specific storage and encryption settings. (medium confidence)",
-          "source": "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "text": "Standalone startup must use the existing data path, omit replica-set configuration and use a different port to prevent normal replica-set and client connections. Preserve deployment-specific storage and encryption settings. (medium confidence) Sources: https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md ; https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
           "note": null,
           "claimId": "clm:8cf76515c0fcb1bff919a7ab96b3ce56bda378c743388598f0be4e9a1680e2a5",
           "validationStatus": "SUPPORTED",
@@ -213,8 +234,14 @@
             "ev:d1ce0ecf9d4f7f5234d7dd6e7421050e4752b781922577f9a602951803ff68c5"
           ],
           "also": [
-            "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md"
-          ]
+            "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
+            "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/"
+          ],
+          "remediation": {
+            "claim_id": "clm:5d110836cf4542a9021fb17f83f19550b47a3c7c6b0dc1bc68495025eb225ed4",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:01:49Z"
+          }
         },
         {
           "text": "A rolling build requires sufficient oplog history for the isolated member to finish building and catch up. Plan headroom beyond the estimated build duration; Percona's two-hour example is illustrative, not a universal oplog size. (medium confidence)",
@@ -231,8 +258,8 @@
           ]
         },
         {
-          "text": "Rolling builds trade reduced simultaneous build pressure for lower cluster resilience, longer overall build duration and at least one replica-set election; they do not guarantee uninterrupted application service. (medium confidence)",
-          "source": "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "text": "Rolling builds trade reduced simultaneous build pressure for lower cluster resilience, longer overall build duration and at least one replica-set election; they do not guarantee uninterrupted application service. (medium confidence) Sources: https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md ; https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
           "note": null,
           "claimId": "clm:5e851873779092339fd155cb65ccd923df40159e847817079d0696066e944a8c",
           "validationStatus": "SUPPORTED",
@@ -242,11 +269,17 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/core/rolling-index-builds.md",
-            "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md"
-          ]
+            "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
+            "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/"
+          ],
+          "remediation": {
+            "claim_id": "clm:419f81129c3f61f67fe35cbc24f7b58cfe845a1f2825d48da47bdbb5e8868ab2",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:01:49Z"
+          }
         },
         {
-          "text": "The MongoDB replica-set tutorial includes hiding the member with priority zero and setting disableLogicalSessionCacheRefresh=true during standalone operation, then restoring priority/visibility and removing that parameter. These steps are absent from Percona's July 2025 walkthrough. (medium confidence)",
+          "text": "The MongoDB replica-set tutorial includes hiding the member with priority zero and setting disableLogicalSessionCacheRefresh=true during standalone operation, then restoring priority/visibility and removing that parameter. These steps are absent from Percona's July 2025 walkthrough. (medium confidence) Sources: https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md ; https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
           "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets.md",
           "note": null,
           "claimId": "clm:ab43bd80c2098566b4ac718dd15a5d77671f00dc90a218ce1093503d1fdf69d8",
@@ -257,7 +290,12 @@
           ],
           "also": [
             "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:355766c7d8cf7c71ddfd39963f36e1d673ab17e0388118c2f9ca180b7c968ed4",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:01:49Z"
+          }
         }
       ]
     }

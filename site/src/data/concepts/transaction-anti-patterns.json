@@ -38,12 +38,12 @@
           "note": null
         },
         {
-          "text": "Do not leave a transaction open while application code waits on a user or an external service. An open transaction pins its snapshot and keeps older document versions in WiredTiger; later writes can grow the retained history, increase cache and eviction pressure, and add latency or conflicts. Commit or abort promptly, and abort transactions that the application abandons or encounters an operation error in. (high confidence)",
+          "text": "Abort a transaction you abandon, and abort and retry a transaction when an individual operation errors, to prevent storage cache pressure from hurting performance. WiredTiger keeps older committed versions in a history store to serve long-running transactions, and when the oldest transaction or timestamp cannot move forward, history must be held in cache. Sources: https://www.mongodb.com/docs/manual/core/transactions-production-consideration.md ; https://source.wiredtiger.com/10.0.0/arch-hs.html ; https://jira.mongodb.org/browse/WT-4107",
           "source": "https://www.mongodb.com/docs/manual/core/transactions-production-consideration.md",
           "note": null
         },
         {
-          "text": "Bound transaction work and keep it fast: avoid slow or unindexed queries and unnecessarily large document sets. Long scans extend snapshot lifetime, while large transactions increase cache and conflict exposure. Starting in MongoDB 6.2, the server does not retry a transaction that returns `TransactionTooLargeForCache`, because the cache-capacity problem is likely to make an unchanged retry fail again. Split work only when the business invariant permits partial commits. (high confidence) (verified as of 2026-10-20)",
+          "text": "An uncommitted transaction that puts excessive pressure on the WiredTiger cache aborts with a write conflict error, and a transaction too large to ever fit in the cache aborts with TransactionTooLargeForCache. Starting in MongoDB 6.2, the server does not retry a transaction that receives a TransactionTooLargeForCache error, because the cache is too small and a retry is likely to fail. Sources: https://www.mongodb.com/docs/manual/core/transactions-in-applications.md ; https://www.mongodb.com/docs/manual/core/transactions-production-consideration.md",
           "source": "https://www.mongodb.com/docs/manual/core/transactions-production-consideration.md",
           "note": null
         }
@@ -53,7 +53,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "Treat hot-document contention inside a transaction as retry amplification rather than a cheap failure: a `TransientTransactionError` can restart the whole callback and discard prior work. Reduce conflict windows and avoid repeatedly updating a hot document early in a long transaction. (high confidence)",
+          "text": "A TransientTransactionError can cause the entire transaction to be retried, which invokes the callback again; write-conflict TransientTransactionErrors are expected to be a common cause of retry loops. Sources: https://specifications.readthedocs.io/en/latest/transactions-convenient-api/transactions-convenient-api/",
           "source": "https://specifications.readthedocs.io/en/latest/transactions-convenient-api/transactions-convenient-api/",
           "note": null
         }

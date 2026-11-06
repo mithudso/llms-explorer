@@ -13,7 +13,7 @@
           "note": null
         },
         {
-          "text": "Atlas binary quantization compares each dimension with a fixed midpoint of 0 (above 0 becomes 1), which the docs say suits embeddings normalized to length 1. Other engines treat centering as a precondition. Qdrant says binary quantization 'requires a centered distribution' of components. Azure AI Search says it works best when embeddings are centered around zero. Lucene's BBQ normalizes vectors around a per-segment centroid. (medium confidence)",
+          "text": "Atlas binary quantization assumes a midpoint of 0 for each dimension, which the docs say is typically appropriate for embeddings normalized to length 1. Other engines also address centering: Qdrant says binary quantization requires a centered distribution of vector components; Azure AI Search says binary quantization performs very well when embeddings are centered around zero; Lucene's BBQ normalizes all vectors around a centroid. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://qdrant.tech/documentation/guides/quantization/ ; https://learn.microsoft.com/en-us/azure/search/vector-search-how-to-quantization ; https://www.elastic.co/search-labs/blog/better-binary-quantization-lucene-elasticsearch",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
@@ -23,12 +23,12 @@
           "note": null
         },
         {
-          "text": "Atlas keeps the full-fidelity vectors on disk in a separate data structure. It reads them only for binary rescoring and for exact (ENN, `exact: true`) search. When automatic quantization is enabled, ENN queries use only the full-fidelity vectors. (high confidence)",
+          "text": "Atlas keeps the full-fidelity vectors on disk in a separate data structure. It reads them only for binary rescoring and for exact (ENN, `exact: true`) search. When automatic quantization is enabled, ENN queries use only the full-fidelity vectors. (high confidence) Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "Low-dimension embeddings fit aggressive quantization poorly. MongoDB recommends at least 1024 dimensions with quantization over fewer dimensions without it, and its 1024-d and larger vectors reached the recall target at lower `numCandidates`. Elastic warns that BBQ datasets under 384 dimensions may see less accuracy. Qdrant says binary quantization works best on high-dimensional embeddings with centered components. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Low-dimension embeddings fit aggressive quantization poorly. MongoDB recommends at least 1024 dimensions with quantization over fewer dimensions without it, and its 1024-d and larger vectors reached the recall target at lower `numCandidates`. Elastic warns that BBQ datasets under 384 dimensions may see less accuracy. Qdrant says binary quantization works best on high-dimensional embeddings with centered components. (medium confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/vector-search/benchmark/results/ ; https://www.elastic.co/docs/reference/elasticsearch/index-settings/bbq ; https://qdrant.tech/documentation/guides/quantization/",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/results/",
           "note": null
         }
@@ -38,22 +38,22 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "On Atlas, automatic quantization is opt-in per vector field. The `fields.quantization` setting in the index definition takes `none` (the default), `scalar` (1-byte integers) or `binary` (1 bit). The choice applies to all indexed vectors and to query vectors at query time, so queries need no change. Changing it triggers an index rebuild. (high confidence)",
+          "text": "On Atlas, automatic quantization is opt-in per vector field. The `fields.quantization` setting in the index definition takes `none` (the default), `scalar` (1-byte integers) or `binary` (1 bit). The choice applies to all indexed vectors and to query vectors at query time, so queries need no change. Changing it triggers an index rebuild. (high confidence) Sources: https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md ; https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "Exact (ENN) queries on a quantized index use only the full-fidelity vectors, so ENN results are the ground truth for judging ANN recall on that index. Azure AI Search likewise does not rescore exhaustive KNN, because every vector is already scanned. (high confidence)",
+          "text": "Exact (ENN) queries on a quantized index use only the full-fidelity vectors, so ENN results are the ground truth for judging ANN recall on that index. Azure AI Search likewise does not rescore exhaustive KNN, because every vector is already scanned. (high confidence) Sources: https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md ; https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search ; https://learn.microsoft.com/en-us/azure/search/vector-search-how-to-storage-options",
           "source": "https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "note": null
         },
         {
-          "text": "After enabling quantization, the Atlas UI index Size can grow, because Size totals the HNSW graph and quantized vectors (memory) plus the full-fidelity vectors (disk). Read the Required Memory figure (added at GA on 2025-04-29) to estimate query-time RAM. (high confidence)",
+          "text": "After enabling quantization, the Atlas UI index Size can grow, because Size totals the HNSW graph and quantized vectors (memory) plus the full-fidelity vectors (disk). Read the Required Memory metric to estimate query-time RAM. Automatic quantization was announced as generally available on 2025-04-29. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "Atlas Vector Search quantizes float vectors automatically when the vector index definition sets `fields.quantization` to `scalar` or `binary`. If `quantization` is omitted on a `vector` field, the value is `none` and Atlas indexes full-fidelity vectors. Changing the value rebuilds the index. The setting covers indexed vectors and query vectors, so query code does not change. (high confidence)",
+          "text": "Atlas Vector Search quantizes float vectors automatically when the vector index definition sets `fields.quantization` to `scalar` or `binary`. If `quantization` is omitted on a `vector` field, the value is `none` and Atlas indexes full-fidelity vectors. Changing the value rebuilds the index. The setting covers indexed vectors and query vectors, so query code does not change. (high confidence) Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
@@ -68,7 +68,7 @@
           "note": null
         },
         {
-          "text": "For `autoEmbed` index fields (Automated Embedding, a Preview feature), `quantization` takes `float`, `scalar`, `binary` or `binaryNoRescore` and defaults to `scalar` when omitted. `binary` keeps full-precision vectors and rescores with them. `binaryNoRescore` skips rescoring for faster queries and lower storage at lower accuracy. The docs recommend `euclidean` similarity with both binary types. (medium confidence) (verified as of 2026-10-14)",
+          "text": "For `autoEmbed` index fields (Automated Embedding, a Preview feature for mongot in Kubernetes), `quantization` is optional and takes `float`, `scalar`, `binary` or `binaryNoRescore`; `scalar` is the default. `binary` also stores full-precision vectors and rescores with them. `binaryNoRescore` gives faster queries and lower storage costs than `binary`, at lower accuracy. By default, Automated Embedding uses `euclidean` as the similarity function for both binary types. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://www.mongodb.com/docs/kubernetes/current/fts-vs/configuration/automated-embedding/",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         }
@@ -78,12 +78,12 @@
       "title": "How-to and procedures",
       "facts": [
         {
-          "text": "To estimate mongot RAM for a quantized index, add the HNSW graph to the in-memory quantized vectors and apply about 10% overhead for the JVM and page cache. MongoDB's sizing table uses a 1.1 multiplier, and the deployment guide advises search-node RAM at least 10% above total index size. Disk holds the full-fidelity vectors, the graph and the quantized copy. (medium confidence)",
+          "text": "To estimate mongot RAM for a quantized index, add the HNSW graph to the in-memory quantized vectors and apply about 10% overhead for the JVM and page cache. MongoDB's sizing table uses a 1.1 multiplier, and the deployment guide advises search-node RAM at least 10% above total index size. Disk holds the full-fidelity vectors, the graph and the quantized copy. (medium confidence) Sources: https://mongodb.com/blog/post/why-vector-quantization-matters-for-ai-workloads ; https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md",
           "source": "https://mongodb.com/blog/post/why-vector-quantization-matters-for-ai-workloads",
           "note": null
         },
         {
-          "text": "To measure recall on a quantized index, run the same query as ENN (`exact: true`) and as ANN, then compute the overlap. MongoDB recommends a set of 100 queries with Jaccard similarity, plus judgment lists that use ENN results as the baseline. Its own benchmark averaged overlap across 50 sample queries. (medium confidence)",
+          "text": "To measure recall on a quantized index, run the same query as ENN (`exact: true`) and as ANN, then compute the overlap. MongoDB recommends a set of 100 queries with Jaccard similarity, plus judgment lists that use ENN results as the baseline. Its own benchmark averaged overlap across 50 sample queries. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/query/improve-accuracy.md ; https://www.mongodb.com/docs/vector-search/benchmark/overview.md",
           "source": "https://www.mongodb.com/docs/vector-search/query/improve-accuracy.md",
           "note": null
         }
@@ -93,12 +93,12 @@
       "title": "Measurements and reference values",
       "facts": [
         {
-          "text": "Automatic quantization shrinks the vector values 4x (scalar) and 32x (binary), but the RAM that mongot needs falls only 3.75x and 24x because the HNSW graph is not compressed. MongoDB's measured 1024-dimension test matched this: 394.73 MB of float32 RAM became 131.42 MB for scalar (about 3:1) and 16.99 MB for binary (23:1). (high confidence)",
+          "text": "Automatic quantization shrinks the vector values 4x (scalar) and 32x (binary), but the RAM that mongot needs falls only 3.75x and 24x because the HNSW graph is not compressed. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "Quantization raises total disk use. Atlas keeps the full-fidelity vectors on disk for rescoring and exact search, in addition to the quantized copy and the HNSW graph. In MongoDB's roughly 300,000-vector Wikipedia test, the scalar index took 492.83 MB of disk against 394.73 MB for float32, while its RAM fell to 131.42 MB. (high confidence)",
+          "text": "Quantization raises total disk use. Atlas keeps the full-fidelity vectors on disk for rescoring and exact search, in addition to the quantized copy and the HNSW graph. In MongoDB's roughly 300,000-vector Wikipedia test, the scalar index took 492.83 MB of disk against 394.73 MB for float32, while its RAM fell to 131.42 MB. (high confidence) Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://www.mongodb.com/docs/vector-search/benchmark/overview/ ; https://mongodb.com/company/blog/technical/scaling-vector-search-mongodb-atlas-quantization-voyage-ai-embeddings",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
@@ -108,77 +108,77 @@
           "note": null
         },
         {
-          "text": "MongoDB's published benchmark uses Amazon Reviews 2023 subsets (5.5M and 15.3M items) embedded with voyage-3-large at up to 2048 dimensions, and targets 90-95% recall. It varies quantization, dimensionality (256, 512, 1024 and 2048, via sliced views), a ~3% selective filter, concurrency (1, 10, 100) and sharding. Reuse those axes when sizing your own workload, and test on your own data, as the results page advises. (medium confidence)",
+          "text": "MongoDB's published benchmark uses Amazon Reviews 2023 subsets (5.5M and 15.3M items) embedded with voyage-3-large at 2048 dimensions, sliced via views to 1024, 512 and 256, and targets 90-95% recall. It varies quantization, dimensionality, a ~3% selective filter (Pet Supplies, on the 15.3M set), concurrency (1, 10, 100) and sharding. Reuse those axes when sizing your own workload; the results page recommends running tests on a sample data set to ensure performance fits your needs. Sources: https://www.mongodb.com/docs/vector-search/benchmark/overview.md ; https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/overview.md",
           "note": null
         },
         {
-          "text": "Embedding model choice drives how much recall quantization costs. The MongoDB docs list voyage-3-large, Cohere embed-english-v3.0, nomic-embed-text-v1.5, jina-embeddings-v2-base-en and mxbai-embed-large-v1 as quantization-aware, with minimal scalar recall loss even at 384 dimensions. MongoDB's February 2025 post shows OpenAI v3-small, which is not quantization-aware, degrading sharply, especially under binary. In Hugging Face's rescored binary runs, mxbai-embed-large-v1 kept 96.45% and Cohere v3 kept 94.6% of float32 NDCG@10. (medium confidence) (verified as of 2026-10-14)",
+          "text": "Embedding model choice drives how much recall quantization costs. The MongoDB docs list voyage-3-large, Cohere embed-english-v3.0, nomic-embed-text-v1.5, jina-embeddings-v2-base-en and mxbai-embed-large-v1 as quantization-aware, with minimal scalar recall degradation even at lower dimensions like 384. In Hugging Face's binary quantization results, mxbai-embed-large-v1 retained 96.45% and Cohere-embed-english-v3.0 retained 94.6% of float32 MTEB Retrieval NDCG@10. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://huggingface.co/blog/embedding-quantization",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "At scale, prefer 1024 or more dimensions with quantization over fewer dimensions without it. MongoDB's benchmark found 1024d and 2048d vectors reach the 90-95% recall band at lower `numCandidates`, while 256d and 512d vectors 'struggle to exceed 70-80% recall'. Azure AI Search and Qdrant also tie binary quantization to high dimensionality. (high confidence)",
+          "text": "At scale, prefer 1024 or more dimensions with quantization over fewer dimensions without it. MongoDB's benchmark found that higher-dimensional vectors (1024d and above) reach the 90-95% recall target range at lower `numCandidates`. Azure AI Search says binary quantization is particularly effective for embeddings with more than 1024 dimensions, and Qdrant says binary quantization is only efficient for high-dimensional vectors. Sources: https://www.mongodb.com/docs/vector-search/benchmark/results.md ; https://learn.microsoft.com/en-us/azure/search/vector-search-how-to-quantization ; https://qdrant.tech/documentation/guides/quantization/",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "note": null
         },
         {
-          "text": "Pre-quantized BinData (float32, int8, int1) is the alternative to automatic quantization. int8 and int1 ingestion give the same 3.75x and 24x mongot RAM reduction, and BinData needs about three times less disk (66% less) than float arrays on mongod. Index pre-quantized fields with `quantization: none`. (medium confidence)",
+          "text": "Pre-quantized BinData (float32, int8, int1) is the alternative to automatic quantization. int8 and int1 ingestion reduce mongot RAM by 3.75x (scalar) and 24x (binary), and BinData needs about three times less disk space than float32 arrays in the cluster. Index pre-quantized fields with `quantization: none`, which is the default when the setting is omitted. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "Do not enable binary quantization on low-dimension or non-quantization-aware models without testing. In Hugging Face's rescored runs (top 100, rescore multiplier 4), e5-base-v2 (768d) kept only 74.77% of float32 NDCG@10 and nomic-embed-text-v1.5 kept 87.7%, against 96.45% for mxbai-embed-large-v1. Azure AI Search calls binary most effective above 1024 dimensions. Qdrant reports significant precision loss from 1-bit compression below about 1000 dimensions. Elastic reports 74% recall for the lower-dimension E5-small at 1 bit, against above 90% for 1024d CohereV3 at 3x oversampling. (high confidence)",
+          "text": "Do not enable binary quantization on low-dimension or non-quantization-aware models without testing. In Hugging Face's rescored runs (top 100, rescore multiplier 4), e5-base-v2 (768d) kept only 74.77% of float32 NDCG@10 and nomic-embed-text-v1.5 kept 87.7%, against 96.45% for mxbai-embed-large-v1. Azure AI Search calls binary most effective above 1024 dimensions. Qdrant reports significant precision loss from 1-bit compression below about 1000 dimensions. Elastic reports 74% recall for the lower-dimension E5-small at 1 bit, against above 90% for 1024d CohereV3 at 3x oversampling. (high confidence) Sources: https://huggingface.co/blog/embedding-quantization ; https://learn.microsoft.com/en-us/azure/search/vector-search-how-to-quantization ; https://qdrant.tech/documentation/manage-data/quantization/ ; https://www.elastic.co/search-labs/blog/better-binary-quantization-lucene-elasticsearch",
           "source": "https://huggingface.co/blog/embedding-quantization",
           "note": null
         },
         {
-          "text": "Do not treat binary search without rescoring as equivalent. On mxbai-embed-large-v1, Hugging Face measured 92.53% retention for binary search alone and 96.45% with rescoring. Qdrant recommends binary quantization only with rescoring enabled. Elastic calls naive binary quantization 'exceptionally lossy', needing 10x or 100x extra neighbors to rerank. On Atlas, `binary` always rescores. Only `binaryNoRescore` on autoEmbed fields skips it. (high confidence)",
+          "text": "Do not treat binary search without rescoring as equivalent. On mxbai-embed-large-v1, Hugging Face measured 92.53% retention for binary search alone and 96.45% with rescoring. Qdrant recommends using binary quantization with rescoring enabled. Elastic calls naive binary quantization 'exceptionally lossy', needing 10x or 100x additional neighbors to rerank. On Atlas, for Automated Embedding (autoEmbed) fields, `binary` rescores the top results and `binaryNoRescore` skips rescoring. Sources: https://huggingface.co/blog/embedding-quantization ; https://qdrant.tech/documentation/guides/quantization/ ; https://www.elastic.co/search-labs/blog/better-binary-quantization-lucene-elasticsearch ; https://www.mongodb.com/docs/vector-search/crud-embeddings/automated-embedding.md ; https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
           "source": "https://huggingface.co/blog/embedding-quantization",
           "note": null
         },
         {
-          "text": "Treat 'retaining up to 95% search accuracy' for binary with rescoring as a best case, not a default. In MongoDB's own June 2025 test on about 300,000 voyage-3-large vectors (1024d), binary retention was about 91% at top-k 10 with minimal candidates and about 74% at top-k 50 and 100. It recovered to 98% at 500 candidates (top-k 10). MongoDB's August 2025 benchmark found 256d and 512d vectors struggled to exceed 70-80% recall. (medium confidence)",
+          "text": "Treat 'retaining up to 95% search accuracy' for binary quantization with rescoring as a best case, not a default. In a MongoDB test on about 300,000 voyage-3-large vectors (1024d), binary retention against the ENN baseline was about 91% at top-k 10 with minimal candidates, about 74% at top-k 50 and 100, and 98% at 500 candidates (top-k 10). MongoDB's separate benchmark found that 256d and 512d vectors struggle to exceed 70-80% recall. Sources: https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search ; https://mongodb.com/blog/post/technical/scaling-vector-search-mongodb-atlas-quantization-voyage-ai-embeddings ; https://mongodb.com/company/blog/innovation/new-benchmark-tests-reveal-key-vector-search-performance-factors",
           "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
           "note": null
         },
         {
-          "text": "In MongoDB's technical-blog test (about 300,000 Wikipedia fragments, 1024-d voyage-3-large), disk use was 394.73 MB for a float32 index, 407.66 MB for binary and 492.83 MB for scalar. Binary's roughly 3% increase matches the docs' estimate of original index size x 25/24 for binary quantization with rescoring. (medium confidence)",
+          "text": "In MongoDB's technical-blog test (about 300,000 Wikipedia fragments, 1024-d voyage-3-large), disk use was 394.73 MB for a float32 index, 407.66 MB for binary and 492.83 MB for scalar. Binary's roughly 3% increase over float32 is in the same range as the docs' estimate of original index size x 25/24 (about 4.2%) for a binary quantization index with rescoring. Sources: https://mongodb.com/blog/post/technical/scaling-vector-search-mongodb-atlas-quantization-voyage-ai-embeddings ; https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md",
           "source": "https://mongodb.com/blog/post/technical/scaling-vector-search-mongodb-atlas-quantization-voyage-ai-embeddings",
           "note": null
         },
         {
-          "text": "For disk planning the docs advise search nodes with roughly a 4:1 storage-to-RAM ratio for scalar quantization and 24:1 for binary, an index-disk estimate of original index size x 25/24 for binary with rescoring, and free disk equal to 125% of the estimated index size. MongoDB's benchmark ran its quantized workloads on High-CPU and Storage-optimized search nodes, both about 25:1 disk-to-RAM. (medium confidence) (verified as of 2026-10-14)",
+          "text": "For disk planning the docs advise search nodes with roughly a 4:1 storage-to-RAM ratio for scalar quantization and 24:1 for binary, an index-disk estimate of original index size x 25/24 for binary with rescoring, and free disk equal to 125% of the estimated index size. MongoDB's benchmark ran its quantized workloads on High-CPU and Storage-optimized search nodes, both about 25:1 disk-to-RAM. (medium confidence) (verified as of 2026-10-14) Sources: https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md ; https://www.mongodb.com/docs/vector-search/benchmark/overview.md",
           "source": "https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md",
           "note": null
         },
         {
-          "text": "MongoDB lists per-vector space for a 2048-dimension Voyage voyage-3-large embedding as 8 KB for float, 2.14 KB for int8 and 0.334 KB for int1. In its benchmark of 15.3M vectors at 2048-d, scalar needed 32.64 GB RAM and binary 5.1 GB RAM, with 155.04 GB disk for both. (medium confidence) (verified as of 2026-10-14)",
+          "text": "MongoDB lists per-vector space for a 2048-dimension Voyage voyage-3-large embedding as 8 KB for float, 2.14 KB for int8 and 0.334 KB for int1. In its benchmark of 15.3M vectors at 2048-d, scalar needed 32.64 GB RAM and binary 5.1 GB RAM, with 155.04 GB disk for both. (medium confidence) (verified as of 2026-10-14) Sources: https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md ; https://www.mongodb.com/docs/vector-search/benchmark/overview/",
           "source": "https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md",
           "note": null
         },
         {
-          "text": "Binary needs far more `numCandidates` than scalar to reach 90-95% recall. In MongoDB's benchmark, scalar recall starts higher but plateaus as `numCandidates` rises, while binary recall keeps rising, approaches scalar and sometimes passes it. Latency grows notably above `numCandidates` 1000. MongoDB's technical blog shows the same shape: binary retention of about 91% at top-k 10 with minimal candidates and 98% at 500 candidates, but about 74% at top-k 50 and 100 with minimal candidates. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Binary needs far more `numCandidates` than scalar to reach 90-95% recall. In MongoDB's benchmark, scalar recall starts higher but plateaus as `numCandidates` rises, while binary recall keeps rising, approaches scalar and sometimes passes it. Latency grows notably above `numCandidates` 1000. MongoDB's technical blog shows the same shape: binary retention of about 91% at top-k 10 with minimal candidates and 98% at 500 candidates, but about 74% at top-k 50 and 100 with minimal candidates. (medium confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/vector-search/benchmark/results/ ; https://mongodb.com/company/blog/technical/scaling-vector-search-mongodb-atlas-quantization-voyage-ai-embeddings",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/results/",
           "note": null
         },
         {
-          "text": "Binary quantization with rescoring against higher-precision vectors is a common design, not an Atlas-only feature. Hugging Face Sentence Transformers retrieves `rescore_multiplier` x `top_k` binary candidates and rescores them. Elastic BBQ oversamples 3x by default and re-ranks with the full vector. Qdrant enables `rescore` by default for binary quantization and exposes an `oversampling` query parameter. (high confidence)",
+          "text": "Binary quantization with rescoring against higher-precision vectors is a common design, not an Atlas-only feature. Hugging Face Sentence Transformers retrieves `rescore_multiplier` x `top_k` binary candidates and rescores them. In Elasticsearch, `bbq_disk` fields with 1-bit quantization default to 3.0x oversampling when no `rescore_vector` is specified. Qdrant rescores 1-bit quantization by default and exposes an `oversampling` query parameter. Sources: https://huggingface.co/blog/embedding-quantization ; https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/dense-vector ; https://qdrant.tech/documentation/guides/quantization/",
           "source": "https://huggingface.co/blog/embedding-quantization",
           "note": null
         },
         {
-          "text": "Binary quantization with rescoring depends on the embedding model. Hugging Face measured retention of 96.45% for mxbai-embed-large-v1, 94.6% for Cohere embed-english-v3.0, 93.79% for all-MiniLM-L6-v2, 87.7% for nomic-embed-text-v1.5 and 74.77% for e5-base-v2, which the authors attribute to dimension collapse. They conclude quantization 'doesn't universally work with all embedding models'. MongoDB's accuracy page likewise tells users with quantized, large or low-dimensional vectors to measure recall against ENN. (medium confidence)",
+          "text": "Binary quantization with rescoring depends on the embedding model. Hugging Face measured retention of 96.45% for mxbai-embed-large-v1, 94.6% for Cohere embed-english-v3.0, 93.79% for all-MiniLM-L6-v2, 87.7% for nomic-embed-text-v1.5 and 74.77% for e5-base-v2, and attributes the e5-base-v2 loss to dimension collapse. They conclude quantization 'doesn't universally work with all embedding models'. MongoDB's accuracy page says you might want to measure ANN accuracy against ENN results if you have quantized vectors, large numbers of vectors or low dimensional vectors. Sources: https://huggingface.co/blog/embedding-quantization ; https://www.mongodb.com/docs/vector-search/query/improve-accuracy.md",
           "source": "https://huggingface.co/blog/embedding-quantization",
           "note": null
         },
         {
-          "text": "The headline '96% less memory while retaining up to 95% search accuracy' comes from MongoDB's own tests (Figure 3 of the December 2024 blog) and measures processing memory, not total storage. Accuracy depends on `numCandidates`: MongoDB's technical blog shows binary retention ranging from about 74% to 98% across candidate settings. (medium confidence)",
+          "text": "The headline '96% less memory while retaining up to 95% search accuracy' comes from MongoDB's own tests (Figure 3 of the blog, published December 12, 2024) and measures processing memory requirement, not total storage. Accuracy depends on `numCandidates`: in MongoDB's chart, binary plus rescoring recall rises as the number of candidates increases. Sources: https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search ; https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
           "note": null
         },
         {
-          "text": "MongoDB's docs list models whose output can be ingested as pre-quantized vectors (Voyage voyage-3-large, Cohere embed-english-v3.0, Nomic nomic-embed-text-v1.5, Jina jina-embeddings-v2-base-en, Mixedbread mxbai-embed-large-v1) and say scalar quantization keeps recall for them, even at 384 dimensions, because they are quantization-aware. MongoDB's blog adds Voyage figures, such as voyage-3-large int8 at 1024-d within 0.31% of float at 2048-d. Voyage AI joined MongoDB, so these figures are vendor-reported, not independent. (medium confidence)",
+          "text": "MongoDB's docs list models whose output can be ingested as pre-quantized vectors (Voyage voyage-3-large, Cohere embed-english-v3.0, Nomic nomic-embed-text-v1.5, Jina jina-embeddings-v2-base-en, Mixedbread mxbai-embed-large-v1) and say scalar quantization preserves recall for them, even at lower dimensions like 384, because they are quantization aware. MongoDB's blog reports that quantization-aware models like voyage-3-large at 1024 dimensions retain 95%+ recall at reasonable numCandidates values. MongoDB acquired Voyage AI on 2025-02-24, so these figures are vendor-reported, not independent. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://mongodb.com/company/blog/technical/scaling-vector-search-mongodb-atlas-quantization-voyage-ai-embeddings ; https://www.mongodb.com/press/mongodb-announces-acquisition-of-voyage-ai",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         }
@@ -188,42 +188,42 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "The rescoring pool on Atlas is the query's `numCandidates`. MongoDB's benchmark documentation says the top `numCandidates` gathered during the search are re-ordered by their on-disk full-fidelity vectors before the top `limit` results are returned. The binary-quantization launch blog describes the pool less precisely, as 'a subset of the top binary vector search results'. (medium confidence)",
+          "text": "The rescoring pool on Atlas is the query's `numCandidates`. MongoDB's benchmark documentation says the top `numCandidates` gathered during the search are re-ordered by their on-disk full-fidelity vectors before the top `limit` results are returned. The binary-quantization launch blog describes the pool less precisely, as 'a subset of the top binary vector search results'. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/benchmark/overview.md ; https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/overview.md",
           "note": null
         },
         {
-          "text": "In $vectorSearch, ANN queries need `numCandidates` (at most 10,000 and at least `limit`). MongoDB recommends at least 20 times `limit`, and says quantized vectors can need higher values than float32 for the same recall. `numCandidates` is the lever that trades latency for recall on scalar and binary indexes. (high confidence) (verified as of 2026-10-14)",
+          "text": "In $vectorSearch, ANN queries need `numCandidates` (at most 10,000 and at least `limit`). MongoDB recommends at least 20 times `limit`, and says quantized vectors can need higher values than float32 for the same recall. MongoDB describes `numCandidates` overrequesting as the way to trade off latency and recall in ANN searches. In MongoDB's benchmarks, binary-quantized queries gain accuracy as `numCandidates` rises, at the cost of higher latency, while scalar-quantized results start higher but plateau at an asymptotic level. Sources: https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md ; https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "source": "https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "note": null
         },
         {
-          "text": "Every engine surveyed implements binary quantization as a two-stage search: fetch an oversampled candidate list with compressed vectors, then rescore it with higher-precision data. Atlas folds the oversampling into `numCandidates`. Hugging Face Sentence Transformers retrieves rescore_multiplier x top_k (its main runs used 4 x 100). Qdrant pre-selects limit x oversampling (240 for limit 100 at 2.4). Azure AI Search oversamples by a default factor of 4. Elastic's Lucene BBQ benchmarks swept oversampling factors from 1 to 5. (high confidence)",
+          "text": "Atlas, Hugging Face Sentence Transformers, Qdrant, Azure AI Search and Elastic all pair a compressed-vector candidate search with higher-precision rescoring. In Atlas the numCandidates accumulated during the search are reordered by their full-fidelity vectors on disk before the top limit results are returned. Hugging Face Sentence Transformers retrieves rescore_multiplier x top_k (its main runs used 4 x 100). Qdrant pre-selects limit x oversampling (240 vectors for limit 100 at oversampling 2.4). Azure AI Search lets you set an oversampling factor in the index (defaultOversampling) or at query time. Elastic's Lucene BBQ benchmarks swept oversampling factors of 1, 1.5, 2, 3, 4 and 5. Sources: https://huggingface.co/blog/embedding-quantization ; https://qdrant.tech/documentation/guides/quantization/ ; https://www.elastic.co/search-labs/blog/better-binary-quantization-lucene-elasticsearch ; https://www.mongodb.com/docs/vector-search/benchmark/overview/ ; https://learn.microsoft.com/en-us/azure/search/vector-search-how-to-quantization ; https://learn.microsoft.com/en-us/rest/api/searchservice/indexes/create?view=rest-searchservice-2025-09-01",
           "source": "https://huggingface.co/blog/embedding-quantization",
           "note": null
         },
         {
-          "text": "Selective filters raise the cost of binary search. With a filter matching about 3% of 15.3M vectors, binary quantization at low `limit` values needed roughly 4x as much work to reach 90-95% recall. MongoDB separately advises ENN search when a pre-filter matches under 5% of the collection. (medium confidence)",
+          "text": "Selective filters raise the cost of binary search. With a filter matching about 3% of 15.3M vectors, binary quantization at low `limit` values needed roughly 4x as much work to reach 90-95% recall. MongoDB separately advises ENN search when a pre-filter matches under 5% of the collection. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/benchmark/results.md ; https://www.mongodb.com/docs/vector-search/vector-search-stage.md",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "note": null
         },
         {
-          "text": "Documents can silently drop out of a quantized index. If `quantization` is `scalar` or `binary` and a field value is not an array of floats, Atlas skips that vector without an error. Pre-quantized BinData int8 or int1 vectors belong in an index with quantization `none`. (medium confidence)",
+          "text": "Documents can silently drop out of a quantized index. If `quantization` is `scalar` or `binary` and a field value is not an array of floats, Atlas skips that vector without an error. Pre-quantized BinData int8 or int1 vectors belong in an index with quantization `none`. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "If binary recall is low, raise `numCandidates` and expect latency to rise with it. MongoDB's benchmark found binary needs significantly more `numCandidates` than scalar for 90-95% recall. Binary climbs toward, and in some cases past, scalar's plateau as candidates grow. Its latency rises from the hundreds of candidates (rescoring cost) and especially above 1,000. Lower `limit` values need proportionally more candidates. (high confidence)",
+          "text": "If binary recall is low, raise `numCandidates` and expect latency to rise with it. MongoDB's benchmark found binary needs significantly more `numCandidates` than scalar for 90-95% recall. Binary climbs toward, and in some cases past, scalar's plateau as candidates grow, at the cost of higher latency, particularly above `numCandidates` of 1000. Lower `limit` values generally require higher `numCandidates`. Sources: https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/results.md",
           "note": null
         },
         {
-          "text": "Per MongoDB's benchmark overview, the top `numCandidates` results accumulated during the HNSW search are reordered by their full-fidelity vectors on disk, and Atlas then returns the top `limit`. A larger `numCandidates` raises recall and also raises rescoring cost: MongoDB's technical blog reports the rescoring phase dominates latency as the candidate pool grows. (medium confidence)",
+          "text": "Per MongoDB's benchmark overview, the top `numCandidates` results accumulated during the HNSW search are reordered by their full-fidelity vectors on disk, and Atlas then returns the top `limit`. A larger `numCandidates` raises recall and also raises rescoring cost: MongoDB's technical blog reports the rescoring phase dominates latency as the candidate pool grows. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/benchmark/overview/ ; https://mongodb.com/blog/post/technical/scaling-vector-search-mongodb-atlas-quantization-voyage-ai-embeddings",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/overview/",
           "note": null
         },
         {
-          "text": "A lower `limit` needs a higher `numCandidates`. MongoDB's benchmark reaches the 90-95% recall target at a lower `numCandidates` for `limit` 100 than for `limit` 10. The `$vectorSearch` reference recommends `numCandidates` of at least 20 times `limit`, allows at most 10000, and says quantized vectors may need higher `numCandidates` than float32 for similar recall. (medium confidence)",
+          "text": "A lower `limit` needs a higher `numCandidates`. MongoDB's benchmark reaches the 90-95% recall target at a lower `numCandidates` for `limit` 100 than for `limit` 10. The `$vectorSearch` reference recommends `numCandidates` of at least 20 times `limit`, allows at most 10000, and says quantized vectors may need higher `numCandidates` than float32 for similar recall. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/benchmark/results/ ; https://www.mongodb.com/docs/vector-search/vector-search-stage.md",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/results/",
           "note": null
         },
@@ -238,7 +238,7 @@
           "note": null
         },
         {
-          "text": "`$vectorSearch` has no separate rescoring or oversampling parameter. `numCandidates` is the only candidate-pool control, and MongoDB's benchmark queries pass only `index`, `path`, `queryVector`, `limit` and `numCandidates`. Tune `numCandidates` against an ENN baseline. (medium confidence) (verified as of 2026-10-14)",
+          "text": "The `$vectorSearch` stage documents no separate rescoring or oversampling field; `numCandidates` is the candidate-pool control for ANN queries. MongoDB's benchmark unfiltered query passes `index`, `path`, `queryVector`, `limit` and `numCandidates`. MongoDB's quantization benchmark measures retention against an ENN baseline while varying `num_candidates`, and the docs note that quantized vectors might require higher `numCandidates` than float32 to keep similar recall. Sources: https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md ; https://www.mongodb.com/docs/vector-search/benchmark/overview.md ; https://mongodb.com/blog/post/technical/scaling-vector-search-mongodb-atlas-quantization-voyage-ai-embeddings",
           "source": "https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "note": null
         },
@@ -263,7 +263,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "MongoDB's default advice is binary quantization with rescoring for most embedding models, and scalar quantization for lower-dimension models that are not quantization-aware trained (QAT). The index reference adds that precision-critical workloads should use `none` or `scalar` rather than `binary`. The benchmark page says binary can suit many large workloads but tells readers to test on their own data. (medium confidence) (verified as of 2026-10-14)",
+          "text": "MongoDB's default advice is binary quantization with rescoring for most embedding models, and scalar quantization for lower-dimension models that are not quantization-aware trained (QAT). The index reference adds that if precision is critical, you should select `none` or `scalar` instead of `binary`. The benchmark page says binary quantization can be preferable for many large-scale workloads, but recommends running tests on the sample data set to ensure the performance fits your needs. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://www.mongodb.com/docs/vector-search/vector-search-type.md ; https://www.mongodb.com/docs/vector-search/benchmark/results/",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
@@ -278,17 +278,17 @@
           "note": null
         },
         {
-          "text": "MongoDB's docs recommend binary quantization with rescoring for most embedding models. They recommend scalar quantization for lower-dimension models that are not quantization-aware-trained (QAT), because scalar loses less representation. If precision is critical, use `none` or `scalar` instead of `binary`. (high confidence)",
+          "text": "MongoDB's docs recommend binary quantization with rescoring for most embedding models. They recommend scalar quantization for lower-dimension models that are not quantization-aware-trained (QAT), because scalar loses less representation. If precision is critical, use `none` or `scalar` instead of `binary`. (high confidence) Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "MongoDB's own benchmark (Amazon Reviews 2023, voyage-3-large, 15.3M vectors at 2048 dimensions) reports 90-95% recall against float ENN with under 50 ms query latency when quantization is configured. Recall is the average overlap across 50 sample queries. The same page says binary quantization serves the index at about one fourth the price of scalar (two search nodes at $0.24/hr versus $1.04/hr). (medium confidence) (verified as of 2026-10-20)",
+          "text": "MongoDB's own benchmark (Amazon Reviews 2023, voyage-3-large, 15.3M vectors at 2048 dimensions) reports 90-95% recall against float ENN with under 50 ms query latency when quantization is configured. Recall is the average overlap across 50 sample queries. The same page says binary quantization serves the index at about one fourth the price of scalar (two search nodes at $0.24/hr versus $1.04/hr). (medium confidence) (verified as of 2026-10-20) Sources: https://www.mongodb.com/docs/vector-search/benchmark/results/ ; https://www.mongodb.com/docs/vector-search/benchmark/overview/",
           "source": "https://www.mongodb.com/docs/vector-search/benchmark/results/",
           "note": null
         },
         {
-          "text": "Independent tests show rescoring recovers most of the recall lost to 1-bit compression. Hugging Face (March 2024), on mxbai-embed-large-v1 at 1024-d with MTEB retrieval NDCG@10: binary without rescoring kept 92.53% of float32 and binary with rescoring kept 96.45%. Qdrant, using its 1-bit TurboQuant (not plain binary quantization) on all-MiniLM-L6-v2 at 384-d over DBPedia-entity: recall@10 against exact search was 0.605 without rescoring and 0.951 with rescoring at oversampling 1, versus 0.957 for float32. (medium confidence)",
+          "text": "Independent tests show rescoring recovers most of the recall lost to 1-bit compression. Hugging Face (March 2024), on mxbai-embed-large-v1 at 1024-d with MTEB retrieval NDCG@10: binary without rescoring kept 92.53% of float32 and binary with rescoring kept 96.45%. Qdrant, using its 1-bit TurboQuant (not plain binary quantization) on all-MiniLM-L6-v2 at 384-d over DBPedia-entity: recall@10 against exact search was 0.605 without rescoring and 0.951 with rescoring at oversampling 1, versus 0.957 for float32. (medium confidence) Sources: https://huggingface.co/blog/embedding-quantization ; https://qdrant.tech/documentation/search-tuning/when-your-collection-outgrows-ram/",
           "source": "https://huggingface.co/blog/embedding-quantization",
           "note": null
         }
@@ -298,7 +298,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "In the MongoDB docs read on 2026-10-14, no index or query setting controls oversampling or a rescore multiplier for `binary`. The word 'oversampling' does not appear in the quantization, index-definition, $vectorSearch, deployment, benchmark or accuracy pages. `numCandidates` is the single knob, and it also sets how many HNSW nodes the ANN search explores. Hugging Face (rescore_multiplier), Qdrant (oversampling) and Azure AI Search (defaultOversampling, default 4) expose the rescoring pool as a separate parameter. (medium confidence) (verified as of 2026-10-14)",
+          "text": "The $vectorSearch stage documents numCandidates as the parameter that sets the size of the candidate queue, which determines how long to search before returning the top limit results; the benchmark docs say the top numCandidates are the ones rescored. Other products expose the rescoring pool as a separate parameter: sentence-transformers (Hugging Face) uses rescore_multiplier, Qdrant has an oversampling search parameter, and Azure AI Search has oversampling and defaultOversampling. Sources: https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md ; https://sbert.net/examples/sentence_transformer/applications/embedding-quantization/README.html ; https://qdrant.tech/documentation/guides/quantization/ ; https://learn.microsoft.com/en-us/azure/search/vector-search-how-to-quantization",
           "source": "https://www.mongodb.com/docs/vector-search/query/aggregation-stages/vector-search-stage.md",
           "note": null
         },
@@ -333,22 +333,22 @@
           "note": null
         },
         {
-          "text": "Measure quantization recall against ENN ground truth. Run each query as `exact: true` and as ANN, compute Jaccard similarity (overlap divided by result-set size), and average over a query set. MongoDB's accuracy guide recommends 100 queries; its published benchmark averaged 50. If ANN and ENN results diverge, tune `numCandidates`. (high confidence)",
+          "text": "Measure quantization recall against ENN ground truth. Run each query as `exact: true` and as ANN, compute Jaccard similarity (overlap divided by result-set size), and average over a query set. MongoDB's accuracy guide recommends 100 queries; its published benchmark averaged 50. If ANN and ENN results diverge, tune `numCandidates`. (high confidence) Sources: https://www.mongodb.com/docs/vector-search/query/improve-accuracy.md ; https://www.mongodb.com/docs/vector-search/benchmark/overview/",
           "source": "https://www.mongodb.com/docs/vector-search/query/improve-accuracy.md",
           "note": null
         },
         {
-          "text": "Rescoring has three variants across vendors. (1) Re-rank with full-precision document vectors kept on disk: Atlas `binary`, Azure preserveOriginals, Qdrant. (2) Score the float32 query against the binary document vectors, which needs no extra storage: Hugging Face's main experiments, Azure discardOriginals. (3) Re-rank with int8 document vectors: Hugging Face's demo. Atlas uses variant 1, which is why it keeps full-fidelity vectors on disk. (medium confidence)",
+          "text": "Rescoring has three variants across vendors. (1) Re-rank with full-precision document vectors kept in storage: Atlas binary (full-fidelity vectors stay on disk), Azure preserveOriginals, Qdrant (full-precision originals on disk). (2) Score the float32 query against the binary document vectors: Hugging Face's main experiments. Azure with discardOriginals rescores using the dot product of the binary embedding, without referencing full-precision vectors. (3) Re-rank with int8 document vectors: Hugging Face's demo. Atlas uses variant 1, which is why it keeps full-fidelity vectors on disk. Sources: https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search ; https://learn.microsoft.com/en-us/azure/search/vector-search-how-to-storage-options ; https://qdrant.tech/documentation/search-tuning/when-your-collection-outgrows-ram/ ; https://huggingface.co/blog/embedding-quantization",
           "source": "https://huggingface.co/blog/embedding-quantization",
           "note": null
         },
         {
-          "text": "Do not quantize small collections by default. MongoDB's docs recommend automatic quantization above about 100,000 vectors. MongoDB's February 2025 blog says collections under 1 million embeddings may see no significant gain and that the overhead can outweigh the benefit. (medium confidence) (verified as of 2026-10-14)",
+          "text": "Do not quantize small collections by default. MongoDB's docs recommend automatic quantization above about 100,000 vectors. MongoDB's February 2025 blog says collections under 1 million embeddings may see no significant gain and that the overhead can outweigh the benefit. (medium confidence) (verified as of 2026-10-14) Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://mongodb.com/company/blog/innovation/why-vector-quantization-matters-for-ai-workloads",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "Rescoring reads full-fidelity vectors from disk, so a binary index can be disk-bound as well as RAM-bound. The Atlas deployment guide sizes search nodes for disk as well as RAM, and notes minimal RAM and cache use during rescoring. Qdrant warns that rescoring from originals stored on disk can significantly decrease search speed. (medium confidence)",
+          "text": "Rescoring reads full-fidelity vectors from disk, so a binary index can be disk-bound as well as RAM-bound. The Atlas deployment guide sizes search nodes for disk as well as RAM, and notes minimal RAM and cache use during rescoring. Qdrant warns that rescoring from originals stored on disk can significantly decrease search speed. (medium confidence) Sources: https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md ; https://qdrant.tech/documentation/guides/quantization/",
           "source": "https://www.mongodb.com/docs/vector-search/deployment/deployment-options.md",
           "note": null
         },
@@ -358,12 +358,12 @@
           "note": null
         },
         {
-          "text": "Automatic quantization accepts arrays of float or double values and `binData` float32 vectors. Atlas stores floats as `double` internally, so 32-bit and 64-bit embeddings both work. It supports `cosine`, `euclidean` and `dotProduct`, up to 8192 dimensions, with both ANN and ENN search. Automatic binary quantization requires `numDimensions` to be a multiple of 8. (high confidence)",
+          "text": "Automatic quantization accepts arrays of float or double values and `binData` float32 vectors. Atlas stores floats as `double` internally, so 32-bit and 64-bit embeddings both work. It supports `cosine`, `euclidean` and `dotProduct`, up to 8192 dimensions, with both ANN and ENN search. Automatic binary quantization requires `numDimensions` to be a multiple of 8. (high confidence) Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://www.mongodb.com/docs/search/index/field-types/vector-type.md",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
         {
-          "text": "The current docs recommend quantization for applications with a large number of vectors, 'such as over 100,000'. MongoDB's earlier blogs put the practical threshold near 1 million vectors (see disagreements). (medium confidence) (verified as of 2026-10-14)",
+          "text": "The current docs recommend quantization for applications with a large number of vectors, such as over 100,000. MongoDB's earlier blog announcing automatic quantization framed it as particularly useful for applications requiring over a million vectors, which it presents as a target use case rather than a strict threshold. Sources: https://www.mongodb.com/docs/vector-search/about/vector-quantization.md ; https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
           "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
           "note": null
         },
@@ -373,7 +373,7 @@
           "note": null
         },
         {
-          "text": "In independent tests the first rescoring pass recovers most of the loss and extra oversampling adds little. Hugging Face saw no further binary gain raising `rescore_multiplier` from 1 to 10 at top_k 100. Qdrant's 1-bit recall@10 rose from 0.951 at oversampling 1 to 0.977 at 2 and 0.988 at 4, and Qdrant warns extra oversampling adds disk reads for little recall. (medium confidence)",
+          "text": "In independent tests the first rescoring pass recovers most of the loss and extra oversampling adds little. Hugging Face saw no further binary gain raising `rescore_multiplier` from 1 to 10 (its MTEB experiments used k=100). In Qdrant's article, 1-bit TurboQuant (bits1) Recall@10 rose from 0.951 at oversampling 1 to 0.977 at 2 and 0.988 at 4, and Qdrant says extra candidates after oversampling 1 add disk reads for little recall. Sources: https://huggingface.co/blog/embedding-quantization ; https://qdrant.tech/articles/when-your-collection-outgrows-ram/",
           "source": "https://huggingface.co/blog/embedding-quantization",
           "note": null
         },

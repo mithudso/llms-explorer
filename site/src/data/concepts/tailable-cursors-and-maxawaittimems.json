@@ -8,7 +8,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "A tailable cursor follows new inserts in a capped collection and can remain open after the initial results are exhausted. It is a streaming read mechanism, not a mechanism for arbitrary sorted page navigation. (high confidence)",
+          "text": "A tailable cursor follows new inserts in a capped collection and can remain open after the initial results are exhausted. Tailable cursors do not use indexes and return documents in natural order; for queries on an indexed field, MongoDB recommends a regular cursor that tracks the last indexed value. Sources: https://www.mongodb.com/docs/manual/core/tailable-cursors.md",
           "source": "https://www.mongodb.com/docs/manual/core/tailable-cursors.md",
           "note": null,
           "claimId": "clm:dd51b049c0371400bd1e2897a76c30e3ab37d305ad4dc8e049cc2ed76e12c534",
@@ -17,7 +17,12 @@
           "also": [
             "https://docs.spring.io/spring-data/mongodb/reference/mongodb/tailable-cursors.html",
             "https://mongoosejs.com/docs/api/query.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:bd57e6ea1097f50f3fb5bf6bdcab2db8dc7fe2590387f054629fd368775ae1bc",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:48:25Z"
+          }
         },
         {
           "text": "An empty batch is not sufficient evidence that a tailable cursor is dead. In the Go driver, Next loops over empty batches while the cursor remains valid, whereas TryNext can return false and permit another attempt when Err is nil and ID is nonzero. Therefore maxAwaitTimeMS alone does not bound the entire Next call. (medium confidence)",
@@ -31,7 +36,7 @@
           ]
         },
         {
-          "text": "The CSOT specification computes getMore maxTimeMS as min(maxAwaitTimeMS, remaining timeoutMS - minRoundTripTime). The associated driver issue explains that a server wait too close to the client deadline can otherwise close connections and cause connection churn. Treat this as specified behavior and verify implementation for the selected driver. (medium confidence)",
+          "text": "The CSOT specification requires drivers to use min(maxAwaitTimeMS, remaining timeoutMS - minRoundTripTime) as the maxTimeMS on getMore commands for tailable awaitData cursors, to give the server more opportunities to respond with an empty batch before a client-side timeout. Separately, the spec explains that maxTimeMS in general accounts for the network round trip so the server can error gracefully rather than the driver hitting the socket timeout and closing the connection, which would cause connection churn. Verify implementation for the selected driver. Sources: https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md",
           "source": "https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md",
           "note": null,
           "claimId": "clm:13806c5a676606f3fb67ffe17376108d6c273497694011add60467130b393a66",
@@ -42,7 +47,12 @@
           ],
           "also": [
             "https://jira.mongodb.org/browse/DRIVERS-2868"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:46c5a80e2e7ea317f0fc33e49cb116b828513ee21f7546230135d7fc55010e19",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:48:25Z"
+          }
         },
         {
           "text": "For Spring Data MongoDB, synchronous tailing creates a long-running blocking task. Spring recommends reactive tailing to reduce resource use and requires callers to cancel subscriptions or stop listener containers when finished. (low confidence)",
@@ -74,7 +84,7 @@
           ]
         },
         {
-          "text": "A tailable cursor can become invalid when new inserts overwrite its position in the capped collection. Spring Data also warns that a query with no match can produce a dead cursor, so an infinite-stream API is not a guarantee of uninterrupted delivery. (medium confidence)",
+          "text": "A tailable cursor can become invalid when new inserts overwrite its position in the capped collection. Spring Data also warns that a query with no match can produce a dead cursor, so an infinite-stream API is not a guarantee of uninterrupted delivery. (medium confidence) Sources: https://www.mongodb.com/docs/manual/core/tailable-cursors.md ; https://docs.spring.io/spring-data/mongodb/reference/mongodb/tailable-cursors.html",
           "source": "https://www.mongodb.com/docs/manual/core/tailable-cursors.md",
           "note": null,
           "claimId": "clm:029e187e78d58a10853b63068419cc6fa8453eb918a84812e36670034903f9c2",
@@ -85,7 +95,12 @@
           ],
           "also": [
             "https://docs.spring.io/spring-data/mongodb/reference/mongodb/tailable-cursors.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:781e20647a5056c281d7c19e52bea7fe5a7df1d089fdaf60dadf05775ba44182",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:48:25Z"
+          }
         }
       ]
     },
@@ -164,7 +179,7 @@
           ]
         },
         {
-          "text": "At the wire-command level, the tailable awaitData wait limit is named maxTimeMS on each getMore. If no new data arrives during that wait, the server can return an empty batch rather than treating the wait expiry as ordinary query failure. (high confidence)",
+          "text": "At the wire-command level, the tailable awaitData wait limit is named maxTimeMS on each getMore. If no new data arrives during that wait, the server can return an empty batch rather than treating the wait expiry as ordinary query failure. (high confidence) Sources: https://www.mongodb.com/docs/manual/reference/command/getMore.md ; https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md",
           "source": "https://www.mongodb.com/docs/manual/reference/command/getMore.md",
           "note": null,
           "claimId": "clm:7ebeec80e58f4064a56b400ac8df1b21587cf8fbdad4ca31a539dfe174f8704e",
@@ -174,10 +189,15 @@
           ],
           "also": [
             "https://github.com/mongodb/specifications/blob/master/source/client-side-operations-timeout/client-side-operations-timeout.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:81504bfbe3732a5bb9c1c14c847846ae55e86283b6d80c98b24e5bb2cca35f61",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T12:48:25Z"
+          }
         },
         {
-          "text": "A tailable cursor is not guaranteed to survive indefinitely: capped-collection rollover can invalidate its current position. Spring also documents invalid streams when an initial query matches nothing or the last returned document is deleted. Plan cursor termination handling rather than assuming an infinite stream cannot die. (medium confidence)",
+          "text": "A tailable cursor is not guaranteed to survive indefinitely: it can become invalid if data at its current position is overwritten by new data (for example when insertion outpaces iteration). Spring Data also documents that tailable cursors may become dead if the query returns no match or the application deletes the document at the end of the collection that the cursor returned. Plan cursor termination handling. Sources: https://www.mongodb.com/docs/manual/core/tailable-cursors.md ; https://docs.spring.io/spring-data/mongodb/reference/mongodb/tailable-cursors.html",
           "source": "https://www.mongodb.com/docs/manual/core/tailable-cursors.md",
           "note": null,
           "claimId": "clm:23851c1feb1ef55c21cb3e353c9f3e8820ef462b0ec509e3ebba074a1263f833",
@@ -185,7 +205,12 @@
           "evidenceIds": [],
           "also": [
             "https://docs.spring.io/spring-data/mongodb/reference/mongodb/tailable-cursors.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:eb1ccc18d8c39fc262bb941de99282d683b6162cf8151501088bd52c2bf3b39f",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T12:48:25Z"
+          }
         },
         {
           "text": "Under the client-side operations timeout specification, tailable cursors support ITERATION timeout mode rather than CURSOR_LIFETIME. A next() deadline covers all getMore calls made during that next(), rather than restarting for every request. (low confidence)",

@@ -39,7 +39,7 @@
       "title": "How-to and procedures",
       "facts": [
         {
-          "text": "To reduce cleanup spikes, lower rangeDeleterBatchSize or increase rangeDeleterBatchDelayMS after confirming deletion is the bottleneck. Alibaba warns that excessive delay accumulates orphan cleanup and can cause overlapping migrations to time out. (high confidence) (verified as of 2026-10-27)",
+          "text": "To reduce the performance impact of range deletions, set rangeDeleterBatchSize to a small value such as 32 to limit the documents deleted per batch, or set rangeDeleterBatchDelayMS above its current default of 20 milliseconds to add delay between batch deletions. Sources: https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
           "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
           "note": null,
           "claimId": "clm:107e568086fd36712beab183e16bc88a64bbc2668ba8133d62d2c8429ce36c50",
@@ -50,7 +50,12 @@
           ],
           "also": [
             "https://www.alibabacloud.com/help/en/mongodb/user-guide/parameter-tuning-recommendations"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:bbdccf6532fff7fa288e0524aacd9e6b9519fd78bc696079578331f79d88ed5b",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T08:31:57Z"
+          }
         }
       ]
     },
@@ -72,7 +77,7 @@
           ]
         },
         {
-          "text": "For ordinary size-based balancing, the per-collection imbalance threshold is three times configured range size: the documented 128 MB default implies 384 MB. Alibaba identifies community 6.0.3 as the policy boundary; chunk-count equality is not the target. (high confidence) (verified as of 2026-03-28)",
+          "text": "For ordinary size-based balancing, the per-collection imbalance threshold is three times the configured range size: with the documented 128 MB default, two shards must differ by at least 384 MB for a migration to occur. Balancing by data size rather than chunk count was introduced in MongoDB 6.0 (SERVER-65816, fixed in 6.0.3), so chunk-count equality is not the target. Sources: https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md ; https://jira.mongodb.org/browse/SERVER-65816 ; https://www.percona.com/blog/mongodb-new-balancer-policy-and-automerger/",
           "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
           "note": null,
           "claimId": "clm:3e36f09907b4db94354ee5cbc146aec159c00ad2bdadd7fe450f70630f1c97eb",
@@ -83,8 +88,15 @@
             "ev:b73abfed6cd4ea69f1e3b074646e779b7fe78975d503fb333c3ef0c2aaabf5f1"
           ],
           "also": [
-            "https://www.alibabacloud.com/help/en/mongodb/support/troubleshoot-mongodb-shard-data-imbalance"
-          ]
+            "https://www.alibabacloud.com/help/en/mongodb/support/troubleshoot-mongodb-shard-data-imbalance",
+            "https://jira.mongodb.org/browse/SERVER-65816",
+            "https://www.percona.com/blog/mongodb-new-balancer-policy-and-automerger/"
+          ],
+          "remediation": {
+            "claim_id": "clm:0384074688b547da63aa5a0fe62fd50e5291a9dcf56717d0fd98cf6195756904",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T08:31:57Z"
+          }
         }
       ]
     },
@@ -135,15 +147,21 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "Chunk migration reads documents on the donor, copies them to the recipient, and consumes disk, network and processing resources; frequent migrations can compete with application traffic. (medium confidence)",
+          "text": "Chunk migration reads documents on the donor (source) shard and writes them to the recipient (target) shard. Range migrations carry overhead in bandwidth and workload that can impact database performance, so the balancer window can be limited to avoid impacting production traffic. Sources: https://www.percona.com/blog/mongodb-new-balancer-policy-and-automerger/ ; https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
           "source": "https://www.percona.com/blog/mongodb-new-balancer-policy-and-automerger/",
           "note": null,
           "claimId": "clm:05afd5f949d02dec9defb529042807b9910d9a6606be11e1dfbf13353d2f707f",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://www.alibabacloud.com/blog/introduction-to-the-usage-and-principles-of-mongodb-sharded-cluster_597915"
-          ]
+            "https://www.alibabacloud.com/blog/introduction-to-the-usage-and-principles-of-mongodb-sharded-cluster_597915",
+            "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:4c630c583893ac6592fe127d789b9c10cf0e41b880d4b8c21205aee08add1e95",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T08:31:57Z"
+          }
         },
         {
           "text": "Each shard can participate in at most one migration at a time, limiting cluster concurrency to floor(n/2) for n shards; this constrains how quickly added capacity absorbs existing data. (high confidence) (verified as of 2026-10-14)",
@@ -168,8 +186,8 @@
           "evidenceIds": []
         },
         {
-          "text": "Secondary throttling can require per-document replication acknowledgment; disabling it does not remove majority-acknowledgment requirements around migration commit. (medium confidence) (verified as of 2026-10-14)",
-          "source": "https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md",
+          "text": "Secondary throttling can require per-document replication acknowledgment; disabling it does not remove majority-acknowledgment requirements around migration commit. (medium confidence) (verified as of 2026-10-14) Sources: https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
           "note": null,
           "claimId": "clm:65edacbd7a007ddeaf54f46f45b696b8b1eff5384cff619614076eaa89d373a7",
           "validationStatus": "SUPPORTED",
@@ -178,7 +196,12 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:36c6fa1790e14c6adebc87324056ba6235a5fa7304d9841d689af75c692f64ea",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T08:31:57Z"
+          }
         },
         {
           "text": "Cleanup normally overlaps subsequent migrations. Setting _waitForDelete=true serializes cleanup before the next migration, bypasses orphanCleanupDelaySecs, and can terminate secondary reads. (medium confidence) (verified as of 2026-10-14)",
@@ -264,7 +287,7 @@
           ]
         },
         {
-          "text": "By default, another outgoing migration can begin before prior donor deletion finishes. Setting _waitForDelete=true makes cleanup block the next migration, trading migration throughput for serialized cleanup. (high confidence) (verified as of 2026-10-14)",
+          "text": "By default, another outgoing migration can begin before prior donor deletion finishes. Setting _waitForDelete=true makes cleanup block the next migration, trading migration throughput for serialized cleanup. (high confidence) (verified as of 2026-10-14) Sources: https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md ; https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md",
           "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
           "note": null,
           "claimId": "clm:799f9dd18686ab16d1edd24e3c4609b53b35f578e49be8a79c0575c16fc4dde9",
@@ -275,7 +298,12 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/tutorial/manage-sharded-cluster-balancer.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:aae47f281edf78068eba67aaae88e3b9088ea3c5d42a009701f3aaeaca68e1bf",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T08:31:57Z"
+          }
         },
         {
           "text": "An unset _secondaryThrottle skips per-document secondary acknowledgement waits, but migration commit still requires majority acknowledgement at specified phases. Disabling this throttle does not remove all replication waits. (high confidence) (verified as of 2026-10-14)",
@@ -291,15 +319,21 @@
           ]
         },
         {
-          "text": "Data-volume balance and application-workload balance are separate goals. The balancer targets data distribution; evaluate CPU, memory and disk demand as well before treating equal bytes as evidence that the shard key uses capacity efficiently. (medium confidence)",
+          "text": "The balancer targets an even amount of data per shard, which is a different goal from balancing the application's read and write load. An ideal shard key distributes data evenly and also facilitates common query patterns, so check the read and write distribution (for example with analyzeShardKey) as well as data volume before treating equal data as evidence that the shard key uses capacity efficiently. Sources: https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md ; https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key.md",
           "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration.md",
           "note": null,
           "claimId": "clm:148f2c7605a9df273bfdb4a82b497204bf0b711d1a245d4c26d839b282b0afbc",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://www.percona.com/blog/mongodb-new-balancer-policy-and-automerger/"
-          ]
+            "https://www.percona.com/blog/mongodb-new-balancer-policy-and-automerger/",
+            "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:da30cf6bdc5c03ee7f236eadeb02015d4eecc18a618cc992c8e3a01765809e39",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T08:30:47Z"
+          }
         }
       ]
     }
