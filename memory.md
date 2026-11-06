@@ -1,5 +1,14 @@
 # Memory
 
+## v0.22.124 - 2026-11-06
+
+- TASK-1196 inventories live LLMSX offerings and researches peers to refine site identity. Scope is advisory; no website or product changes are authorized by this review.
+- Live inventory: guides/experiments, 31 published skills, downloadable context and concept tree, plus LLMSX, Skills Explorer and GitHub Explorer terminal applications. The task-first research hub already connects references, guides and skills.
+- Firecrawl catalog review selects search/scrape and market research. Competitive-intel is recurring monitoring; shop is purchase research. Alexandria GitHub repository records provide dated stars/forks and repository metadata. These are attention proxies, not active-user or commercial-success measurements.
+- Report and sources are in docs/research/llmsx-peer-positioning-2026-11-06/. Eight peers and28source records support a proposed practical-agent-engineering identity, four navigation destinations and a workflow/evidence/artifact journey. Preserve the concept tree and all existing content. These are recommendations, not implemented changes.
+- Private capture bundle llmsx-20261106 retains page text and provider receipts. All21page records bind exact readable excerpts with Unicode code-point offsets and SHA-256. Initial privacy and diff checks pass. Independent evidence review and Git delivery remain pending at this checkpoint.
+- Stele MCP returned Transport closed before TASK-1199 could be completed or TASK-1200 claimed. Retry lifecycle updates after service recovery; do not infer tracker completion. Preserve the divergent original checkout, draft PR286 and unrelated concepts. Delta:0.22.123 to0.22.124; prompt107.
+
 ## v0.22.123 - 2026-11-06
 
 - Final manufacturing source/publication audit is qualified with no required corrections. Native packs, physical semantic/FTS indexes and fresh consumption tests retain the v0.22.122 outcomes. Public family index-only format and genuine member manifest lint clean. Scoped CLAUDE placement preserves every original byte and both canonical reorder calls are no-ops.
