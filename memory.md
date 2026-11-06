@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.116 - 2026-11-06
+
+- TASK-1175 delivers catalog cohort A:18deadline,19topology and22retry facts;59stored rows total. Native gates accept73assertions with64SUPPORTED and9NO-FACTUAL-ASSERTION. Independent review resolves exact scope and evidence corrections; retain inherited retry context with zero novelty and the attributed CSOT/retry specification disagreement. The private historical retry heuristic23 is stale; all current accepted projections contain22.
+- All24paired pack members match byte for byte. Existing tree/queue fields and96unrelated source-count values are preserved. Source code and private native state are unchanged. The640draft qualification notices remain. R14site279/hub98 and audit278 are merged; R14 has independent production acceptance.
+- This checkpoint enters privacy, focused verification and paired CI-qualified Git delivery. Production/API acceptance is separate. Remaining212priority candidates plus1cross-domain mongot supplement stay with the active campaign; the supplement author is in progress and remains incomplete. No whole-frontier completion or saturation. Delta:0.22.115to0.22.116; prompt102.
+
 ## v0.22.115 - 2026-11-06
 
 - R14 completes four saved original questions with153 stored factual rows and4summaries, all157v4SUPPORTED. Independent review maps37requirement groups to the complete original commissions. These are stored rows, not153unique discoveries.
