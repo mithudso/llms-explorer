@@ -7,7 +7,7 @@ llmsx is a reference site for coding agents. Its concept tree at `/tree/` is a l
 - Address the reader as "you" only when giving an instruction; otherwise describe the page in the third person ("Concepts is for browsing").
 - Numbers are exact and counted from data. Join facts on one line with a spaced middle dot: `52 facts in 6 facets · published reference · read reference · facts.md`. Pluralise correctly ("1 child", "6 children").
 - No emoji. The only glyphs are the text marks listed under Iconography.
-- The wordmark is `llmsx`, lowercase, in `brand`. The header follows it with the note "/ toolkit for coding agents" in `body` at 0.75rem, `ink-muted`.
+- The name is `llmsx`, lowercase. In running text set it in `brand`; as a logo use the Logos group. The header follows it with the note "/ toolkit for coding agents" in `body` at 0.75rem, `ink-muted`.
 
 ## Color
 
@@ -46,7 +46,11 @@ llmsx is a reference site for coding agents. Its concept tree at `/tree/` is a l
   - `●` haspack dot after a concept that has a facts file, `accent`, 0.7em.
   - `▾` after the "Resources & account" menu summary.
   - `·` middle dot as a list separator in meta and proof lines.
-- No logo file exists in the source. `site/public/favicon.svg` is the Astro framework default mark, not an llmsx mark, and is not part of this system. Set the name as the `brand` wordmark.
+- The logo is in the Logos group. Its mark is a tree glyph in a rounded square: a root node, a stem, and two branches. The filled node stands for a published reference (the `●` on `/tree/`) and the ring for a frontier name. The wordmark is `llmsx` drawn as monoline paths, so it renders the same without any font installed.
+- Use `llmsx-lockup.svg` on `paper` and `paper-raised`, and `llmsx-lockup-reversed.svg` on `ink`. Use `llmsx-mark.svg` alone where space is square (app icons, avatars), and `llmsx-favicon.svg` at 32px and below; its heavier strokes keep the ring visible at 16px.
+- Clear space around the mark is a quarter of its width. The mark is never smaller than 16px; the lockup is never shorter than 24px.
+- Do not recolour the mark outside `accent`, `ink` and `paper`, set the wordmark in a font instead of using the paths, or add the ring node as a decoration elsewhere.
+- `site/public/favicon.svg` is still the Astro framework default mark. Replace it with `llmsx-favicon.svg`.
 
 ## Motion
 
@@ -67,7 +71,7 @@ The tree page is built from seven parts, each a card in this system: SiteHeader,
 ## Not synced
 
 - Fonts: none to fetch; all three families are system stacks.
-- Assets: no logo or icon files exist. The favicon is the Astro default and was left out.
+- Assets: the source has no logo or icon files. The Logos group was drawn for this system on 2026-11-07 and is not yet used on the site.
 - Components not carded (not on `/tree/`): `.btn` and `.btn.secondary` (primary values are in the tokens), `.card` / `.card-grid`, personas, zones, home-page sections, the 3D tree (`Tree3D.astro`).
 - `--fg-muted` is referenced by `SearchBox.astro` but never declared; the status line inherits `ink`.
 - Route: read-only. The site has no component library, so nothing was built.

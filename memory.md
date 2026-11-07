@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.137 - 2026-11-07
+
+- Prompt v118 "I need a logo": drew the llmsx logo. Mark = tree glyph (root node, stem, filled node = published reference, ring = frontier) in an accent rounded square (rx 12 on 64); wordmark = monoline paths for "llmsx", no font dependency. Files in docs/design-system/llmsx/project/assets/Logos/: lockup, lockup-reversed, mark, mark-reversed, favicon (heavier strokes for <=32px), glyph-ink, wordmark, wordmark-reversed, plus README.md.
+- Uploaded as assets to the Design System artifact (Logos group, version 4); brand README Iconography rewritten for the logo.
+- Not done: site/public/favicon.svg is still the Astro default and the header still uses the text wordmark. Awaiting the user's go-ahead to swap them.
+- Delta: memory0.22.136 to0.22.137; prompt118.
+
 ## v0.22.136 - 2026-11-07
 
 - docs/ wiki started in grow mode (llm-project-docs plugin): docs/CLAUDE.md contract, docs/index.md, docs/log.md, docs/raw/, .claude/commands/docs-{sync,lint,query,status}.md, .claude/scripts/docs-lint.py. First page: docs/subsystems/site-design-tokens.md (verified_at ddec12f6).
