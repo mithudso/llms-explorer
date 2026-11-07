@@ -125,6 +125,49 @@ export function authorizeTreeChallenge(pathname: string, res: Response): Respons
   return res;
 }
 
+// One public domain. llmsx.org is canonical (site-origin.json); the legacy
+// llms-explorer.com hosts answer every content route with a 301 to the same
+// path there, so search engines and AdSense see a single site instead of a
+// second domain whose every page canonicalizes elsewhere.
+//
+// Account routes are the exception. The API sets its session cookie on
+// api.llms-explorer.com with SameSite=Lax, which a page on llmsx.org is
+// cross-site to: the browser would not send it, and sign-in would silently
+// fail. Those routes stay on llms-explorer.com (llmsx.org sends them there
+// with a 302, temporary until the API moves) along with /.well-known/, where
+// WebAuthn and verification files live. Hosts not listed here (Pages
+// previews, localhost) are never redirected.
+export const CANONICAL_ORIGIN = "https://llmsx.org";
+export const ACCOUNT_ORIGIN = "https://llms-explorer.com";
+const LEGACY_HOSTS = new Set(["llms-explorer.com", "www.llms-explorer.com"]);
+const CANONICAL_HOSTS = new Set(["llmsx.org", "www.llmsx.org"]);
+export const ACCOUNT_ROUTES = ["/login/", "/account/", "/keys/", "/usage/", "/contribute/",
+                               "/donate/", "/moderate/", "/proposals/", "/playground/"];
+
+const isAccountRoute = (pathname: string) =>
+  ACCOUNT_ROUTES.some((r) => pathname.startsWith(r) || pathname === r.slice(0, -1) || pathname === `${r.slice(0, -1)}.md`);
+
+export function domainRedirect(url: URL): Response | null {
+  const host = url.hostname.toLowerCase();
+  const account = isAccountRoute(url.pathname);
+  let target: string | null = null;
+  let status = 301;
+  if (LEGACY_HOSTS.has(host)) {
+    if (host === "llms-explorer.com" && (account || url.pathname.startsWith("/.well-known/"))) return null;
+    target = account ? ACCOUNT_ORIGIN : CANONICAL_ORIGIN;
+  } else if (CANONICAL_HOSTS.has(host) && account) {
+    target = ACCOUNT_ORIGIN;
+    status = 302;
+  } else if (host === "www.llmsx.org") {
+    target = CANONICAL_ORIGIN;
+  }
+  if (!target) return null;
+  return new Response(null, {
+    status,
+    headers: { Location: target + url.pathname + url.search, "Cache-Control": status === 301 ? "public, max-age=3600" : "no-store" },
+  });
+}
+
 // One fetch of the rules per isolate; a deploy replaces the isolate, so the
 // rules can never outlive the build that wrote them.
 let edgePromise: Promise<Compiled> | null = null;
@@ -151,6 +194,8 @@ async function loadEdgeHeaders(assets: Fetcher, base: string): Promise<Compiled>
 export async function onRequest(context: Context): Promise<Response> {
   const { request, env, next } = context;
   const url = new URL(request.url);
+  const moved = domainRedirect(url);
+  if (moved) return moved;
   // Removed assets can survive a Pages deploy and even a zone cache purge.
   // Reject their routes before asking Pages for a potentially cached asset.
   if (/^\/(?:directory|sources|downloads\/sources|llms-full|reference\/directory)(?:\/|\.md$|$)/.test(url.pathname)) {

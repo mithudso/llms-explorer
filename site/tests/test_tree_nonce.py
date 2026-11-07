@@ -30,7 +30,8 @@ def test_tree_nonce_is_fresh_per_response_and_preserves_the_cached_policy():
         ['/tree/', 'text/markdown'], ['/tree.md', 'text/markdown'],
       ]) {{
         const res = await onRequest({{
-          request: new Request('https://llms-explorer.com' + path), env,
+          request: new Request((path.startsWith('/account/')
+            ? 'https://llms-explorer.com' : 'https://llmsx.org') + path), env,
           next: async () => new Response('body', {{ headers: {{ 'Content-Type': type }} }}),
         }});
         out.push({{ path, type, policy: res.headers.get('Content-Security-Policy'),

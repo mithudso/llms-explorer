@@ -1,6 +1,8 @@
 ---
+import { getCollection } from "astro:content";
 import Base from "../../layouts/Base.astro";
 import { packBySlug as downloadablePacks } from "../../data/context-downloads";
+import { RESEARCH_TASKS } from "../../data/research";
 import { tree, type TreeNode } from "../../data/tree";
 import type { ConceptPack, PackFact } from "../../data/types";
 
@@ -77,6 +79,30 @@ function relatedHref(concept: string): string | null {
 const esc = (s: unknown) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+// The research pipeline writes a confidence label into the fact text itself,
+// either as a leading "[low]" or as "(low confidence)". Lift it out into a badge
+// so the claim reads as a sentence, and lift a trailing "Sources: url ; url"
+// list into the citation links it duplicates.
+const CONFIDENCE = /^\s*\[(low|medium|high)\]\s*|\s*\((low|medium|high) confidence\)/i;
+const TRAILING_SOURCES = /\s*Sources?:\s*((?:https?:\/\/\S+?\s*;?\s*)+)$/;
+function splitFact(text: string): { text: string; confidence: string | null; urls: string[] } {
+  let confidence: string | null = null;
+  let body = text.replace(CONFIDENCE, (_, a, b) => { confidence = (a || b).toLowerCase(); return " "; });
+  const urls: string[] = [];
+  body = body.replace(TRAILING_SOURCES, (_, list: string) => {
+    urls.push(...list.split(/[\s;]+/).map((u) => u.replace(/[.,)]+$/, "")).filter((u) => /^https?:\/\//.test(u)));
+    return "";
+  });
+  return { text: body.replace(/\s{2,}/g, " ").trim(), confidence, urls };
+}
+
+// Only real web addresses become links. Older packs cite the archived
+// /sources/ reports this site no longer hosts, and many cite a research note on
+// the build machine (`~/.global-ai-hub/...`): linking either would publish a
+// broken link and a private path, so both render as a plain note.
+const isWebSource = (source: string) =>
+  /^https?:\/\//.test(source) && !/^https?:\/\/(?:llms-explorer\.com|llmsx\.org)\/sources\//.test(source);
+
 // A facet's facts are a flat array; each carries the nesting `level`
 // build_concept_packs.py derived from the source markdown's own list
 // indentation (0 = a facet's top-level point, 1+ = a sub-point under the
@@ -90,18 +116,17 @@ const esc = (s: unknown) =>
 // they always have.
 function renderFacts(facts: PackFact[]): string {
   const factHtml = (fact: PackFact) => {
-    const sources = [...new Set([fact.source, ...(fact.also ?? [])]
+    const { text, confidence, urls } = splitFact(fact.text);
+    const sources = [...new Set([fact.source, ...(fact.also ?? []), ...urls]
       .filter((source) => typeof source === "string")
       .map((source) => source.trim())
       .filter(Boolean))];
-    const citations = sources.map((source, index) => {
-      const archived = /^https?:\/\/(?:llms-explorer\.com|llmsx\.org)\/sources\//.test(source);
-      const label = sources.length > 1 ? `[source ${index + 1}]` : "[source]";
-      return archived
-        ? `<span class="fact-source">[archived source: ${esc(source)}]</span>`
-        : `<a href="${esc(source)}" class="fact-source" rel="noopener">${label}</a>`;
-    }).join(" ");
-    return `${esc(fact.text)} ${citations}` + (fact.note ? ` <em>— ${esc(fact.note)}</em>` : "");
+    const web = sources.filter(isWebSource);
+    const links = web.map((source, index) =>
+      `<a href="${esc(source)}" class="fact-source" rel="noopener">${web.length > 1 ? `[source ${index + 1}]` : "[source]"}</a>`);
+    if (web.length < sources.length) links.push(`<span class="fact-source fact-note">[unpublished research note]</span>`);
+    const badge = confidence ? `<span class="conf" data-confidence="${confidence}">${confidence}</span> ` : "";
+    return `${badge}${esc(text)} ${links.join(" ")}` + (fact.note ? ` <em>— ${esc(fact.note)}</em>` : "");
   };
   let html = "<ul>";
   let level = 0;
@@ -125,13 +150,46 @@ function renderFacts(facts: PackFact[]): string {
 }
 
 const isDomain = node.state === "domain";
+
+// Search indexes only the curated part of the tree (KNOW-1220): the topic
+// groups, which carry an editorial summary, and the packs an editor picked for
+// a task on /research/. Every other concept page stays published for readers
+// and agents but carries noindex, so the sitemap leaves it out too. Widen the
+// set by adding a pick to research-tasks.json, not by size.
+const picks = RESEARCH_TASKS.filter((task) => task.references.includes(node.slug));
+const indexable = isDomain || (hasPublishedReference && picks.length > 0);
+
+// pack.summary is often generator boilerplate ("Run status: COMPLETED", router
+// text, other languages; KNOW-968), so the page describes a pack from its own
+// shape instead: how many facts, in which sections, citing which sites.
+const facts = pack?.facets.flatMap((facet) => facet.facts) ?? [];
+const hostCounts = new Map<string, number>();
+for (const fact of facts) {
+  for (const source of new Set([fact.source, ...(fact.also ?? []), ...splitFact(fact.text).urls])) {
+    if (typeof source !== "string" || !isWebSource(source.trim())) continue;
+    try {
+      const host = new URL(source.trim()).hostname.replace(/^www\./, "");
+      hostCounts.set(host, (hostCounts.get(host) ?? 0) + 1);
+    } catch { /* not a URL after all */ }
+  }
+}
+const topHosts = [...hostCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 4);
+const unpublished = facts.filter((fact) => !isWebSource((fact.source ?? "").trim()) &&
+  !(fact.also ?? []).some((s) => isWebSource(s.trim())) && splitFact(fact.text).urls.length === 0).length;
+const facetId = (i: number) => `facet-${i + 1}`;
+const facetList = pack?.facets.map((facet) => facet.title.toLowerCase()).slice(0, 4).join(", ") ?? "";
+const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
+
+const skillPages = new Set((await getCollection("skills")).map((entry) => entry.id));
+const skillPage = node.skillId && skillPages.has(node.skillId) ? `/skills/${node.skillId}/` : null;
+
 const description = hasPublishedReference && pack
-  ? String(pack.summary).slice(0, 180)
+  ? `${plural(facts.length, "fact")} on ${node.concept}, in sections: ${facetList}.`.slice(0, 180)
   : isDomain && node.summary
   ? node.summary.slice(0, 180)
   : `Topic entry for ${node.concept}. A published reference is not available for this topic yet.`;
 ---
-<Base title={node.concept} description={description} route={`/tree/${node.slug}/`} twin={null} noindex={!hasPublishedReference}>
+<Base title={node.concept} description={description} route={`/tree/${node.slug}/`} twin={null} noindex={!indexable}>
   <p>
     {node.parent_slug && <>Parent: <a href={`/tree/${node.parent_slug}/`}>{node.parent}</a> · </>}
     <strong class="state" data-state={hasPublishedReference ? "reference" : isDomain ? "domain" : "topic"}>
@@ -140,7 +198,7 @@ const description = hasPublishedReference && pack
     {hasPublishedReference
       ? <> · snapshot {pack?.generated || node.researchedAt}</>
       : node.children.length > 0 && <> · {node.children.length} {node.children.length === 1 ? "branch" : "branches"}</>}
-    {node.skillId && <> · skill <code>{node.skillId}</code></>}
+    {skillPage && <> · <a href={skillPage}>agent skill</a></>}
     {node.cvs !== undefined && (
       <> · <span class="cvs" data-cvs={node.cvs} title="Concept Viability Score: relevance, usefulness, novelty, interest and researchability, weighted 0-5. Topics below 3.2 are not researched automatically.">
         viability {cvsLabel(node.cvs)}{node.cvsDecision ? ` (${node.cvsDecision.toLowerCase()})` : ""}
@@ -149,8 +207,10 @@ const description = hasPublishedReference && pack
   </p>
   {!hasPublishedReference && (
     <>
-      <p>A published reference is not available for this topic yet.</p>
-      {node.summary && <p>{node.summary}</p>}
+      {isDomain && node.summary
+        ? <p class="lede">{node.summary} Choose a branch below to read its references.</p>
+        : <p>A published reference is not available for this topic yet.</p>}
+      {!isDomain && node.summary && <p>{node.summary}</p>}
     </>
   )}
   {node.aliases.length > 0 && <p>Also known as: {node.aliases.join(", ")}</p>}
@@ -168,16 +228,28 @@ const description = hasPublishedReference && pack
 
   {hasPublishedReference && pack && (
     <>
-      <blockquote>{pack.summary}</blockquote>
-      <p class="reference-provenance">
-        These notes link each claim to its source. Some citations identify archived research reports
-        that are no longer hosted on this site. A published reference means the
-        content is available; it does not certify independent review or accuracy.
-        <a href="/editorial/">Read the editorial policy</a> and follow the sources before relying on a claim.
-      </p>
-      {pack.facets.map((facet) => (
+      <section class="pack-about" aria-label="About this context pack">
+        {picks.map((task) => (
+          <p class="pack-pick">
+            <span class="content-kind">Editor's pick</span>{" "}
+            For the task <a href={`/research/#task-${task.id}`}>{task.title}</a>: {task.summary}
+          </p>
+        ))}
+        <p>
+          {plural(facts.length, "fact")} in {plural(pack.facets.length, "section")}
+          {topHosts.length > 0 && <>, citing {topHosts.map(([host]) => host).join(", ")}{hostCounts.size > topHosts.length && ` and ${plural(hostCounts.size - topHosts.length, "other site")}`}</>}.
+          {unpublished > 0 && <> {plural(unpublished, "fact")} cite{unpublished === 1 ? "s" : ""} only an unpublished research note.</>}
+          {" "}Confidence labels come from the research run. Check the linked source before relying on a claim; see the <a href="/editorial/">editorial standards</a>.
+        </p>
+        {pack.facets.length > 1 && (
+          <nav aria-label="Sections in this pack">
+            <ol class="pack-toc">{pack.facets.map((facet, i) => <li><a href={`#${facetId(i)}`}>{facet.title}</a> <span>({facet.facts.length})</span></li>)}</ol>
+          </nav>
+        )}
+      </section>
+      {pack.facets.map((facet, i) => (
         <section>
-          <h2>{facet.title}</h2>
+          <h2 id={facetId(i)}>{facet.title}</h2>
           <Fragment set:html={renderFacts(facet.facts)} />
         </section>
       ))}
@@ -220,8 +292,22 @@ const description = hasPublishedReference && pack
 </Base>
 
 <style>
-  blockquote { border-left: 3px solid var(--line); padding-left: var(--sp-3); margin-left: 0; }
+  .pack-about { border-left: 3px solid var(--line); padding-left: var(--sp-3); }
+  .pack-toc { columns: 2 16rem; padding-left: 1.2em; }
+  .pack-toc span { color: var(--ink-faint); font-size: var(--step--1); }
   .fact-source { font-size: var(--step--1); }
+  .fact-note { color: var(--ink-faint); }
+  .conf {
+    display: inline-block;
+    font-size: var(--step--1);
+    line-height: 1.2;
+    padding: 0 0.4em;
+    border: 1px solid var(--line);
+    border-radius: 0.3em;
+    color: var(--ink-faint);
+    text-transform: lowercase;
+  }
+  .conf[data-confidence="high"] { color: inherit; }
   .download-ref {
     display: inline-block;
     font-size: var(--step--1);
