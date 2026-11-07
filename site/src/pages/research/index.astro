@@ -64,13 +64,14 @@ function brief(text: string, max = 180): string {
 const aiFacts = aiReferences.reduce((sum, ref) => sum + ref.facts, 0);
 const sample = resolveReference("prompt-caching") ?? aiReferences[0] as ResearchReference | undefined;
 ---
-<Base title={title} heading="Find research for your AI task" description={description} route="/research/">
+<Base title={title} heading="Research library" description={description} route="/research/">
   <p class="eyebrow">AI & LLM work · {plural(aiReferences.length, "reference file")}</p>
   <p class="lede">Match the task in front of you to a reference file your agent can read, a guide that shows the work, and a skill that does it.</p>
+  <nav class="library-paths" aria-label="Research library"><a href="#rs-search-title">Find by task</a><a href="/tree/">Concept tree</a><a href="/context/">Context files</a><a href="/workflows/">Worked workflows</a></nav>
   <p class="rs-proof">{aiReferences.length.toLocaleString("en-US")} facts files · {aiFacts.toLocaleString("en-US")} source-linked facts · filed under {aiRootName} in the <a href="/tree/">concept tree</a></p>
 
   <section class="rs-finder" aria-labelledby="rs-search-title" data-research-search data-site={site}>
-    <h2 id="rs-search-title">Search by task</h2>
+    <h2 id="rs-search-title">What is your agent trying to do?</h2>
     <form id="rs-form" role="search" hidden>
       <label for="rs-q">What are you working on?</label>
       <div class="rs-field">
@@ -140,7 +141,7 @@ const sample = resolveReference("prompt-caching") ?? aiReferences[0] as Research
                         <div class="rs-cmd">
                           <code>{INSTALL} <span class="rs-nowrap">--skill {skill.id}</span></code>
                           <button type="button" class="rs-copy" hidden data-text={skill.command}
-                            aria-label={`Copy install command for ${skill.id}`} data-track="research_copy_install" data-label={skill.id}>Copy command</button>
+                            aria-label={`Copy install command for ${skill.id}`} data-track="research_copy_install_attempt" data-label={skill.id}>Copy command</button>
                         </div>
                       </li>
                     ))}
@@ -190,6 +191,7 @@ const sample = resolveReference("prompt-caching") ?? aiReferences[0] as Research
 </Base>
 
 <script>
+  import { track } from "../../scripts/engagement";
   import { indexReferences, promptReference, taskHits, type IndexedReference, type ReferenceIndex } from "../../scripts/research-search";
 
   const byId = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -256,6 +258,7 @@ const sample = resolveReference("prompt-caching") ?? aiReferences[0] as Research
     const name = field<HTMLAnchorElement>("name");
     name.textContent = item.concept;
     name.href = `/tree/${item.slug}/`;
+    name.dataset.track = "reference_open"; name.dataset.label = item.slug;
     field("facts").textContent = `${item.facts.toLocaleString("en-US")} facts`;
     if (item.family && item.familySlug) {
       const family = field<HTMLAnchorElement>("family");
@@ -272,6 +275,7 @@ const sample = resolveReference("prompt-caching") ?? aiReferences[0] as Research
     copy.hidden = false;
     const download = field<HTMLAnchorElement>("download");
     download.href = item.download;
+    download.dataset.label = item.slug;
     download.setAttribute("aria-label", `Download facts.md for ${item.concept}`);
     return li;
   }
@@ -304,6 +308,7 @@ const sample = resolveReference("prompt-caching") ?? aiReferences[0] as Research
       console.error("research search: scoring failed", error);
       return show("error", "Search failed on these words. Change them, then try again.");
     }
+    track("research_search", { outcome: found.hits.length ? "results" : "empty" });
     // A ?q= link can carry any length; the status repeats only the start of it.
     const echo = query.length > QUERY_ECHO_CHARS ? `${query.slice(0, QUERY_ECHO_CHARS)}…` : query;
     if (!found.terms.length) return show("idle", "Add a topic word to search, such as caching, agents or evals.");
@@ -365,6 +370,7 @@ const sample = resolveReference("prompt-caching") ?? aiReferences[0] as Research
       await navigator.clipboard.writeText(text);
     } catch (error) {
       console.warn("research: clipboard write refused, showing the text instead", error);
+      track("research_copy_failed", { item: button.dataset.label });
       returnFocus = button;
       button.closest("li")!.append(fallback);
       fallbackText.value = text;
@@ -373,6 +379,7 @@ const sample = resolveReference("prompt-caching") ?? aiReferences[0] as Research
       fallbackText.setSelectionRange(0, text.length); // select() alone misses on iOS
       return;
     }
+    track(button.dataset.text ? "research_install_copy_success" : "research_reference_copy_success", { item: button.dataset.label });
     // The idle label is read once, so a second click while "Copied" shows
     // cannot make "Copied" the label the button returns to.
     button.dataset.idleLabel ??= button.textContent ?? "";

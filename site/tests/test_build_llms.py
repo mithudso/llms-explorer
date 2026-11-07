@@ -153,3 +153,16 @@ def test_max_medium_guard(tmp_path, monkeypatch, capsys):
     assert build_llms.main(["--dist", str(tmp_path), "--max-medium", "6"]) == 0
     assert build_llms.main(["--dist", str(tmp_path), "--max-medium", "5"]) == 1
     assert build_llms.main(["--dist", str(tmp_path), "--max-medium", "-1"]) == 0
+
+
+def test_mirror_keeps_llmsx_and_llms_prefixed_authored_pages(tmp_path):
+    dist = tmp_path / "dist"
+    for route in ("apps/llmsx", "skills/llms-deep-optimizer", "llms-full"):
+        p = dist / (route + ".md")
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("# " + route + "\n\nAuthored reference.\n")
+    out = tmp_path / "mirror.md"
+    assert build_llms.write_mirror(dist, "https://ex.dev", out) == 2
+    assert "https://ex.dev/apps/llmsx/" in out.read_text()
+    assert "https://ex.dev/skills/llms-deep-optimizer/" in out.read_text()
+    assert "https://ex.dev/llms-full/" not in out.read_text()

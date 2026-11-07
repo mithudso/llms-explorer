@@ -1,0 +1,32 @@
+---
+interface Props { text: string; label?: string; kind?: "prompt" | "install" | "reference"; item: string; }
+const { text, label = "Copy prompt", kind = "prompt", item } = Astro.props;
+---
+<div class="copy-block" data-copy-block>
+  <pre><code data-copy-text>{text}</code></pre>
+  <button type="button" class="btn secondary" data-copy-button data-kind={kind} data-item={item} hidden>{label}</button>
+  <span class="copy-status" role="status"></span>
+</div>
+<script>
+  import { track } from "../scripts/engagement";
+  document.querySelectorAll<HTMLElement>("[data-copy-block]").forEach((block) => {
+    const button = block.querySelector<HTMLButtonElement>("[data-copy-button]")!;
+    button.hidden = false;
+    button.addEventListener("click", async () => {
+      const text = block.querySelector("[data-copy-text]")!.textContent ?? "";
+      const status = block.querySelector<HTMLElement>(".copy-status")!;
+      try {
+        await navigator.clipboard.writeText(text);
+        status.textContent = "Copied.";
+        track("artifact_copy", { kind: button.dataset.kind, item: button.dataset.item });
+      } catch {
+        status.textContent = "Copy was blocked. Select the text above and copy it manually.";
+        track("artifact_copy_failed", { kind: button.dataset.kind, item: button.dataset.item });
+        const range = document.createRange();
+        range.selectNodeContents(block.querySelector("[data-copy-text]")!);
+        const selection = window.getSelection();
+        selection?.removeAllRanges(); selection?.addRange(range);
+      }
+    });
+  });
+</script>
