@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.136 - 2026-11-07
+
+- docs/ wiki started in grow mode (llm-project-docs plugin): docs/CLAUDE.md contract, docs/index.md, docs/log.md, docs/raw/, .claude/commands/docs-{sync,lint,query,status}.md, .claude/scripts/docs-lint.py. First page: docs/subsystems/site-design-tokens.md (verified_at ddec12f6).
+- The 36 pre-wiki entries in docs/ are excluded from lint via --exclude in docs-lint.md and docs-status.md and listed in docs/CLAUDE.md. Lint has 2 remaining problems, both docs/architecture/concept-knowledge-contracts.md (no frontmatter, orphan); left for the user to decide.
+- release-commands left empty (Cloudflare Pages deploys on push).
+- Next: logo request (prompt v118).
+- Delta: memory0.22.135 to0.22.136; prompt118.
+
 ## v0.22.135 - 2026-11-07
 
 - Design System artifact "llmsx" built from https://llmsx.org/tree/ and site/src/styles (global.css, lx-polish.css), SearchBox.astro, TreeBrowser.astro, tree/index.astro, Base.astro. Artifact: https://claude.ai/artifact/UNPvpvBwkT3iVjz9wCcWfn (version 2). Source files: docs/design-system/llmsx/project/ (publish with root docs/design-system/llmsx).

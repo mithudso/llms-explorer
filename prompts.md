@@ -1,5 +1,15 @@
 # Prompts Log
 
+## Prompt v117 - 2026-11-07
+
+> yes create a docs wiki
+
+Ran /project-docs-setup --lite.
+
+## Prompt v118 - 2026-11-07
+
+> I need a logo
+
 ## Prompt v116 - 2026-11-07
 
 > https://llmsx.org/tree/
