@@ -35,7 +35,7 @@ This guide ships inside the `llmsx` package. Open it three ways:
 You need Python 3.11 or newer.
 
 ```bash
-python -m pip install 'llmsx[tui]'        # or the wheel from https://llmsx.org/downloads/#llmsx
+python -m pip install 'llmsx[tui] @ https://llmsx.org/downloads/llmsx/llmsx-0.2.9-py3-none-any.whl'
 llmsx explorer                             # inside a checkout, or clones one on first run
 ```
 
@@ -370,7 +370,7 @@ committed file.
 
 | Symptom | Fix |
 |---|---|
-| `llmsx explorer needs Textual` | Install the extra: `python -m pip install 'llmsx[tui]'`. |
+| `llmsx explorer needs Textual` | Install the current wheel with the `tui` extra; see Installation above. |
 | `no concept tree at …` | `--repo` must point at a checkout that contains `concept-tree/tree.json`. |
 | The llms tabs say `no .llms directory` | The hub's concept packs are not on this machine. Set `LLMSX_CONCEPTS_PATH`. |
 | Research offers only `queue` | The provider's command-line tool is not on `PATH`. Install it or switch provider in Settings. |

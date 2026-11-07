@@ -1,7 +1,7 @@
 # LLMSX three-pillar toolkit implementation
 
-Version: 1.0.1
-Delta: implements the three pillars, exact-source skill installs and anonymous public packaging; records the optional corpus-renderer boundary.
+Version: 1.0.2
+Delta: adds strict PEP508 metadata validation, valid direct-reference install commands and normal pip verification; public release0.2.9 supersedes the in-flight0.2.8 artifact.
 Task: TASK-1209. Exact request: three-pillars-request-2026-11-07.md.
 
 ## What visitors can do
@@ -49,3 +49,7 @@ Current documentation: Context7 /withastro/docs for site/canonical configuration
 https://docs.astro.build/en/guides/client-side-scripts/
 https://docs.astro.build/en/reference/configuration-reference/#site
 https://github.com/vercel-labs/skills/blob/main/docs/commands.md
+
+## Strict pip compatibility correction
+
+The initial uv installation accepted an optional direct-URL requirement without the whitespace that PEP508 requires before its environment marker. Standard packaging.Requirement rejected that metadata. Release0.2.9 fixes the writer, validates every emitted requirement and uses normal pip for the final anonymous installation proof. This does not change the context data or the optional corpus-renderer boundary.
