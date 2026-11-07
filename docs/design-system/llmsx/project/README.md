@@ -7,12 +7,13 @@ llmsx is a reference site for coding agents. Its concept tree at `/tree/` is a l
 - Address the reader as "you" only when giving an instruction; otherwise describe the page in the third person ("Concepts is for browsing").
 - Numbers are exact and counted from data. Join facts on one line with a spaced middle dot: `52 facts in 6 facets · published reference · read reference · facts.md`. Pluralise correctly ("1 child", "6 children").
 - No emoji. The only glyphs are the text marks listed under Iconography.
-- The name is `llmsx`, lowercase. In running text set it in `brand`; as a logo use the Logos group. The header follows it with the note "/ toolkit for coding agents" in `body` at 0.75rem, `ink-muted`.
+- The name is `llmsx`, lowercase. As a logo use the Logos group; the `brand` text style is for the name in running text. The header follows it with the note "/ toolkit for coding agents" in `body` at 0.75rem, `ink-muted`.
 
 ## Color
 
 - Page ground is `paper`. Raised surfaces (header, tab-note, facts panel, footer, cards) are `paper-raised` with a 1px `line` border. Do not stack two raised surfaces without a `line` between them: `paper-raised` on `paper` is a 1.03:1 difference and reads only through the border.
-- Text: `ink` for body and names, `ink-muted` for ledes, notes and nav, `ink-faint` for counts, meta lines and frontier names. `ink-faint` passes on `paper` (4.6:1) and `paper-raised` (5.0:1) only; do not set it on `code-bg` (4.3:1).
+- Text: `ink` for body and names, `ink-muted` for ledes, notes and nav, `ink-faint` for counts, meta lines and frontier names. All three pass 4.5:1 on `paper`, `paper-raised`, `code-bg` and `accent-soft`.
+- Borders of controls (inputs, secondary buttons) are `control-border`, which reaches 3:1 on `paper` and `paper-raised`. `line` and `line-strong` are for decoration only.
 - `accent` is the only hue. Use it for links, the haspack dot, the eyebrow, primary buttons and the 3px left rule of a tab-note. Never use it as a large background except on a button. Text on an `accent` fill is `accent-ink`. Primary button hover is `accent-hover`.
 - `accent-soft` marks selection: the opened tree node (`radius-mark`), the eyebrow ground, `::selection`.
 - `code-bg` grounds inline code, pre blocks and examples.
@@ -50,7 +51,7 @@ llmsx is a reference site for coding agents. Its concept tree at `/tree/` is a l
 - Use `llmsx-lockup.svg` on `paper` and `paper-raised`, and `llmsx-lockup-reversed.svg` on `ink`. Use `llmsx-mark.svg` alone where space is square (app icons, avatars), and `llmsx-favicon.svg` at 32px and below; its heavier strokes keep the ring visible at 16px.
 - Clear space around the mark is a quarter of its width. The mark is never smaller than 16px; the lockup is never shorter than 24px.
 - Do not recolour the mark outside `accent`, `ink` and `paper`, set the wordmark in a font instead of using the paths, or add the ring node as a decoration elsewhere.
-- `site/public/favicon.svg` is still the Astro framework default mark. Replace it with `llmsx-favicon.svg`.
+- On the site the header carries the lockup inline at 28px tall, its mark filled with `accent` (`accent-hover` on hover), its glyph `accent-ink` and its wordmark `ink`. `/favicon.svg` is `llmsx-favicon.svg`.
 
 ## Motion
 
@@ -62,7 +63,7 @@ llmsx is a reference site for coding agents. Its concept tree at `/tree/` is a l
 - Buttons and nav targets are at least `target-min` (44px) tall on phones.
 - Current nav item: `aria-current="page"`, `ink`, weight 600. Link hover thickens the underline from 1px to 2px.
 - The tree uses native `<details>`/`<summary>`, so it opens without JavaScript. The facts panel is `aria-live="polite"`.
-- Known misses kept from the source: the search input border (`line`, 1.2:1) and secondary button border (`line-strong`, 1.5:1) are below the 3:1 control-border floor; `ink-faint` on `code-bg` is 4.3:1.
+- Contrast: every text token passes 4.5:1 on every ground it is used on, and `control-border` passes 3:1. These were fixed on the site on 2026-11-07 (`ink-faint` darkened from #667080; `control-border` added).
 
 ## Components
 
@@ -71,7 +72,6 @@ The tree page is built from seven parts, each a card in this system: SiteHeader,
 ## Not synced
 
 - Fonts: none to fetch; all three families are system stacks.
-- Assets: the source has no logo or icon files. The Logos group was drawn for this system on 2026-11-07 and is not yet used on the site.
+- Assets: the Logos group was drawn for this system on 2026-11-07. The site uses it for the header lockup, `favicon.svg`, `favicon.ico`, the apple-touch icon, the web manifest icons and the social card (`og-image.png`).
 - Components not carded (not on `/tree/`): `.btn` and `.btn.secondary` (primary values are in the tokens), `.card` / `.card-grid`, personas, zones, home-page sections, the 3D tree (`Tree3D.astro`).
-- `--fg-muted` is referenced by `SearchBox.astro` but never declared; the status line inherits `ink`.
 - Route: read-only. The site has no component library, so nothing was built.

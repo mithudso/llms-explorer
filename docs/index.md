@@ -7,7 +7,7 @@ repository. The rules are in [`CLAUDE.md`](CLAUDE.md).
 
 ## Start here
 
-- Site styling or the concept tree page: [[site-design-tokens]]
+- Site styling, the logo or the concept tree page: [[site-design-tokens]]
 - Everything else: the older flat documents in this folder (`ARCHITECTURE.md`, `COMPONENTS.md`, `DEVELOPMENT.md`) until pages cover it.
 
 ---
@@ -20,7 +20,7 @@ repository. The rules are in [`CLAUDE.md`](CLAUDE.md).
 
 ## subsystems
 
-- [[site-design-tokens]] -- CSS tokens in global.css and lx-polish.css, the /tree/ page, facts panel and search box, with their traps
+- [[site-design-tokens]] -- CSS tokens, the llmsx logo and icons, the /tree/ page, facts panel and search box, with their traps
 
 ## decisions
 

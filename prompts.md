@@ -1,5 +1,9 @@
 # Prompts Log
 
+## Prompt v120 - 2026-11-07
+
+> Implement your design I like it, do it the whoel way
+
 ## Prompt v119 - 2026-11-07
 
 > I like this logo I need one just less than 150kb in png

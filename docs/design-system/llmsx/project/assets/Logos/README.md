@@ -1,4 +1,4 @@
-The llmsx logo: a tree mark and a monoline wordmark, drawn as SVG paths with no font dependency.
+The llmsx logo: a tree mark and a monoline wordmark, drawn as SVG paths with no font dependency. The site's favicon, touch and manifest icons and social card are generated from these files.
 
 | File | Use | Ink |
 |---|---|---|
