@@ -93,3 +93,20 @@ def test_middleware_rejects_the_same_removed_posts():
         assert out[path] == [410, "no-store"], path
     for path in ("/blog/keyword-plus-vector/", "/blog/%E0%A4%A/", "/blog/"):
         assert out[path][0] == 200, path
+
+
+def test_pre_push_hook_flags_purged_paths_only():
+    """`.githooks/pre-push` refuses a push that would re-upload purged files
+    (the way PR #198 undid the 2026-10-18 rewrite). It matches the purged set
+    only: drafts deleted at the tip but kept in history must not trip it."""
+    from importlib.machinery import SourceFileLoader
+    from importlib.util import module_from_spec, spec_from_loader
+    loader = SourceFileLoader("pre_push", str(REPO / ".githooks" / "pre-push"))
+    hook = module_from_spec(spec_from_loader("pre_push", loader))
+    loader.exec_module(hook)
+    assert hook.purged("site/src/content/blog/from-discovery-to-the-board.md")
+    assert hook.purged("site/scheduled-posts/from-discovery-to-the-board.md")
+    assert hook.purged("docs/verification/blog-ddo-2026-09-30/summary.json")
+    assert not hook.purged("docs/future_posts/18 - State That Survives the Session.md")
+    assert not hook.purged("site/src/content/blog/keyword-plus-vector.md")
+    assert (REPO / ".githooks" / "pre-push").stat().st_mode & 0o111, "hook must be executable"

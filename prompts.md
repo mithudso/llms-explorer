@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v116 - 2026-11-07
+
+> 1. It's turned on. 2. Yes do it again. 3. yes.
+
+The user enabled the AdSense EEA consent message, approved a second history rewrite (KNOW-726 method), and approved removing docs/verification/blog-ddo-2026-09-30/. TASK-1225. Delta: prompt115 to116; memory0.22.134 to0.22.135.
+
 ## Prompt v115 - 2026-11-07
 
 > 1. I added llmsx.org and got myself verified, now I'm just waiting on the site verification.  2. Yes good call remove them. 3. turn ads on

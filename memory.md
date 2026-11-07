@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.135 - 2026-11-07
+
+- TASK-1225: the user approved a second history rewrite and removing docs/verification/blog-ddo-2026-09-30/. git filter-repo dropped 49 purged files and that directory from main and the PR #303, PR #286 and dependabot branches. snapshot was unchanged. Every branch was pushed with --force-with-lease on its old SHA. New main is de5c5b26. Backup: ~/.local/share/llms-explorer-history-backup-2026-11-07/original.git.
+- A tip-tree check showed that only purged paths changed. No purged path remains in the rewritten branch history. Five scheduler-only commits per branch became empty and were dropped.
+- New .githooks/pre-push refuses a push that would upload a purged path, matched by hashed stems. The shared core.hooksPath now points at a detached hooks worktree of main, so every local worktree runs it.
+- Clones and branches made before the rewrite (the shared checkout's sync/research-evidence-current-20261102, local main dbed74f0, backup/local-main-*) hold the old history. Rebase or cherry-pick their commits onto the new origin before any push.
+- Delta: memory0.22.134 to0.22.135; prompt116.
+
 ## v0.22.134 - 2026-11-07
 
 - TASK-1223 removes the employer and customer content that PR #198 (a29949d4, 2026-10-19) restored after the 2026-10-18 sweep: 16 live blog posts and 23 drafts in docs/future_posts. docs/future_posts again matches its README (08, 11, 19, 25 and held/). site/tests/test_removed_posts.py fails CI if any of those file names returns. It stores hashes, not titles.
