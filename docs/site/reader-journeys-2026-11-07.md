@@ -70,4 +70,3 @@ https://docs.astro.build/en/guides/client-side-scripts/
 https://developers.google.com/analytics/devguides/reporting/data/v1/api-schema
 
 Context7 tools were unavailable in this session. Official Astro documentation and the installed modern-web guidance supplied the implementation reference. Existing dependencies were reused for verification; no local model, embedding or indexing service was started.
-

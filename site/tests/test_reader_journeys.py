@@ -97,4 +97,3 @@ assert.equal(m.track('artifact_copy'), false);
     run = subprocess.run(["node", "--disable-warning=ExperimentalWarning", "--input-type=module", "-e",
                           script, str(SITE / "src/scripts/engagement.ts")], text=True, capture_output=True, timeout=30)
     assert run.returncode == 0, run.stdout + run.stderr
-
