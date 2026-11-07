@@ -302,7 +302,10 @@ def _run_middleware(dist, paths, assets_js=None):
       const out = [];
       for (const path of {json.dumps(list(paths))}) {{
         const res = await onRequest({{
-          request: new Request("https://llms-explorer.com" + path), env,
+          // Each route is requested from its home host, as in production:
+          // account routes stay on llms-explorer.com, everything else is llmsx.org.
+          request: new Request((["login", "account", "keys", "usage", "contribute", "donate", "moderate",
+            "proposals", "playground"].includes(path.split("/")[1]) ? "https://llms-explorer.com" : "https://llmsx.org") + path), env,
           next: async () => new Response("asset body"),
         }});
         out.push({{ status: res.status, body: await res.text(), headers: Object.fromEntries(res.headers) }});

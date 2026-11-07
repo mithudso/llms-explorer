@@ -4,6 +4,15 @@ import { context } from "../../data/context";
 import { tree } from "../../data/tree";
 import CopyBlock from "../../components/CopyBlock.astro";
 import { packBySlug } from "../../data/context-downloads";
+import { RESEARCH_TASKS, resolveReference, type ResearchReference } from "../../data/research";
+
+// Editor's picks first: the packs chosen for each common task on /research/,
+// with that task's written summary, before the full generated library. These
+// are also the concept pages search may index (KNOW-1220).
+const picksByTask = RESEARCH_TASKS.map((task) => ({
+  task,
+  refs: task.references.map(resolveReference).filter((ref): ref is ResearchReference => ref !== null),
+})).filter(({ refs }) => refs.length > 0);
 
 // One categorised list of everything an agent can load: the mirrored research
 // reports (the context files) and the per-concept facts files, filed under the
@@ -26,6 +35,28 @@ const description = `${t.concepts} concept facts files (${t.facts.toLocaleString
 <Base title={title} description={description} route="/context/">
   <p class="lede">Choose source-linked context for your task, then take the files into your coding agent.</p>
   <p>Start with one concept, check its date and sources, and load only the relevant file. The <a href="/tree/">Concept tree</a> is a map for finding context; <a href="/research/">find by task</a> starts with common agent problems.</p>
+  {picksByTask.length > 0 && (
+    <section id="picks" aria-labelledby="picks-heading">
+      <h2 id="picks-heading">Editor's picks, by task</h2>
+      <p>Start here. Each pack below was chosen for a common agent task; the rest of the library follows.</p>
+      <div class="pick-grid">
+        {picksByTask.map(({ task, refs }) => (
+          <article class="pick-card">
+            <h3><a href={`/research/#task-${task.id}`}>{task.title}</a></h3>
+            <p>{task.summary}</p>
+            <ul>
+              {refs.map((ref) => (
+                <li>
+                  {ref.page ? <a href={ref.page}>{ref.concept}</a> : ref.concept}
+                  <span class="pick-meta"> · {ref.facts.toLocaleString()} facts · <a href={ref.download} download>.md</a>{packBySlug.has(ref.slug) && <> · <a href={`/downloads/context-packs/${ref.slug}.llms.zip`} download>.llms</a></>}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </div>
+    </section>
+  )}
   <section id="packs" aria-labelledby="packs-heading"><h2 id="packs-heading">One reference or a portable .llms pack</h2>
     <p>A Markdown facts file is the smallest direct download. A ZIP expands into a <code>&lt;slug&gt;.llms/</code> directory containing the five-file LLMSX family, a public one-node concept graph and a manifest with SHA-256 hashes. The graph describes this export; it is not the private research graph. This is source-linked context, not a certificate of factual accuracy.</p>
     <p>{packBySlug.has("prompt-caching") && <><a href="/downloads/context-packs/prompt-caching.llms.zip" download data-track="context_download" data-label="prompt-caching-pack">Download the prompt-caching .llms pack</a> · </>} <a href="/downloads/concepts/prompt-caching.md" download>Download only the Markdown reference</a>{packBySlug.size > 0 && <> · <a href="/downloads/context-packs/index.json">Machine-readable pack catalog</a></>}</p>
@@ -78,6 +109,11 @@ llmsx concepts --data . serve prompt-caching --file llms-facts.txt" kind="instal
 </Base>
 
 <style>
+  .pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+  .pick-card { border: 1px solid var(--line); border-radius: 0.5em; padding: var(--sp-3); }
+  .pick-card h3 { margin-top: 0; }
+  .pick-card ul { padding-left: 1.1em; margin-bottom: 0; }
+  .pick-meta { color: var(--ink-faint); font-size: var(--step--1); }
   .ctx-tree, .ctx-rows { list-style: none; padding: 0; margin: 0; }
   .ctx-tree > li { border-top: 1px solid var(--line); padding: var(--sp-3) 0; margin: 0; }
   .ctx-root > summary, .ctx-concept summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: var(--sp-3); align-items: baseline; }

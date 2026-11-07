@@ -1,5 +1,14 @@
 # Memory
 
+## v0.22.133 - 2026-11-07
+
+- TASK-1218 answers the AdSense rejection "Low value content" (KNOW-558). The user chose llmsx.org as the single domain and will add it as a new AdSense site.
+- The Pages middleware sends llms-explorer.com and www to llmsx.org with 301. Account routes stay on llms-explorer.com, and llmsx.org sends them there with 302, because the API session cookie is SameSite=Lax on api.llms-explorer.com (KNOW-1219). The production api/.env SITE_ORIGINS now includes https://llmsx.org; before that, the API answered 400 to llmsx.org preflights.
+- Only curated /tree/ pages are indexable: the 18 topic groups and the 40 picks in research-tasks.json (KNOW-1220). The sitemap drops from 2,539 to 200 URLs. Every concept URL and download stays published.
+- Concept pages describe a pack from its own facts, sections and cited sites, not from boilerplate pack.summary. They show editor's-pick context, confidence badges and a section index. They no longer link 19,513 local ~/.global-ai-hub source paths (KNOW-1221). /context/ now opens with the editor's picks grouped by task.
+- Five blog posts published after the 10-18 sweep cover employer case work or customers (KNOW-1222). They await the user's decision; the PR does not promote them.
+- Delta: memory0.22.132 to0.22.133; prompt114.
+
 ## v0.22.132 - 2026-11-07
 
 - TASK-1209 continues after PR298 merged as e0425aadbaf466397a42b48d8aa87ef268e39b20. The91owned source files match remote main;318site tests and the full CLI/TUI suite pass. Production rollout and final acceptance are still open.

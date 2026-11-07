@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v114 - 2026-11-07
+
+> 1. I think the domain should be migrated to llmsx.org which is easier and better. SO I'm going to do that. Which I guess means adding it as a new site. 2. Yah go ahead, implement all of your suggestions. I wanted to find a better way to present the concept packs anyway.
+
+This follows the AdSense "Low value content" audit (KNOW-558). TASK-1218 consolidates on llmsx.org, curates the search index, removes scaffolding and broken local-path links from concept pages, and presents the editor's picks first on /context/. Delta: prompt113 to114; memory0.22.132 to0.22.133.
+
 ## Prompt v113 - 2026-11-07
 
 > Implement all of these suggestions.

@@ -48,7 +48,13 @@ MIN_SESSION_SECRET_LEN = 32
 #: list: `allow_origins=["*"]` is invalid with credentials, and a regex would match
 #: `llms-explorer.com.evil.net`. `SameSite=Lax` is no defence between siblings of one
 #: registrable domain, so this list is what stands between a subdomain and the session.
-DEFAULT_SITE_ORIGINS = ("https://llms-explorer.com", "https://www.llms-explorer.com")
+#: llmsx.org is the canonical reading domain (site/site-origin.json); its pages
+#: call the public endpoints (subscribe, research queue). It is listed after the
+#: legacy apex because the OAuth callback returns to `site_origins[0]`, and the
+#: account pages stay on llms-explorer.com: the session cookie is SameSite=Lax on
+#: api.llms-explorer.com, which a llmsx.org page is cross-site to (KNOW-1219).
+DEFAULT_SITE_ORIGINS = ("https://llms-explorer.com", "https://www.llms-explorer.com",
+                        "https://llmsx.org")
 
 #: Hosts the app answers to at all. The WebAuthn relying-party id used to be read
 #: straight off the `Host` header, which made a credential-scoping decision
