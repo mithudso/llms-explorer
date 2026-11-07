@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/afm-3-and-adm-model-family-architecture-evolution/ · pack 2026-10-23 · ~2140 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/afm-3-and-adm-model-family-architecture-evolution/ · pack 2026-10-23 · ~2136 tokens -->
 
 # AFM 3 and ADM model family architecture evolution
 
 > Source-anchored research for AFM 3 and ADM model family architecture evolution. Run status: COMPLETED.
 
-Parent: [Apple Foundation Models framework](https://llms-explorer.com/tree/apple-foundation-models-framework/) · 4 facets · 13 facts · page: https://llms-explorer.com/tree/afm-3-and-adm-model-family-architecture-evolution/
+Parent: [Apple Foundation Models framework](https://llmsx.org/tree/apple-foundation-models-framework/) · 4 facets · 13 facts · page: https://llmsx.org/tree/afm-3-and-adm-model-family-architecture-evolution/
 
 ## Structure and components
 

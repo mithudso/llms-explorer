@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/foundation-models-context-and-error-version-reconciliation/ · pack 2026-10-23 · ~2517 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/foundation-models-context-and-error-version-reconciliation/ · pack 2026-10-23 · ~2513 tokens -->
 
 # Foundation Models context and error version reconciliation
 
 > Source-anchored research for Foundation Models context and error version reconciliation. Run status: COMPLETED.
 
-Parent: [Apple Foundation Models framework](https://llms-explorer.com/tree/apple-foundation-models-framework/) · 4 facets · 11 facts · page: https://llms-explorer.com/tree/foundation-models-context-and-error-version-reconciliation/
+Parent: [Apple Foundation Models framework](https://llmsx.org/tree/apple-foundation-models-framework/) · 4 facets · 11 facts · page: https://llmsx.org/tree/foundation-models-context-and-error-version-reconciliation/
 
 ## How it works
 

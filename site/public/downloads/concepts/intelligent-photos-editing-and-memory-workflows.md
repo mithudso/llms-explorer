@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/intelligent-photos-editing-and-memory-workflows/ · pack 2026-10-23 · ~2072 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/intelligent-photos-editing-and-memory-workflows/ · pack 2026-10-23 · ~2068 tokens -->
 
 # Intelligent Photos editing and memory workflows
 
 > Source-anchored research for Intelligent Photos editing and memory workflows. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 5 facets · 15 facts · page: https://llms-explorer.com/tree/intelligent-photos-editing-and-memory-workflows/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 5 facets · 15 facts · page: https://llmsx.org/tree/intelligent-photos-editing-and-memory-workflows/
 
 ## Structure and components
 

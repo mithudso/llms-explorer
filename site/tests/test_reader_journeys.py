@@ -64,8 +64,8 @@ def test_primary_journeys_and_tree_remain_one_hop_from_home():
     page = Page(html)
     for href in ("/workflows/", "/skills/", "/research/", "/apps/", "/tree/", "/context/", "/blog/"):
         assert href in page.links
-    assert "Practical engineering for AI agents." in html
-    assert 'name="llmsx-release" content="reader-journeys-2026-11-07"' in html
+    assert "Build legible, verifiable systems for AI agents." in html
+    assert 'name="llmsx-release" content="three-pillars-2026-11-07"' in html
 
 
 def test_analytics_omits_free_text_and_respects_every_opt_out():

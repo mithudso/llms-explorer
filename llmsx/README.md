@@ -5,8 +5,8 @@ llms-concept-abstractor concept packs, plus a thin invocation layer over the
 Claude skills SDK.
 
 **Scope, precisely.** `llmsx tree …` and `llmsx concepts list/show/serve` are
-read-only and install with no third-party dependencies (the first-party, stdlib-only
-`llms-txt` library is the one requirement). `llmsx tui` and
+read-only and install with no runtime dependencies. Public context downloads also
+use only the Python standard library. `llmsx tui` and
 `llmsx concepts tui` need the `tui` extra; the concept-pack TUI's "edit"
 action opens `$EDITOR` on a pack file, which is a write. `llmsx family` and
 `llmsx optimize` need the `skills` extra and make an outbound network call to
@@ -19,7 +19,36 @@ does and does not do.
 pip install llmsx                 # tree + concepts list/show/serve only
 pip install 'llmsx[tui]'          # + the Textual browsers
 pip install 'llmsx[skills]'       # + `llmsx family` / `llmsx optimize`
+# Advanced Python corpus/family generation only (authorized private renderer access):
+pip install 'llmsx[corpus]'
 ```
+
+## Public agent context packs (0.2.8+)
+
+Install the current wheel from https://llmsx.org/downloads/ for these commands.
+The public context path needs no model, API key, Textual extra or private hub.
+Version0.2.8 removes the private shared renderer from base/TUI installs. The
+optional `llmsx.pipeline` / `llmsx.family` generation API needs `llmsx[corpus]`
+and authorized access to that renderer; public pack reading/downloading does not.
+
+```sh
+llmsx context list
+llmsx context get prompt-caching
+llmsx concepts --data . show prompt-caching
+llmsx concepts --data . serve prompt-caching --file llms-facts.txt
+```
+
+The downloader creates a new `prompt-caching.llms/` directory. It checks the
+archive catalog hash, exact member names and each manifest hash before writing.
+It refuses existing output paths. Use `--output <new-directory>` for another copy.
+These hashes establish transfer integrity, not factual correctness or independent
+review. Inspect the pack date, original sources and task relevance before loading.
+The five-file family and one-node graph contain public reference material only;
+no private research ledger or full private concept graph is included.
+
+The cohesive suite uses `llmsx`, `skillsx` and `ghx`. Skills Explorer and GitHub
+Explorer are separate applications. `github-explorer` remains an alias for `ghx`.
+`llmsx tui` remains the tree browser; `llmsx explorer` opens the richer workbench.
 
 ## Speculative decoding experiment
 
@@ -254,7 +283,7 @@ Two different things share the name "Concepts" here, deliberately kept apart:
 
 **Complete user guide:** [`llmsx/USER_GUIDE.md`](llmsx/USER_GUIDE.md) — shipped in the
 package; press `g` in the app, run `llmsx explorer --guide`, or read it at
-https://llms-explorer.com/explorer/guide/
+https://llmsx.org/explorer/guide/
 
 ```bash
 pip install 'llmsx[tui]'

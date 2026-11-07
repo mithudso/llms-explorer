@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v112 - 2026-11-07
+
+> Implement all of these suggestions.
+
+Exact supplied prompt: docs/site/three-pillars-request-2026-11-07.md. TASK-1209 implements the three toolkit pillars, skill demonstrations/cost transparency, context downloads and coherent branding. Verify all claims and commands; preserve the Concept tree, library, existing URLs and installed command compatibility. Deliver through passing CI, merged source and live acceptance. Delta: prompt111 to112; memory0.22.129 to0.22.131.
+
 ## Prompt v111 - 2026-11-07
 
 > Implement all suggested changes.

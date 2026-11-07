@@ -115,3 +115,24 @@ def test_alias_downloads_survive_regeneration_with_canonical_current_facts(tmp_p
     (concepts / "kid.json").unlink()
     assert gen_concept_facts.build(concepts, tree, out, "https://ex.dev", sources) == 0
     assert list(out.iterdir()) == []
+
+
+def test_direct_loader_uses_its_own_checkout_origin_without_sys_path_changes(tmp_path, monkeypatch):
+    import importlib.util
+    import shutil
+    monkeypatch.delenv("SITE_URL", raising=False)
+    loaded = []
+    for name in ("first", "second"):
+        site = tmp_path / name
+        tools = site / "tools"
+        tools.mkdir(parents=True)
+        for module in ("gen_concept_facts.py", "site_origin.py"):
+            shutil.copy2(SITE / "tools" / module, tools / module)
+        (site / "site-origin.json").write_text(json.dumps({
+            "canonical": f"https://{name}.example.test", "legacy": []}))
+        spec = importlib.util.spec_from_file_location(name, tools / "gen_concept_facts.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        loaded.append(module)
+    assert loaded[0].default_site_url() == "https://first.example.test"
+    assert loaded[1].default_site_url() == "https://second.example.test"

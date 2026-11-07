@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/managed-apple-intelligence-and-external-intelligence-controls/ · pack 2026-10-23 · ~2510 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/managed-apple-intelligence-and-external-intelligence-controls/ · pack 2026-10-23 · ~2506 tokens -->
 
 # Managed Apple Intelligence and external intelligence controls
 
 > Source-anchored research for Managed Apple Intelligence and external intelligence controls. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 4 facets · 12 facts · page: https://llms-explorer.com/tree/managed-apple-intelligence-and-external-intelligence-controls/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 4 facets · 12 facts · page: https://llmsx.org/tree/managed-apple-intelligence-and-external-intelligence-controls/
 
 ## How it works
 

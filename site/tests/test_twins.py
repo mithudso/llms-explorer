@@ -178,7 +178,7 @@ def test_generated_sections_get_twins_with_an_inventory(tmp_path):
     assert "why split big files" in (dist / "demo.md").read_text()
     # /context/ lists every download absolutely — the file IS the second hop
     context_twin = (dist / "context.md").read_text()
-    assert "# Context files" in context_twin
+    assert "# Agent context libraries" in context_twin
     assert "/downloads/sources/" not in context_twin
     assert "[Alpha · Alpha kid — facts](https://ex.dev/downloads/concepts/alpha-kid.md)" in context_twin
     assert "What this section holds (1)" in context_twin

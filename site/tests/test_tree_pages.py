@@ -58,7 +58,7 @@ def fixture_dist(tmp_path_factory) -> Path:
     if shutil.which("npx") is None or not (SITE / "node_modules" / "astro").is_dir():
         pytest.skip("needs node + `npm ci` in site/ to build a fixture tree")
     root = tmp_path_factory.mktemp("fixroot")
-    for item in ("src", "public", "astro.config.mjs", "tsconfig.json", "package.json"):
+    for item in ("src", "public", "astro.config.mjs", "site-origin.json", "tsconfig.json", "package.json"):
         src = SITE / item
         if not src.exists():
             continue
@@ -206,10 +206,11 @@ def test_tree_index_labels_only_available_references_as_readable(fixture_dist):
 
 
 def test_sitemap_excludes_unpublished_fixture_topics(fixture_dist):
-    urls = build_sitemap.build(fixture_dist, "https://llms-explorer.com")
-    assert "https://llms-explorer.com/tree/available-reference/" in urls
+    origin = build_sitemap.default_site_url()
+    urls = build_sitemap.build(fixture_dist, origin)
+    assert f"{origin}/tree/available-reference/" in urls
     for slug in ("root", "kid", "empty-pack", "unsourced-pack", "blank-summary"):
-        assert f"https://llms-explorer.com/tree/{slug}/" not in urls
+        assert f"{origin}/tree/{slug}/" not in urls
 
 
 def test_frontier_children_are_marked_and_not_linked(fixture_dist):

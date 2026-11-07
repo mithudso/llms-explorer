@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/appentity-content-transfer-and-intentvaluerepresentation-for-siri-cross-app-workflows/ · pack 2026-10-23 · ~1856 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/appentity-content-transfer-and-intentvaluerepresentation-for-siri-cross-app-workflows/ · pack 2026-10-23 · ~1852 tokens -->
 
 # AppEntity content transfer and IntentValueRepresentation for Siri cross-app workflows
 
 > Source-anchored research for AppEntity content transfer and IntentValueRepresentation for Siri cross-app workflows. Run status: COMPLETED.
 
-Parent: [App Schemas integration for Siri AI](https://llms-explorer.com/tree/app-schemas-integration-for-siri-ai/) · 4 facets · 13 facts · page: https://llms-explorer.com/tree/appentity-content-transfer-and-intentvaluerepresentation-for-siri-cross-app-workflows/
+Parent: [App Schemas integration for Siri AI](https://llmsx.org/tree/app-schemas-integration-for-siri-ai/) · 4 facets · 13 facts · page: https://llmsx.org/tree/appentity-content-transfer-and-intentvaluerepresentation-for-siri-cross-app-workflows/
 
 ## How-to and procedures
 

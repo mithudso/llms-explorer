@@ -42,8 +42,8 @@ included automatically. Account utilities (`/login/`, `/account/`, `/keys/`,
 Markdown twins and other downloads are not HTML page entries.
 
 The sitemap and each page's canonical link use `SITE_URL` (default
-`https://llms-explorer.com`) with trailing slashes. `robots.txt` advertises
-`Sitemap: https://llms-explorer.com/sitemap.xml`. XML is UTF-8 and follows the
+`https://llmsx.org`) with trailing slashes. `robots.txt` advertises
+`Sitemap: https://llmsx.org/sitemap.xml`. XML is UTF-8 and follows the
 [Sitemaps protocol](https://www.sitemaps.org/protocol.html). Generation fails
 if the single sitemap would exceed the protocol's URL or size limits.
 
@@ -52,7 +52,7 @@ After deploying, verify `/sitemap.xml` returns HTTP 200 with XML, then run:
 ```sh
 curl -sS https://isitagentready.com/api/scan \
   -H 'Content-Type: application/json' \
-  --data '{"url":"https://llms-explorer.com"}'
+  --data '{"url":"https://llmsx.org"}'
 ```
 
 Check `checks.discoverability.sitemap.status` is `"pass"`. The external scan
@@ -202,7 +202,7 @@ what ships. `twins.py` writes `dist/_headers` and that is the only one.
 | Root directory | `site` |
 | Build command | `sh ../hub/bootstrap.sh --no-tests && npm run build` |
 | Build output directory | `dist` |
-| Environment variable | `SITE_URL` = the production URL — `https://llms-explorer.com` (the custom domain; `llms-explorer.pages.dev` stays as the project's built-in preview host). Also the default in `astro.config.mjs` and `tools/twins.py`. |
+| Environment variable | `SITE_URL` = the production URL — `https://llmsx.org` (the custom domain; `llms-explorer.pages.dev` stays as the project's built-in preview host). Also the default in `astro.config.mjs` and `tools/twins.py`. |
 | Node version | 22 (`engines.node` in `package.json`) |
 
 `npm run build` alone is not enough: `postbuild` runs the twin and llms tools
@@ -260,3 +260,7 @@ with `git push origin HEAD:main` — no `--force`, so a diverged `main` fails
 loudly instead of being overwritten. Pages deploys `main`. Configure
 `PROMOTE_TOKEN` (above) if the promoted commit should re-run this workflow for
 the link check.
+
+### Canonical-domain compatibility
+
+`site-origin.json` defines https://llmsx.org as the canonical public origin. Astro and Python exporters map the legacy public domain to it, including a stale `SITE_URL` in deployment settings. Other configured origins remain supported for development and previews. This migration does not change the API host or account credentials.

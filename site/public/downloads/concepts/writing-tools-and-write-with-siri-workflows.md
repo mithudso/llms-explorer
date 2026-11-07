@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/writing-tools-and-write-with-siri-workflows/ · pack 2026-10-23 · ~2745 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/writing-tools-and-write-with-siri-workflows/ · pack 2026-10-23 · ~2741 tokens -->
 
 # Writing Tools and Write with Siri workflows
 
 > Source-anchored research for Writing Tools and Write with Siri workflows. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 4 facets · 16 facts · page: https://llms-explorer.com/tree/writing-tools-and-write-with-siri-workflows/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 4 facets · 16 facts · page: https://llmsx.org/tree/writing-tools-and-write-with-siri-workflows/
 
 ## Definitions
 
