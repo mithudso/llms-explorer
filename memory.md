@@ -1,41 +1,49 @@
 # Memory
 
-## v0.22.139 - 2026-11-07
+## v0.22.140 - 2026-11-07
 
 - Remote main was rewritten outside this session (4f040e06 became de5c5b26) and this branch was replayed on top; local branch now tracks origin. Old local commits kept on branch backup/pre-rewrite-66382052.
-- Prompt v120: logo and design system applied to the site. Header brand link now holds the lockup as inline SVG (site/src/layouts/Base.astro, .brand-logo rules in global.css). New site/public files: favicon.svg and favicon.ico (logo), apple-touch-icon.png, icon-192/512.png, icon-maskable-512.png, og-image.png, site.webmanifest; Base.astro links them and adds og:/twitter: meta and theme-color. 404.html links the favicon. site/tools/gen_brand_icons.mjs regenerates them (needs Playwright; NODE_PATH=$(npm root -g) in cloud).
+- Prompt v121: logo and design system applied to the site. Header brand link now holds the lockup as inline SVG (site/src/layouts/Base.astro, .brand-logo rules in global.css). New site/public files: favicon.svg and favicon.ico (logo), apple-touch-icon.png, icon-192/512.png, icon-maskable-512.png, og-image.png, site.webmanifest; Base.astro links them and adds og:/twitter: meta and theme-color. 404.html links the favicon. site/tools/gen_brand_icons.mjs regenerates them (needs Playwright; NODE_PATH=$(npm root -g) in cloud).
 - Contrast fixes: --ink-faint #667080 to #616a79; new --control-border #808996 on the search input and .btn.secondary; --accent-hover variable replaces the #264c66 literal; SearchBox --fg-muted to --ink-muted.
 - Verification: astro build 2841 pages; astro check 0 errors; site tests 276 passed, 2 skipped, 12 failed, all from the postbuild stopping on the private llms-txt library (no sitemap.xml, llms.txt, prune) or missing fastapi; 3 modules not collected for the same reason. CI has the token.
 - Design system artifact version 6 and docs/subsystems/site-design-tokens.md updated to match.
+- Delta: memory0.22.139 to0.22.140; prompt121.
+
+## v0.22.139 - 2026-11-07
+
+- Prompt v120: PNG of the mark under 150 KB. Rendered llmsx-mark.svg with Playwright (transparent corners): llmsx-mark-3072.png 124,197 bytes (deliverable) and llmsx-mark-1024.png 33,314 bytes, in docs/design-system/llmsx/project/assets/Logos/. Uploaded to the artifact (version 5) and listed in the Logos README.
+- Still open: whether to replace site/public/favicon.svg and the header wordmark with the logo.
 - Delta: memory0.22.138 to0.22.139; prompt120.
 
 ## v0.22.138 - 2026-11-07
 
-- Prompt v119: PNG of the mark under 150 KB. Rendered llmsx-mark.svg with Playwright (transparent corners): llmsx-mark-3072.png 124,197 bytes (deliverable) and llmsx-mark-1024.png 33,314 bytes, in docs/design-system/llmsx/project/assets/Logos/. Uploaded to the artifact (version 5) and listed in the Logos README.
-- Still open: whether to replace site/public/favicon.svg and the header wordmark with the logo.
+- Prompt v119 "I need a logo": drew the llmsx logo. Mark = tree glyph (root node, stem, filled node = published reference, ring = frontier) in an accent rounded square (rx 12 on 64); wordmark = monoline paths for "llmsx", no font dependency. Files in docs/design-system/llmsx/project/assets/Logos/: lockup, lockup-reversed, mark, mark-reversed, favicon (heavier strokes for <=32px), glyph-ink, wordmark, wordmark-reversed, plus README.md.
+- Uploaded as assets to the Design System artifact (Logos group, version 4); brand README Iconography rewritten for the logo.
+- Not done: site/public/favicon.svg is still the Astro default and the header still uses the text wordmark. Awaiting the user's go-ahead to swap them.
 - Delta: memory0.22.137 to0.22.138; prompt119.
 
 ## v0.22.137 - 2026-11-07
 
-- Prompt v118 "I need a logo": drew the llmsx logo. Mark = tree glyph (root node, stem, filled node = published reference, ring = frontier) in an accent rounded square (rx 12 on 64); wordmark = monoline paths for "llmsx", no font dependency. Files in docs/design-system/llmsx/project/assets/Logos/: lockup, lockup-reversed, mark, mark-reversed, favicon (heavier strokes for <=32px), glyph-ink, wordmark, wordmark-reversed, plus README.md.
-- Uploaded as assets to the Design System artifact (Logos group, version 4); brand README Iconography rewritten for the logo.
-- Not done: site/public/favicon.svg is still the Astro default and the header still uses the text wordmark. Awaiting the user's go-ahead to swap them.
-- Delta: memory0.22.136 to0.22.137; prompt118.
-
-## v0.22.136 - 2026-11-07
-
 - docs/ wiki started in grow mode (llm-project-docs plugin): docs/CLAUDE.md contract, docs/index.md, docs/log.md, docs/raw/, .claude/commands/docs-{sync,lint,query,status}.md, .claude/scripts/docs-lint.py. First page: docs/subsystems/site-design-tokens.md (verified_at ddec12f6).
 - The 36 pre-wiki entries in docs/ are excluded from lint via --exclude in docs-lint.md and docs-status.md and listed in docs/CLAUDE.md. Lint has 2 remaining problems, both docs/architecture/concept-knowledge-contracts.md (no frontmatter, orphan); left for the user to decide.
 - release-commands left empty (Cloudflare Pages deploys on push).
-- Next: logo request (prompt v118).
-- Delta: memory0.22.135 to0.22.136; prompt118.
+- Next: logo request (prompt v119).
+- Delta: memory0.22.136 to0.22.137; prompt119.
 
-## v0.22.135 - 2026-11-07
+## v0.22.136 - 2026-11-07
 
 - Design System artifact "llmsx" built from https://llmsx.org/tree/ and site/src/styles (global.css, lx-polish.css), SearchBox.astro, TreeBrowser.astro, tree/index.astro, Base.astro. Artifact: https://claude.ai/artifact/UNPvpvBwkT3iVjz9wCcWfn (version 2). Source files: docs/design-system/llmsx/project/ (publish with root docs/design-system/llmsx).
 - Contents: 13 colors (one light theme; site has no dark theme), 3 system font stacks, 14 type styles, 5 fluid type-scale steps, 8 spacing, 5 radii, 2 shadows, 7 layout values, 7 components (SiteHeader, TabNote, ProofLine, SearchBox, ConceptTree, FactsPanel, SiteFooter) with static previews and bundle.css, and a cover. Live :root tokens match global.css at 4f040e06.
 - Contrast findings kept exact and noted: ink-faint on code-bg 4.34:1; search input border (line) 1.18:1 and secondary button border (line-strong) 1.49:1 miss the 3:1 control-border floor. global.css claims ink-faint ~4.9:1 on paper; measured 4.63:1. SearchBox.astro references undeclared --fg-muted. site/public/favicon.svg is the Astro default mark, not an llmsx logo.
 - Remaining: user to share the artifact if others need it; optional cards for .btn, .card, Tree3D; optional fixes for the contrast misses in site CSS.
+- Delta: memory0.22.135 to0.22.136; prompt117.
+
+## v0.22.135 - 2026-11-07
+
+- TASK-1225: the user approved a second history rewrite and removing docs/verification/blog-ddo-2026-09-30/. git filter-repo dropped 49 purged files and that directory from main and the PR #303, PR #286 and dependabot branches. snapshot was unchanged. Every branch was pushed with --force-with-lease on its old SHA. New main is de5c5b26. Backup: ~/.local/share/llms-explorer-history-backup-2026-11-07/original.git.
+- A tip-tree check showed that only purged paths changed. No purged path remains in the rewritten branch history. Five scheduler-only commits per branch became empty and were dropped.
+- New .githooks/pre-push refuses a push that would upload a purged path, matched by hashed stems. The shared core.hooksPath now points at a detached hooks worktree of main, so every local worktree runs it.
+- Clones and branches made before the rewrite (the shared checkout's sync/research-evidence-current-20261102, local main dbed74f0, backup/local-main-*) hold the old history. Rebase or cherry-pick their commits onto the new origin before any push.
 - Delta: memory0.22.134 to0.22.135; prompt116.
 
 ## v0.22.134 - 2026-11-07

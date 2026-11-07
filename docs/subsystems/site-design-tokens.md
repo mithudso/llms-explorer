@@ -90,4 +90,4 @@ are decorative only. A Design System artifact mirrors these values in
 
 > ⚠️ When a token in `site/src/styles/global.css` changes, the copy in
 > `docs/design-system/llmsx/project/tokens.json` goes stale. Update it and republish the
-> artifact. The artifact link is in `memory.md` under v0.22.135.
+> artifact. The artifact link is in `memory.md` under v0.22.136.

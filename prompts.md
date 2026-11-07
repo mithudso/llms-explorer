@@ -1,30 +1,36 @@
 # Prompts Log
 
-## Prompt v120 - 2026-11-07
+## Prompt v121 - 2026-11-07
 
 > Implement your design I like it, do it the whoel way
 
-## Prompt v119 - 2026-11-07
+## Prompt v120 - 2026-11-07
 
 > I like this logo I need one just less than 150kb in png
 
 (Screenshot showed llmsx-mark.svg, llmsx-mark-reversed.svg, llmsx-favicon.svg.)
 
-## Prompt v117 - 2026-11-07
+## Prompt v119 - 2026-11-07
+
+> I need a logo
+
+## Prompt v118 - 2026-11-07
 
 > yes create a docs wiki
 
 Ran /project-docs-setup --lite.
 
-## Prompt v118 - 2026-11-07
-
-> I need a logo
-
-## Prompt v116 - 2026-11-07
+## Prompt v117 - 2026-11-07
 
 > https://llmsx.org/tree/
 
 Started from the Design System template. Interpreted as: build a design system from the llmsx.org concept tree page and the site/ code that serves it.
+
+## Prompt v116 - 2026-11-07
+
+> 1. It's turned on. 2. Yes do it again. 3. yes.
+
+The user enabled the AdSense EEA consent message, approved a second history rewrite (KNOW-726 method), and approved removing docs/verification/blog-ddo-2026-09-30/. TASK-1225. Delta: prompt115 to116; memory0.22.134 to0.22.135.
 
 ## Prompt v115 - 2026-11-07
 
