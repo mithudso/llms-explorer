@@ -128,7 +128,7 @@ PAGE_SECTIONS = [
                     "one a plain markdown fetch. Public .llms ZIP packs contain the "
                     "five-file LLMSX family, "
                     "a one-node graph and integrity manifest. "
-                    "Use llmsx context get <slug> in 0.2.8+, "
+                    "Use llmsx context get <slug> in 0.2.9+, "
                     "or download /downloads/context-packs/<slug>.llms.zip. "
                     "No correctness guarantee.",
      "explains": "reference/context-files.md", "data": "context.json", "dated": "generated",
