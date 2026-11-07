@@ -12,7 +12,11 @@ sources:
   - code: site/src/components/SearchBox.astro
   - code: site/tools/gen_brand_icons.mjs
   - code: site/public/site.webmanifest
-verified_at: 1226fb9f
+  - code: site/public/favicon.svg
+  - code: site/public/favicon.ico
+  - code: site/public/og-image.png
+  - code: site/public/404.html
+verified_at: 6d2ad1f6
 ---
 
 # Site design tokens, logo and the concept tree page
