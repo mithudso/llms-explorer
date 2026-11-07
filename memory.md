@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.132 - 2026-11-07
+
+- TASK-1209 continues after PR298 merged as e0425aadbaf466397a42b48d8aa87ef268e39b20. The91owned source files match remote main;318site tests and the full CLI/TUI suite pass. Production rollout and final acceptance are still open.
+- Strict packaging preflight found Requires-Dist direct Git URLs lacked whitespace before their extra marker. uv accepted the wheel, but packaging.Requirement rejects it with Expected semicolon (after URL and whitespace) or end. Fix the writer and parse every emitted requirement in regression coverage.
+- Follow-up branch site/pip-metadata-20261107 uses the same isolated checkout. LLMSX0.2.9 and site0.0.17 replace the in-flight artifact; final install verification must use normal pip itself, not only uv. Existing corpus/dev boundaries remain.
+- Normal pip installation from the advertised PEP508 direct reference passes in an isolated environment with Git config disabled, including TUI imports and HTTP context get. Strict parsing catches invalid optional dependency metadata; the raw URL.whl[tui] form returns404 and has been replaced across active pages/docs.
+- Remaining: follow-up CI/merge, production wheel/default context transfer, live browser checks and task cleanup. Exact original request remains docs/site/three-pillars-request-2026-11-07.md. Delta: memory0.22.131 to0.22.132; prompt113 continues prompt112.
+
 ## v0.22.131 - 2026-11-07
 
 - TASK-1209 implements the new three-pillar request: convergence skills, terminal workbenches, agent context libraries. Guides and experiments support these offerings. Preserve explicit Concept tree access and broad content. KNOW-1210 amends the older front-door layout in KNOW-1203.
