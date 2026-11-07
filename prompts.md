@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v115 - 2026-11-07
+
+> 1. I added llmsx.org and got myself verified, now I'm just waiting on the site verification.  2. Yes good call remove them. 3. turn ads on
+
+TASK-1223 removes the restored employer and customer posts and drafts, adds a regression guard, and enables AdSense on reading pages with a GPC/DNT non-personalized fallback. Delta: prompt114 to115; memory0.22.133 to0.22.134.
+
 ## Prompt v114 - 2026-11-07
 
 > 1. I think the domain should be migrated to llmsx.org which is easier and better. SO I'm going to do that. Which I guess means adding it as a new site. 2. Yah go ahead, implement all of your suggestions. I wanted to find a better way to present the concept packs anyway.
