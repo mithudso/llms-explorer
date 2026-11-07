@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v116 - 2026-11-07
+
+> https://llmsx.org/tree/
+
+Started from the Design System template. Interpreted as: build a design system from the llmsx.org concept tree page and the site/ code that serves it.
+
 ## Prompt v115 - 2026-11-07
 
 > 1. I added llmsx.org and got myself verified, now I'm just waiting on the site verification.  2. Yes good call remove them. 3. turn ads on

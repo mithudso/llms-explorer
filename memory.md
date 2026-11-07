@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.135 - 2026-11-07
+
+- Design System artifact "llmsx" built from https://llmsx.org/tree/ and site/src/styles (global.css, lx-polish.css), SearchBox.astro, TreeBrowser.astro, tree/index.astro, Base.astro. Artifact: https://claude.ai/artifact/UNPvpvBwkT3iVjz9wCcWfn (version 2). Source files: docs/design-system/llmsx/project/ (publish with root docs/design-system/llmsx).
+- Contents: 13 colors (one light theme; site has no dark theme), 3 system font stacks, 14 type styles, 5 fluid type-scale steps, 8 spacing, 5 radii, 2 shadows, 7 layout values, 7 components (SiteHeader, TabNote, ProofLine, SearchBox, ConceptTree, FactsPanel, SiteFooter) with static previews and bundle.css, and a cover. Live :root tokens match global.css at 4f040e06.
+- Contrast findings kept exact and noted: ink-faint on code-bg 4.34:1; search input border (line) 1.18:1 and secondary button border (line-strong) 1.49:1 miss the 3:1 control-border floor. global.css claims ink-faint ~4.9:1 on paper; measured 4.63:1. SearchBox.astro references undeclared --fg-muted. site/public/favicon.svg is the Astro default mark, not an llmsx logo.
+- Remaining: user to share the artifact if others need it; optional cards for .btn, .card, Tree3D; optional fixes for the contrast misses in site CSS.
+- Delta: memory0.22.134 to0.22.135; prompt116.
+
 ## v0.22.134 - 2026-11-07
 
 - TASK-1223 removes the employer and customer content that PR #198 (a29949d4, 2026-10-19) restored after the 2026-10-18 sweep: 16 live blog posts and 23 drafts in docs/future_posts. docs/future_posts again matches its README (08, 11, 19, 25 and held/). site/tests/test_removed_posts.py fails CI if any of those file names returns. It stores hashes, not titles.
