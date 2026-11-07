@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.134 - 2026-11-07
+
+- TASK-1223 removes the employer and customer content that PR #198 (a29949d4, 2026-10-19) restored after the 2026-10-18 sweep: 16 live blog posts and 23 drafts in docs/future_posts. docs/future_posts again matches its README (08, 11, 19, 25 and held/). site/tests/test_removed_posts.py fails CI if any of those file names returns. It stores hashes, not titles.
+- The research task "agents" now reads state-that-survives-the-session. The maintain-agent-skills workflow now cites semantic-skill-discovery-and-the-optimizer-family.
+- Ads are on: adsbygoogle.js loads on indexed blog, examples and reference articles without an evidence flag, and on curated concept packs. The home page, skills, strict routes and noindex pages stay ad-free. GPC or DNT sets requestNonPersonalizedAds=1 before the tag. /privacy/ describes AdSense cookies and the opt-outs.
+- The user added llmsx.org in AdSense and awaits site review. The user must enable the certified EEA/UK/CH consent message in AdSense Privacy & messaging.
+- Delta: memory0.22.133 to0.22.134; prompt115.
+
 ## v0.22.133 - 2026-11-07
 
 - TASK-1218 answers the AdSense rejection "Low value content" (KNOW-558). The user chose llmsx.org as the single domain and will add it as a new AdSense site.

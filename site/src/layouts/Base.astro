@@ -19,6 +19,12 @@ const strict = STRICT_ROUTES.some((r) => route.startsWith(r));
 // references (AdSense judged the site "low value" on 2026-11-07; KNOW-558).
 const UTILITY_ROUTES = ["/queue/"];
 const hidden = noindex || strict || UTILITY_ROUTES.some((r) => route.startsWith(r));
+// AdSense runs only on pages a reader comes to read (articles and curated
+// concept packs pass `adEligible`), never on account routes or pages kept out
+// of search. Google requires a certified consent message for EEA/UK/CH
+// visitors; it is configured in the AdSense account (Privacy & messaging),
+// and adsbygoogle.js loads it, so no consent code lives here.
+const ads = adEligible && !strict && !hidden;
 // Reader journeys lead. The resource catalogue remains in the More menu.
 const NAV = [
   ["/skills/", "Agent skills", "Bounded review-and-fix instructions"],
@@ -77,10 +83,18 @@ const menuResources = route.startsWith("/net-dns-monitor/")
   </script>
   </>)}
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  {/* Ownership verification is separate from page-level ad eligibility.
-      Enable ads only after assessing the page and the consent setup. */}
+  {/* Ownership verification is separate from page-level ad eligibility. */}
   <meta name="google-adsense-account" content="ca-pub-1706083044457708" />
-  {adEligible && !strict && !hidden && <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1706083044457708" crossorigin="anonymous"></script>}
+  {ads && (<>
+  {/* A browser that sends Global Privacy Control or Do Not Track gets
+      non-personalized ads (Google's documented NPA flag, set before the tag
+      loads); analytics skip such browsers entirely. */}
+  <script is:inline>
+    (window.adsbygoogle = window.adsbygoogle || []).requestNonPersonalizedAds =
+      (navigator.globalPrivacyControl || navigator.doNotTrack === "1") ? 1 : 0;
+  </script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1706083044457708" crossorigin="anonymous"></script>
+  </>)}
   <title>{title} · LLMSX</title>
   <meta name="llmsx-release" content="three-pillars-2026-11-07" />
   <meta name="description" content={description} />
