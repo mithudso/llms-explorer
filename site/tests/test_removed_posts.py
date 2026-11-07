@@ -55,3 +55,41 @@ def test_the_guard_recognises_a_removed_name(tmp_path):
     probe = tmp_path / "from-discovery-to-the-board.md"
     probe.write_text("x")
     assert _digest(probe) in REMOVED
+
+
+MIDDLEWARE = REPO / "site" / "functions" / "_middleware.ts"
+
+
+def test_middleware_rejects_the_same_removed_posts():
+    """Pages can serve a deleted page from a cache that neither a deploy nor a
+    zone purge clears (2026-11-07: a removed post kept answering 200, age 10h),
+    so the middleware answers 410 before the asset lookup. Its digest set must
+    be this file's set, or a post could be guarded in source but served live."""
+    import json
+    import re
+    import subprocess
+    source = MIDDLEWARE.read_text(encoding="utf-8")
+    block = source.split("export const REMOVED_POSTS = new Set([", 1)[1].split("]);", 1)[0]
+    assert set(re.findall(r'"([0-9a-f]{16})"', block)) == REMOVED
+    script = f"""
+      const {{ onRequest }} = await import({json.dumps(MIDDLEWARE.as_uri())});
+      const rules = JSON.stringify({{ rules: [], tokens: {{}} }});
+      const env = {{ ASSETS: {{ fetch: async () => new Response(rules) }} }};
+      const out = {{}};
+      for (const path of ["/blog/from-discovery-to-the-board/", "/blog/from-discovery-to-the-board",
+                          "/blog/from-discovery-to-the-board.md", "/blog/keyword-plus-vector/",
+                          "/blog/%E0%A4%A/", "/blog/"]) {{
+        const res = await onRequest({{ request: new Request("https://llmsx.org" + path), env,
+          next: async () => new Response("page") }});
+        out[path] = [res.status, res.headers.get("Cache-Control")];
+      }}
+      console.log(JSON.stringify(out));
+    """
+    run = subprocess.run(["node", "--input-type=module", "-e", script],
+                         capture_output=True, text=True, check=True)
+    out = json.loads(run.stdout.strip().splitlines()[-1])
+    for path in ("/blog/from-discovery-to-the-board/", "/blog/from-discovery-to-the-board",
+                 "/blog/from-discovery-to-the-board.md"):
+        assert out[path] == [410, "no-store"], path
+    for path in ("/blog/keyword-plus-vector/", "/blog/%E0%A4%A/", "/blog/"):
+        assert out[path][0] == 200, path
