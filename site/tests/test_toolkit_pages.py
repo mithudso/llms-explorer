@@ -1,8 +1,10 @@
 """Three-pillar entry paths, canonical origin, artifact availability and exact costs."""
 
 import json
+import re
 import subprocess
 from pathlib import Path
+from urllib.parse import urlsplit
 
 SITE = Path(__file__).resolve().parents[1]
 
@@ -38,7 +40,11 @@ def test_new_public_pages_have_consistent_canonicals_and_twins():
         assert 'name="llmsx-release" content="three-pillars-2026-11-07"' in html
     for route in ("toolkit", "context", "apps/github-explorer"):
         text = (SITE / "dist" / (route + ".md")).read_text()
-        assert "https://llmsx.org/" in text
+        binding = re.match(r"<!-- llms-explorer twin of (\S+)", text)
+        assert binding
+        origin = urlsplit(binding.group(1))
+        assert origin.scheme == "https" and origin.netloc == "llmsx.org"
+        assert origin.path == "/" + route + "/"
     assert "ghx --cwd ." in (SITE / "dist/apps/github-explorer.md").read_text()
 
 

@@ -21,6 +21,7 @@ Usage: gen_concept_facts.py [--out public/downloads/concepts] [--site-url URL]
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import shutil
@@ -31,8 +32,20 @@ DEFAULT_CONCEPTS = HERE / "src" / "data" / "concepts"
 DEFAULT_TREE = HERE / "src" / "data" / "tree.json"
 DEFAULT_SOURCES = HERE / "src" / "content" / "sources"
 DEFAULT_OUT = HERE / "public" / "downloads" / "concepts"
-from site_origin import DEFAULT_SITE_URL as DEFAULT_SITE_URL
-from site_origin import default_site_url as default_site_url
+# research_site_sync loads this file by absolute path from other checkouts.
+# Load its sibling policy by path as well; do not depend on global sys.path/cache.
+_origin_spec = importlib.util.spec_from_file_location(
+    "_llmsx_site_origin", HERE / "tools/site_origin.py")
+assert _origin_spec is not None and _origin_spec.loader is not None
+_origin = importlib.util.module_from_spec(_origin_spec)
+_origin_spec.loader.exec_module(_origin)
+DEFAULT_SITE_URL = _origin.DEFAULT_SITE_URL
+
+
+def default_site_url() -> str:
+    return _origin.default_site_url()
+
+
 CHARS_PER_TOKEN = 4                                         # the family's estimator
 SOURCE_URL_RE = re.compile(r"^https?://[^/]+/sources/([^/]+)/([^/#?]+)/")
 FM_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)

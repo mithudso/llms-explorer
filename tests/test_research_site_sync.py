@@ -35,7 +35,8 @@ class SiteSyncTests(unittest.TestCase):
         self.repo, self.hub = self.root / "repo", self.root / "hub"
         for relative in ("scripts/research_site_sync.py", "scripts/recover_dr_packs.py", "scripts/research_transaction.py", "scripts/publish_scrub.py",
                          "scripts/check_publish_privacy.py", "site/tools/gen_tree.py", "site/tools/gen_concepts.py",
-                         "site/tools/gen_context.py", "site/tools/gen_concept_facts.py", "hub/scripts/concept_tree.py",
+                         "site/tools/gen_context.py", "site/tools/gen_concept_facts.py",
+                         "site/tools/site_origin.py", "site/site-origin.json", "hub/scripts/concept_tree.py",
                          "hub/scripts/research_site_hook.py"):
             dest = self.repo / relative
             dest.parent.mkdir(parents=True, exist_ok=True)
