@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/live-translation-across-apple-communication-surfaces/ · pack 2026-10-23 · ~2249 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/live-translation-across-apple-communication-surfaces/ · pack 2026-10-23 · ~2245 tokens -->
 
 # Live Translation across Apple communication surfaces
 
 > Source-anchored research for Live Translation across Apple communication surfaces. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 4 facets · 15 facts · page: https://llms-explorer.com/tree/live-translation-across-apple-communication-surfaces/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 4 facets · 15 facts · page: https://llmsx.org/tree/live-translation-across-apple-communication-surfaces/
 
 ## Structure and components
 

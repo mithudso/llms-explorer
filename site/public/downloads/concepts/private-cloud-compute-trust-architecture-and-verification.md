@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/private-cloud-compute-trust-architecture-and-verification/ · pack 2026-10-23 · ~2554 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/private-cloud-compute-trust-architecture-and-verification/ · pack 2026-10-23 · ~2550 tokens -->
 
 # Private Cloud Compute trust architecture and verification
 
 > Source-anchored research for Private Cloud Compute trust architecture and verification. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 5 facets · 15 facts · page: https://llms-explorer.com/tree/private-cloud-compute-trust-architecture-and-verification/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 5 facets · 15 facts · page: https://llmsx.org/tree/private-cloud-compute-trust-architecture-and-verification/
 
 ## Definitions
 

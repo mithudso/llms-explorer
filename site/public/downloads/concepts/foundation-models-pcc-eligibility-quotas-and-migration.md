@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/foundation-models-pcc-eligibility-quotas-and-migration/ · pack 2026-10-23 · ~1894 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/foundation-models-pcc-eligibility-quotas-and-migration/ · pack 2026-10-23 · ~1890 tokens -->
 
 # Foundation Models PCC eligibility quotas and migration
 
 > Source-anchored research for Foundation Models PCC eligibility quotas and migration. Run status: COMPLETED.
 
-Parent: [Apple Foundation Models framework](https://llms-explorer.com/tree/apple-foundation-models-framework/) · 3 facets · 11 facts · page: https://llms-explorer.com/tree/foundation-models-pcc-eligibility-quotas-and-migration/
+Parent: [Apple Foundation Models framework](https://llmsx.org/tree/apple-foundation-models-framework/) · 3 facets · 11 facts · page: https://llmsx.org/tree/foundation-models-pcc-eligibility-quotas-and-migration/
 
 ## How it works
 

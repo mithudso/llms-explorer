@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/appintentstesting-harness-for-siri-schemas-and-entity-integrations/ · pack 2026-10-23 · ~2268 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/appintentstesting-harness-for-siri-schemas-and-entity-integrations/ · pack 2026-10-23 · ~2264 tokens -->
 
 # AppIntentsTesting harness for Siri schemas and entity integrations
 
 > Source-anchored research for AppIntentsTesting harness for Siri schemas and entity integrations. Run status: COMPLETED.
 
-Parent: [App Schemas integration for Siri AI](https://llms-explorer.com/tree/app-schemas-integration-for-siri-ai/) · 6 facets · 21 facts · page: https://llms-explorer.com/tree/appintentstesting-harness-for-siri-schemas-and-entity-integrations/
+Parent: [App Schemas integration for Siri AI](https://llmsx.org/tree/app-schemas-integration-for-siri-ai/) · 6 facets · 21 facts · page: https://llmsx.org/tree/appintentstesting-harness-for-siri-schemas-and-entity-integrations/
 
 ## Structure and components
 

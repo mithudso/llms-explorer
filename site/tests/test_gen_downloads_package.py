@@ -25,6 +25,20 @@ def _declared_scripts() -> dict[str, str]:
     return scripts
 
 
+def test_public_base_and_tui_install_do_not_require_private_renderer(tmp_path):
+    project = gd._pyproject()["project"]
+    assert project["dependencies"] == []
+    assert all("git+" not in dependency for dependency in project["optional-dependencies"]["tui"])
+    assert any("llms-txt" in dependency for dependency in project["optional-dependencies"]["corpus"])
+    assert any("llms-txt" in dependency for dependency in project["optional-dependencies"]["dev"])
+    manifest = gd.build_package(tmp_path)
+    wheel = next(tmp_path.glob("*.whl"))
+    with zipfile.ZipFile(wheel) as zf:
+        metadata = zf.read(f"llmsx-{manifest['version']}.dist-info/METADATA").decode()
+    renderer = [line for line in metadata.splitlines() if line.startswith("Requires-Dist: llms-txt")]
+    assert renderer and all('extra == "corpus"' in line or 'extra == "dev"' in line for line in renderer)
+
+
 def test_build_package_writes_a_valid_wheel_sdist_and_manifest(tmp_path):
     manifest = gd.build_package(tmp_path)
     assert manifest and manifest["package"] == "llmsx"

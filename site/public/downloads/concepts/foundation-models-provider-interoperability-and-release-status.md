@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/foundation-models-provider-interoperability-and-release-status/ · pack 2026-10-23 · ~1616 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/foundation-models-provider-interoperability-and-release-status/ · pack 2026-10-23 · ~1612 tokens -->
 
 # Foundation Models provider interoperability and release status
 
 > Source-anchored research for Foundation Models provider interoperability and release status. Run status: COMPLETED.
 
-Parent: [Apple Foundation Models framework](https://llms-explorer.com/tree/apple-foundation-models-framework/) · 1 facets · 11 facts · page: https://llms-explorer.com/tree/foundation-models-provider-interoperability-and-release-status/
+Parent: [Apple Foundation Models framework](https://llmsx.org/tree/apple-foundation-models-framework/) · 1 facets · 11 facts · page: https://llmsx.org/tree/foundation-models-provider-interoperability-and-release-status/
 
 ## Facts and statements
 

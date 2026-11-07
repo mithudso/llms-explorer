@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/foundation-models-adapter-lifecycle-across-os-releases/ · pack 2026-10-23 · ~1343 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/foundation-models-adapter-lifecycle-across-os-releases/ · pack 2026-10-23 · ~1339 tokens -->
 
 # Foundation Models adapter lifecycle across OS releases
 
 > Source-anchored research for Foundation Models adapter lifecycle across OS releases. Run status: COMPLETED.
 
-Parent: [Apple Foundation Models framework](https://llms-explorer.com/tree/apple-foundation-models-framework/) · 3 facets · 9 facts · page: https://llms-explorer.com/tree/foundation-models-adapter-lifecycle-across-os-releases/
+Parent: [Apple Foundation Models framework](https://llmsx.org/tree/apple-foundation-models-framework/) · 3 facets · 9 facts · page: https://llmsx.org/tree/foundation-models-adapter-lifecycle-across-os-releases/
 
 ## Problems, failure modes and limitations
 
