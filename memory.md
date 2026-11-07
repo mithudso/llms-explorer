@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.138 - 2026-11-07
+
+- Prompt v119: PNG of the mark under 150 KB. Rendered llmsx-mark.svg with Playwright (transparent corners): llmsx-mark-3072.png 124,197 bytes (deliverable) and llmsx-mark-1024.png 33,314 bytes, in docs/design-system/llmsx/project/assets/Logos/. Uploaded to the artifact (version 5) and listed in the Logos README.
+- Still open: whether to replace site/public/favicon.svg and the header wordmark with the logo.
+- Delta: memory0.22.137 to0.22.138; prompt119.
+
 ## v0.22.137 - 2026-11-07
 
 - Prompt v118 "I need a logo": drew the llmsx logo. Mark = tree glyph (root node, stem, filled node = published reference, ring = frontier) in an accent rounded square (rx 12 on 64); wordmark = monoline paths for "llmsx", no font dependency. Files in docs/design-system/llmsx/project/assets/Logos/: lockup, lockup-reversed, mark, mark-reversed, favicon (heavier strokes for <=32px), glyph-ink, wordmark, wordmark-reversed, plus README.md.

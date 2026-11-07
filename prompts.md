@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v119 - 2026-11-07
+
+> I like this logo I need one just less than 150kb in png
+
+(Screenshot showed llmsx-mark.svg, llmsx-mark-reversed.svg, llmsx-favicon.svg.)
+
 ## Prompt v117 - 2026-11-07
 
 > yes create a docs wiki
