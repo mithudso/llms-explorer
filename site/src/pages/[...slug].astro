@@ -2,6 +2,8 @@
 import { getCollection, render } from "astro:content";
 import Base from "../layouts/Base.astro";
 import CopyBlock from "../components/CopyBlock.astro";
+import SkillDemo from "../components/SkillDemo.astro";
+import { skillInstall } from "../data/skill-install";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 export async function getStaticPaths() {
@@ -16,8 +18,9 @@ const { Content } = await render(entry);
 
 // Skill pages carry an install block and the full prompt. The installable
 // copies live at <repo-root>/.claude/skills/<id>/SKILL.md — a container dir
-// `npx skills add mithudso/llms-explorer` discovers, so the text shown is
-// byte-identical to what the CLI installs. Build runs from site/, hence the
+// the explicit GitHub-directory install below selects, so the text shown is
+// the selected source bundle. Some harnesses adapt frontmatter on install.
+// Build runs from site/, hence the
 // ../.claude/skills anchor; the second candidate covers a repo-root invocation.
 let skillPrompt: string | null = null;
 if (collection === "skills") {
@@ -30,7 +33,7 @@ if (collection === "skills") {
     }
   }
 }
-const installCmd = `npx skills add mithudso/llms-explorer --skill ${entry.id}`;
+const installCmd = skillInstall(entry.id);
 ---
 <Base title={entry.data.title} description={entry.data.description} route={`/${collection}/${entry.id}/`} noindex={entry.data.noindex} adEligible={false}>
   {collection === "blog" && (
@@ -57,20 +60,22 @@ const installCmd = `npx skills add mithudso/llms-explorer --skill ${entry.id}`;
       <p>Compatibility: the skills CLI supports multiple coding agents. Requirements vary by skill; inspect the full prompt and its named tools first. An install command copies instructions; it does not install every integration the skill may use.</p>
       <p><a href="/workflows/maintain-agent-skills/">Try a small instruction review and before/after evaluation</a> · <a href="https://skills.sh/mithudso/llms-explorer">Browse the community directory listing</a></p>
       <p>
-        Global and non-interactive: <code>{installCmd} -g -y</code>. List everything this
-        site ships: <code>npx skills add mithudso/llms-explorer --list</code>.
+        Global and non-interactive: <code>{installCmd} -g -y</code>. Broader
+        repository discovery: <code>npx skills add mithudso/llms-explorer --list</code>. The explicit directory above selects the version shown here.
       </p>
     </section>
   )}
+  {collection === "skills" && skillPrompt && <SkillDemo id={entry.id} tags={entry.data.tags ?? []} prompt={skillPrompt} />}
   {collection === "skills" && skillPrompt && (
     <section class="skill-prompt">
       <h2 id="prompt">The prompt</h2>
       <p>
-        The full <code>SKILL.md</code> exactly as the CLI installs it — copy it straight
-        into your agent's skills directory if you'd rather skip the CLI.
+        The source <code>SKILL.md</code> from the exact install directory shown above.
+        Some harnesses adapt metadata during installation. You can copy this source
+        into your agent’s skills directory; inspect its supporting files and prerequisites too.
       </p>
       <details data-skill-prompt={entry.id}>
-        <summary>Show SKILL.md ({skillPrompt.length.toLocaleString()} chars)</summary>
+        <summary>Show SKILL.md ({Array.from(skillPrompt).length.toLocaleString()} chars)</summary>
         <CopyBlock text={skillPrompt} label="Copy full prompt" item={entry.id} />
       </details>
     </section>

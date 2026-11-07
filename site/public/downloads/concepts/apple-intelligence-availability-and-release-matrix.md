@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/apple-intelligence-availability-and-release-matrix/ · pack 2026-10-23 · ~1953 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/apple-intelligence-availability-and-release-matrix/ · pack 2026-10-23 · ~1949 tokens -->
 
 # Apple Intelligence availability and release matrix
 
 > Source-anchored research for Apple Intelligence availability and release matrix. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 5 facets · 12 facts · page: https://llms-explorer.com/tree/apple-intelligence-availability-and-release-matrix/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 5 facets · 12 facts · page: https://llmsx.org/tree/apple-intelligence-availability-and-release-matrix/
 
 ## How it works
 

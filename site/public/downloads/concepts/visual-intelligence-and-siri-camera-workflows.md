@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/visual-intelligence-and-siri-camera-workflows/ · pack 2026-10-23 · ~1894 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/visual-intelligence-and-siri-camera-workflows/ · pack 2026-10-23 · ~1890 tokens -->
 
 # Visual Intelligence and Siri Camera workflows
 
 > Source-anchored research for Visual Intelligence and Siri Camera workflows. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 5 facets · 11 facts · page: https://llms-explorer.com/tree/visual-intelligence-and-siri-camera-workflows/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 5 facets · 11 facts · page: https://llmsx.org/tree/visual-intelligence-and-siri-camera-workflows/
 
 ## Definitions
 

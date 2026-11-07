@@ -1,0 +1,68 @@
+---
+import DEMOS from "../data/skill-demos.json";
+const { id, prompt } = Astro.props;
+const families = DEMOS.familyBySkill as Record<string, "optimizer" | "research" | "context" | "default">;
+const kind = families[id] ?? "default";
+const specific = DEMOS.bySkill as Record<string, { title: string; before: string; after: string }>;
+const example = specific[id] ?? DEMOS[kind];
+const diff = example.before.split("\n").map(line => "- " + line).concat(example.after.split("\n").map(line => "+ " + line)).join("\n");
+const estimate = Math.floor(Array.from(prompt as string).length / 4);
+---
+<section class="skill-demo" data-skill-demo={id}>
+  <h2 id="example">Inspect the change</h2>
+  <p><strong>Illustrative instruction diff.</strong> {example.title}. This is a teaching example, not a recorded run of {id} or evidence of a performance gain. The full prompt below defines this skill's actual passes and stopping conditions.</p>
+  <div class="demo-views" role="group" aria-label="Instruction example view" hidden>
+    {(["before", "after", "diff"] as const).map(view => <button type="button" data-demo-view={view} aria-pressed={view === "diff" ? "true" : "false"}>{view === "diff" ? "Show changes" : view === "before" ? "Before" : "After"}</button>)}
+  </div>
+  <div data-demo-panel="before"><h3>Before</h3><pre><code>{example.before}</code></pre></div>
+  <div data-demo-panel="after"><h3>After</h3><pre><code>{example.after}</code></pre></div>
+  <div data-demo-panel="diff"><h3>Changes · − removed, + added</h3><pre><code>{diff}</code></pre></div>
+  <p>Try the <a href="/workflows/maintain-agent-skills/">three-case before/after exercise</a> to compare actual model answers. Multi-pass instructions need a tool-capable runner; a single model call does not execute the whole loop.</p>
+  <h2 id="cost">Prompt size and run cost</h2>
+  <p data-prompt-estimate={estimate}>This page's full SKILL.md is approximately <strong>{estimate.toLocaleString()} tokens</strong>, estimated as Unicode characters ÷ 4. Supporting files, your task, outputs, tool results, repeated passes and cached tokens are additional. This is not measured run usage.</p>
+  <p><strong>Cost per run: not fixed.</strong> Read your runner's provider-reported usage and applicable prices. A subscription may not expose a per-run dollar cost. Missing telemetry stays unavailable.</p>
+  <details class="usage-calculator"><summary>Calculate input/output cost from your own usage</summary>
+    <p>Enter billable input/output token counts and their USD prices per million tokens. Nothing in this calculator is sent, stored or added to the URL. Cache-specific prices, tools, tax and other charges require separate accounting.</p>
+    <div data-usage-calculator>
+      <div class="cost-inputs">
+        <label>Billable input tokens<input data-cost-input="input" type="text" inputmode="numeric" autocomplete="off" placeholder="Enter token count" /></label>
+        <label>Output tokens<input data-cost-input="output" type="text" inputmode="numeric" autocomplete="off" placeholder="Enter token count" /></label>
+        <label>Input USD / million tokens<input data-cost-input="inputRate" type="text" inputmode="decimal" autocomplete="off" placeholder="Your provider's rate" /></label>
+        <label>Output USD / million tokens<input data-cost-input="outputRate" type="text" inputmode="decimal" autocomplete="off" placeholder="Your provider's rate" /></label>
+      </div>
+      <p role="status" data-cost-result>Enter all four values. Rates accept up to six decimal places; the result rounds to six decimal places.</p>
+      <noscript>The interactive calculator needs JavaScript. Formula: (input tokens × input rate + output tokens × output rate) ÷ 1,000,000.</noscript>
+    </div>
+  </details>
+</section>
+<script>
+  import { usageCost } from "../scripts/usage-cost";
+  document.querySelectorAll<HTMLElement>("[data-skill-demo]").forEach(demo => {
+    const controls = demo.querySelector<HTMLElement>(".demo-views")!;
+    const buttons = controls.querySelectorAll<HTMLButtonElement>("[data-demo-view]");
+    const panels = demo.querySelectorAll<HTMLElement>("[data-demo-panel]");
+    const select = (view: string) => {
+      buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.demoView === view)));
+      panels.forEach(p => p.hidden = p.dataset.demoPanel !== view);
+    };
+    controls.hidden = false; select("diff");
+    buttons.forEach(button => button.addEventListener("click", () => select(button.dataset.demoView!)));
+    const calculator = demo.querySelector<HTMLElement>("[data-usage-calculator]")!;
+    const status = calculator.querySelector<HTMLElement>("[data-cost-result]")!;
+    calculator.addEventListener("input", () => {
+      const read = (key: string) => calculator.querySelector<HTMLInputElement>(`[data-cost-input="${key}"]`)!.value.trim();
+      const result = usageCost(read("input"), read("output"), read("inputRate"), read("outputRate"));
+      status.textContent = result ? `Input/output cost: ${result} USD. Other charges excluded.` : "Enter non-negative whole token counts and USD rates with up to six decimal places.";
+    });
+  });
+</script>
+<style>
+  .skill-demo { margin-block: var(--sp-7); padding-block: var(--sp-5); border-block: 1px solid var(--line); }
+  .demo-views { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-block: var(--sp-3); }
+  .demo-views[hidden], [data-demo-panel][hidden] { display: none; }
+  .demo-views button[aria-pressed="true"] { background: var(--accent); color: var(--paper); }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .cost-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: var(--sp-3); }
+  .cost-inputs label { display: grid; gap: var(--sp-1); }
+  .cost-inputs input { min-width: 0; width: 100%; }
+</style>

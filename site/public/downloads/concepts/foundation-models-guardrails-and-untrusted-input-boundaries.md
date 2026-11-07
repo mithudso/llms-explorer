@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/foundation-models-guardrails-and-untrusted-input-boundaries/ · pack 2026-10-23 · ~2570 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/foundation-models-guardrails-and-untrusted-input-boundaries/ · pack 2026-10-23 · ~2566 tokens -->
 
 # Foundation Models guardrails and untrusted input boundaries
 
 > Source-anchored research for Foundation Models guardrails and untrusted input boundaries. Run status: COMPLETED.
 
-Parent: [Apple Foundation Models framework](https://llms-explorer.com/tree/apple-foundation-models-framework/) · 4 facets · 14 facts · page: https://llms-explorer.com/tree/foundation-models-guardrails-and-untrusted-input-boundaries/
+Parent: [Apple Foundation Models framework](https://llmsx.org/tree/apple-foundation-models-framework/) · 4 facets · 14 facts · page: https://llmsx.org/tree/foundation-models-guardrails-and-untrusted-input-boundaries/
 
 ## Structure and components
 

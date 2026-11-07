@@ -1,5 +1,17 @@
 # Memory
 
+## v0.22.131 - 2026-11-07
+
+- TASK-1209 implements the new three-pillar request: convergence skills, terminal workbenches, agent context libraries. Guides and experiments support these offerings. Preserve explicit Concept tree access and broad content. KNOW-1210 amends the older front-door layout in KNOW-1203.
+- Source/live canonical currently uses llms-explorer.com. Standardize public frontend URLs on llmsx.org while retaining API host, historical source citations and existing paths. Published GitHub Explorer0.4.2 supports both ghx and github-explorer.
+- Implement public context packs from already-published facts only, plus llmsx context get. Keep llmsx tui and explorer behavior distinct. Interactive diffs must be labeled illustrations; prompt-size estimates and cost calculations must not imply a measured optimizer run or correctness guarantee.
+- Worktree: /Users/mitch/dev/llms-explorer-wt-pillars-20261107. Leave the original divergent checkout and four unrelated untracked files untouched. No embedding/index/model service restart. Prior PR297 is merged and live; prior private completion receipt confirms production249/249checks.
+- Implemented the three-pillar UI,31illustrative diff/cost interfaces, exact-source skill installs, public context packs and llmsx0.2.8download commands. Typecheck and build pass;83CLI/compatibility tests pass. Initial site suite exposed only stale layout assertions and a missing new config fixture; corrected for final regression. No source concept/tree/context data changed.
+- Install audit: root skills/ precedence can select stale versions. All site installs now explicitly target .claude/skills/<id>. Remote exact-directory discovery verifies the selected source. No bulk mirror rewrite.
+- Stele outbox:6242245a,56a03c7a. Shared site-origin.json maps the legacy Cloudflare SITE_URL to llmsx.org; no deployment settings or secrets were changed.
+- Packaging audit found private llms-txt blocked normal public installation. LLMSX0.2.8 now keeps the renderer in optional corpus/dev extras; public base/TUI paths install normally. Anonymous [tui] wheel install with Git config disabled and actual installed context/guide commands passes. Real exact-source Codex project skill install matches12files and is cleaned.
+- Remaining: final regressions, independent claims/desktop/mobile checks, commit/push/PR/CI/merge, production verification and clean task checkout. Delta:0.22.129 to0.22.131; prompt112.
+
 ## v0.22.129 - 2026-11-07
 
 - TASK-1202 implements the accepted peer-review recommendations from PR293. Root identity: practical engineering for AI agents. Four main destinations: guides and experiments, skills, research library and apps. Preserve explicit Concept tree access, the entire broad library, existing URLs and setup anchors.

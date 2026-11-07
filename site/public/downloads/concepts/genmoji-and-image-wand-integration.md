@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/genmoji-and-image-wand-integration/ · pack 2026-10-23 · ~1354 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/genmoji-and-image-wand-integration/ · pack 2026-10-23 · ~1350 tokens -->
 
 # Genmoji and Image Wand integration
 
 > Source-anchored research for Genmoji and Image Wand integration. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 3 facets · 9 facts · page: https://llms-explorer.com/tree/genmoji-and-image-wand-integration/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 3 facets · 9 facts · page: https://llmsx.org/tree/genmoji-and-image-wand-integration/
 
 ## How it works
 

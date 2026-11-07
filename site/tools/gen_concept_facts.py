@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import shutil
 from pathlib import Path
@@ -32,14 +31,11 @@ DEFAULT_CONCEPTS = HERE / "src" / "data" / "concepts"
 DEFAULT_TREE = HERE / "src" / "data" / "tree.json"
 DEFAULT_SOURCES = HERE / "src" / "content" / "sources"
 DEFAULT_OUT = HERE / "public" / "downloads" / "concepts"
-DEFAULT_SITE_URL = "https://llms-explorer.com"
+from site_origin import DEFAULT_SITE_URL as DEFAULT_SITE_URL
+from site_origin import default_site_url as default_site_url
 CHARS_PER_TOKEN = 4                                         # the family's estimator
 SOURCE_URL_RE = re.compile(r"^https?://[^/]+/sources/([^/]+)/([^/#?]+)/")
 FM_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
-
-
-def default_site_url() -> str:
-    return os.environ.get("SITE_URL", "").strip().rstrip("/") or DEFAULT_SITE_URL
 
 
 def _md_text(s: object) -> str:

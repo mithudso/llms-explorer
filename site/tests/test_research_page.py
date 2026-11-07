@@ -31,7 +31,7 @@ CURATED = json.loads((SITE / "src" / "data" / "research-tasks.json").read_text(e
 AI_ROOT = CURATED["root"]
 TASKS = CURATED["tasks"]
 # astro.config.mjs `site`: what every copied prompt and twin link must start with.
-PUBLIC = (os.environ.get("SITE_URL") or "https://llms-explorer.com").rstrip("/")
+PUBLIC = (os.environ.get("SITE_URL") or "https://llmsx.org").rstrip("/")
 
 LOAD = r"""
 import assert from 'node:assert/strict';
@@ -242,7 +242,7 @@ def _hidden(tag: str) -> bool:
 
 
 def test_navigation_and_home_page_lead_to_the_page(page):
-    assert re.search(r'<a href="/research/"[^>]*\baria-current="page"', page), "the nav marks /research/ current"
+    assert re.search(r'<a href="/context/"[^>]*\baria-current="page"', page), "the context-library nav marks the task finder current"
     home = _built_file("index.html").read_text(encoding="utf-8")
     assert 'href="/research/"' in home[home.index("<main"):home.index("</main>")], "the home page body links the page"
 

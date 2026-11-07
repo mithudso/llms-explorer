@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/apple-intelligence-communication-summaries-and-prioritization/ · pack 2026-10-23 · ~2165 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/apple-intelligence-communication-summaries-and-prioritization/ · pack 2026-10-23 · ~2161 tokens -->
 
 # Apple Intelligence communication summaries and prioritization
 
 > Source-anchored research for Apple Intelligence communication summaries and prioritization. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 2 facets · 13 facts · page: https://llms-explorer.com/tree/apple-intelligence-communication-summaries-and-prioritization/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 2 facets · 13 facts · page: https://llmsx.org/tree/apple-intelligence-communication-summaries-and-prioritization/
 
 ## Problems, failure modes and limitations
 

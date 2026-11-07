@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/siri-ai-personalization-and-opt-in-improvement-data-lifecycle/ · pack 2026-10-23 · ~3220 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/siri-ai-personalization-and-opt-in-improvement-data-lifecycle/ · pack 2026-10-23 · ~3216 tokens -->
 
 # Siri AI personalization and opt-in improvement data lifecycle
 
 > Source-anchored research for Siri AI personalization and opt-in improvement data lifecycle. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 3 facets · 17 facts · page: https://llms-explorer.com/tree/siri-ai-personalization-and-opt-in-improvement-data-lifecycle/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 3 facets · 17 facts · page: https://llmsx.org/tree/siri-ai-personalization-and-opt-in-improvement-data-lifecycle/
 
 ## Definitions
 

@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/shortcuts-use-model-and-intelligent-automation/ · pack 2026-10-23 · ~2415 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/shortcuts-use-model-and-intelligent-automation/ · pack 2026-10-23 · ~2411 tokens -->
 
 # Shortcuts Use Model and intelligent automation
 
 > Source-anchored research for Shortcuts Use Model and intelligent automation. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 4 facets · 15 facts · page: https://llms-explorer.com/tree/shortcuts-use-model-and-intelligent-automation/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 4 facets · 15 facts · page: https://llmsx.org/tree/shortcuts-use-model-and-intelligent-automation/
 
 ## How it works
 

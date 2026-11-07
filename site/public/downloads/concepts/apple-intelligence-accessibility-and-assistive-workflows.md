@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/apple-intelligence-accessibility-and-assistive-workflows/ · pack 2026-10-23 · ~2299 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/apple-intelligence-accessibility-and-assistive-workflows/ · pack 2026-10-23 · ~2295 tokens -->
 
 # Apple Intelligence accessibility and assistive workflows
 
 > Source-anchored research for Apple Intelligence accessibility and assistive workflows. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 4 facets · 16 facts · page: https://llms-explorer.com/tree/apple-intelligence-accessibility-and-assistive-workflows/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 4 facets · 16 facts · page: https://llmsx.org/tree/apple-intelligence-accessibility-and-assistive-workflows/
 
 ## Measurements and reference values
 

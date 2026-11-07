@@ -8,7 +8,7 @@ This guide ships inside the `llmsx` package. Open it three ways:
 
 - In the app: press `g`, or press `?` and choose **User guide**.
 - In a terminal: `llmsx explorer --guide`.
-- On the web: https://llms-explorer.com/explorer/guide/
+- On the web: https://llmsx.org/explorer/guide/
 
 ## Contents
 
@@ -35,7 +35,7 @@ This guide ships inside the `llmsx` package. Open it three ways:
 You need Python 3.11 or newer.
 
 ```bash
-python -m pip install 'llmsx[tui]'        # or the wheel from https://llms-explorer.com/downloads/#llmsx
+python -m pip install 'llmsx[tui]'        # or the wheel from https://llmsx.org/downloads/#llmsx
 llmsx explorer                             # inside a checkout, or clones one on first run
 ```
 
@@ -246,7 +246,7 @@ concepts are finished and which ones are still checked out. A checked-out concep
 already being researched, so the website offers no research button for it. The monitor
 refreshes every 30 seconds and on `R`. It reads
 `https://api.llms-explorer.com/api/research/queue`, the same data as
-https://llms-explorer.com/queue/. Set `LLMSX_API_URL` to read another API.
+https://llmsx.org/queue/. Set `LLMSX_API_URL` to read another API.
 
 Without the provider's command-line tool installed, only `queue` is offered.
 

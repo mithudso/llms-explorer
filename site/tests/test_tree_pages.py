@@ -58,7 +58,7 @@ def fixture_dist(tmp_path_factory) -> Path:
     if shutil.which("npx") is None or not (SITE / "node_modules" / "astro").is_dir():
         pytest.skip("needs node + `npm ci` in site/ to build a fixture tree")
     root = tmp_path_factory.mktemp("fixroot")
-    for item in ("src", "public", "astro.config.mjs", "tsconfig.json", "package.json"):
+    for item in ("src", "public", "astro.config.mjs", "site-origin.json", "tsconfig.json", "package.json"):
         src = SITE / item
         if not src.exists():
             continue
