@@ -4,7 +4,7 @@
 
 > Implement all suggested changes.
 
-Scope: TASK-1202. Implement the complete recommendations in docs/research/llmsx-peer-positioning-2026-11-06/README.md: identity/navigation, three usable workflows, focused app pages, skill discovery, GitHub presentation and useful-action measurement with a baseline. Preserve the broad concept tree, stable URLs and existing setup anchors. Work only in the isolated task checkout; leave the concurrent primary session intact. Verify desktop/mobile and live behavior, then commit/push/PR/green checks/merge/deploy. Delta: prompt110 to111; memory0.22.127 to0.22.128.
+Scope: TASK-1202. Implement the complete recommendations in docs/research/llmsx-peer-positioning-2026-11-06/README.md: identity/navigation, three usable workflows, focused app pages, skill discovery, GitHub presentation and useful-action measurement with a baseline. Preserve the broad concept tree, stable URLs and existing setup anchors. Work only in the isolated task checkout; leave the concurrent primary session intact. Verify desktop/mobile and live behavior, then commit/push/PR/green checks/merge/deploy. Delta: prompt110 to111; memory0.22.127 to0.22.129.
 
 ## Prompt v110 - 2026-11-06
 

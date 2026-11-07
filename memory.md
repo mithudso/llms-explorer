@@ -1,13 +1,13 @@
 # Memory
 
-## v0.22.128 - 2026-11-07
+## v0.22.129 - 2026-11-07
 
 - TASK-1202 implements the accepted peer-review recommendations from PR293. Root identity: practical engineering for AI agents. Four main destinations: guides and experiments, skills, research library and apps. Preserve explicit Concept tree access, the entire broad library, existing URLs and setup anchors.
 - Three complete entry workflows will connect handoff/context/skill-maintenance examples to their evidence, reference files, skills and apps. Focused product pages keep long installation documentation accessible.
 - Existing GA4 is the measurement backend. Measure successful copies after clipboard completion, bounded navigation/resource actions and voluntary reported outcomes. Keep free text, prompts, queries and account data out of event payloads. Strict account routes and analytics opt-out remain protected. Capture a dated historical baseline before deployment.
 - Implemented the authored journeys, app chooser/product pages, prompt/install copy controls, compatible skill discovery and shared Markdown twins. GitHub description/homepage/topics are updated. Private GA4 baseline covers28complete days before deployment; it does not turn historical copy clicks into success.
 - Stele outbox: e5e30502,39120d46,f17c1036,bc0a1e5c,cd6cc4ae.
-- All changes belong to the isolated task branch. The primary checkout contains another live session and unrelated untracked work. Do not switch, stage or commit there. Validation:90focused regressions pass; Astro check0errors/0warnings; site Ruff clean; full build/publication policy and llms0High gate pass. Desktop/mobile browser checks passed on a stable local snapshot; final receipt and deployment remain to verify. Next: commit/push/CI/merge; verify actual production behavior and record delivery. Delta:0.22.127 to0.22.128; prompt111.
+- All changes belong to the isolated task branch. The primary checkout contains another live session and unrelated untracked work. Do not switch, stage or commit there. Validation:90focused regressions pass; Astro check0errors/0warnings; site Ruff clean; full build/publication policy and llms0High gate pass. Desktop/mobile browser checks passed on a stable local snapshot; final receipt and deployment remain to verify. Next: commit/push/CI/merge; verify actual production behavior and record delivery. Delta:0.22.127 to0.22.129; prompt111. Final live link verification found that skills.sh indexes only part of this repository; skill pages link the verified repository listing rather than infer per-skill directory availability.
 
 <!-- worklog: 130 older sections moved to docs/archive/memory-2026-11-06.md on 2026-11-06 -->
 

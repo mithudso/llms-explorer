@@ -1,7 +1,7 @@
 # Reader journeys and useful-action measurement
 
-Version: 1.0.0
-Delta: implements the November6peer-review recommendations.
+Version: 1.0.1
+Delta: implements the November6peer-review recommendations; verifies the community repository listing without assuming every skill is indexed.
 Task: TASK-1202. Date: 2026-11-07.
 
 ## What changed
