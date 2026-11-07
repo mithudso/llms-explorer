@@ -276,7 +276,7 @@ def test_copied_prompts_name_the_public_facts_files(page):
     for url in urls:
         assert re.fullmatch(rf"{re.escape(PUBLIC)}/downloads/concepts/[^/]+\.md", url), url
         assert _built(url.removeprefix(PUBLIC)), url
-    install = re.findall(r'data-text="(npx skills add mithudso/llms-explorer --skill ([a-z0-9-]+))"', page)
+    install = re.findall(r'data-text="(npx skills add https://github\.com/mithudso/llms-explorer/tree/main/\.claude/skills/([a-z0-9-]+) --skill \2)"', page)
     assert len(install) == sum(len(t["skills"]) for t in TASKS)
     for _, skill in install:
         assert _built(f"/skills/{skill}/"), skill
