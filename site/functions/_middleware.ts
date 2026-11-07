@@ -168,6 +168,42 @@ export function domainRedirect(url: URL): Response | null {
   });
 }
 
+// Blog posts the owner removed (employer or customer subject; TASK-1223). The
+// set holds truncated SHA-256 digests of the slugs, the same digests
+// tests/test_removed_posts.py guards the sources with, so this file does not
+// republish the titles. A removed post answers 410 Gone before the asset
+// lookup, because Pages can keep serving a deleted page from a cache that
+// neither a deploy nor a zone purge clears (the same failure #164 fixed).
+export const REMOVED_POSTS = new Set([
+  "00a77d502c492bf4", "0687999b5c9d67a3", "19d51ffa1dd77564", "21b6efca06c74a0a",
+  "25a5de045223b72e", "2b72b9d3bbaba602", "3e0ebd7f60095c66", "5029276e675dbabc",
+  "512bd54672a25fcd", "51c5ce07225a6fd3", "5bbb2d3b5708e989", "6d03142d2b13d7c7",
+  "705ff0dd48e94da4", "773431be74e715a5", "799cf23b91ea4f9d", "7b4e41624a957dca",
+  "7cd8fa7068e6cea6", "7d611c74ef8db4de", "7f6992f6ff7dccba", "83ff15de7a83c09b",
+  "875435fb48b7e6a0", "8f2a5b628a020d0d", "9219678635a4802b", "94dfdec91cd191ef",
+  "9aeda3dd32f317c0", "9d989562cc258a82", "9e4a472a0f1c6a80", "9f25b73b16ee8713",
+  "a24f9063ef85af3a", "a3db2ac8b3cfe154", "b5b9c119207e862d", "ce7bc5c31065b92b",
+  "cf6490abe3cea67b", "d0d8d8592d465a09", "d3c36d604634f510", "dc06e134b50968d8",
+  "dc7dd2dc30660815", "eca0f975f436059b", "ffb356142c28ce80",
+]);
+
+export async function slugDigest(slug: string): Promise<string> {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(slug.normalize("NFC"))));
+  return [...bytes.slice(0, 8)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function removedPost(pathname: string): Promise<Response | null> {
+  const slug = /^\/blog\/([^/]+?)(?:\/|\.md)?$/.exec(pathname)?.[1];
+  if (!slug) return null;
+  let decoded: string;
+  try { decoded = decodeURIComponent(slug); } catch { return null; }   // malformed %-escape: let Pages 404 it
+  if (!REMOVED_POSTS.has(await slugDigest(decoded))) return null;
+  return new Response("This article has been removed. Browse /blog/ for current guides.\n", {
+    status: 410,
+    headers: { "Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8", "X-Robots-Tag": "noindex" },
+  });
+}
+
 // One fetch of the rules per isolate; a deploy replaces the isolate, so the
 // rules can never outlive the build that wrote them.
 let edgePromise: Promise<Compiled> | null = null;
@@ -204,6 +240,8 @@ export async function onRequest(context: Context): Promise<Response> {
       headers: { "Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8" },
     });
   }
+  const gone = await removedPost(url.pathname);
+  if (gone) return gone;
   // Start the rules fetch before awaiting the page so a cold isolate pays the
   // two round-trips in parallel, not in series. On failure the cache is
   // cleared so the next request retries.
