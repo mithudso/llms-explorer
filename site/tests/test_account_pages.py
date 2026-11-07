@@ -346,9 +346,11 @@ def test_ads_default_off_ownership_retained_and_strict_pages_have_no_google_scri
         if any(route.startswith(prefix) for prefix in twins.STRICT_ROUTES):
             assert not google_loaders and not configs, f"private route loads Analytics: {route}"
         else:
-            assert google_loaders == ["https://www.googletagmanager.com/gtag/js?id=G-0E31PW5CE9"], route
+            assert not google_loaders, f"loader must wait for browser opt-out checks: {route}"
+            assert 'tag.src = "https://www.googletagmanager.com/gtag/js?id=G-0E31PW5CE9"' in html, route
+            assert 'navigator.doNotTrack !== "1"' in html and "navigator.globalPrivacyControl" in html, route
             assert configs == ["G-0E31PW5CE9"], route
-            assert re.search(r"<head>\s*(?:<!--.*?-->\s*)?<script\b", html, re.S), route
+            assert re.search(r'<head>\s*<meta charset="utf-8"', html), route
         charset_offset = html.encode("utf-8").find(b'charset="utf-8"')
         assert 0 <= charset_offset < 1024, f"charset declaration is too late: {route}"
 
