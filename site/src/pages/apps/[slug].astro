@@ -1,0 +1,32 @@
+---
+import Base from "../../layouts/Base.astro";
+import CopyBlock from "../../components/CopyBlock.astro";
+import APPS from "../../data/apps.json";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+export function getStaticPaths() { return APPS.map(app => ({ params: { slug: app.slug }, props: { app } })); }
+const { app } = Astro.props;
+const path = resolve(process.cwd(), "public/downloads/llmsx/manifest.json");
+const pkg = app.slug === "llmsx" && existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null;
+const wheel = pkg?.files?.find((f: { kind: string; name: string }) => f.kind === "wheel")?.name;
+const command = app.slug === "llmsx"
+  ? (wheel ? `python -m pip install 'https://llms-explorer.com/downloads/llmsx/${wheel}[tui]'\nllmsx explorer` : "")
+  : app.command;
+---
+<Base title={app.name} description={app.description} route={`/apps/${app.slug}/`}>
+  <p class="eyebrow">{app.task}</p><p class="lede">{app.description}</p>
+  <p class="hero-actions"><a class="btn" href="#install" data-track="app_setup_open" data-label={app.slug}>Install {app.name}</a><a class="btn secondary" href={app.guide} data-track="app_guide_open" data-label={app.slug}>User guide & requirements</a></p>
+  <figure class="app-preview"><img src={app.image} alt={app.alt} width="1200" loading="eager" /><figcaption>A representative application view. See the guide for current commands and requirements.</figcaption></figure>
+  <h2>What you can do</h2><ul>{app.features.map(feature => <li>{feature}</li>)}</ul>
+  <section id="install"><h2>Install and launch</h2><p>{app.requirements}</p>
+    {app.slug === "github-explorer" && <p>Launch from an existing repository directory. For authenticated actions, run <code>gh auth login</code> once with your own account.</p>}
+    {command ? <CopyBlock text={command} kind="install" label="Copy installation command" item={app.slug} /> : <p>The packaged download is not present in this build. Use the <a href={app.setup}>documented source installation</a>.</p>}
+    <p><a href={app.setup} data-track="app_setup_open" data-label={app.slug}>Other installation methods and full setup</a> · <a href={app.source} data-track="app_source_open" data-label={app.slug}>Source & releases</a></p>
+  </section>
+  <h2>Your first useful result</h2><p>{app.first}</p>
+  <p>Verify the installed command:</p><CopyBlock text={app.check} kind="install" label="Copy verification command" item={app.slug + "-verify"} />
+  <p>The command should print the guide, version or help text. It does not start a research or evaluation job.</p>
+  <h2>Requirements and limits</h2><p>{app.limits}</p>
+  <p><a href={app.related}>{app.relatedLabel} →</a></p>
+  <p><a href="/apps/">Compare all three applications</a> · <a href="/downloads/">Installation reference</a></p>
+</Base>

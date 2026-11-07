@@ -167,7 +167,7 @@ PAGE_SECTIONS = [
 _GUIDE = Path(__file__).resolve().parents[1] / "src" / "data" / "explorer-guide.md"
 
 STATIC_PAGES = [
-    {"route": "/explorer/", "title": "LLMSX Explorer — The Dynamic Research Workbench",
+    {"route": "/explorer/", "title": "LLMSX Explorer reference",
      "page": "src/pages/explorer.astro",
      "description": "A terminal research workbench with a concept tree, job queue, "
                     "highlights, flashcards and quizzes.",
@@ -391,10 +391,13 @@ STATIC_PAGES += [{'route': '/start-here/',
   'description': 'How LLMSX website analytics, accounts, external links and local tools '
                  'handle information, and where to send privacy requests.',
   'body': 'This notice covers llms-explorer.com and llmsx.org. Publisher: Mitchell '
-          'Hudson. Updated 30 September 2026. Public guides and downloads need no '
+          'Hudson. Updated 7 November 2026. Public guides and downloads need no '
           'account. Hosting infrastructure receives ordinary request information.\n'
           '\n'
-          'Public pages use Google Analytics for visits and navigation events. Google '
+          'Public pages use Google Analytics for visits and bounded useful-action events. '
+          'Browser Do Not Track, Global Privacy Control and the Google disable flag '
+          'suppress the loader and custom events. Custom events omit copied text and '
+          'search queries. Google '
           'may receive URLs and IP addresses and may use cookies. See [Google '
           'partner-site '
           'information](https://policies.google.com/technologies/partner-sites) and '
@@ -415,6 +418,71 @@ STATIC_PAGES += [{'route': '/start-here/',
           'details out of public issues. Downloaded tools and external services have '
           'their own data flows. [Net-DNS-Monitor has a separate '
           'policy](/net-dns-monitor/privacy/).\n'}]
+
+
+# The same authored data drives HTML and agent-readable workflow/application pages.
+_JOURNEY_DATA = Path(__file__).resolve().parents[1] / "src" / "data"
+_workflows = json.loads((_JOURNEY_DATA / "workflows.json").read_text())
+_apps = json.loads((_JOURNEY_DATA / "apps.json").read_text())
+
+
+def _workflow_body(w: dict) -> str:
+    parts = [w["problem"]]
+    for step in w["steps"]:
+        parts.extend(["## " + step["title"], step["body"]])
+        if "code" in step:
+            parts.append("```text\n" + step["code"] + "\n```")
+    parts.extend(["## Check your result", w["check"], "## Evidence and reuse", w["evidence"]])
+    parts.append(
+        f"[Supporting article](/blog/{w['article']}/) · "
+        f"[Reference](/tree/{w['reference']}/) · "
+        f"[Context file](/downloads/concepts/{w['reference']}.md) · "
+        f"[Skill prompt](/skills/{w['skill']}/#prompt) · [App](/apps/{w['app']}/)"
+    )
+    parts.append(f"`npx skills add mithudso/llms-explorer --skill {w['skill']}`")
+    return "\n\n".join(parts) + "\n"
+
+
+def _app_body(a: dict) -> str:
+    parts = [a["task"], a["requirements"], "\n".join("- " + f for f in a["features"])]
+    if a["command"]:
+        parts.append("```sh\n" + a["command"] + "\n```")
+    parts.extend(["## First useful result", a["first"], "## Limits", a["limits"]])
+    parts.append(f"[Setup]({a['setup']}) · [Guide]({a['guide']}) · [Source]({a['source']})")
+    return "\n\n".join(parts) + "\n"
+
+
+STATIC_PAGES += [
+    {
+        "route": "/workflows/", "title": "Practical agent workflows",
+        "page": "src/pages/workflows/index.astro",
+        "description": "Three worked paths from an agent problem to evidence, "
+                       "reusable instructions and a result you can check.",
+        "body": "Start with one useful workflow.\n\n" + "\n".join(
+            f"- [{w['title']}](/workflows/{w['slug']}/): {w['summary']}" for w in _workflows
+        ),
+    },
+    {
+        "route": "/apps/", "title": "Apps", "page": "src/pages/apps/index.astro",
+        "description": "Compare LLMSX Explorer, Skills Explorer and GitHub Explorer "
+                       "by task, requirements and first useful result.",
+        "body": "Three separate terminal applications.\n\n" + "\n".join(
+            f"- [{a['name']}](/apps/{a['slug']}/): {a['description']}" for a in _apps
+        ),
+    },
+]
+for w in _workflows:
+    STATIC_PAGES.append({
+        "route": f"/workflows/{w['slug']}/", "title": w["title"],
+        "page": "src/pages/workflows/[slug].astro", "description": w["summary"],
+        "body": _workflow_body(w),
+    })
+for a in _apps:
+    STATIC_PAGES.append({
+        "route": f"/apps/{a['slug']}/", "title": a["name"],
+        "page": "src/pages/apps/[slug].astro", "description": a["description"],
+        "body": _app_body(a),
+    })
 
 
 def _static_twin(spec: dict, dist_dir: Path, site_url: str, stamp: str) -> Path | None:

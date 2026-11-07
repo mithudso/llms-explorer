@@ -16,16 +16,17 @@ const STRICT_ROUTES = ["/login/", "/account/", "/keys/", "/usage/", "/contribute
 const strict = STRICT_ROUTES.some((r) => route.startsWith(r));
 // Reader journeys lead. The resource catalogue remains in the More menu.
 const NAV = [
-  ["/start-here/", "Start here", "Try a small workflow before installing anything"],
-  ["/research/", "Find by task", "Match an AI task to reference files, guides and skills"],
-  ["/blog/", "Guides & research", "Worked guides, experiments and architecture reports"],
-  ["/downloads/", "Tools", "Choose a workbench and find its installation guide"],
-  ["/skills/", "Skills", "Reusable instructions for your coding agent"],
-  ["/tree/", "Concept tree", "Explore connected topics and their published references"],
+  ["/workflows/", "Guides & experiments", "Worked workflows and the evidence behind them"],
+  ["/skills/", "Skills", "Read and reuse agent instructions"],
+  ["/research/", "Research library", "Find references, guides and skills by task"],
+  ["/apps/", "Apps", "Choose a terminal workbench"],
 ];
 const RESOURCES = [
   ["/queue/", "Research queue", "What is being researched now, and what is waiting"],
   ["/context/", "Context files", "Research and concept facts as Markdown"],
+  ["/blog/", "Article archive", "All guides, experiments and case studies"],
+  ["/start-here/", "Start here", "Try a short handoff without installing anything"],
+  ["/downloads/", "Installation reference", "All setup instructions and download options"],
   ["/reference/", "Technical reference", "Formats, lint rules and publishing conventions"],
   ["/examples/", "Code examples", "Copyable recipes with stated assumptions"],
   ["/demo/", "Retrieval demo", "Recorded keyword, vector and hybrid results"],
@@ -47,39 +48,52 @@ const menuResources = route.startsWith("/net-dns-monitor/")
   : RESOURCES;
 ---
 <html lang="en"><head>
+  <meta charset="utf-8" />
   {!strict && (<>
   <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0E31PW5CE9" crossorigin="anonymous"></script>
   <script is:inline>
+    if (navigator.doNotTrack !== "1" && !navigator.globalPrivacyControl && !window["ga-disable-G-0E31PW5CE9"]) {
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-    gtag('config', 'G-0E31PW5CE9');
+    window.gtag = gtag;
+    gtag('config', 'G-0E31PW5CE9', {
+      page_location: location.origin + location.pathname,
+      page_referrer: document.referrer ? new URL(document.referrer).origin : "",
+      allow_google_signals: false
+    });
+    var tag = document.createElement("script");
+    tag.async = true;
+    tag.src = "https://www.googletagmanager.com/gtag/js?id=G-0E31PW5CE9";
+    tag.crossOrigin = "anonymous";
+    document.head.append(tag);
+    }
   </script>
   </>)}
-  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   {/* Ownership verification is separate from page-level ad eligibility.
       Enable ads only after assessing the page and the consent setup. */}
   <meta name="google-adsense-account" content="ca-pub-1706083044457708" />
   {adEligible && !strict && !noindex && <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1706083044457708" crossorigin="anonymous"></script>}
-  <title>{title} · LLMS-Explorer</title>
+  <title>{title} · LLMSX</title>
+  <meta name="llmsx-release" content="reader-journeys-2026-11-07" />
   <meta name="description" content={description} />
   {noindex && <meta name="robots" content="noindex, follow" />}
   <link rel="canonical" href={new URL(route, Astro.site).href} />
   {twin && <link rel="alternate" type="text/markdown" href={twin} />}
   <link rel="describedby" href="/llms.txt" />
   <script src="../scripts/lx-polish.js"></script>
-</head><body>
+</head><body data-analytics-enabled={strict ? "false" : "true"}>
   <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header">
     <nav class="site-nav" aria-label="Primary">
-      <a class="brand" href="/" aria-label="LLMSX home">llmsx<span class="brand-note"> / practical AI workflows</span></a>
+      <a class="brand" href="/" aria-label="LLMSX home">llmsx<span class="brand-note"> / practical agent engineering</span></a>
       <span class="links">
         {NAV.map(([href, label, note]) => (
-          <a href={href} title={note} aria-current={route.startsWith(href) ? "page" : null} data-track="nav_click" data-label={label} data-destination={href}>{label}</a>
+          <a href={href} title={note} aria-current={(route.startsWith(href) || (href === "/workflows/" && (route.startsWith("/blog/") || route === "/start-here/")) || (href === "/research/" && (route.startsWith("/tree/") || route === "/context/"))) ? "page" : null} data-track="nav_click" data-label={label} data-destination={href}>{label}</a>
         ))}
-        <details class="menu"><summary data-track="resources_menu_open">More</summary>
+        <a class="tree-shortcut" href="/tree/" data-track="nav_click" data-label="concept-tree">Concept tree</a>
+        <details class="menu"><summary data-track="resources_menu_open">Resources & account</summary>
           <div class="menu-items">
             {menuResources.map(([href, name, note]) => (
               <a href={href}>{name}<span class="menu-note">{note}</span></a>
@@ -89,9 +103,9 @@ const menuResources = route.startsWith("/net-dns-monitor/")
       </span>
     </nav>
   </header>
-  <main id="main-content"><h1>{heading}</h1><slot /></main>
+  <main id="main-content" tabindex="-1"><h1>{heading}</h1><slot /></main>
   <footer class="site-footer">
-    <p>LLMSX — practical guides, open tools and reusable context for AI work.</p>
+    <p>LLMSX — practical engineering for AI agents.</p>
     <nav aria-label="Footer">
       <a href="/about/">About & contact</a>
       <a href="/editorial/">Sources & editorial standards</a>
@@ -101,36 +115,8 @@ const menuResources = route.startsWith("/net-dns-monitor/")
       {twin && <a href={twin}>This page as Markdown</a>}
     </nav>
   </footer>
-  <script is:inline>
-    // Delegated GA4 click tracking (measurement-plan-2026-09-07.md §2, redesign-spec-2026-09-07.md §9).
-    // One listener covers every current and future [data-track] element; no-ops if gtag is
-    // unavailable (ad blockers) rather than throwing. Never blocks navigation.
-    document.addEventListener("click", function (event) {
-      if (typeof gtag !== "function") return;
-      var el = event.target.closest && event.target.closest("[data-track]");
-      if (!el) return;
-      var name = el.dataset.track;
-      // resources_menu_open fires from the toggle listener below, not from this click delegate,
-      // so a click that merely opens/closes the <details> doesn't double-count or fire on close.
-      if (name === "resources_menu_open") return;
-      var params = {};
-      if (el.dataset.card) params.card = el.dataset.card;
-      if (el.dataset.ctaId) params.cta_id = el.dataset.ctaId;
-      if (el.dataset.label) params.label = el.dataset.label;
-      if (el.dataset.destination) params.destination = el.dataset.destination;
-      else if (el.href) params.destination = el.pathname;
-      gtag("event", name, params);
-    });
-    document.addEventListener(
-      "toggle",
-      function (event) {
-        if (typeof gtag !== "function") return;
-        var details = event.target;
-        if (details.matches && details.matches("details.menu") && details.open) {
-          gtag("event", "resources_menu_open", {});
-        }
-      },
-      true,
-    );
+  <script>
+    import { installEngagement } from "../scripts/engagement";
+    installEngagement();
   </script>
 </body></html>

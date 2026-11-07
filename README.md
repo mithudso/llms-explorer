@@ -1,6 +1,14 @@
-# LLMS-Explorer
+# LLMSX
 
-An integrated platform providing documentation exploration for LLMs, semantic search indexing, accounts/metering infrastructure, and an interactive web portal.
+Practical engineering for AI agents: research-backed guides, reusable skills, a connected reference library and open terminal workbenches.
+
+Find a workflow, inspect its evidence, and reuse the instructions or context in your own setup.
+
+- Website: https://llmsx.org/
+- Worked workflows: https://llmsx.org/workflows/
+- Skills: https://llmsx.org/skills/
+- Research library and concept tree: https://llmsx.org/research/ and https://llmsx.org/tree/
+- Applications: https://llmsx.org/apps/
 
 ## Monorepo Structure
 

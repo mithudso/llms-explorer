@@ -1,7 +1,9 @@
 # Measurement plan — home/nav redesign (Plan B, item B2)
 
-Version: 1.0.1
-Delta (2026-09-30): the user-created GA4 stream G-0E31PW5CE9 replaces the earlier G-0KWFPMH6WX destination in the shared layout. The original plan below records September7 assumptions. Current public pages also have delegated journey events. The new property starts a fresh collection history; earlier visits cannot be inferred from it. See [current Analytics setup](analytics-mcp-2026-09-30.md).
+Version: 1.1.0
+Delta (2026-11-07): reader journeys add successful clipboard events, bounded payloads, browser opt-outs, voluntary outcomes and a private pre-deploy baseline. See reader-journeys-2026-11-07.md for the current contract. The older event assumptions below remain a historical plan.
+
+Previous delta (2026-09-30): the user-created GA4 stream G-0E31PW5CE9 replaces the earlier G-0KWFPMH6WX destination in the shared layout. The original plan below records September7 assumptions. Current public pages also have delegated journey events. The new property starts a fresh collection history; earlier visits cannot be inferred from it. See [current Analytics setup](analytics-mcp-2026-09-30.md).
 
 Scope: `/`, top nav, and the skills/tree discovery path. Current instrumentation
 (`site/src/layouts/Base.astro:33-40`) loads gtag.js against `G-0KWFPMH6WX` with
