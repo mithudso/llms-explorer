@@ -25,6 +25,60 @@ Ran /project-docs-setup --lite.
 > https://llmsx.org/tree/
 
 Started from the Design System template. Interpreted as: build a design system from the llmsx.org concept tree page and the site/ code that serves it.
+## Prompt v121 - 2026-11-08
+
+````text
+Resolve ONLY merge conflicts in /Users/mitch/dev/llms-explorer-grid-dca-finalize-20261108/memory.md and /Users/mitch/dev/llms-explorer-grid-dca-finalize-20261108/prompts.md. Active Git merge on branch research/grid-dca-finalization-20261108 merges origin/main26ed830f (other author's completed Task905PR307) into our completed recovery-safety prerequisite PR308 head535d5406. Only these two append-only logs conflict; code merged cleanly. Preserve BOTH sides' full content, prompt text and durable records. Renumber only OUR unpublished log headers/delta references if needed so our additions follow incoming max version/prompt ID; do not alter other author's narrative/records. Add a concise current merge continuation note with incremented version/delta if appropriate. No truncation, no dropped hunks, no staging/commit/push/checkout/reset, no edits elsewhere. Before writes capture current hash/version and conflict stages; enforce fresh preconditions/readback. You are not alone; parent owns Git delivery, CFE sibling source edits are held during this merge. Source raw research, paused services and private output stay untouched. Return exact resolutions, target hashes, verification that no conflict markers remain and both semantic additions survive; parent will stage/commit merge.
+````
+
+Delegated workflow instruction for merge-log resolution; this is not a new user request. Parent owns staging, commit, checks and delivery. Delta: prompt v120 to v121; memory v0.22.145 to v0.22.146.
+
+## Prompt v120 - 2026-11-08
+
+```text
+Run the full-suite skill on identifying coins that would make ideal candidates for a grid or dca strategy. What do the prices look like over time that would make that strategy the most profitable? What criteria could you use when looking at a set of coins which ones would be best suited for that?
+```
+
+Continuation choice:
+
+```text
+Use available Codex agents instead (Recommended)
+```
+
+This isolated checkout owns the necessary local-finalization prerequisite and generated proof-bound artifacts. Scope recovery to the current research run. Preserve unrelated journals, frozen outputs, and the maintained dirty checkout. Parent owns final Git delivery; no website deployment. Delta: prompt v119 to v120; memory v0.22.142 to v0.22.143.
+
+## Prompt v119 - 2026-11-08
+
+````text
+Do a /dr on the 4 unresearched child concepts: Conditional nonlinear information transfer (frontier, viability 3.60 / 5)
+Finite-sample dependency uncertainty (frontier, viability 3.60 / 5)
+Lag-selection multiplicity (frontier, viability 3.60 / 5)
+Directed graph preservation (frontier, viability 3.60 / 5)
+````
+
+TASK-905: standard-depth four-concept /dr. Root project: solmargintrader. Delta: prompt v118 to v119; memory v0.22.139 to v0.22.140.
+
+## Prompt v118 - 2026-11-08
+
+```text
+Add this to the ads.txt file in the root directory: google.com, pub-1706083044457708, DIRECT, f08c47fec0942fa0
+```
+
+TASK-1226: Verify the existing seller entry and root HTTP response. The requested line already exists once; preserve it and record verification. Delta: prompt v117 to v118; memory v0.22.138 to v0.22.139.
+
+## Prompt v117 - 2026-11-08
+
+```text
+Run the full-suite skill on high margin leveraged perps trading strategies like exists here https://jup.ag/perps/long/SOL-SOL. Effectively betting on how the price will move in the next 5 minutes. What signals, indicators, and technicals best predict an extremely short timeframe, but that also cannot withstand a big swing in the wrong direction.
+```
+
+Continuation authorization:
+
+```text
+Yes, Approve moving /Users/mitch/.research intact to /Users/mitch/.global-ai-hub/research/.legacy-archives/research-20261107-task808 so the workflow can continue
+```
+
+TASK-808 in dev-y3seh; source-bound perps research only. This worktree owns publication artifacts produced by the v4 adapter after its claim gate. Preserve all unrelated original-checkout changes. Delta: prompt116 to117; memory0.22.135 to0.22.136.
 
 ## Prompt v116 - 2026-11-07
 

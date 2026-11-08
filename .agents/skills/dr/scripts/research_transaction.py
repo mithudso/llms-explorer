@@ -15,6 +15,34 @@ class Transaction:
         self.seen = set()
         self.status = 'running'
 
+    def assert_paths_available(self, paths):
+        """Refuse pending foreign ownership before mutating shared destinations.
+
+        Registry-backed callers hold the existing research global lock. Legacy
+        journals in that research directory remain ownership records too.
+        """
+        if self.registry is None:
+            return
+        requested = [Path(path).resolve() for path in paths]
+        journals = set(self.registry.parent.glob('*/artifacts/transactions/*/journal.json'))
+        for marker in self.registry.glob('*.json'):
+            journal = Path(json.loads(marker.read_text())['root']) / 'journal.json'
+            if not journal.is_file():
+                raise ValueError('registered projection journal is missing: ' + str(journal))
+            journals.add(journal)
+        for journal in journals:
+            if journal.parent.resolve() == self.root.resolve():
+                continue
+            state = json.loads(journal.read_text())
+            if state['status'] != 'running':
+                continue
+            for entry in state['entries']:
+                owned = Path(entry['path']).resolve()
+                if any(path == owned or path.is_relative_to(owned) or owned.is_relative_to(path)
+                       for path in requested):
+                    raise ValueError('projection destination overlaps a pending foreign transaction: '
+                                     + str(owned) + ' (' + str(journal.parent) + ')')
+
     def save(self):
         self.root.mkdir(parents=True, exist_ok=True)
         path = self.root / 'journal.json'
@@ -34,6 +62,7 @@ class Transaction:
 
     def remember(self, path):
         path = Path(path).absolute()
+        self.assert_paths_available([path])
         if str(path) in self.seen or any(path.is_relative_to(Path(item)) for item in self.seen):
             return
         saved = self.root / 'preimages' / str(len(self.entries))
@@ -71,7 +100,9 @@ class Transaction:
         finally:
             temporary.unlink(missing_ok=True)
 
-    def rollback(self):
+    def rollback(self, *, check_foreign_overlap=True):
+        if check_foreign_overlap:
+            self.assert_paths_available(entry['path'] for entry in self.entries)
         for entry in reversed(self.entries):
             path, saved = Path(entry['path']), Path(entry['preimage'])
             path.with_name(path.name + '.projection-tmp').unlink(missing_ok=True)
@@ -96,15 +127,15 @@ class Transaction:
         self.save()
 
 
-def recover(root):
+def recover(root, *, registry=None, check_foreign_overlap=True):
     """Restore an interrupted transaction before retrying its projection stage."""
     root = Path(root)
     state = json.loads((root / 'journal.json').read_text())
     if state['status'] != 'running':
         return False
-    transaction = Transaction(root, registry=state.get('registry'))
+    transaction = Transaction(root, registry=state.get('registry') or registry)
     transaction.entries = state['entries']
-    transaction.rollback()
+    transaction.rollback(check_foreign_overlap=check_foreign_overlap)
     return True
 
 
@@ -112,24 +143,38 @@ def registry_dir(research_dir):
     return Path(research_dir) / '.projection-journals'
 
 
-def recover_pending(research_dir, repo):
+def recover_pending(research_dir, repo, *, scope_root=None):
     """Recover all shared writers under the caller's research global lock.
 
     Registered locations cover other checkouts. The two legacy globs also find
-    interrupted journals created before registry support was installed.
+    interrupted journals created before registry support was installed. A scoped
+    caller recovers only transactions below scope_root and leaves other writers'
+    journals and registry markers untouched.
     """
     research_dir, repo = Path(research_dir), Path(repo)
+    scope = Path(scope_root).resolve() if scope_root is not None else None
+
+    def in_scope(journal):
+        return scope is None or journal.parent.resolve().is_relative_to(scope)
+
     journals = set(research_dir.glob('*/artifacts/transactions/*/journal.json'))
     journals.update((repo / 'tmp/research-site-sync-backups').glob('*/transaction/journal.json'))
-    markers = list(registry_dir(research_dir).glob('*.json'))
-    for marker in markers:
+    journals = {journal for journal in journals if in_scope(journal)}
+    markers = []
+    for marker in registry_dir(research_dir).glob('*.json'):
         journal = Path(json.loads(marker.read_text())['root']) / 'journal.json'
+        if not in_scope(journal):
+            continue
+        markers.append(marker)
         if not journal.is_file():
             raise ValueError('registered projection journal is missing: ' + str(journal))
         journals.add(journal)
     recovered = []
     for journal in sorted(journals, key=lambda path: path.stat().st_mtime_ns, reverse=True):
-        if recover(journal.parent):
+        # Unscoped recovery is the explicit serial/admin operation. A scoped
+        # writer must respect every other pending transaction's destinations.
+        if recover(journal.parent, registry=registry_dir(research_dir) if scope is not None else None,
+                   check_foreign_overlap=scope is not None):
             recovered.append(str(journal.parent))
     # A process can stop after the terminal journal write and before unlinking
     # its registry marker. Never roll a completed transaction back.

@@ -36,6 +36,90 @@
 - Contents: 13 colors (one light theme; site has no dark theme), 3 system font stacks, 14 type styles, 5 fluid type-scale steps, 8 spacing, 5 radii, 2 shadows, 7 layout values, 7 components (SiteHeader, TabNote, ProofLine, SearchBox, ConceptTree, FactsPanel, SiteFooter) with static previews and bundle.css, and a cover. Live :root tokens match global.css at 4f040e06.
 - Contrast findings kept exact and noted: ink-faint on code-bg 4.34:1; search input border (line) 1.18:1 and secondary button border (line-strong) 1.49:1 miss the 3:1 control-border floor. global.css claims ink-faint ~4.9:1 on paper; measured 4.63:1. SearchBox.astro references undeclared --fg-muted. site/public/favicon.svg is the Astro default mark, not an llmsx logo.
 - Remaining: user to share the artifact if others need it; optional cards for .btn, .card, Tree3D; optional fixes for the contrast misses in site CSS.
+## v0.22.146 - 2026-11-08
+
+- Merge continuation: reconcile incoming main 26ed830f (TASK-905, PR 307) with the recovery-safety prerequisite head 535d5406 (PR 308) on research/grid-dca-finalization-20261108. Both log histories and all exact prompt text survive. Incoming memory v0.22.140 through v0.22.142 and prompt v119 remain unchanged; our unpublished memory entries now use v0.22.143 through v0.22.145 and our full-suite prompt uses v120.
+- Only the two conflicted append-only logs were resolved. The Git conflict stages provide the reversible originals. Fresh working-file hashes and stage identities were checked before writing. No source, generated artifact, private research, paused service or unrelated worktree was changed by this log resolution.
+- Remaining: parent must review and stage the resolved logs, finish the active merge, run the relevant checks and complete Git delivery. Native follow-up consolidation, fresh delta gates and subsequent generated-artifact delivery remain with the parent task; historical pending notes above and below remain preserved.
+- Delta: memory v0.22.145 to v0.22.146; prompt v120 to v121 records this merge-resolution instruction.
+
+## v0.22.145 - 2026-11-08
+
+- Delta: add projection ownership regressions to the existing remote research integrity test step.
+- .github/workflows/ci.yml now explicitly runs tests/test_research_transaction.py alongside gate/artifact tests, so equal/nested ownership and scoped-recovery regressions run in CI.
+- Local checks already passed:80 integration tests plus6 subtests,61 artifact/site/transaction tests plus6 subtests, Ruff and28-file sync validation.
+- Remaining: final prerequisite CI/merge; user-approved Codex research follow-ups are being consolidated and gated separately.
+- Delta: memory v0.22.144 to v0.22.145; prompt remains v120.
+
+## v0.22.144 - 2026-11-08
+
+- Added fail-closed pending-destination ownership checks to registry-backed projection transactions. Equal paths and ancestor/descendant paths conflict. Checks run before remember/write and before rollback or scoped recovery; the transaction excludes itself. Explicit unscoped administrative recovery retains serial recovery behavior.
+- A valid foreign shared-tree JSON document now triggers the ownership guard before finalization mutates it. Regression cases preserve the foreign output, journal and registry marker byte for byte, and cover disjoint writers and a write recheck after remember.
+- Validation: transaction/Codex integration 80 tests plus 6 subtests passed; transaction/artifact/site-sync 61 tests plus 6 subtests passed. Ruff, diff checks and 28-file Codex research skill synchronization passed. Only the isolated helper, tests and derived helper/manifest changed. No live journal recovery, deployment or global installation ran.
+- All six user-authorized native Codex follow-up contexts completed. Private consolidation and fresh delta gates remain pending; the previous accepted 107-assertion gate stays preserved. Parent owns Git delivery and subsequent generated-artifact delivery.
+- Delta: memory v0.22.143 to v0.22.144; prompt remains v120.
+
+## v0.22.143 - 2026-11-08
+
+- Crypto grid/DCA full-suite prerequisite: `research_transaction.recover_pending` now accepts an optional keyword-only `scope_root`. The default keeps existing global recovery behavior. Scoped recovery leaves other authors' interrupted journals and registry markers unchanged.
+- `codex_dr_artifacts._transactional_finalize` passes the current run's existing artifacts/transactions directory. No live recovery or deployment was performed while implementing this guard.
+- Targeted transaction tests: 6 passed. Ruff passed for the helper, caller and tests; Python compilation passed. Tests cover own rollback, unrelated journal and marker byte preservation, unrelated missing registration, and backward-compatible global behavior.
+- Research remains private at `/Users/mitch/.global-ai-hub/research/crypto-coin-selection-for-grid-and-dca-strategies`. The accepted base gate reviewed 107 assertions: 89 supported and 18 non-assertions. Six quota-failed deeper attempts remain explicit; the user authorized native Codex replacements. New or changed assertions require fresh bound semantic review before final projections.
+- This sparse checkout starts at remote main `1282536faf9c822accf0b5caa43fff7f77a68896` on `research/grid-dca-finalization-20261108`. Parent owns review, push, checks and merge. Remaining work: finish native follow-ups, gate deltas, render/install the skill, finalize local projections serially, verify generated proof and deliver owned changes.
+- Delta: memory v0.22.142 to v0.22.143; prompt v119 to v120.
+
+## v0.22.142 - 2026-11-08
+
+- TASK-905: removed three task-added operator filesystem paths from the v0.22.140 continuation notes and prompt v119 metadata. Neutral run and repository identifiers retain the continuation context. The exact user request and all pre-task history remain unchanged.
+- All 55 scientific and generated publication files remain byte-identical to reviewed source commit 80326f7f2af63a856383fe7a031686b2da91481a. This correction changes only workflow metadata.
+- The managed CodeQL Python job failed before analysis because its tool download returned HTTP 504. GitHub rejected both run-level and job-level retries for the dynamic workflow. Final-head checks and an independent metadata privacy review remain required before merge.
+- Delta: memory v0.22.141 to v0.22.142; correct task-owned metadata privacy and distinguish scoped resource-path checks from the independent full HTML link audit. Prompt v119 text remains exact.
+
+## v0.22.141 - 2026-11-08
+
+- TASK-905: published the four requested nonlinear lead-lag child concepts and their aggregate through the supported Codex adapter. Standard depth, 49 structured claims; the final research-gate/v4 accepts all 73 assertions (56 SUPPORTED and 17 nonassertions). Sixty validated judgments were reused and 13 changed pairs were reviewed after one bounded context/semantic repair.
+- Stable installed reference is under the trading-and-investing hub. The canonical artifact is a5f5ac0e6ea2cad3a7f562cccf5e0b370cca0849b1647b944236df520f5dea27. Five nodes and five canonical packs were added to each target. The four children resolve beneath the aggregate, which resolves beneath Uncertainty-aware nonlinear crypto lead-lag. This is methodological research; no five-minute SOL profitability, causal mechanism or liquidation-survival result is claimed.
+- Local verification: 328 site tests pass; typecheck reports zero errors and warnings (19 hints); the production build generates 2854 pages and passes publication policy. Five reader/artifact/download/pack projections retain 49 unique accepted claims (98 projected rows), exact evidence IDs and canonical artifact bindings. All 45 unique internal resource paths in the scoped check resolve; the independent HTML audit also resolves all 209 internal links and fragments.
+- The combined canonical-private and worktree-private denylist scan reports zero findings across 18666 files. The baseline privacy allowlist is byte-identical after removing only five unrelated auto-generated lines. The existing search-index.bin vector asset is byte-identical to the baseline; no embeddings or service changes ran. The source snapshots, quotes, judge transcripts and operational provenance remain private.
+- Remaining: independent final local publication audit, source commit/push/PR, final-tip CI, squash merge, remote source verification and production acceptance. Keep the isolated worktree until the production verifier accepts it.
+- Delta: memory v0.22.140 to v0.22.141; records accepted research, scoped adapter completion and local publication checks. Prompt v119 is preserved verbatim.
+
+## v0.22.140 - 2026-11-08
+
+- TASK-905: research four frontier children under Uncertainty-aware nonlinear crypto lead-lag. Standard depth; preserve prior TASK-808 evidence. Native research run: nonlinear-lead-lag-four-children-task905.
+- Publication branch: research/nonlinear-children-task905, base 1282536f. The original dirty checkout and other worktrees remain untouched.
+- No factual assertion is eligible for publication until its exact readable source spans pass deterministic integrity and the all-assertion research-gate/v4 semantic review. Raw sources remain private. No measured SOL strategy profitability is presumed.
+- Remaining: finish research/gate, qualified installed reference, runtime finish and fresh projections, independent audit, type/build/privacy/site tests, PR/CI/merge and deployed content verification.
+- Delta: memory v0.22.139 to v0.22.140; prompt v118 to v119.
+
+## v0.22.139 - 2026-11-08
+
+- TASK-1226: The requested Google seller row already occurs once in `site/public/ads.txt` on remote main. Preserve the existing entry; no duplicate or repository-root copy is needed.
+- Live verification at 2026-11-08 08:55 UTC: `https://llmsx.org/ads.txt` returned HTTP 200 and `text/plain; charset=utf-8`. Its body matches the committed source byte for byte, including `google.com, pub-1706083044457708, DIRECT, f08c47fec0942fa0`.
+- Only prompt and memory history change. The original dirty checkout and other worktrees remain preserved. Remaining delivery: commit these records, pass required PR checks, merge, and verify remote contents. No product changes or user decisions remain.
+- Delta: memory v0.22.138 to v0.22.139; prompt v117 to v118.
+
+## v0.22.138 - 2026-11-08
+
+- Final local TASK-808 publication checks passed:328site tests,2849page productionbuild/publicationpolicy,0type errors, and18611file combined-private-denylist scan with0findings. The allowlist is byte-identical to baseline; generated unrelated exactissue exceptions were removed. All8reader pages retain canonical statements and344internal links resolve.
+- Mandatory CFEscore/placement sync completed for8existing cohort nodes:7node scores plus50sidecar records,0queued concepts; tree counts unchanged2866private/2709repository and baseline structural issue counts unchanged308/312. Process-local legacy auto-refresh was disabled for this scoped apply, followed by scoped tree generation and explicit build. No broad pack regeneration or service configuration change.
+- Canonical proof and publication remain distinct from conceptual saturation and knowledge coverage. The private full-suite has7current-format packs,164derived rows/110unique accepted claims, a7member rollup, localFTS/vector indexes, and recorded incomplete explanatory/empirical coverage. Remote source/CI/deployment acceptance is still required after this local checkpoint.
+- Delta: memory0.22.137 to0.22.138; final local validation and safe publication scope recorded before source delivery. The original dirty checkout and unrelated research remain preserved.
+
+## v0.22.137 - 2026-11-08
+
+- TASK-808 canonical research finish succeeded after parent metadata was anchored to an existing ancestor shared by both trees. The project virtualenv supplies the compiler dependency. No source/gate assertion changed. The accepted artifact contains110canonicalclaims; all165reviewedassertions retain their125SUPPORTED/40non-assertion dispositions.
+- Generated8proof-awarepacks and8publicartifactprojections; privatehubtree2858to2866, repositorytree2701to2709. Independent auditor checked365judgmentspans across63pinnedsnapshots, exactpack/claim/source/evidence parity and currenttreebindings. CanonicalartifactSHA1254521eda688b644884b05e9bb69be9922b7de9759a38c1cc82b0ea9e48c349.
+- Sitebuild passed2849pages and publicationpolicy. Combined canonical/target operator-denylist checking found3historical continuation-note matches; minimally redacted those2files without addingallowlist exceptions. Rebuild/finalprivacy andsitepytest remain required. Source snapshots, gate transcripts and private configuration stay outside publication.
+- Skills PR https://github.com/mithudso/skills/pull/91 merged5765c8d755322292b6076d116a7b8e3a4526567b; installedcompactparent+7guides, guardedbackups/readbacks and3stableactualCodexdiscovery checks passed. Currentv3 privatepackindexes, readercoverage, rollup andfrontier gates remain separate from canonical website proof projections; original full-suite completion must not be inferred from this cohort's COMPLETED status.
+- Delta: memory0.22.136 to0.22.137; prompt117 preserved. Privacy-only hub snapshot continuation also recorded in its own hub-track logs. Root owns siteverification andGitdelivery; coordinator owns remaining privatefull-suite qualification and originalproject runreport.
+
+## v0.22.136 - 2026-11-08
+
+- TASK-808 resumes original five-minute high-leverage SOL Jupiter Perps full-suite research after explicit archive approval. The legacy archive was relocated with matching complete metadata/content inventories; preflight passes. New canonical v4 run: /Users/mitch/.global-ai-hub/research/five-minute-high-leverage-sol-perps-task808. Seven retained gaps are being researched; previous47 supported claims are preserved. New legacy/heuristic overlapping corpus is source leads only.
+- Isolation: /Users/mitch/dev/worktrees/llms-explorer-perps-task808, branch research/perps-task808, created from current origin/main2a440c5a. Preserve original /Users/mitch/dev/llms-explorer dirty state and historical research. Do not import old pre-rewrite ancestry or purge-protected files.
+- Root owns prompt/memory and Git delivery. Coordinator owns supported-only adapter publication, trusted authored claim projections, private source snapshots, pack/index/tree receipts and quality gates. LLMS_EXPLORER_REPO must point to this worktree for finish. No code changes, service starts or broad queue activity are needed. On-demand task-local semantic indexing may use the existing localhost model under the later scoped full-suite/index authorization; historical background/LAN/eGPU jobs remain untouched.
+- Remaining: research and all-claim v4 review; supported-only artifacts and preserved binding checks; per-concept/rollup quality; actual site tests/check/build, privacy inspection, commit/push/PR/CI/merge and remote verification. No saturation or profitable five-minute edge is established by initialization.
 - Delta: memory0.22.135 to0.22.136; prompt117.
 
 ## v0.22.135 - 2026-11-07
@@ -116,7 +200,7 @@
 
 - TASK-1196 inventories live LLMSX offerings and researches peers to refine site identity. Scope is advisory; no website or product changes are authorized by this review.
 - Live inventory: guides/experiments, 31 published skills, downloadable context and concept tree, plus LLMSX, Skills Explorer and GitHub Explorer terminal applications. The task-first research hub already connects references, guides and skills.
-- Firecrawl catalog review selects search/scrape and market research. Competitive-intel is recurring monitoring; shop is purchase research. Alexandria GitHub repository records provide dated stars/forks and repository metadata. These are attention proxies, not active-user or commercial-success measurements.
+- Firecrawl catalog review selects search/scrape and market research. Competitive-intel is recurring monitoring; shop is purchase research. A public search provider’s GitHub repository records provide dated stars/forks and repository metadata. These are attention proxies, not active-user or commercial-success measurements.
 - Report and sources are in docs/research/llmsx-peer-positioning-2026-11-06/. Eight peers and37source records support a proposed practical-agent-engineering identity, four navigation destinations and a workflow/evidence/artifact journey. Preserve the concept tree and all existing content. These are recommendations, not implemented changes.
 - Similarweb provider discovery adds eight comparable September2026 worldwide total-web visit estimates. Keep modeled visits separate from unique users, API traffic, retention and revenue. The LLMSX lookup returned HTTP502; it supplies no traffic count.
 - Private capture bundle llmsx-20261106 retains page text and provider receipts. All21page records bind exact readable excerpts with Unicode code-point offsets and SHA-256. Independent review qualifies all material claims and metrics. Follow-up independently verifies21Markdown hashes and69exact Unicode-codepoint quote slices/hashes, with no remaining findings. Privacy and diff checks pass; no application behavior changed. Git delivery is tracked by PR293; inspect its merge/check state for the delivery receipt.
