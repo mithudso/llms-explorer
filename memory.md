@@ -1,18 +1,25 @@
 # Memory
 
+## v0.22.142 - 2026-11-08
+
+- TASK-905: removed three task-added operator filesystem paths from the v0.22.140 continuation notes and prompt v119 metadata. Neutral run and repository identifiers retain the continuation context. The exact user request and all pre-task history remain unchanged.
+- All 55 scientific and generated publication files remain byte-identical to reviewed source commit 80326f7f2af63a856383fe7a031686b2da91481a. This correction changes only workflow metadata.
+- The managed CodeQL Python job failed before analysis because its tool download returned HTTP 504. GitHub rejected both run-level and job-level retries for the dynamic workflow. Final-head checks and an independent metadata privacy review remain required before merge.
+- Delta: memory v0.22.141 to v0.22.142; correct task-owned metadata privacy and distinguish scoped resource-path checks from the independent full HTML link audit. Prompt v119 text remains exact.
+
 ## v0.22.141 - 2026-11-08
 
 - TASK-905: published the four requested nonlinear lead-lag child concepts and their aggregate through the supported Codex adapter. Standard depth, 49 structured claims; the final research-gate/v4 accepts all 73 assertions (56 SUPPORTED and 17 nonassertions). Sixty validated judgments were reused and 13 changed pairs were reviewed after one bounded context/semantic repair.
 - Stable installed reference is under the trading-and-investing hub. The canonical artifact is a5f5ac0e6ea2cad3a7f562cccf5e0b370cca0849b1647b944236df520f5dea27. Five nodes and five canonical packs were added to each target. The four children resolve beneath the aggregate, which resolves beneath Uncertainty-aware nonlinear crypto lead-lag. This is methodological research; no five-minute SOL profitability, causal mechanism or liquidation-survival result is claimed.
-- Local verification: 328 site tests pass; typecheck reports zero errors and warnings (19 hints); the production build generates 2854 pages and passes publication policy. Five reader/artifact/download/pack projections retain 49 unique accepted claims (98 projected rows), exact evidence IDs and canonical artifact bindings. All 45 internal links from the five reader pages resolve.
+- Local verification: 328 site tests pass; typecheck reports zero errors and warnings (19 hints); the production build generates 2854 pages and passes publication policy. Five reader/artifact/download/pack projections retain 49 unique accepted claims (98 projected rows), exact evidence IDs and canonical artifact bindings. All 45 unique internal resource paths in the scoped check resolve; the independent HTML audit also resolves all 209 internal links and fragments.
 - The combined canonical-private and worktree-private denylist scan reports zero findings across 18666 files. The baseline privacy allowlist is byte-identical after removing only five unrelated auto-generated lines. The existing search-index.bin vector asset is byte-identical to the baseline; no embeddings or service changes ran. The source snapshots, quotes, judge transcripts and operational provenance remain private.
 - Remaining: independent final local publication audit, source commit/push/PR, final-tip CI, squash merge, remote source verification and production acceptance. Keep the isolated worktree until the production verifier accepts it.
 - Delta: memory v0.22.140 to v0.22.141; records accepted research, scoped adapter completion and local publication checks. Prompt v119 is preserved verbatim.
 
 ## v0.22.140 - 2026-11-08
 
-- TASK-905: research four frontier children under Uncertainty-aware nonlinear crypto lead-lag. Standard depth; preserve prior TASK-808 evidence. Native research is running in /Users/mitch/.global-ai-hub/research/nonlinear-lead-lag-four-children-task905.
-- Publication target is isolated /Users/mitch/dev/worktrees/llms-explorer-nonlinear-task905, branch research/nonlinear-children-task905, base 1282536f. The original dirty checkout and other worktrees remain untouched.
+- TASK-905: research four frontier children under Uncertainty-aware nonlinear crypto lead-lag. Standard depth; preserve prior TASK-808 evidence. Native research run: nonlinear-lead-lag-four-children-task905.
+- Publication branch: research/nonlinear-children-task905, base 1282536f. The original dirty checkout and other worktrees remain untouched.
 - No factual assertion is eligible for publication until its exact readable source spans pass deterministic integrity and the all-assertion research-gate/v4 semantic review. Raw sources remain private. No measured SOL strategy profitability is presumed.
 - Remaining: finish research/gate, qualified installed reference, runtime finish and fresh projections, independent audit, type/build/privacy/site tests, PR/CI/merge and deployed content verification.
 - Delta: memory v0.22.139 to v0.22.140; prompt v118 to v119.

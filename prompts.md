@@ -9,7 +9,7 @@ Lag-selection multiplicity (frontier, viability 3.60 / 5)
 Directed graph preservation (frontier, viability 3.60 / 5)
 ````
 
-TASK-905: standard-depth four-concept /dr. Root project /Users/mitch/dev/solmargintrader. Delta: prompt v118 to v119; memory v0.22.139 to v0.22.140.
+TASK-905: standard-depth four-concept /dr. Root project: solmargintrader. Delta: prompt v118 to v119; memory v0.22.139 to v0.22.140.
 
 ## Prompt v118 - 2026-11-08
 
