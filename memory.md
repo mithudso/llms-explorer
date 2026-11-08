@@ -1,27 +1,59 @@
-## v0.22.142 - 2026-11-08
+# Memory
+
+## v0.22.146 - 2026-11-08
+
+- Merge continuation: reconcile incoming main 26ed830f (TASK-905, PR 307) with the recovery-safety prerequisite head 535d5406 (PR 308) on research/grid-dca-finalization-20261108. Both log histories and all exact prompt text survive. Incoming memory v0.22.140 through v0.22.142 and prompt v119 remain unchanged; our unpublished memory entries now use v0.22.143 through v0.22.145 and our full-suite prompt uses v120.
+- Only the two conflicted append-only logs were resolved. The Git conflict stages provide the reversible originals. Fresh working-file hashes and stage identities were checked before writing. No source, generated artifact, private research, paused service or unrelated worktree was changed by this log resolution.
+- Remaining: parent must review and stage the resolved logs, finish the active merge, run the relevant checks and complete Git delivery. Native follow-up consolidation, fresh delta gates and subsequent generated-artifact delivery remain with the parent task; historical pending notes above and below remain preserved.
+- Delta: memory v0.22.145 to v0.22.146; prompt v120 to v121 records this merge-resolution instruction.
+
+## v0.22.145 - 2026-11-08
 
 - Delta: add projection ownership regressions to the existing remote research integrity test step.
 - .github/workflows/ci.yml now explicitly runs tests/test_research_transaction.py alongside gate/artifact tests, so equal/nested ownership and scoped-recovery regressions run in CI.
 - Local checks already passed:80 integration tests plus6 subtests,61 artifact/site/transaction tests plus6 subtests, Ruff and28-file sync validation.
 - Remaining: final prerequisite CI/merge; user-approved Codex research follow-ups are being consolidated and gated separately.
+- Delta: memory v0.22.144 to v0.22.145; prompt remains v120.
 
-# Memory
-
-## v0.22.141 - 2026-11-08
+## v0.22.144 - 2026-11-08
 
 - Added fail-closed pending-destination ownership checks to registry-backed projection transactions. Equal paths and ancestor/descendant paths conflict. Checks run before remember/write and before rollback or scoped recovery; the transaction excludes itself. Explicit unscoped administrative recovery retains serial recovery behavior.
 - A valid foreign shared-tree JSON document now triggers the ownership guard before finalization mutates it. Regression cases preserve the foreign output, journal and registry marker byte for byte, and cover disjoint writers and a write recheck after remember.
 - Validation: transaction/Codex integration 80 tests plus 6 subtests passed; transaction/artifact/site-sync 61 tests plus 6 subtests passed. Ruff, diff checks and 28-file Codex research skill synchronization passed. Only the isolated helper, tests and derived helper/manifest changed. No live journal recovery, deployment or global installation ran.
 - All six user-authorized native Codex follow-up contexts completed. Private consolidation and fresh delta gates remain pending; the previous accepted 107-assertion gate stays preserved. Parent owns Git delivery and subsequent generated-artifact delivery.
-- Delta: memory v0.22.140 to v0.22.141; prompt remains v119.
+- Delta: memory v0.22.143 to v0.22.144; prompt remains v120.
 
-## v0.22.140 - 2026-11-08
+## v0.22.143 - 2026-11-08
 
 - Crypto grid/DCA full-suite prerequisite: `research_transaction.recover_pending` now accepts an optional keyword-only `scope_root`. The default keeps existing global recovery behavior. Scoped recovery leaves other authors' interrupted journals and registry markers unchanged.
 - `codex_dr_artifacts._transactional_finalize` passes the current run's existing artifacts/transactions directory. No live recovery or deployment was performed while implementing this guard.
 - Targeted transaction tests: 6 passed. Ruff passed for the helper, caller and tests; Python compilation passed. Tests cover own rollback, unrelated journal and marker byte preservation, unrelated missing registration, and backward-compatible global behavior.
 - Research remains private at `/Users/mitch/.global-ai-hub/research/crypto-coin-selection-for-grid-and-dca-strategies`. The accepted base gate reviewed 107 assertions: 89 supported and 18 non-assertions. Six quota-failed deeper attempts remain explicit; the user authorized native Codex replacements. New or changed assertions require fresh bound semantic review before final projections.
 - This sparse checkout starts at remote main `1282536faf9c822accf0b5caa43fff7f77a68896` on `research/grid-dca-finalization-20261108`. Parent owns review, push, checks and merge. Remaining work: finish native follow-ups, gate deltas, render/install the skill, finalize local projections serially, verify generated proof and deliver owned changes.
+- Delta: memory v0.22.142 to v0.22.143; prompt v119 to v120.
+
+## v0.22.142 - 2026-11-08
+
+- TASK-905: removed three task-added operator filesystem paths from the v0.22.140 continuation notes and prompt v119 metadata. Neutral run and repository identifiers retain the continuation context. The exact user request and all pre-task history remain unchanged.
+- All 55 scientific and generated publication files remain byte-identical to reviewed source commit 80326f7f2af63a856383fe7a031686b2da91481a. This correction changes only workflow metadata.
+- The managed CodeQL Python job failed before analysis because its tool download returned HTTP 504. GitHub rejected both run-level and job-level retries for the dynamic workflow. Final-head checks and an independent metadata privacy review remain required before merge.
+- Delta: memory v0.22.141 to v0.22.142; correct task-owned metadata privacy and distinguish scoped resource-path checks from the independent full HTML link audit. Prompt v119 text remains exact.
+
+## v0.22.141 - 2026-11-08
+
+- TASK-905: published the four requested nonlinear lead-lag child concepts and their aggregate through the supported Codex adapter. Standard depth, 49 structured claims; the final research-gate/v4 accepts all 73 assertions (56 SUPPORTED and 17 nonassertions). Sixty validated judgments were reused and 13 changed pairs were reviewed after one bounded context/semantic repair.
+- Stable installed reference is under the trading-and-investing hub. The canonical artifact is a5f5ac0e6ea2cad3a7f562cccf5e0b370cca0849b1647b944236df520f5dea27. Five nodes and five canonical packs were added to each target. The four children resolve beneath the aggregate, which resolves beneath Uncertainty-aware nonlinear crypto lead-lag. This is methodological research; no five-minute SOL profitability, causal mechanism or liquidation-survival result is claimed.
+- Local verification: 328 site tests pass; typecheck reports zero errors and warnings (19 hints); the production build generates 2854 pages and passes publication policy. Five reader/artifact/download/pack projections retain 49 unique accepted claims (98 projected rows), exact evidence IDs and canonical artifact bindings. All 45 unique internal resource paths in the scoped check resolve; the independent HTML audit also resolves all 209 internal links and fragments.
+- The combined canonical-private and worktree-private denylist scan reports zero findings across 18666 files. The baseline privacy allowlist is byte-identical after removing only five unrelated auto-generated lines. The existing search-index.bin vector asset is byte-identical to the baseline; no embeddings or service changes ran. The source snapshots, quotes, judge transcripts and operational provenance remain private.
+- Remaining: independent final local publication audit, source commit/push/PR, final-tip CI, squash merge, remote source verification and production acceptance. Keep the isolated worktree until the production verifier accepts it.
+- Delta: memory v0.22.140 to v0.22.141; records accepted research, scoped adapter completion and local publication checks. Prompt v119 is preserved verbatim.
+
+## v0.22.140 - 2026-11-08
+
+- TASK-905: research four frontier children under Uncertainty-aware nonlinear crypto lead-lag. Standard depth; preserve prior TASK-808 evidence. Native research run: nonlinear-lead-lag-four-children-task905.
+- Publication branch: research/nonlinear-children-task905, base 1282536f. The original dirty checkout and other worktrees remain untouched.
+- No factual assertion is eligible for publication until its exact readable source spans pass deterministic integrity and the all-assertion research-gate/v4 semantic review. Raw sources remain private. No measured SOL strategy profitability is presumed.
+- Remaining: finish research/gate, qualified installed reference, runtime finish and fresh projections, independent audit, type/build/privacy/site tests, PR/CI/merge and deployed content verification.
 - Delta: memory v0.22.139 to v0.22.140; prompt v118 to v119.
 
 ## v0.22.139 - 2026-11-08
