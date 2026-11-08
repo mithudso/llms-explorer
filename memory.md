@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.141 - 2026-11-08
+
+- Added fail-closed pending-destination ownership checks to registry-backed projection transactions. Equal paths and ancestor/descendant paths conflict. Checks run before remember/write and before rollback or scoped recovery; the transaction excludes itself. Explicit unscoped administrative recovery retains serial recovery behavior.
+- A valid foreign shared-tree JSON document now triggers the ownership guard before finalization mutates it. Regression cases preserve the foreign output, journal and registry marker byte for byte, and cover disjoint writers and a write recheck after remember.
+- Validation: transaction/Codex integration 80 tests plus 6 subtests passed; transaction/artifact/site-sync 61 tests plus 6 subtests passed. Ruff, diff checks and 28-file Codex research skill synchronization passed. Only the isolated helper, tests and derived helper/manifest changed. No live journal recovery, deployment or global installation ran.
+- All six user-authorized native Codex follow-up contexts completed. Private consolidation and fresh delta gates remain pending; the previous accepted 107-assertion gate stays preserved. Parent owns Git delivery and subsequent generated-artifact delivery.
+- Delta: memory v0.22.140 to v0.22.141; prompt remains v119.
+
 ## v0.22.140 - 2026-11-08
 
 - Crypto grid/DCA full-suite prerequisite: `research_transaction.recover_pending` now accepts an optional keyword-only `scope_root`. The default keeps existing global recovery behavior. Scoped recovery leaves other authors' interrupted journals and registry markers unchanged.

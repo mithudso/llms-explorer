@@ -669,6 +669,30 @@ class ResearchFlowTests(unittest.TestCase):
         self.assertFalse(transactions.recover(tx.root))
         self.assertEqual((self.hub / "concept-tree/tree.json").read_bytes(), published)
 
+    def test_finish_refuses_valid_shared_tree_owned_by_another_pending_run(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        transactions = module_at("test_valid_foreign_tree", REPO / "scripts/research_transaction.py")
+        registry = transactions.registry_dir(self.hub / "research")
+        tx = transactions.Transaction(self.hub / "research/older-run/artifacts/transactions/old",
+                                      registry=registry)
+        tree = self.hub / "concept-tree/tree.json"
+        pending_tree = json.loads(tree.read_text()) + [{"concept": "Foreign pending concept",
+                         "slug": "foreign-pending-concept", "parentConcept": None,
+                         "childConcepts": [], "skillId": None}]
+        tx.write(tree, json.dumps(pending_tree))
+        journal, marker = tx.root / "journal.json", next(registry.glob("*.json"))
+        before_tree, before_journal, before_marker = tree.read_bytes(), journal.read_bytes(), marker.read_bytes()
+
+        with self.assertRaisesRegex(ValueError, "overlaps a pending foreign transaction"):
+            self.invoke("finish", "publication", "--status", "COMPLETED")
+
+        self.assertEqual(tree.read_bytes(), before_tree)
+        self.assertEqual(journal.read_bytes(), before_journal)
+        self.assertEqual(marker.read_bytes(), before_marker)
+        self.assertEqual(self.shared.load_manifest("publication")["status"], "research-complete")
+
     def test_finish_resolves_case_and_alias_owners_before_tree_upsert(self):
         self.research()
         self.artifact_targets()
