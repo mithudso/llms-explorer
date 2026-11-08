@@ -8,7 +8,7 @@
       "title": "Definitions",
       "facts": [
         {
-          "text": "'Resumable' means three different things across engines. MongoDB resumes by itself after a clean shutdown or rollback, and its manual documents no command to pause or resume a build. SQL Server lets a DBA pause, resume and abort a resumable operation. PostgreSQL has no resume: a failed concurrent build must be dropped and retried. (medium confidence)",
+          "text": "'Resumable' means different things across engines. MongoDB resumes by itself after a clean shutdown or rollback. SQL Server lets a DBA pause, resume and abort a resumable index operation. PostgreSQL has no resume for CREATE INDEX CONCURRENTLY: after a failure it leaves an invalid index, and the recommended recovery is to drop the index and try again. Sources: https://www.mongodb.com/docs/manual/core/index-creation/ ; https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql ; https://www.postgresql.org/docs/current/sql-createindex.html",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         }
@@ -18,17 +18,17 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "Index builds can take from moments to days. Before resumable builds, a restart discarded the finished scan and sort work and started the build again. Resume keeps that work when a node restarts mid-build, which saves CPU, I/O, cache pressure and elapsed time on large collections. (medium confidence)",
+          "text": "Index builds can take anywhere from moments to days. When a build cannot resume after a restart (for example after a crash, or when resume fails), it restarts from the beginning. Since MongoDB 5.0, a clean shutdown saves build progress and the build continues from the saved checkpoint on restart. Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md ; https://www.mongodb.com/docs/manual/core/index-creation.md ; https://www.mongodb.com/community/forums/t/mongodb-5-0-0-rc0-is-released/108893",
           "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
           "note": null
         },
         {
-          "text": "Since 5.0, a rollback during an index build saves the build state with the same mechanism as clean shutdown. If work remains after the rollback, mongod recovers the build and continues from the checkpoint. If the rollback reverts the build itself, the user must re-create the index. (high confidence)",
+          "text": "Since 5.0, a rollback during an index build saves the build state with the same mechanism as clean shutdown. If work remains after the rollback, mongod recovers the build and continues from the checkpoint. If the rollback reverts the build itself, the user must re-create the index. (high confidence) Sources: https://www.mongodb.com/docs/manual/core/index-creation/ ; https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
         {
-          "text": "A member restarted as a standalone does not resume the build. SERVER-37637 (Fixed 4.3.4) made standalone nodes ignore in-progress builds so they do not deviate from the replica set, and says the builds are recovered and finished when the node rejoins in replica set mode. The manual says the build stays paused until someone drops it. (medium confidence)",
+          "text": "A member restarted as a standalone does not resume the build. SERVER-37637 (Fixed 4.3.4) made standalone nodes ignore in-progress builds so they do not deviate from the replica set, and says the builds are recovered and finished when the node rejoins in replica set mode. The manual says the build stays paused until someone drops it. (medium confidence) Sources: https://www.mongodb.com/docs/manual/core/index-creation/ ; https://jira.mongodb.org/browse/SERVER-37637",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
@@ -43,27 +43,27 @@
           "note": null
         },
         {
-          "text": "Since MongoDB 5.0, a node that rolls back during an index build saves the build's progress to disk. If work remains when the rollback ends, mongod recovers the build and continues from the saved checkpoint. The server README says the rollback algorithm (recover to a timestamp) supports resuming a build interrupted at any phase. If the rollback reverts the build itself, the operator must re-create the index. (high confidence)",
+          "text": "Since MongoDB 5.0, a node that rolls back during an index build saves the build's progress to disk. If work remains when the rollback ends, mongod recovers the build and continues from the saved checkpoint. The server README says the rollback algorithm (recover to a timestamp) supports resuming a build interrupted at any phase. If the rollback reverts the build itself, the operator must re-create the index. (high confidence) Sources: https://www.mongodb.com/docs/manual/core/index-creation/ ; https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
         {
-          "text": "MongoDB's primary-driven index build (PDIB) is a second build mode: only the primary builds the index, every internal write replicates through the oplog, and commit quorum does not apply. The server README says PDIB resumes on step-up after a failover or primary restart, at any point of the build and for any build configuration, using an on-disk state format similar to the two-phase mechanism. A Jira ticket says the PDIB resume path was introduced behind the feature flag featureFlagResumablePrimaryDrivenIndexBuilds. (medium confidence) (verified as of 2026-10-20)",
+          "text": "MongoDB's primary-driven index build (PDIB) is a second build mode: only the primary builds the index, every internal write replicates through the oplog, and commit quorum does not apply. The server README says PDIB resumes on step-up after a failover or primary restart, at any point of the build and for any build configuration, using an on-disk format similar to the startup-recovery mechanism of two-phase index builds. A Jira ticket (SERVER-127640) says the PDIB resume path was introduced via the feature flag featureFlagResumablePrimaryDrivenIndexBuilds. Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md ; https://jira.mongodb.org/browse/SERVER-127640",
           "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/index_builds/README.md",
           "note": null
         },
         {
-          "text": "When a primary stepdown interrupts a PDIB, the old primary tears down its in-memory build and finishes the index as a secondary, and the new primary resumes and commits the build. The new primary records the metric index_builds.resume.succeeded. SERVER-128273 (created 2026-06-04, fixed in 9.0.0-rc0) stopped the teardown from being counted in index_builds.failed. The README describes the same step-up: the coordinator reads each active PDIB's saved state and tries to resume it. (medium confidence) (verified as of 2026-10-20)",
+          "text": "When a primary stepdown interrupts a PDIB, the old primary tears down its in-memory build and finishes the index as a secondary, and the new primary resumes and commits the build. The new primary records the metric index_builds.resume.succeeded. SERVER-128273 (created 2026-06-04, fixed in 9.0.0-rc0) stopped the teardown from being counted in index_builds.failed. The README describes the same step-up: the coordinator reads each active PDIB's saved state and tries to resume it. (medium confidence) (verified as of 2026-10-20) Sources: https://jira.mongodb.org/browse/SERVER-128273 ; https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
           "source": "https://jira.mongodb.org/browse/SERVER-128273",
           "note": null
         },
         {
-          "text": "A resumable SQL Server index operation does not run as one large transaction. The transaction log can truncate during the build, which avoids large log growth, and the data needed to resume is stored in the database's data files. A non-resumable online build keeps the log untruncated until it finishes so that it can roll back, although the log can still be backed up. dbi services ran a log backup during a paused rebuild and concluded that a paused operation holds no active transaction that blocks log truncation. (high confidence)",
+          "text": "A resumable SQL Server index operation does not run as one large transaction. The transaction log can truncate during the build, which avoids large log growth, and the data needed to resume is stored in the database's data files. A non-resumable online build keeps the log untruncated until it finishes so that it can roll back, although the log can still be backed up. dbi services ran a log backup during a paused rebuild and concluded that a paused operation holds no active transaction that blocks log truncation. (high confidence) Sources: https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations ; https://www.dbi-services.com/blog/sql-server-2017-high-availability-and-resumable-online-indexes/",
           "source": "https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations",
           "note": null
         },
         {
-          "text": "A pattern for fitting a long SQL Server index build into maintenance windows: start it with RESUMABLE = ON and a MAX_DURATION so that it pauses itself, then resume it in the next window, optionally with a new MAXDOP and WAIT_AT_LOW_PRIORITY. Microsoft says you can pause and restart a build multiple times to fit your windows. Its examples use MAX_DURATION = 240, and dbi services resumed a rebuild with MAX_DURATION = 120 MINUTES to protect the production workload. (high confidence)",
+          "text": "A pattern for fitting a long SQL Server index build into maintenance windows: start it with RESUMABLE = ON and a MAX_DURATION so that it pauses itself, then resume it in the next window, optionally with a new MAXDOP and WAIT_AT_LOW_PRIORITY. Microsoft says you can pause and restart a build multiple times to fit your windows. Its examples use MAX_DURATION = 240, and dbi services resumed a rebuild with MAX_DURATION = 120 MINUTES to protect the production workload. (high confidence) Sources: https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations ; https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql ; https://www.dbi-services.com/blog/sql-server-2017-high-availability-and-resumable-online-indexes/",
           "source": "https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations",
           "note": null
         },
@@ -88,7 +88,7 @@
       "title": "Measurements and reference values",
       "facts": [
         {
-          "text": "Since 7.1, a build stops when a member's free disk space falls below indexBuildMinAvailableDiskSpaceMB (default 500 MB), and a primary does not start a new build below that level. Setting the value to 0 disables the check. A member that has already voted to commit does not stop the build. (high confidence) (verified as of 2026-10-14)",
+          "text": "Since 7.1, an index build can abort when a replica set member is running low on disk space, and a primary does not start a build if available disk space is low. The threshold is indexBuildMinAvailableDiskSpaceMB (default 500 MB). Setting it to 0 disables the minimum disk space requirement. Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md ; https://www.mongodb.com/docs/manual/reference/parameters.md",
           "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
           "note": null
         },
@@ -113,7 +113,7 @@
           "note": null
         },
         {
-          "text": "The external sorter spills to local, unreplicated temp files under dbpath/_tmp when a build reaches its memory limit. The resume state includes the sorter state, so these files must survive a clean shutdown. SERVER-86648 treats the sorter files as part of the persisted resume state and fixed their missing fsync. (high confidence)",
+          "text": "The external sorter spills to local, unreplicated temp files under dbpath/_tmp when a build reaches its memory limit. The resume state includes the sorter state, so these files must survive a clean shutdown. SERVER-86648 treats the sorter files as part of the persisted resume state and fixed their missing fsync. (high confidence) Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md ; https://jira.mongodb.org/browse/SERVER-86648",
           "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
           "note": null
         },
@@ -128,22 +128,22 @@
           "note": null
         },
         {
-          "text": "On self-managed deployments, createIndexes spills to dbpath/_tmp after the memory limit. maxIndexBuildMemoryUsageMegabytes defaults to 200 MB per createIndexes command, shared equally among its indexes. maxNumActiveUserIndexBuilds defaults to 3, so total build memory can reach three times that. On Atlas the memory limit follows the cluster tier (100 MB on M10 to M20, up to 2048 MB on M200 and above) and cannot be changed. (high confidence) (verified as of 2026-10-14)",
+          "text": "On self-managed deployments, createIndexes spills to temporary files in the _tmp subdirectory of dbpath after the memory limit. maxIndexBuildMemoryUsageMegabytes defaults to 200 MB per createIndexes command, shared equally among its indexes. maxNumActiveUserIndexBuilds defaults to 3, so total build memory can reach three times that. On Atlas the defaults of both parameters vary by cluster tier, and maxIndexBuildMemoryUsageMegabytes cannot be modified. Sources: https://www.mongodb.com/docs/manual/core/index-creation.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
         {
-          "text": "A paused SQL Server operation keeps costing resources. The original index and the new index both occupy disk, and DML must update both. Ghost cleanup stays blocked on the in-build index. Update-heavy workloads can lose throughput. A transaction that needs a table-level exclusive lock, such as INSERT ... WITH (TABLOCK), fails with error 10637. (high confidence)",
+          "text": "A paused SQL Server operation keeps costing resources. The original index and the new index both occupy disk, and DML must update both. Ghost cleanup stays blocked on the in-build index. Update-heavy workloads can lose throughput. A transaction that needs a table-level exclusive lock, such as INSERT... WITH (TABLOCK), fails with error 10637. (high confidence) Sources: https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations ; https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql",
           "source": "https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql",
           "note": null
         },
         {
-          "text": "Do not rely on blog claims that MongoDB resumes any interrupted build on restart. OneUptime (2026-03-31) says MongoDB 4.4 and later automatically resume the build on startup, and ScaleGrid (2017) says MongoDB picks up the build where it left off. Neither cites the manual or release notes. The manual and MongoDB tickets limit resume to a clean shutdown or rollback with a saved checkpoint, and place the feature in the 4.7 development series that shipped as 5.0. (medium confidence)",
+          "text": "Do not rely on blog claims that MongoDB resumes any interrupted build on restart. OneUptime (2026-03-31) says MongoDB 4.4 and later automatically resume the build on startup, and ScaleGrid (2017) says MongoDB picks up the build where it left off. The manual limits resume to a clean shutdown (with the default votingMembers commit quorum) or a rollback with a saved checkpoint, and a build can resume from a checkpoint only once. The feature arrived with MongoDB 5.0. Sources: https://oneuptime.com/blog/post/2026-03-31-mongodb-fix-mongoerror-index-build-failed/view ; https://dev.to/scalegrid/how-to-stop-a-runaway-index-build-in-mongodb ; https://www.mongodb.com/docs/manual/core/index-creation.md ; https://jira.mongodb.org/browse/SERVER-48420 ; https://www.mongodb.com/community/forums/t/mongodb-5-0-0-rc0-is-released/108893",
           "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-fix-mongoerror-index-build-failed/markdown",
           "note": null
         },
         {
-          "text": "SERVER-127943 describes primary-driven builds as flag-gated off in production: its test suite enables featureFlagPrimaryDrivenIndexBuilds, featureFlagResumablePrimaryDrivenIndexBuilds and featureFlagContainerWrites. The ticket (Fixed 9.0.0-rc0, 8.3 backport requested) fixed a crash: resuming a primary-driven build of a multikey wildcard index at the start of bulk load made the secondary fail with WT_DUPLICATE_KEY, because the resume path did not restore the flag that deduplicates wildcard multikey metadata keys. (low confidence) (verified as of 2026-10-20)",
+          "text": "SERVER-127943 is a bug fixed in 9.0.0-rc0, with backports requested to v8.3, v8.0 and v7.0. Resuming an index build did not set BulkBuilderImpl::_hasMultiKeyMetadataKeys, so for a wildcard index the build could incorrectly try to insert a multikey metadata key twice. Sources: https://jira.mongodb.org/browse/SERVER-127943",
           "source": "https://jira.mongodb.org/browse/SERVER-127943",
           "note": null
         },
@@ -153,12 +153,12 @@
           "note": null
         },
         {
-          "text": "If a PDIB cannot be resumed on step-up for any reason, the server aborts the build. A two-phase build that fails to resume at startup restarts from the beginning instead. (low confidence) (verified as of 2026-10-20)",
+          "text": "If resuming an index build fails at startup, or the information needed to resume is missing, the server falls back to restarting the index build. Sources: https://jira.mongodb.org/browse/SERVER-49450",
           "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/index_builds/README.md",
           "note": null
         },
         {
-          "text": "In SQL Server a failure or a pause does not end a resumable operation. It stays in an indefinite pause state until someone resumes it or runs ALTER INDEX ... ABORT. An aborted operation cannot be resumed. In a 2017 dbi services test, a manual availability-group failover during a resumable rebuild left the rebuild paused, not lost. (medium confidence)",
+          "text": "In SQL Server a failure or a pause does not end a resumable operation. It stays in an indefinite pause state until someone resumes it or runs ALTER INDEX... ABORT. An aborted operation cannot be resumed. In a 2017 dbi services test, a manual availability-group failover during a resumable rebuild left the rebuild paused, not lost. (medium confidence) Sources: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql ; https://www.dbi-services.com/blog/sql-server-2017-high-availability-and-resumable-online-indexes/",
           "source": "https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql",
           "note": null
         },
@@ -183,12 +183,12 @@
           "note": null
         },
         {
-          "text": "CockroachDB runs schema changes, including index backfills, as background jobs that can be paused, resumed and cancelled. Schema changes that trigger an index backfill, such as CREATE INDEX, ALTER PRIMARY KEY and ADD COLUMN with INDEX or UNIQUE, pause automatically when the node running them is low on disk space. A failed schema change is cleaned up automatically. The page does not say whether an interrupted backfill resumes from a checkpoint after a node failure. (low confidence) (verified as of 2026-10-20)",
+          "text": "CockroachDB runs schema changes, including index backfills, as background jobs. Schema change jobs can be paused, and paused jobs can be resumed with RESUME JOB. Schema changes that trigger an index backfill pause if the node executing them is running out of disk space. A failed schema change job is cleaned up automatically. Sources: https://docs.cockroachlabs.com/docs/stable/online-schema-changes ; https://docs.cockroachlabs.com/docs/stable/pause-job.md",
           "source": "https://docs.cockroachlabs.com/docs/stable/online-schema-changes",
           "note": null
         },
         {
-          "text": "Before 2024, MongoDB's saved resume state for a build was not fully durable: the external sorter files were never fsynced, so a hard machine reset after a clean shutdown could lose data. SERVER-86648 (closed 2024-04-11) fixed this in 5.0.27, 6.0.16, 7.0.9, 7.3.2, 8.0.0-rc3 and 8.1.0-rc0, and the 5.0.27 release announcement of 2024-06-06 lists it. The ticket says the server would detect an incorrectly persisted state and fail with an assertion before completing the index. (medium confidence)",
+          "text": "Before 2024, MongoDB's saved resume state for a build was not fully durable: the external sorter files were never fsynced, so a hard machine reset after a clean shutdown could lose data. SERVER-86648 (closed 2024-04-11) fixed this in 5.0.27, 6.0.16, 7.0.9, 7.3.2, 8.0.0-rc3 and 8.1.0-rc0, and the 5.0.27 release announcement of 2024-06-06 lists it. The ticket says the server would detect an incorrectly persisted state and fail with an assertion before completing the index. (medium confidence) Sources: https://jira.mongodb.org/browse/SERVER-86648 ; https://www.mongodb.com/community/forums/t/mongodb-5-0-27-is-released/283806/1",
           "source": "https://jira.mongodb.org/browse/SERVER-86648",
           "note": null
         },
@@ -223,12 +223,12 @@
           "note": null
         },
         {
-          "text": "A resumable index build saves its progress so that a pause, failover or restart continues the build instead of restarting it. The covered interruptions differ by engine. SQL Server resumes after an unexpected failure, a database failover or an ALTER INDEX PAUSE command. MongoDB resumes after a clean shutdown, a SIGTERM or a rollback. The PostgreSQL 18 documentation (18.6, read 2026-10-20) describes no resume for CREATE INDEX CONCURRENTLY. (high confidence) (verified as of 2026-10-20)",
+          "text": "A resumable index build saves its progress so that an interruption continues the build instead of restarting it. The covered interruptions differ by engine. SQL Server resumes after an unexpected failure, a database failover or an ALTER INDEX PAUSE command. MongoDB (5.0 and later) resumes after a clean shutdown with force true or a SIGTERM, when commitQuorum is the default votingMembers, and after a rollback; a crash is not covered, and a build can resume from a saved checkpoint only once. The PostgreSQL 18 CREATE INDEX documentation describes no resume for CREATE INDEX CONCURRENTLY and recommends dropping a failed index and trying again. Sources: https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations ; https://www.mongodb.com/docs/manual/core/index-creation.md ; https://www.postgresql.org/docs/18/sql-createindex.html",
           "source": "https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations",
           "note": null
         },
         {
-          "text": "If a MongoDB primary or secondary crashes instead of shutting down cleanly, the index build does not resume, whatever the commit quorum. It restarts from the beginning when mongod returns. SERVER-90037 describes the same path from the oplog side: after an unclean shutdown with no checkpoint, the build can be missing from the catalog but still in the oplog, and oplog replay restarts it. (high confidence)",
+          "text": "If a MongoDB primary or secondary crashes instead of shutting down cleanly, the index build does not resume, whatever the commit quorum. It restarts from the beginning when mongod returns. SERVER-90037 describes the same path from the oplog side: after an unclean shutdown with no checkpoint, the build can be missing from the catalog but still in the oplog, and oplog replay restarts it. (high confidence) Sources: https://www.mongodb.com/docs/manual/core/index-creation/ ; https://jira.mongodb.org/browse/SERVER-90037",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
@@ -238,7 +238,7 @@
           "note": null
         },
         {
-          "text": "Since MongoDB 7.1, a build aborts instead of pausing when a replica set member's free disk space falls below indexBuildMinAvailableDiskSpaceMB (500 MB by default per the server README), and on a primary the build does not start if disk space is low. A member that already voted to commit is not stopped. By contrast, Microsoft documents that a SQL Server resumable build can recover from running out of disk space without restarting from the beginning. (medium confidence) (verified as of 2026-10-20)",
+          "text": "Since MongoDB 7.1, a build aborts instead of pausing when a replica set member's free disk space falls below indexBuildMinAvailableDiskSpaceMB (500 MB by default per the server README), and on a primary the build does not start if disk space is low. A member that already voted to commit is not stopped. By contrast, Microsoft documents that a SQL Server resumable build can recover from running out of disk space without restarting from the beginning. (medium confidence) (verified as of 2026-10-20) Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md ; https://www.mongodb.com/docs/manual/core/index-creation/ ; https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
@@ -268,17 +268,17 @@
           "note": null
         },
         {
-          "text": "The 2020 resume work landed phase by phase. SERVER-49409 resumes a build shut down during the collection scan. SERVER-49408 resumes a build shut down during bulk load: the server drops and recreates the unfinished index tables empty, restarts the bulk load for all tables, and deletes each sorter temp file only after the load phase succeeds. Both tickets are Fixed in 4.7.0. (high confidence)",
+          "text": "The 2020 resume work landed phase by phase. SERVER-49409 resumes a build shut down during the collection scan. SERVER-49408 resumes a build shut down during bulk load: the server drops and recreates the unfinished index tables empty, restarts the bulk load for all tables, and deletes each sorter temp file only after the load phase succeeds. Both tickets are Fixed in 4.7.0. (high confidence) Sources: https://jira.mongodb.org/browse/SERVER-49409 ; https://jira.mongodb.org/browse/SERVER-49408",
           "source": "https://jira.mongodb.org/browse/SERVER-49408",
           "note": null
         },
         {
-          "text": "Resumable builds are on by default from MongoDB 5.0. SERVER-49847 (Fixed 4.7.0, the development series that became 5.0) turned the feature on by default. SERVER-86648 lists 5.0.0 as the earliest version with the resume-state persistence, and the manual dates resume-on-rollback to 5.0. Before this work, SERVER-49408 (created 2020-07-09) records: 'Currently, index builds are restarted from the beginning.' (medium confidence)",
+          "text": "SERVER-49847 (Fixed 4.7.0) turned the resumable index build feature on by default. The manual dates resume-on-rollback to MongoDB 5.0, and SERVER-86648 says the resumable-build sorter-file issue affects all versions back to 5.0. Before this work, SERVER-49408 (created 2020-07-09) records: 'Currently, index builds are restarted from the beginning.' Sources: https://jira.mongodb.org/browse/SERVER-49847 ; https://jira.mongodb.org/browse/SERVER-86648 ; https://www.mongodb.com/docs/v5.0/core/index-creation/ ; https://jira.mongodb.org/browse/SERVER-49408",
           "source": "https://jira.mongodb.org/browse/SERVER-49847",
           "note": null
         },
         {
-          "text": "A resumable build uses a majority read cursor for its collection scan. It waits for the majority commit point to advance before the scan starts, after the side-writes table is installed. The wait lets a rollback resume the build. The wait was unbounded at first. SERVER-50519 (Fixed 4.8.0) found builds stuck in it during a kill-secondaries test suite, and SERVER-50539 (Fixed 4.7.0) extended the wait to support a deadline. (medium confidence)",
+          "text": "A resumable build uses a majority read cursor for its collection scan. It waits for the majority commit point to advance before the scan starts, after the side-writes table is installed. The wait lets a rollback resume the build. The wait was unbounded at first. SERVER-50519 (Fixed 4.8.0) found builds stuck in it during a kill-secondaries test suite, and SERVER-50539 (Fixed 4.7.0) extended the wait to support a deadline. (medium confidence) Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md ; https://jira.mongodb.org/browse/SERVER-50519 ; https://jira.mongodb.org/browse/SERVER-50539",
           "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
           "note": null
         },
@@ -298,17 +298,17 @@
           "note": null
         },
         {
-          "text": "SQL Server supports resumable online index operations. ALTER INDEX ... REBUILD has supported them since SQL Server 2017, CREATE INDEX since SQL Server 2019, and Azure SQL Database and Azure SQL Managed Instance support both. The statement needs ONLINE = ON and RESUMABLE = ON. SQL Server does not store RESUMABLE in index metadata, so each statement must set it. (high confidence)",
+          "text": "SQL Server supports resumable online index operations. ALTER INDEX... REBUILD has supported them since SQL Server 2017, CREATE INDEX since SQL Server 2019, and Azure SQL Database and Azure SQL Managed Instance support both. The statement needs ONLINE = ON and RESUMABLE = ON. SQL Server does not store RESUMABLE in index metadata, so each statement must set it. (high confidence) Sources: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql ; https://learn.microsoft.com/en-us/sql/t-sql/statements/create-index-transact-sql",
           "source": "https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql",
           "note": null
         },
         {
-          "text": "PostgreSQL has no resumable index build. If CREATE INDEX CONCURRENTLY fails, for example on a deadlock or a unique violation, it leaves an INVALID index that queries ignore but writes still maintain. The documented recovery is to drop the index and run the build again, or to run REINDEX INDEX CONCURRENTLY. The development docs (20devel, 2026-10-18) show no change. (high confidence) (verified as of 2026-10-18)",
+          "text": "PostgreSQL documents no resumable index build. If CREATE INDEX CONCURRENTLY fails, for example on a deadlock or a unique violation, it leaves an INVALID index that queries ignore but writes still maintain. The documented recovery is to drop the index and run the build again, or to run REINDEX INDEX CONCURRENTLY. The development docs (PostgreSQL devel, page dated 2026-11-01) show the same text. Sources: https://www.postgresql.org/docs/devel/sql-createindex.html",
           "source": "https://www.postgresql.org/docs/current/sql-createindex.html",
           "note": null
         },
         {
-          "text": "A build that saves resume state logs 'Index build: wrote resumable state to disk'. A restart that finds an unfinished build logs 'Found index from unfinished build'. MongoDB's own tests detect a resume through log ID 4841700, which reports the phase the build resumes from. (medium confidence)",
+          "text": "A build that saves resume state logs 'Index build: wrote resumable state to disk'. A restart that finds an unfinished build logs 'Found index from unfinished build'. MongoDB's own tests detect a resume through log ID 4841700, which reports the phase the build resumes from. (medium confidence) Sources: https://www.mongodb.com/docs/manual/core/index-creation.md ; https://jira.mongodb.org/browse/SERVER-128117",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
@@ -338,12 +338,12 @@
           "note": null
         },
         {
-          "text": "MongoDB introduced resumable index builds in 5.0. The 5.0.0-rc0 announcement of 2021-05-27 says in-flight index builds now automatically resume from where they left off after a node restarts. The per-phase resume work was fixed in the 4.7.0 development line in 2020: collection scan (SERVER-49409), bulk load (SERVER-49408) and side-table catch-up (SERVER-48417). Each of those tickets records the earlier behavior: index builds are restarted from the beginning. (high confidence)",
+          "text": "MongoDB introduced resumable index builds in 5.0. The 5.0.0-rc0 announcement of 2021-05-27 says in-flight index builds now automatically resume from where they left off after a node restarts. The per-phase resume work was fixed in the 4.7.0 development line in 2020: collection scan (SERVER-49409), bulk load (SERVER-49408) and side-table catch-up (SERVER-48417). Each of those tickets records the earlier behavior: index builds are restarted from the beginning. (high confidence) Sources: https://www.mongodb.com/community/forums/t/mongodb-5-0-0-rc0-is-released/108893 ; https://jira.mongodb.org/browse/SERVER-49409 ; https://jira.mongodb.org/browse/SERVER-49408 ; https://jira.mongodb.org/browse/SERVER-48417",
           "source": "https://www.mongodb.com/community/forums/t/mongodb-5-0-0-rc0-is-released/108893",
           "note": null
         },
         {
-          "text": "A resumable MongoDB two-phase (hybrid) build records, at clean shutdown, which phase it was in: initialized, collection scan, bulk load or drain writes. It also saves what that phase needs: the external sorter state and the identifiers of the side-writes, duplicate-key and skipped-records tables. The 2020 design keeps one progress record per build, keyed by build UUID, with a phase field, and preserves the hybrid build's temporary tables across startup. Startup recovery reads this state and resumes in the saved phase. If resume fails for any reason, the build restarts from the beginning. (high confidence)",
+          "text": "A resumable MongoDB two-phase (hybrid) build records, at clean shutdown, which phase it was in: initialized, collection scan, bulk load or drain writes. It also saves what that phase needs: the external sorter state and the identifiers of the side-writes, duplicate-key and skipped-records tables. The 2020 design keeps one progress record per build, keyed by build UUID, with a phase field, and preserves the hybrid build's temporary tables across startup. Startup recovery reads this state and resumes in the saved phase. If resume fails for any reason, the build restarts from the beginning. (high confidence) Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md ; https://jira.mongodb.org/browse/SERVER-49409",
           "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/index_builds/README.md",
           "note": null
         },
@@ -353,7 +353,7 @@
           "note": null
         },
         {
-          "text": "For a MongoDB two-phase build, saved progress depends on the commit quorum. The manual ties clean-shutdown saving to the default commit quorum votingMembers. The server README lists two general conditions for resumability: the build runs on a voting member with the default votingMembers commit quorum, and majority read concern is enabled. The README defers the full criteria to IndexBuildsCoordinator::isIndexBuildResumable(). (high confidence)",
+          "text": "For a MongoDB two-phase build, saved progress depends on the commit quorum. The manual ties clean-shutdown saving to the default commit quorum votingMembers. The server README lists two general conditions for resumability: the build runs on a voting member with the default votingMembers commit quorum, and majority read concern is enabled. The README defers the full criteria to IndexBuildsCoordinator::isIndexBuildResumable(). (high confidence) Sources: https://www.mongodb.com/docs/manual/core/index-creation/ ; https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
@@ -363,12 +363,12 @@
           "note": null
         },
         {
-          "text": "PDIB persists resume state at three points. During the collection scan it rewrites the state each time the sorter spills. During the load phase it persists each range's iterator position every N keys, set by the server parameter primaryDrivenIndexBuildLoadResumeStateWriteIntervalKeys. On entering the drain phase it writes the state for all indexes once. Key 1 of the state table holds the build-wide phase and keys 2 to N+1 hold per-index state. (medium confidence) (verified as of 2026-10-20)",
+          "text": "PDIB persists resume state at three points. During the collection scan it rewrites the state each time the sorter spills. During the load phase it persists each range's iterator position every N keys, set by the server parameter primaryDrivenIndexBuildLoadResumeStateWriteIntervalKeys. On entering the drain phase it writes the state for all indexes once. Key 1 of the state table holds the build-wide phase and keys 2 to N+1 hold per-index state. (medium confidence) (verified as of 2026-10-20) Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/index_builds/README.md",
           "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/index_builds/README.md",
           "note": null
         },
         {
-          "text": "SQL Server lets an online index operation run as resumable with RESUMABLE = ON. ALTER INDEX ... REBUILD supports it from SQL Server 2017 and CREATE INDEX from SQL Server 2019. Azure SQL Database and Azure SQL Managed Instance also support it. RESUMABLE requires ONLINE = ON. The option is not stored in index metadata and applies only to the current statement, so each statement must specify RESUMABLE = ON. (high confidence)",
+          "text": "SQL Server lets an online index operation run as resumable with RESUMABLE = ON. ALTER INDEX... REBUILD supports it from SQL Server 2017 and CREATE INDEX from SQL Server 2019. Azure SQL Database and Azure SQL Managed Instance also support it. RESUMABLE requires ONLINE = ON. The option is not stored in index metadata and applies only to the current statement, so each statement must specify RESUMABLE = ON. (high confidence) Sources: https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations ; https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql",
           "source": "https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations",
           "note": null
         },
@@ -383,7 +383,7 @@
           "note": null
         },
         {
-          "text": "Leaving a SQL Server resumable build paused for a long time is costly. While paused, the original index and the new index both occupy disk space and both must be updated by every DML statement. Ghost cleanup stays blocked on the in-build index, and DDL against the index or its table is not allowed. Microsoft says read-mostly workloads see negligible slowdown, and update-heavy workloads may lose some throughput. (high confidence)",
+          "text": "Leaving a SQL Server resumable build paused for a long time is costly. While paused, the original index and the new index both occupy disk space and both must be updated by every DML statement. Ghost cleanup stays blocked on the in-build index, and DDL against the index or its table is not allowed. Microsoft says read-mostly workloads see negligible slowdown, and update-heavy workloads may lose some throughput. (high confidence) Sources: https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations ; https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql",
           "source": "https://learn.microsoft.com/en-us/sql/relational-databases/indexes/guidelines-for-online-index-operations",
           "note": null
         },
@@ -413,7 +413,7 @@
           "note": null
         },
         {
-          "text": "The MongoDB manual documents no pause or resume command for index builds. Resumption happens automatically at startup or after a rollback. To end a build, use dropIndexes (dropIndex() or dropIndexes()). The manual says not to use killOp on index builds in replica sets or sharded clusters. (low confidence)",
+          "text": "Resumption happens automatically: after a clean shutdown (with the default votingMembers commit quorum) the build recovers at restart from the saved checkpoint, and after a rollback it recovers if work remains. A build can resume from a saved checkpoint only once. To end a build, use dropIndexes (dropIndex() or dropIndexes()). The manual says not to use killOp on index builds in replica sets or sharded clusters. Sources: https://www.mongodb.com/docs/manual/core/index-creation.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         }

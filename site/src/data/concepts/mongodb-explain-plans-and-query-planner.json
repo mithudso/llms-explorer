@@ -8,7 +8,7 @@
       "title": "Definitions",
       "facts": [
         {
-          "text": "Stage meanings per MongoDB: COLLSCAN is a collection scan, IXSCAN an index scan, FETCH reads full documents, PROJECTION filters returned fields in memory, and SORT means documents were sorted in memory (or a covered index was used). A filter or sort that shows COLLSCAN would benefit from an index; docsExamined appears on COLLSCAN and FETCH stages and keysExamined on IXSCAN.",
+          "text": "Stage meanings per MongoDB: COLLSCAN is a collection scan, IXSCAN an index scan, FETCH reads full documents, PROJECTION filters returned fields in memory, and SORT means documents were sorted in memory or a covered index was used. Queries with a filter or sort that shows a COLLSCAN stage would benefit from an index. In explain output, docsExamined applies to COLLSCAN and FETCH stages, and keysExamined applies to stages that scan an index (IXSCAN). Sources: https://www.mongodb.com/docs/manual/tutorial/explain-slow-queries/ ; https://www.mongodb.com/docs/manual/reference/explain-results/",
           "source": "https://www.mongodb.com/docs/manual/tutorial/explain-slow-queries/",
           "note": null
         },
@@ -108,7 +108,7 @@
           "note": null
         },
         {
-          "text": "$queryStats groups queries with common properties into the same output document. The resulting document is called a query stats entry.",
+          "text": "$queryStats groups queries with common properties into the same output document. The resulting document is called a query stats entry. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
           "note": null
         },
@@ -278,7 +278,7 @@
           "note": null
         },
         {
-          "text": "Hinting a partial index limits results to documents matching its filter expression; the index becomes part of the query's semantics.",
+          "text": "Hinting a partial index limits results to the documents covered by the index (those matching its partialFilterExpression), so in MongoDB a hint replaces the planner's choice and can change the query's results, not just its plan. Sources: https://dev.to/mongodb/hint-in-mongodb-is-different-that-sql-optimizer-hints-they-force-indexes-4c33",
           "source": "https://dev.to/mongodb/hint-in-mongodb-is-different-that-sql-optimizer-hints-they-force-indexes-4c33",
           "note": null
         },
@@ -543,12 +543,12 @@
           "note": null
         },
         {
-          "text": "planSummary alone does not show whether planning was expensive. Profiler entries carry fromMultiPlanner (true only when multiple candidate plans were evaluated) and replanned (true only when a cached plan was evicted and re-evaluated); both are omitted when false, e.g. for plan-cache hits.",
+          "text": "Profiler entries carry fromMultiPlanner (present only when true: the query planner evaluated multiple plans before choosing the winner) and replanned (present only when true: the query system evicted a cached plan and re-evaluated all candidate plans). Sources: https://www.mongodb.com/docs/manual/reference/database-profiler/",
           "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
           "note": null
         },
         {
-          "text": "When totalKeysExamined is far lower than totalDocsExamined, the docs say to inspect each stage in executionStats.executionStages and compare keysExamined with docsExamined per stage to find which stage failed to use the index. A totalKeysExamined of 0 with large totalDocsExamined indicates a pure collection scan.",
+          "text": "When totalKeysExamined is far lower than totalDocsExamined, the docs say to inspect each stage in executionStats.executionStages and compare keysExamined with docsExamined per stage to find which stage failed to use the index. A totalKeysExamined of 0 with large totalDocsExamined indicates a pure collection scan. Sources: https://www.mongodb.com/docs/manual/tutorial/explain-slow-queries/ ; https://www.netdata.cloud/guides/mongodb/mongodb-slow-query-collscan/",
           "source": "https://www.mongodb.com/docs/manual/tutorial/explain-slow-queries/",
           "note": null
         },
@@ -853,7 +853,7 @@
           "note": null
         },
         {
-          "text": "Detection recipe: run $indexStats then filter accesses.ops equal to 0 (excluding _id_); treat as candidates only after a representative window. Netdata suggests at least 24h uptime under representative load and a full workload cycle if a restart happened after the since timestamp; Percona warns monthly or end-of-day reporting indexes can be missed by short windows.",
+          "text": "Detection recipe: run $indexStats then filter accesses.ops equal to 0 (excluding _id); treat as candidates only after a representative window. Netdata suggests the mongod process should have run at least 24 hours under a representative workload, and that if the process restarted after the since timestamp you should wait for a full workload cycle; Percona warns that an index used only once a month for heavy reporting can look unused unless the counters have been collected for a considerable time. Sources: https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/ ; https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
           "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "note": null
         },
@@ -1143,7 +1143,7 @@
           "note": null
         },
         {
-          "text": "To compare candidate indexes, run the same query with hint() and explain('executionStats') and compare totalKeysExamined. In the MongoDB docs example, {year:1, rated:1} scanned 246 keys for 235 results while {rated:1, year:1} scanned 235, so the second is more efficient (equality field before range field).",
+          "text": "To compare candidate indexes, run the same query with hint() and explain('executionStats') and compare totalKeysExamined. In the MongoDB docs example, {year:1, rated:1} scanned 246 keys for 235 results while {rated:1, year:1} scanned 235, so the second is more efficient (equality field before range field). Sources: https://www.mongodb.com/docs/manual/tutorial/analyze-query-plan/ ; https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/",
           "source": "https://www.mongodb.com/docs/manual/tutorial/analyze-query-plan/",
           "note": null
         },
@@ -1573,7 +1573,7 @@
           "note": null
         },
         {
-          "text": "To use the MongoDB Node.js driver to add a $queryStats stage to an aggregation pipeline, use the $queryStats operator in a pipeline object.",
+          "text": "To use $queryStats in an aggregation pipeline, the pipeline must be run on the admin database and $queryStats must be the first stage in the pipeline. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
           "note": null
         },
@@ -2243,7 +2243,7 @@
           "note": null
         },
         {
-          "text": "Sampling differs by version: Atlas on 8.x records up to 100 read queries/s per host and no writes; from MongoDB 9.0 $queryStats samples 1% of reads and writes by default (internalQueryStatsSampleRate, internalQueryStatsWriteCmdSampleRate, 0.0-1.0). Infrequent shapes may be missing and totals jump after an 8.x to 9.0 upgrade.",
+          "text": "Sampling differs by version: Atlas on 8.x records up to 100 read queries/s per host and no writes; from MongoDB 9.0 $queryStats samples 1% of reads and writes by default (internalQueryStatsSampleRate, internalQueryStatsWriteCmdSampleRate, 0.0-1.0). Infrequent shapes may be missing and totals jump after an 8.x to 9.0 upgrade. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/ ; https://www.mongodb.com/docs/atlas/query-shape-insights.md",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
           "note": null
         },
@@ -2313,7 +2313,7 @@
           "note": null
         },
         {
-          "text": "planSummary is a string in both system.profile documents and slow-query log entries that summarises the winning plan (e.g. 'COLLSCAN' or 'IXSCAN { a: 1, _id: -1 }'). A COLLSCAN with keysExamined 0 and docsExamined far above nreturned signals a missing index; the docsExamined:docsReturned ratio near 1:1 is ideal.",
+          "text": "planSummary summarises the execution plan in system.profile documents (e.g. 'IXSCAN { a: 1, _id: -1 }') and also appears in slow-query log entries (e.g. 'COLLSCAN'). A collection scan means mongod scans the whole collection document by document, which can result in slow queries. In the index-backed example, documents examined equals documents returned. Sources: https://www.mongodb.com/docs/manual/reference/database-profiler.md ; https://www.mongodb.com/docs/manual/tutorial/analyze-query-plan.md",
           "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
           "note": null
         },
@@ -2328,7 +2328,7 @@
           "note": null
         },
         {
-          "text": "Explain exposes queryShapeHash and planCacheShapeHash at the top level; SERVER-91954 added it (fixed in 8.0.4 and 8.1.0-rc0, resolved 2024-09-20). Before that, the hash was only available from the slow query log/profiler or via setQuerySettings plus $querySettings.",
+          "text": "Explain exposes queryShapeHash at the top level (explain.queryShapeHash) starting in MongoDB 8.0; planCacheShapeHash is exposed under explain.queryPlanner. SERVER-91954 added it (fixed in 8.1.0-rc0 and 8.0.4, resolved 2024-09-20). Before that, the ticket lists only two user-available routes to the query shape hash: the slow query log, or setQuerySettings plus the $querySettings stage. Sources: https://jira.mongodb.org/browse/SERVER-91954 ; https://www.mongodb.com/docs/manual/reference/explain-results/",
           "source": "https://jira.mongodb.org/browse/SERVER-91954",
           "note": null
         },
@@ -2338,7 +2338,7 @@
           "note": null
         },
         {
-          "text": "A SORT stage means an in-memory sort. In stages that can spill, usedDisk true (added in 5.3) shows the sort went to disk, which is slow; the usual fix is a compound index whose order supports the sort so the SORT stage disappears.",
+          "text": "A SORT stage in explain output indicates an in-memory sort; if there is no explicit SORT stage, MongoDB used an index to obtain the sort order. usedDisk (new in 5.3) reports whether a stage wrote to disk, and in executionStats it is documented for the GROUP stage; for SORT, the spill fields (spills, spilledBytes and others) are new in 8.2. A compound index whose key pattern supports the sort lets MongoDB sort with the index. Sources: https://www.mongodb.com/docs/manual/reference/explain-results.md ; https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
           "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-read-executionstats-output-explain/view",
           "note": null
         },
@@ -2353,7 +2353,7 @@
           "note": null
         },
         {
-          "text": "Mitigations for plan instability: add more selective indexes, avoid generic queries, cap $or/$in value counts, use hint() as a short-term stabilizer, or use 8.0 query settings for a cluster-wide hint. Index filters (planCacheSetFilter) are deprecated from 8.0 in favor of query settings, and they do not persist across shutdown.",
+          "text": "Mitigations for plan instability: add more selective indexes, avoid generic queries, cap $or/$in value counts, use hint() as a short-term stabilizer, or use 8.0 query settings for a cluster-wide hint. Index filters (planCacheSetFilter) are deprecated from 8.0 in favor of query settings, and they do not persist across shutdown. Sources: https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/ ; https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter/",
           "source": "https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/",
           "note": null
         },
@@ -2433,7 +2433,7 @@
           "note": null
         },
         {
-          "text": "Early 8.0 bugs: SERVER-89118 (setQuerySettings could trip invariant 8758500 under concurrent removal, or removeQuerySettings then setQuerySettings via different mongoses) was fixed in 8.0.0-rc4; SERVER-89340 (setQuerySettings on an aggregate with $bucket failing with error 40199) was closed Won't Fix.",
+          "text": "Early 8.0 bugs: SERVER-89118 (setQuerySettings could trip invariant 8758500 under concurrent removal, or removeQuerySettings then setQuerySettings via different mongoses) was fixed in 8.0.0-rc4; SERVER-89340 (setQuerySettings on an aggregate with $bucket failing with error 40199) was closed Won't Fix. Sources: https://jira.mongodb.org/browse/SERVER-89118 ; https://jira.mongodb.org/browse/SERVER-89340",
           "source": "https://jira.mongodb.org/browse/SERVER-89118",
           "note": null
         },
@@ -2663,7 +2663,7 @@
           "note": null
         },
         {
-          "text": "Hint is applicable beyond find(): aggregate takes it as an options field, and update/delete/count accept it; a hardcoded hint naming a dropped or renamed index becomes a hard failure.",
+          "text": "Hint is applicable beyond find(): aggregate takes it as an options field, and update/delete/count accept it; a hardcoded hint naming a dropped or renamed index becomes a hard failure. Sources: https://www.mongodb.com/docs/manual/reference/command/aggregate/ ; https://www.mongodb.com/docs/manual/reference/command/update/ ; https://www.mongodb.com/docs/manual/reference/command/delete/ ; https://www.mongodb.com/docs/manual/reference/command/count/ ; https://www.mongodb.com/docs/manual/reference/method/cursor.hint/",
           "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-hint-force-index/view",
           "note": null
         },
@@ -2828,7 +2828,7 @@
           "note": null
         },
         {
-          "text": "Historical bugs: $queryStats on mongos could fail if the stats store did not fit in memory because the sort could not spill (SERVER-93832, fixed 8.0.4/8.1.0-rc0); memory mis-accounting in the store was fixed in 7.3.0-rc0 (SERVER-84298).",
+          "text": "Historical bugs: $queryStats on mongos could fail if the stats store did not fit in memory because the sort could not spill (SERVER-93832, fixed 8.0.4/8.1.0-rc0); memory mis-accounting in the store was fixed in 7.3.0-rc0 (SERVER-84298). Sources: https://jira.mongodb.org/browse/SERVER-93832 ; https://jira.mongodb.org/browse/SERVER-84298",
           "source": "https://jira.mongodb.com/browse/SERVER-93832",
           "note": null
         },
@@ -3203,7 +3203,7 @@
           "note": null
         },
         {
-          "text": "A low docsExamined/nReturned ratio does not guarantee a fast query: a non-selective index can be slower than a scan, and a query that returns a large share of the collection may rightly choose a COLLSCAN. IXSCAN with high cost usually points to index selectivity rather than a missing index.",
+          "text": "A non-selective index can be slower than a scan, and a query that returns a large share of the collection may rightly choose a COLLSCAN. If the plan shows IXSCAN but the query is still slow, the issue may be index selectivity rather than a missing index. Sources: https://www.netdata.cloud/guides/mongodb/mongodb-slow-query-collscan/",
           "source": "https://www.netdata.cloud/guides/mongodb/mongodb-slow-query-collscan/",
           "note": null
         },
@@ -3343,7 +3343,7 @@
           "note": null
         },
         {
-          "text": "Hinting a hidden index or an index that does not exist returns an error rather than being ignored; the server error text is 'bad hint'.",
+          "text": "Hinting a hidden index or an index that does not exist returns an error rather than being ignored. A user report from the mongodb-user group (pymongo 3.6.0, 2018) shows the error text 'planner returned error: bad hint'; the wording may differ in newer server versions. Sources: https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md ; https://groups.google.com/g/mongodb-user/c/7J62LDWwLjQ/m/q_x0d-MwCQAJ ; https://jira.mongodb.org/browse/PYTHON-1615",
           "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md",
           "note": null
         },
@@ -3828,7 +3828,7 @@
           "note": null
         },
         {
-          "text": "A hinted query skips plan-cache trial and is planned directly from the hinted index (stated by one MongoDB author; not confirmed in official docs).",
+          "text": "Per one MongoDB author's blog post (not confirmed in official docs), hinted queries skip the plan cache and always plan from scratch, and MongoDB will only use the specified index. Sources: https://dev.to/mongodb/hint-in-mongodb-is-different-that-sql-optimizer-hints-they-force-indexes-4c33",
           "source": "https://dev.to/mongodb/hint-in-mongodb-is-different-that-sql-optimizer-hints-they-force-indexes-4c33",
           "note": null
         },
@@ -3838,7 +3838,7 @@
           "note": null
         },
         {
-          "text": "Verify applied settings via explain: queryPlanner output includes a querySettings block (indexHints, queryFramework, comment) and indexFilterSet:false; $querySettings with showDebugQueryShape:true also returns debugQueryShape for the shape.",
+          "text": "Verify applied settings via explain: queryPlanner output includes a querySettings block (indexHints, queryFramework, comment) and indexFilterSet:false; $querySettings with showDebugQueryShape:true also returns debugQueryShape for the shape. Sources: https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/querySettings.md",
           "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md",
           "note": null
         },
@@ -3998,7 +3998,7 @@
           "note": null
         },
         {
-          "text": "Third-party guides add numeric thresholds to the docsExamined/nReturned ratio: Netdata calls 1:1 ideal and above 100:1 severe inefficiency. These figures are blog rules of thumb; the MongoDB docs give no numeric cutoff.",
+          "text": "Third-party guides add numeric thresholds to the docsExamined/nReturned ratio: Netdata calls 1:1 ideal and a ratio above 100:1 severe inefficiency. These figures come from a blog, not MongoDB documentation. Sources: https://www.netdata.cloud/guides/mongodb/mongodb-slow-query-collscan/",
           "source": "https://www.netdata.cloud/guides/mongodb/mongodb-slow-query-collscan/",
           "note": null
         },
@@ -4133,7 +4133,7 @@
           "note": null
         },
         {
-          "text": "MongoDB warns the profiler can degrade performance and disk use, especially at level 2 or with a low slowms at level 1, and points to Atlas Query Profiler / Performance Advisor as alternatives. Blogs advise level 1 with a tuned slowms and a lowered sampleRate on busy systems; avoid level 2 in production.",
+          "text": "MongoDB warns the profiler can degrade performance and disk use, especially at level 2 or with a low slowms threshold at level 1, and points to Atlas Query Profiler and Atlas Performance Advisor as alternatives. Sources: https://www.mongodb.com/docs/manual/tutorial/manage-the-database-profiler.md",
           "source": "https://www.mongodb.com/docs/manual/tutorial/manage-the-database-profiler/",
           "note": null
         },
@@ -4643,7 +4643,7 @@
           "note": null
         },
         {
-          "text": "Zero ops can be a false negative for unique indexes: a uniqueness check on insert does not increment the ops counter, so an unused-for-reads unique index still enforces a constraint and must not be dropped on stats alone.",
+          "text": "Zero ops can be a false negative for unique indexes: a uniqueness check on INSERT does not increment the ops counter, so a unique index may show no use. Percona advises making sure the counter has collected for a considerable amount of time before dropping an index. Sources: https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
           "source": "https://www.percona.com/blog/identifying-unused-indexes-in-mongodb/",
           "note": null
         },
@@ -5213,12 +5213,12 @@
           "note": null
         },
         {
-          "text": "Index statistics reset on mongod restart, on index drop and recreation, and on any collMod modification of the index. Hiding an unhidden index also resets its $indexStats, so a hide-then-measure window starts at the hide time.",
+          "text": "Index statistics reset on mongod restart, on index drop and recreation, and on any collMod modification of the index. Hiding an unhidden index also resets its $indexStats, so a hide-then-measure window starts at the hide time. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md ; https://www.mongodb.com/docs/manual/core/index-hidden.md",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats/",
           "note": null
         },
         {
-          "text": "On sharded clusters $indexStats is local to each shard primary and a mongos does not aggregate it; an index can show zero on one shard and serve queries on another, so sum accesses.ops across all shards before calling an index unused (Netdata's guide; MongoDB docs state the per-node scope).",
+          "text": "On sharded clusters $indexStats is local to each shard primary and a mongos does not aggregate it; an index can show zero on one shard and serve queries on another, so sum accesses.ops across all shards before calling an index unused (Netdata's guide; MongoDB docs state the per-node scope). Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/indexStats.md ; https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
           "note": null
         },
@@ -5308,7 +5308,7 @@
           "note": null
         },
         {
-          "text": "Per-entry metrics include execCount, totalExecMicros, firstResponseExecMicros, docsReturned (sum/max/min/sumOfSquares), and cpuNanos (Linux only, new in 8.2); sumOfSquares exposes variance. Aggregate stage counters are available in the newer output.",
+          "text": "Per-entry metrics include execCount, totalExecMicros, firstResponseExecMicros, docsReturned (sum/max/min/sumOfSquares), and cpuNanos (Linux only, new in 8.2); a high sumOfSquares value indicates high variance. Starting in 9.0, metrics.queryPlanner.planShapeCounters (patterns and nodes) counts the winning plan shapes and plan stages. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/ ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats.md",
           "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
           "note": null
         },
@@ -7693,7 +7693,7 @@
           "note": null
         },
         {
-          "text": "A query shape groups similar queries by filters, sorts, projections, aggregation pipeline stages and namespace, ignoring literal values; queries with the same specification share one shape.",
+          "text": "A query shape groups similar queries by filters, sorts, projections, aggregation pipeline stages and namespace, ignoring literal values; queries with the same specification share one shape. Sources: https://www.mongodb.com/docs/manual/core/query-shapes.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats.md",
           "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
           "note": null
         },

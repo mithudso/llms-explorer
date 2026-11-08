@@ -208,7 +208,7 @@
           "note": null
         },
         {
-          "text": "A query that exceeds either 100 megabytes or the available memory spills to disk. It writes intermediate data to storage to save memory, which can cause lowered performance. Use the [`allowDiskUseByDefault`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault) parameter or [`cursor.allowDiskUse()`](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) method to configure this behavior.",
+          "text": "A query that exceeds either 100 megabytes or the available memory spills to disk. It writes intermediate data to storage to save memory, which can cause lowered performance. Use the [`allowDiskUseByDefault`]() parameter or [`cursor.allowDiskUse()`]() method to configure this behavior. Sources: https://www.mongodb.com/docs/manual/tutorial/query-documents.md",
           "source": "https://www.mongodb.com/docs/manual/tutorial/query-documents.md#query-spill",
           "note": null
         },
@@ -423,7 +423,7 @@
           "note": null
         },
         {
-          "text": "$push and $addToSet inside $group cannot spill: each hits a separate 100 MB cap and fails with 'used too much memory and cannot spill to disk. Memory limit: 104857600 bytes' even with allowDiskUse: true. Fix by restructuring (filter or limit first, two-step group, $topN), not by flag.",
+          "text": "$push and $addToSet inside $group cannot spill: each has a 100 MB per-accumulator memory limit (internalQueryMaxPushBytes / internalQueryMaxAddToSetBytes), and exceeding it fails with '$push used too much memory and cannot spill to disk. Memory limit: 104857600 bytes' even with allowDiskUse: true. The fix is pipeline restructuring (for example, move $match earlier and add a $limit before the heavy stage), not a flag change. Sources: https://jira.mongodb.org/browse/SERVER-73315 ; https://www.mongodb.com/community/forums/t/push-used-too-much-memory-and-cannot-spill-to-disk-even-though-allowdiskuse-true/325640 ; https://www.netdata.cloud/guides/mongodb/mongodb-exceeded-memory-limit-group-sort/",
           "source": "https://www.netdata.cloud/guides/mongodb/mongodb-exceeded-memory-limit-group-sort/",
           "note": null
         },
@@ -433,7 +433,7 @@
           "note": null
         },
         {
-          "text": "Mitigations for memory pressure: use an index-backed sort, put $limit after $sort, and filter with $match early. On sharded clusters, allowDiskUse on a sorting or grouping stage may move the merge to a randomly selected shard.",
+          "text": "Mitigations for memory pressure: use an index-backed sort, put $limit after $sort, and filter with $match early. On sharded clusters, allowDiskUse on a sorting or grouping stage may move the merge to a randomly selected shard. Sources: https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md ; https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections.md",
           "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md",
           "note": null
         },
@@ -698,7 +698,7 @@
           "note": null
         },
         {
-          "text": "Index key order must fit the group key: the index {user:1,timestamp:-1,request:1} did not give DISTINCT_SCAN for $group by request after $sort by timestamp. Reindexing to {user:1,request:1,timestamp:-1} with $sort {request:1,timestamp:-1} did, but the output came back ordered by request. A MongoDB engineer's fix was a second $sort by timestamp after $group, followed by $limit, which the optimizer coalesces into a top-k.",
+          "text": "In a community forum thread, a user with index {user:1,timestamp:-1,request:1} found their $match/$sort by timestamp/$group by request pipeline scanned the whole index. After reindexing to {user:1,request:1,timestamp:-1} with $sort {request:1,timestamp:-1}, DISTINCT_SCAN was applied but results were not ordered by most recent. MongoDB Principal Engineer Asya Kamsky suggested adding another $sort by timestamp after $group, noting that $sort+$limit would be coalesced by the optimizer. Sources: https://www.mongodb.com/community/forums/t/poor-performance-of-getting-most-recent-distinct-values-full-index-scan/208264 ; https://mongodb.com/community/forums/t/for-the-love-of-databases-interview-with-asya-kamsky-dani-monteiro/149750",
           "source": "https://www.mongodb.com/community/forums/t/poor-performance-of-getting-most-recent-distinct-values-full-index-scan/208264",
           "note": null
         }
@@ -778,7 +778,7 @@
           "note": null
         },
         {
-          "text": "A pipeline starting with $sort and then $group using only $first (or only $last) can be planned as a DISTINCT_SCAN over a matching index. It reads about one index entry per group instead of the whole index. The original ticket's example: index {x:1,y:1}, $sort {x:1,y:1}, $group by x with $first y, which previously did a full index scan.",
+          "text": "The original ticket (SERVER-9507) proposed letting a $sort followed by $group with accumulators like $first take advantage of sorted input and skip index entries, so that only on the order of |x| index entries are scanned instead of the whole index. Its example: index {x:1,y:1}, pipeline $sort {x:1,y:1} then $group by x with $first y, which previously did a full index scan. SERVER-37304 describes the optimization as using DISTINCT_SCAN, and for $last it runs the DISTINCT_SCAN in reverse. Sources: https://jira.mongodb.org/browse/SERVER-9507 ; https://jira.mongodb.org/browse/SERVER-37304",
           "source": "https://jira.mongodb.org/browse/SERVER-9507",
           "note": null
         }
@@ -803,7 +803,7 @@
           "note": null
         },
         {
-          "text": "MongoDB 6.0+ can run $lookup in the slot-based engine only if all preceding stages are also SBE-eligible, so the same pipeline may or may not produce $lookup spill metrics depending on engine selection.",
+          "text": "MongoDB's slot-based engine pushes $lookup down only when the stages before it are also supported by SBE, so the same pipeline may or may not produce $lookup spill metrics in explain depending on engine selection. Sources: https://jira.mongodb.org/browse/SERVER-62677 ; https://www.mongodb.com/docs/manual/core/sbe.md",
           "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
           "note": null
         },
@@ -813,7 +813,7 @@
           "note": null
         },
         {
-          "text": "Aggregation explain on a multi-shard run reports a splitPipeline with shardsPart (stages executed on each shard) and mergerPart (stages executed once at the merge point), plus a shards section keyed by shard name; a single-shard or unsharded run shows only a flat stages array with no splitPipeline.",
+          "text": "Aggregation explain on a multi-shard run reports a splitPipeline with shardsPart (stages executed on each shard) and mergerPart (stages executed once at the merge point), plus a shards section keyed by shard name; a single-shard or unsharded run shows only a flat stages array with no splitPipeline. Sources: https://jira.mongodb.org/browse/SERVER-18444 ; https://www.practical-mongodb-aggregations.com/guides/sharding.html",
           "source": "https://jira.mongodb.org/browse/SERVER-18444",
           "note": null
         },
@@ -858,7 +858,7 @@
           "note": null
         },
         {
-          "text": "Merge-sort visibility: from 4.2 the merge sort moved into $mergeCursors and vanished from explain's mergerPart (4.0 showed a $sort with mergePresorted:true); SERVER-57383 restored it by showing $mergeCursors at the front of mergerPart, fixed in 5.3.0 (resolved 2022-01-20). The practical-aggregations guide describes the omission as affecting 4.2 to 5.2 only.",
+          "text": "Merge-sort visibility: from 4.2 the merge sort moved into $mergeCursors and vanished from explain's mergerPart (4.0 showed a $sort with mergePresorted:true); SERVER-57383 restored it by showing $mergeCursors at the front of mergerPart, fixed in 5.3.0 (resolved 2022-01-20). The practical-aggregations guide describes the omission as affecting 4.2 to 5.2 only. Sources: https://jira.mongodb.org/browse/SERVER-57383 ; https://jira.mongodb.org/browse/TOOLS-3024 ; https://www.practical-mongodb-aggregations.com/guides/sharding.html",
           "source": "https://jira.mongodb.org/browse/SERVER-57383",
           "note": null
         },
@@ -1373,7 +1373,7 @@
           "note": null
         },
         {
-          "text": "SERVER-9507 (the $first optimization) was fixed in 4.1.4 (resolved 2018-09-26). SERVER-37304 extended it to $group expressions using exclusively $last by running the DISTINCT_SCAN in reverse; fixed in 6.3.0-rc0 (resolved 2022-12-08).",
+          "text": "SERVER-9507 (the $first optimization) was fixed in 4.1.4 (resolved 2018-09-26). SERVER-37304 extended it to $group expressions using exclusively $last by running the DISTINCT_SCAN in reverse; fixed in 6.3.0-rc0 (resolved 2022-12-08). Sources: https://jira.mongodb.org/browse/SERVER-9507 ; https://jira.mongodb.org/browse/SERVER-37304",
           "source": "https://jira.mongodb.org/browse/SERVER-9507",
           "note": null
         },

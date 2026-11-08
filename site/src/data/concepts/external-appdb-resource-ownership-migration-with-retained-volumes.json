@@ -8,7 +8,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "MongoDB documents an in-place transfer of the existing AppDB StatefulSet and its persistent storage to a MongoDB resource, without copying or recreating AppDB data. The MCK 1.12.0 release notes describe the same mechanism. (medium confidence)",
+          "text": "MongoDB documents an in-place transfer of the existing AppDB StatefulSet and its persistent storage to a MongoDB resource, without copying or recreating AppDB data. The MCK 1.12.0 release notes describe the same mechanism. (medium confidence) Sources: https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md ; https://github.com/mongodb/mongodb-kubernetes/releases/tag/1.12.0",
           "source": "https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md",
           "note": null,
           "claimId": "clm:ad01f7ef24d8c19577dd7768708fa74088fda3e7fb9d95476e12cc0caba189eb",
@@ -18,8 +18,14 @@
             "ev:e509b3231aebe86a9159a29c945bf243d40245387679aa342e9e8157a8bc1748"
           ],
           "also": [
-            "https://github.com/mongodb/mongodb-kubernetes/releases"
-          ]
+            "https://github.com/mongodb/mongodb-kubernetes/releases",
+            "https://github.com/mongodb/mongodb-kubernetes/releases/tag/1.12.0"
+          ],
+          "remediation": {
+            "claim_id": "clm:f92fb0332bd8b69ce4ba6f765130c05417d0cf1bbe8ef79d2d58d90065ac72bb",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T09:38:09Z"
+          }
         },
         {
           "text": "During this migration, spec.applicationDatabase.passwordSecretKeyRef is unsupported: the operator generates a new password and rotates any supplied password. Treat credential rotation as a migration effect even when the data volumes are retained. (medium confidence) (verified as of 2026-10-14)",
@@ -57,7 +63,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "On forward migration the operator removes the Ops Manager owner reference and marks the StatefulSet ready for adoption. The coordination annotation is mongodb.com/appdb-migration-ready; the operator sets and reads it, and administrators must not set it manually. (medium confidence)",
+          "text": "On forward migration the operator detaches the StatefulSet by removing the Ops Manager resource's owner reference and marking the StatefulSet as ready for migration; the MongoDB resource then takes ownership of it. Sources: https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md",
           "source": "https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md",
           "note": null,
           "claimId": "clm:e99b3fa7ecca6e64ec0dfcd9e8d063c53e80808a13802f59c86bba845635ae94",
@@ -68,7 +74,12 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/kubernetes/current/tutorial/om-appdb-backup.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:020c058cfef49d855d312a034b0517079cad501143022c259d61ab4e276104b5",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:38:09Z"
+          }
         },
         {
           "text": "Verify completion by checking that StatefulSet metadata.ownerReferences changes from MongoDBOpsManager/<primary-om-name> to MongoDB/<primary-om-name>-db, the MongoDB and Ops Manager phases reach Running, and Ops Manager status.applicationDatabase.phase becomes Disabled. Disabled means internal AppDB management stopped. (low confidence)",
@@ -96,8 +107,8 @@
           ]
         },
         {
-          "text": "Interpret the documented PV ownership transfer as a management handoff, not proof that cluster-scoped PV metadata.ownerReferences now points to the namespaced MongoDB resource. Kubernetes permits cluster-scoped dependents to reference only cluster-scoped owners; the AppDB procedure demonstrates the owner-reference change on the StatefulSet. (medium confidence)",
-          "source": "https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md",
+          "text": "The AppDB migration re-points ownership of the StatefulSet and its Persistent Volumes, and the documented procedure verifies the change only through the StatefulSet's owner references. Kubernetes allows cluster-scoped dependents to specify only cluster-scoped owners, so a namespaced MongoDB resource cannot be a valid owner reference for a cluster-scoped PV. Sources: https://kubernetes.io/docs/concepts/architecture/garbage-collection/ ; https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md",
+          "source": "https://kubernetes.io/docs/concepts/architecture/garbage-collection/",
           "note": null,
           "claimId": "clm:f615a55c7148c02627f5ee0085326da8c5dd5e22c96fdc9778673105d884a4d2",
           "validationStatus": "SUPPORTED",
@@ -108,8 +119,14 @@
             "ev:ee8fa051d2a8649aeaffafe18d41cd49f66ff1e93281e6e84a2f387761bb8115"
           ],
           "also": [
-            "https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/"
-          ]
+            "https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/",
+            "https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:f50bc02199de90912a660bafed16927d66847c43e7b64f135b38066e3072390f",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:38:09Z"
+          }
         },
         {
           "text": "After the target resource is waiting, patch the primary Ops Manager resource with spec.externalApplicationDatabaseRef pointing to it using kind: MongoDB. This forward procedure does not require deleting either custom resource or the StatefulSet. (low confidence)",
@@ -132,7 +149,7 @@
           ]
         },
         {
-          "text": "Before forward migration, match the target MongoDB resource version to the running internal AppDB and select a version offered by the management Ops Manager. MongoDB does not automatically reconcile the external resource configuration with the internal AppDB configuration; the user must specify equivalent settings. (medium confidence)",
+          "text": "The Application Database version set on the MongoDB resource must match the version the internally managed Application Database runs, and must be a MongoDB version that the management Ops Manager instance offers. If the MongoDB resource configuration differs from the internally managed Application Database configuration, the Application Database can be unavailable for one to two minutes. Sources: https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md",
           "source": "https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md",
           "note": null,
           "claimId": "clm:7beb8b93172e4d918745568b91ea23c56d5230e2115cb00a9a2f73399e94370a",
@@ -144,10 +161,15 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/kubernetes/current/tutorial/om-appdb-backup.md"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:d01004557a10aef46463d20009e6c9b6c0029de0c5d891ec777b3b4cd2763a75",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:38:09Z"
+          }
         },
         {
-          "text": "Do not substitute PVC deletion and rebinding for the documented ownership handoff. The forward procedure keeps the existing data in place; Red Hat documents that a Delete reclaim policy removes both the PV object and its backing storage asset after release, whereas Retain supports manual reclamation. Retained data in this migration is not evidence that the operator changes persistentVolumeReclaimPolicy to Retain. (medium confidence)",
+          "text": "The forward procedure re-points ownership of the existing StatefulSet and its Persistent Volumes without moving or recreating data. Red Hat documents that the Delete reclaim policy deletes both the PersistentVolume object and the associated external storage asset, whereas Retain allows manual reclamation. Sources: https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md ; https://docs.redhat.com/en/documentation/openshift_dedicated/4/html/storage/understanding-persistent-storage",
           "source": "https://www.mongodb.com/docs/kubernetes/current/tutorial/migrate-appdb-to-external.md",
           "note": null,
           "claimId": "clm:84a662db7a2ff19bf0dbbb651de8daabebc8b3082758e0fd773c7a16d8c867f8",
@@ -158,8 +180,14 @@
             "ev:e509b3231aebe86a9159a29c945bf243d40245387679aa342e9e8157a8bc1748"
           ],
           "also": [
-            "https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/storage/understanding-persistent-storage"
-          ]
+            "https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/storage/understanding-persistent-storage",
+            "https://docs.redhat.com/en/documentation/openshift_dedicated/4/html/storage/understanding-persistent-storage"
+          ],
+          "remediation": {
+            "claim_id": "clm:466c0e3aee3b8f2d44e474b21c3a1749cf131ce6baae10a166fad096e3c5fb7a",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:38:09Z"
+          }
         }
       ]
     }

@@ -139,7 +139,7 @@ There is visible demand for curated learning, agent context and reusable instruc
 
 ### Comparable traffic estimates
 
-A targeted Alexandria lookup found Similarweb's traffic-and-engagement capability. It returned the following **modeled September 2026 visits**, worldwide, total web across devices, including subdomains under the default request. These are visits, not unique people. They are historical estimates from one provider and can differ from first-party analytics. They do not establish revenue, retained use, or the effectiveness of a particular navigation design.
+A targeted Alexandria lookup found Similarweb's traffic-and-engagement capability. It returned the following **modeled September 2026 visits**, worldwide, total web across devices, including subdomains under the default request. These are visits, not unique people. They are historical estimates from one provider and can differ from first-party analytics. They do not establish revenue, retained use, or the effectiveness of a particular navigation design. <!-- privacy-ok: public Firecrawl Alexandria catalog, not a person. -->
 
 | Site | Estimated September 2026 visits | What the domain measures |
 |---|---:|---|
@@ -243,7 +243,7 @@ Reviewed the installed Firecrawl catalog across core web collection, structured-
 |---|---|---|
 | Search + scrape | Best core fit | Used to discover peers and read the live LLMSX and peer pages. |
 | Market research | Best outcome workflow | Applied its sourced comparison and metric/date discipline. |
-| Alexandria / find-tools | Useful for consistent peer metrics | Discovered and inspected GitHub repository and Similarweb traffic contracts. Retrieved seven repository records and eight comparable monthly traffic estimates; the LLMSX lookup failed. |
+| Alexandria / find-tools | Useful for consistent peer metrics | Discovered and inspected GitHub repository and Similarweb traffic contracts. Retrieved seven repository records and eight comparable monthly traffic estimates; the LLMSX lookup failed. | <!-- privacy-ok: public Firecrawl Alexandria catalog, not a person. -->
 | Competitive intel | Useful after a shortlist exists | Its definition focuses on recurring monitoring. No monitor was created for this one-time review. |
 | Shop | Low fit | Retail purchase comparisons do not answer site positioning. |
 | Map / crawl | Optional | Explicit navigation links supplied the required pages; a full crawl was unnecessary. |
@@ -265,7 +265,7 @@ The recommendation is ready for review: adopt **practical engineering for AI age
 
 ## Sources and rerun record
 
-Every S/G/T identifier resolves in the accompanying sources.json. GitHub metrics were fetched on 2026-11-06 through Alexandria's github-com/repositories/repo contract, version 1.3.0. The source record includes the resolved repository URL and observed_at timestamp. Traffic observations use Similarweb web/traffic for September 2026, with worldwide total-web scope, visits only and subdomains included. October requests were unavailable until the provider publication date.
+Every S/G/T identifier resolves in the accompanying sources.json. GitHub metrics were fetched on 2026-11-06 through Alexandria's github-com/repositories/repo contract, version 1.3.0. The source record includes the resolved repository URL and observed_at timestamp. Traffic observations use Similarweb web/traffic for September 2026, with worldwide total-web scope, visits only and subdomains included. October requests were unavailable until the provider publication date. <!-- privacy-ok: public Firecrawl Alexandria catalog, not a person. -->
 
 Rerun: inventory the live seven LLMSX entry pages; search for peer overlap; refresh official peer pages; refresh the seven repository records; preserve metric types and source dates; compare messages and visitor journeys; update this report's version and delta. Reuse adequate captured content within a run. Do not start recurring monitors or change the website as part of a research refresh.
 

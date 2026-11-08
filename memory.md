@@ -1,5 +1,14 @@
 # Memory
 
+## v0.22.148 - 2026-11-08
+
+- TASK-1228: Resolve PR 286 against main 30f00dc8 in an isolated worktree. Preserve the original dirty checkout.
+- Combine source tree changes, preserve canonical validation status and deletions, regenerate derived indexes, and retain both prompt/memory histories.
+- Independent audit replay passes for 88 canonical packs and a 261-passage extractive reader. Withhold 14 ungated/unverifiable readers. Preserve current main runtime contracts.
+- Validation passes: 1300 hub/research/script tests plus 12 subtests; 1012 site/CLI tests; site build/publication, privacy (25 denylist terms), Ruff, Astro check and generator parity. Push, final CI and merge commit remain.
+- Continuation record: docs/maintenance/pr-286-2026-11-08/memory.md.
+- Delta: memory 0.22.146 to 0.22.148; prompt v122.
+
 ## v0.22.140 - 2026-11-07
 
 - Remote main was rewritten outside this session (4f040e06 became de5c5b26) and this branch was replayed on top; local branch now tracks origin. Old local commits kept on branch backup/pre-rewrite-66382052.

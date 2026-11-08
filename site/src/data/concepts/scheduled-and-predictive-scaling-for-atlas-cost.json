@@ -13,7 +13,7 @@
           "note": "Product update, 2025-11-19"
         },
         {
-          "text": "Pausing Atlas clusters during off-hours is the most straightforward cost-saving measure for non-production environments. Use the Atlas CLI for ad-hoc operations and GitHub Actions scheduled workflows to automate pause at end-of-day and resume at start-of-day. Always wait for the cluster to reach `IDLE` state before running application workloads after resuming.",
+          "text": "Pausing development (non-production) Atlas clusters overnight is a cost-saving strategy, and a scheduled GitHub Actions workflow can automate the pause with `atlas clusters pause`. Atlas charges paused clusters only for storage. After resuming, `atlas clusters watch` blocks until the cluster reaches the IDLE state. Sources: https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown ; https://www.mongodb.com/docs/atlas/pause-terminate-cluster.md ; https://www.mongodb.com/docs/atlas/cli/current/command/atlas-clusters-watch.md",
           "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown#summary",
           "note": null
         },
@@ -333,7 +333,7 @@
           "note": null
         },
         {
-          "text": "Atlas has no documented native time-of-day tier schedule. MongoDB's cost guidance for dev/test is to run a cron job that pauses clusters overnight by setting the Admin API 'paused' field to true on the Modify One Cluster endpoint, or via the Terraform cluster resource. A third-party walkthrough does this with GitHub Actions cron (resume 08:00 UTC, pause 20:00 UTC on weekdays) calling a PATCH with paused true/false.",
+          "text": "MongoDB's cost guidance for dev/test is to run a cron job that pauses clusters overnight by setting the Atlas Administration API 'paused' field to true on the Modify One Cluster endpoint, or via the Terraform cluster resource. A third-party walkthrough automates only the pause with a scheduled GitHub Actions cron (8 PM weekdays, running the Atlas CLI 'atlas clusters pause' command). Sources: https://mongodb.com/docs/atlas/architecture/current/cost-saving-config ; https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown",
           "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
           "note": null
         },
@@ -408,12 +408,12 @@
       "title": "Measurements and reference values",
       "facts": [
         {
-          "text": "The claim that nightly/weekend pausing of dev and staging clusters cuts cost by '60% or more' appears only in a vendor-neutral blog with no calculation. Treat it as an illustrative figure. A 12h weekday window is about 64% of weekly hours, but storage billing continues while paused, so actual savings are lower than compute-only arithmetic.",
+          "text": "Atlas charges a paused cluster only for storage, so pausing dev and staging clusters overnight and on weekends saves less than compute-only arithmetic suggests. Pausing 12 hours every weekday night plus all weekend is 108 of 168 weekly hours, about 64%, so that is an upper bound on compute savings. Any '60% or more' figure should be treated as illustrative. Sources: https://www.mongodb.com/docs/atlas/pause-terminate-cluster.md",
           "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown",
           "note": null
         },
         {
-          "text": "The prototype has a Forecaster, an Estimator and a Planner. In MongoDB's simulation on 2023 data from 10,000 opted-in replica sets, the average replica set would have saved about 9 cents per hour versus the reactive scaler. The planner targets 50-75% CPU. The authors extrapolate millions of dollars a year across Atlas. This is simulated on historical data, not measured in production.",
+          "text": "The prototype has a Forecaster, an Estimator and a Planner. In MongoDB's 2023 prototype experiment, run on a random selection of 10,000 replica sets, the predictive scaler would have saved the average replica set 9 cents an hour versus the reactive scaler. The Planner targets 50-75% CPU. The authors say this could translate to millions of dollars a year if enabled for all Atlas users. This is a simulation on historical data, not a production measurement. Sources: https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
           "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
           "note": "Vendor simulation on 2023 data, not production"
         },
@@ -423,7 +423,7 @@
           "note": "Simulation on 2023 data"
         },
         {
-          "text": "MongoDB Atlas allows M10+ dedicated clusters to be paused when not in use. A paused cluster stops charging for compute while retaining all data and configuration. Pausing development and staging clusters outside working hours can reduce costs by 60% or more.",
+          "text": "MongoDB Atlas allows M10+ dedicated clusters to be paused when not in use. A paused cluster stops charging for compute while retaining all data and configuration. Pausing development and staging clusters outside working hours can reduce costs by 60% or more. Sources: https://raw.githubusercontent.com/OneUptime/blog/master/posts/2026-03-31-mongodb-atlas-pause-resume-clusters/README.md ; https://www.mongodb.com/docs/atlas/pause-terminate-cluster.md",
           "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown#overview",
           "note": "Illustrative 60% figure; storage billing not mentioned"
         },
@@ -458,7 +458,7 @@
           "note": null
         },
         {
-          "text": "Spiky batch workloads suffer from slow scale-down: a user reported a daily 1.5-hour pipeline that scales M20 to M30 but then stays at M30 for about 22.5 hours before scaling back, and asked for a configurable scale-down window. The request (created Aug 2022, 194 votes) had no staff reply on the page. This is one anecdote, not a measured finding.",
+          "text": "Spiky batch workloads suffer from slow scale-down: a user (comment dated Jan 17, 2024) reported a once-daily pipeline taking 1 h 30 min that scales M20 to M30 but then spends '22.30 hours' at M30 before scaling back, and asked for a configurable scale-down window. The feedback item (CUSTOMER-I-9126, created Aug 15, 2022) shows 195 votes and no visible staff reply. This is one anecdote, not a measured finding. Sources: https://feedback.mongodb.com/ideas/CUSTOMER-I-9126",
           "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-9126",
           "note": "Single user anecdote"
         },
@@ -533,7 +533,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "Only seasonal workloads benefit. The long-term forecaster had about 3% connection-forecast error on seasonal clusters versus 50% on non-seasonal ones. Most Atlas replica sets have daily seasonality and about 25% also have weekly seasonality (weekly usually implies daily; hourly seasonality is rare). The estimator excluded 13% of replica sets. A self-censoring check stops the forecaster being trusted when its recent error is high.",
+          "text": "Replica sets with sufficient daily or weekly seasonality are predictable by the Long-Term Forecaster; for non-seasonal replica sets its prediction is unusable, and the prototype added a Short-Term Forecaster for them. Most Atlas replica sets have daily seasonality and about 25% have weekly seasonality (weekly usually implies daily; hourly is rare). The Estimator excluded 13% of replica sets because of higher error rates. A self-censoring mechanism makes the Long-Term Forecaster trust its prediction only if its recent error has been small. Sources: https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
           "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
           "note": null
         },
@@ -553,7 +553,7 @@
       "title": "Changes and history",
       "facts": [
         {
-          "text": "The Nov 2025 product update says rollout began Nov 3 on some existing auto-scaling clusters and would reach all eligible clusters over the following months. The Apr 2026 engineering post says about a third of customers had enabled auto-scaling and would soon get both predictive and reactive scaling.",
+          "text": "The Nov 2025 product update says rollout began Nov 3 on some existing auto-scaling clusters and would reach all eligible clusters over the following months. The Apr 2026 engineering post says about a third of customers had enabled auto-scaling and would soon get both predictive and reactive scaling. Sources: https://www.mongodb.com/products/updates/predictive-auto-scaling-for-mongodb-atlas ; https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
           "source": "https://www.mongodb.com/products/updates/predictive-auto-scaling-for-mongodb-atlas",
           "note": null
         },
@@ -603,7 +603,7 @@
           "note": null
         },
         {
-          "text": "Pause and resume MongoDB Atlas clusters on a schedule to save costs on non-production environments using the Atlas CLI, Admin API, and GitHub Actions.",
+          "text": "Pause and resume MongoDB Atlas clusters on a schedule to save costs on non-production environments using the Atlas CLI, Admin API, and GitHub Actions. Sources: https://raw.githubusercontent.com/OneUptime/blog/master/posts/2026-03-31-mongodb-atlas-pause-resume-clusters/README.md",
           "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown",
           "note": null
         },

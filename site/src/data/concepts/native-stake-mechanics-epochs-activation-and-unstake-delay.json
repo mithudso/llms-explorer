@@ -1,0 +1,185 @@
+{
+  "slug": "native-stake-mechanics-epochs-activation-and-unstake-delay",
+  "concept": "Native stake mechanics epochs activation and unstake delay",
+  "generated": "2026-11-06",
+  "summary": "Source-anchored research for Native stake mechanics epochs activation and unstake delay. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Before Deactivate is called, Withdraw treats the whole delegation as staked, even while it is still warming up. After the deactivation epoch begins, only lamports above the remaining effective stake plus the rent-exempt reserve can leave. Withdrawing the full balance of an account that still has staked lamports fails with InsufficientFunds, and an unexpired Lockup fails with LockupInForce unless the custodian signs. (high confidence)",
+          "source": "https://docs.rs/crate/solana-stake-program/latest/source/src/processor.rs",
+          "note": null,
+          "claimId": "clm:bed168e847468ff25309892ec99e5e3e8d6c203867c5a42e26622c77ead57d5a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1d8bebd5dfd671d650c86211d7ec77d3d41a4fd3348dcbcf4afd45f3409507d4",
+            "ev:31d279a2fb12d4f66067d650afe6f8795e74e216502a3a3f8dbe516ba1965f3f"
+          ],
+          "also": [
+            "https://docs.anza.xyz/consensus/stake-delegation-and-rewards"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Withdraw is limited to lamports above the account's still-staked amount plus its rent reserve. If the stake has not been deactivated, the staked amount is the full delegation, so nothing delegated can be withdrawn during warmup. Once the current epoch is at or after deactivation_epoch, the staked amount is the remaining effective stake, so lamports that already cooled can be withdrawn in part during a multi-epoch cooldown. Withdrawing the entire balance (closing the account) needs a staked amount of zero. The withdraw authority must sign. A lockup in force blocks withdrawal unless the lockup custodian signs, but it does not block delegating, deactivating or splitting. (high confidence)",
+          "source": "https://docs.rs/crate/solana-stake-program/latest/source/src/processor.rs",
+          "note": null,
+          "claimId": "clm:22d736ef4e2993b80565d5cb283859083688d5812a9458afb0d9b0b7b15fe60b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:15fdb5703c6ff33d54b18aa47144feb0ebb604ada85e868fabc957d576b61d0a",
+            "ev:1d8bebd5dfd671d650c86211d7ec77d3d41a4fd3348dcbcf4afd45f3409507d4",
+            "ev:31d279a2fb12d4f66067d650afe6f8795e74e216502a3a3f8dbe516ba1965f3f"
+          ],
+          "also": [
+            "https://docs.anza.xyz/consensus/stake-delegation-and-rewards",
+            "https://github.com/solana-foundation/solana-com/blob/main/apps/docs/content/docs/en/references/staking/stake-accounts.mdx"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Stake changes happen only at epoch boundaries. A stake account delegates to one vote account. When it is delegated in epoch N, the stake program records activation_epoch = N, and during N the whole amount is 'activating' with nothing effective. When it is deactivated in epoch D, the program records deactivation_epoch = D. The effective, activating and deactivating amounts for any epoch are computed from those two numbers plus the cluster stake history. The four states are inactive, activating, active (effective) and deactivating. (high confidence)",
+          "source": "https://github.com/solana-foundation/solana-com/blob/main/apps/docs/content/docs/en/references/staking/stake-accounts.mdx",
+          "note": null,
+          "claimId": "clm:2306942298113d8888297455f308f1ef0a6157ddd94fdabd9d911ae934127a07",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:15fdb5703c6ff33d54b18aa47144feb0ebb604ada85e868fabc957d576b61d0a",
+            "ev:3739cfc92bc0c5ef07620d9c735b50e87f2ee5d4580500fd3882ee68089ddea7",
+            "ev:86db2d8e939d55c05b58775a9e56c70a64e3e2a0294103fce3d7ee093cfd99dd",
+            "ev:baa9529a3b17bd7f0a0c7ae56d5edea1525454d0388952fbb8614477c380e8dd"
+          ],
+          "also": [
+            "https://docs.anza.xyz/consensus/stake-delegation-and-rewards",
+            "https://docs.rs/crate/solana-stake-interface/4.0.0/source/src/state.rs"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Per-account allowance per epoch is proportional: change = (account_portion / cluster_portion) * (cluster_effective * rate). Activation uses the previous epoch's activating and effective stake; deactivation uses deactivating and effective. The result is capped at the account's own waiting amount. Integer math saturates on overflow ('fail-safe, not fail-open'). Chorus One independently describes the same dependence on new stake relative to stake already active. (medium confidence)",
+          "source": "https://docs.rs/crate/solana-stake-interface/4.0.0/source/src/warmup_cooldown_allowance.rs",
+          "note": null,
+          "claimId": "clm:a07fb854dfa127bee4202c1bf76bda13ce2a7fe3fe924ca77d02be5af03b400e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7f20d324b13aef032542552901dff29c9c088eac21504dafbac736c025b1821b",
+            "ev:cc943e461d1cd1202be70c5cc3339e8e4256481ff68ba16dc9b223f59411213c"
+          ],
+          "also": [
+            "https://chorus.one/reports-research/solana-staking-economics-primer"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Merge also needs matching Authorized values and Lockups that are identical or no longer in force, or it fails with MergeMismatch. When both accounts hold active stake, they must delegate to the same vote account and both must have deactivation_epoch = u64::MAX (neither deactivating), or Merge fails with MergeMismatch; activation epochs may differ. A FullyActive merge sets credits_observed to the stake-weighted average and moves the source's rent-exempt reserve to the destination as withdrawable lamports instead of staking it. (medium confidence)",
+          "source": "https://docs.rs/crate/solana-stake-program/latest/source/src/helpers/merge.rs",
+          "note": null,
+          "claimId": "clm:fcef623810ab7c5c3872352bfb9ff9f6d7a7e9dac15903496e4bc1e932a66d64",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:397d6975bde365ed18ae83c05a9a2ae35e1af5e40f913372a77bec745138f9d0"
+          ],
+          "also": [
+            "https://www.github.com/solana-labs/solana-program-library/issues/6275"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Stake changes take effect only at epoch boundaries. A new delegation sits in 'activating' until the next boundary and earns nothing in the epoch it was confirmed in. Anza states 'A % of the validator's stake is activated on an epoch boundary.' (high confidence)",
+          "source": "https://docs.anza.xyz/operations/guides/validator-stake",
+          "note": null,
+          "claimId": "clm:f4ca8dad921a3d369e5c331284c7a272b4617aae8b47026367c9e3cbb29a5a84",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5f3eef756b05b3ce01dcdf6593176c288d7207ff56883400327b1960079e2c49",
+            "ev:c5f267d0e1ffab0ab632c80d4e010eeead0232d232e49c4876b316c153ec0d2f",
+            "ev:cc943e461d1cd1202be70c5cc3339e8e4256481ff68ba16dc9b223f59411213c"
+          ],
+          "also": [
+            "https://solanavalidators.wiki/glossary/stake-activation/",
+            "https://chorus.one/reports-research/solana-staking-economics-primer"
+          ]
+        },
+        {
+          "text": "Per the Solido fix, two partially activated stake accounts can be merged only if they share the same activation epoch (fix added `self.activation_epoch == merge_from.activation_epoch` in program/src/stake_account.rs). (low confidence)",
+          "source": "https://github.com/lidofinance/solido/commit/45aec5374866ae3548a79b3abb0574db32010118",
+          "note": null,
+          "claimId": "clm:a9253f0eec53b012fb24c513fb0e9a46fce181fb5bd6233f651d2ead6610ddee",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3706bd488ddc278de6bb6546a2fb14ee7c84200dccb5218f589f0ffc1e943242"
+          ]
+        },
+        {
+          "text": "Anyone can force-deactivate stake delegated to a vote account that has not voted for 5 epochs, using the DeactivateDelinquentStake instruction (it also needs a second, active vote account as proof). It was introduced in the v1.14 stake program changes. (low confidence)",
+          "source": "https://forum.solana.com/t/feature-stake-program-changes-1-14-17/181",
+          "note": null,
+          "claimId": "clm:0c6c8b0b645132219dcbf612156ad7b54c2567b25f7ad828c6d732e1268a6fb6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:aba0ef53552d0d84f0c9ab58160ed661f04e700f8acd71721c2d1e8c56f49b08"
+          ]
+        },
+        {
+          "text": "A delegation made in epoch N makes the whole amount 'activating' during N, and it earns nothing in N. From N+1 the stake program adds the account's share of the allowed warmup, computed from the previous epoch's cluster totals, until the full delegation is effective. If the cap does not bind, the stake is fully effective at the start of N+1. (high confidence)",
+          "source": "https://docs.rs/crate/solana-stake-interface/4.0.0/source/src/state.rs",
+          "note": null,
+          "claimId": "clm:049ead36a1a06fdb4fe01b2751dbc6a67633eb8ab8fb9511ef633e05adc660af",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:31d279a2fb12d4f66067d650afe6f8795e74e216502a3a3f8dbe516ba1965f3f",
+            "ev:70a04022ba18c101ace0d5c29fb1656705fdd1c9551afc4203818dea5086aea5",
+            "ev:c5f267d0e1ffab0ab632c80d4e010eeead0232d232e49c4876b316c153ec0d2f"
+          ],
+          "also": [
+            "https://docs.anza.xyz/consensus/stake-delegation-and-rewards",
+            "https://solanavalidators.wiki/glossary/stake-activation/"
+          ]
+        },
+        {
+          "text": "Inflation rewards are paid on the effective portion of the stake for each epoch, and an epoch's rewards exist only after that epoch ends. A stake delegated in epoch N and fully effective from N+1 therefore earns its first reward for epoch N+1, credited at the start of epoch N+2. Rewards are added to the stake account's delegation (auto-compounding), so withdrawing earned rewards generally needs a deactivation first. (high confidence)",
+          "source": "https://docs.anza.xyz/consensus/stake-delegation-and-rewards",
+          "note": null,
+          "claimId": "clm:ed62c6519810a2c369f4f890bd8b0416cb9c193b1cd5cc202e79ad2f7ffced0b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:31d279a2fb12d4f66067d650afe6f8795e74e216502a3a3f8dbe516ba1965f3f",
+            "ev:45b241a56fcd8334515e35bf852dd1aeb882f763b4ff4a196fb2b022bb98916d",
+            "ev:c5f267d0e1ffab0ab632c80d4e010eeead0232d232e49c4876b316c153ec0d2f"
+          ],
+          "also": [
+            "https://solanavalidators.wiki/glossary/stake-activation/",
+            "https://docs.stake.fish/docs/understanding-the-staking-lifecycle",
+            "https://chorus.one/reports-research/solana-staking-economics-primer",
+            "https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0118-partitioned-epoch-reward-distribution.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "e81bec999f68f3dacd44c00dd8e2aa3365e40e7d521d406c8c91635335da84d8",
+  "canonicalConceptId": "concept:07d15820ef3e094c8bd127c7738e5a1aa344dcfa21b83a17b1b05fb2476f561a"
+}

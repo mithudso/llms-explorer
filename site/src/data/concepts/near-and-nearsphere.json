@@ -13,7 +13,7 @@
           "note": null
         },
         {
-          "text": "25. Amazon DocumentDB implements both operators, but documents only the GeoJSON form: `$near` there requires a `2dsphere` index, takes `$geometry`, and measures `$maxDistance` / `$minDistance` in metres. The legacy coordinate-pair form, the `2d` index path, and radian units — the parts of `$near`/`$nearSphere` that date to 2010–2011 — are absent from DocumentDB's reference. Code written against MongoDB's legacy syntax will not port. — <https://docs.aws.amazon.com/documentdb/latest/devguide/near.html>, <https://docs.aws.amazon.com/documentdb/latest/devguide/nearSphere.html>",
+          "text": "Amazon DocumentDB implements both operators, but its reference documents only the GeoJSON form: `$near` requires a `2dsphere` index, takes `$geometry`, and measures `$maxDistance` / `$minDistance` in meters. The legacy coordinate-pair form, the `2d` index path, and radian units, which MongoDB documents for `$near`, are not covered in DocumentDB's reference pages. Code written against MongoDB's legacy syntax is therefore not supported by the documented DocumentDB syntax. Sources: https://docs.aws.amazon.com/documentdb/latest/devguide/near.html ; https://docs.aws.amazon.com/documentdb/latest/devguide/nearSphere.html",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/history.md#independent-reimplementation-disconfirming-by-divergence-check",
           "note": null
         },
@@ -33,12 +33,12 @@
           "note": null
         },
         {
-          "text": "**A4. Adding `.sort()` to a `$near` query silently destroys the distance ordering and adds a blocking sort.** \"The `$near` operator sorts documents by distance… If you use the `sort()` method in your query, MongoDB performs a second sort operation, re-ordering the matching documents. When querying large collections, this can negatively affect query performance.\" <https://www.mongodb.com/docs/v8.0/reference/operator/query/near.md> <https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere/>",
+          "text": "Adding `.sort()` to a `$near` query makes MongoDB perform a second sort operation that re-orders the matching documents; on large collections this can negatively affect query performance. ($near already sorts documents by distance; if order is unimportant, $geoWithin returns unsorted results.) Sources: https://www.mongodb.com/docs/manual/reference/operator/query/near.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/edge-cases.md#a-silent-wrong-missing-results",
           "note": null
         },
         {
-          "text": "**D1. There is no index-selection escape hatch for `$near` in a `find()`.** MongoDB requires the `key` option to disambiguate when a collection has multiple geospatial indexes — but that option exists only on the `$geoNear` aggregation stage. `find()` with `$near` has no equivalent. <https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions.md>",
+          "text": "MongoDB's `key` option, which names the geospatial index to use, is documented for the `$geoNear` aggregation stage; it is required when a collection has multiple `2d` or multiple `2dsphere` indexes, and omitting it then returns an error. Sources: https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/edge-cases.md#d-index-selection-and-planning",
           "note": null
         },
@@ -53,7 +53,7 @@
           "note": null
         },
         {
-          "text": "17. Both operators sort results implicitly from nearest to farthest. Adding an explicit `sort()` causes MongoDB to perform a *second* sort, re-ordering the results and degrading performance on large collections; `$geoWithin` is the documented alternative when ordering is not needed. — <https://www.mongodb.com/docs/manual/reference/operator/query/near/>",
+          "text": "17. Both operators sort results implicitly from nearest to farthest. Adding an explicit `sort()` causes MongoDB to perform a *second* sort, re-ordering the results and degrading performance on large collections; `$geoWithin` is the documented alternative when ordering is not needed. — <> Sources: https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere.md ; https://www.mongodb.com/docs/manual/reference/operator/query/near.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/history.md#current-semantics-mongodb-8-x-manual",
           "note": null
         },
@@ -188,7 +188,7 @@
           "note": null
         },
         {
-          "text": "**D3. `unable to find index for $geoNear query` is the planner error users see for a `$near` predicate with no usable geo index** — including cases where a 2dsphere index exists but is not usable by the plan, e.g. under `readConcern: \"majority\"` before the fix for SERVER-20260 (SERVER-20261, MongoDB 3.1.7). <https://jira.mongodb.org/browse/SERVER-20261>",
+          "text": "SERVER-20261 (affects 3.1.7, closed as a duplicate of SERVER-20260 \"New indexes should bump their Collection's minimum SnapshotName\") reports that a $geoNear query on a 2d index with readConcern majority fails with the planner error \"unable to find index for $geoNear query\". Sources: https://jira.mongodb.org/browse/SERVER-20261",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/edge-cases.md#d-index-selection-and-planning",
           "note": null
         },
@@ -283,7 +283,7 @@
           "note": null
         },
         {
-          "text": "35. The most common operational failure is not a bug but a form/index mismatch, surfacing as `unable to find index for $geoNear query` even when a `2dsphere` index provably exists — in the reported case, a driver passing `near: [lng, lat]` where the `2dsphere` path expected `{ type: 'Point', coordinates: [...] }`. — https://github.com/Automattic/mongoose/issues/7035",
+          "text": "An aggregate $geoNear on a collection with a 2dsphere index failed with 'unable to find index for $geoNear query' even though the index existed, when the stage passed near as a legacy [lng, lat] array without spherical: true. The server then looked for a 2d index instead of the 2dsphere (Mongoose issue #7035). Sources: https://github.com/Automattic/mongoose/issues/7035",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/mechanism.md#where-the-invariants-have-actually-failed-disconfirming-evidence",
           "note": null
         }
@@ -358,7 +358,7 @@
           "note": null
         },
         {
-          "text": "3. Both operators require a geospatial index. `$geoWithin` does not. This is the sharpest behavioural line in the geospatial operator set: a `$near` query against an unindexed field fails rather than falling back to a collection scan. — https://www.mongodb.com/docs/manual/geospatial-queries/",
+          "text": "Both $near and $nearSphere require a geospatial index. $geoWithin does not require a geospatial index, although an index improves its performance. Sources: https://www.mongodb.com/docs/manual/geospatial-queries.md ; https://www.mongodb.com/docs/manual/reference/operator/query/near.md ; https://www.mongodb.com/docs/manual/reference/operator/query/geoWithin.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/mechanism.md#what-the-operators-are",
           "note": null
         }
@@ -388,7 +388,7 @@
           "note": null
         },
         {
-          "text": "**F2. Amazon DocumentDB documents only the GeoJSON/2dsphere/meters form of `$near` and `$nearSphere`.** Its reference lists `$geometry`, `$maxDistance` (meters), `$minDistance` (meters) and a 2dsphere index requirement, with no legacy coordinate-pair or radians variant. <https://docs.aws.amazon.com/documentdb/latest/developerguide/near.html>",
+          "text": "Amazon DocumentDB documents only the GeoJSON/meters form of `$near` and `$nearSphere`. Both reference pages list `$geometry` (a GeoJSON Point), `$maxDistance` (meters) and `$minDistance` (meters), with no legacy coordinate-pair or radians variant. The $near page also states that a 2dsphere index is required; the $nearSphere page does not state an index requirement. Sources: https://docs.aws.amazon.com/documentdb/latest/developerguide/near.html ; https://docs.aws.amazon.com/documentdb/latest/developerguide/nearSphere.html",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/edge-cases.md#f-disconfirming-evidence-from-independent-implementations",
           "note": null
         },
@@ -413,7 +413,7 @@
           "note": null
         },
         {
-          "text": "4. MongoDB 2.4 added the `2dsphere` index, GeoJSON `Point` / `LineString` / `Polygon` support, and the `$geometry` operator. This is the change that gave `$near` and `$nearSphere` their modern `$geometry` + metres form; before it, both operators took only legacy coordinate pairs. — <https://raw.githubusercontent.com/mongodb/docs/v2.4/source/release-notes/2.4.txt>",
+          "text": "MongoDB 2.4 added the `2dsphere` index, GeoJSON `Point` / `LineString` / `Polygon` support, and the `$geometry` operator. This is when `$near` gained its GeoJSON `$geometry` form with `$maxDistance` in meters; the 2.2 manual documents `$near` and `$nearSphere` only with `[x, y]` coordinate pairs. Sources: https://raw.githubusercontent.com/mongodb/docs/v2.4/source/release-notes/2.4.txt ; https://raw.githubusercontent.com/mongodb/docs/v2.4/source/reference/operator/query/near.txt ; https://raw.githubusercontent.com/mongodb/docs/v2.2/source/reference/operator/query/near.txt ; https://raw.githubusercontent.com/mongodb/docs/v2.2/source/reference/operator/query/nearSphere.txt",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/history.md#origins-2010-2013",
           "note": null
         },
@@ -423,12 +423,12 @@
           "note": null
         },
         {
-          "text": "10. MongoDB 3.2 introduced `2dsphere` index version 3, which indexes GeoJSON geometries at a finer gradation and improves query performance over smaller regions. This changes `$near` / `$nearSphere` performance characteristics without changing their syntax. — <https://raw.githubusercontent.com/mongodb/docs/v3.2/source/release-notes/3.2.txt>",
+          "text": "MongoDB 3.2 introduced version 3 of 2dsphere indexes, which index GeoJSON geometries at a finer gradation and improve the performance of 2dsphere index queries over smaller regions. Sources: https://raw.githubusercontent.com/mongodb/docs/v3.2/source/release-notes/3.2.txt",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/history.md#mongodb-3-2-2015-index-generation-change",
           "note": null
         },
         {
-          "text": "11. Starting in MongoDB 4.0, `$near` and `$nearSphere` support querying on sharded collections. Before 4.0 they were rejected on sharded collections; this is the single biggest capability change in the operators' history. — <https://raw.githubusercontent.com/mongodb/docs/v4.0/source/release-notes/4.0.txt>",
+          "text": "Starting in MongoDB 4.0, $near and $nearSphere support querying on sharded collections. In earlier MongoDB versions these queries are not supported on sharded collections; sharded clusters had to use the $geoNear aggregation stage or the geoNear command (available in MongoDB 4.0 and earlier). Sources: https://raw.githubusercontent.com/mongodb/docs/v4.0/source/release-notes/4.0.txt ; https://raw.githubusercontent.com/mongodb/docs/v4.2/source/includes/fact-near-sharded-cluster.rst",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/history.md#mongodb-4-0-2018-the-two-largest-behavioural-expansions",
           "note": null
         },
@@ -438,7 +438,7 @@
           "note": null
         },
         {
-          "text": "24. In the server source the two operators share one parse target, `GeoNearExpression`, which carries an `isNearSphere` boolean to select spherical distance and a `unitsAreRadians` boolean to select the unit system; `minDistance` defaults to 0 and `maxDistance` to `std::numeric_limits<double>::max()`. An `isWrappingQuery` flag marks queries spanning the antimeridian. This confirms that `$near` and `$nearSphere` are one execution path differing by flags, not two independent implementations. — <https://github.com/mongodb/mongo/blob/master/src/mongo/db/matcher/expression_geo.cpp>",
+          "text": "In expression_geo.cpp, GeoNearExpression is constructed with minDistance 0, maxDistance std::numeric_limits<double>::max(), and isNearSphere, unitsAreRadians and isWrappingQuery all false. Sources: https://github.com/mongodb/mongo/blob/master/src/mongo/db/matcher/expression_geo.cpp",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/history.md#current-semantics-mongodb-8-x-manual",
           "note": null
         },
@@ -488,7 +488,7 @@
           "note": null
         },
         {
-          "text": "25. Neither can be combined with another operator that needs a different special index; `$text` is the named example. — https://www.mongodb.com/docs/v8.0/reference/operator/query/near.md — https://www.mongodb.com/docs/manual/reference/limits.md",
+          "text": "25. Neither can be combined with another operator that needs a different special index; `$text` is the named example. — — Sources: https://www.mongodb.com/docs/manual/reference/operator/query/near.md ; https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/mechanism.md#limits-and-restrictions",
           "note": null
         },
@@ -498,7 +498,7 @@
           "note": null
         },
         {
-          "text": "**A3. Antimeridian wraparound is a property of the 2dsphere index, not of the operator.** On 2dsphere, coordinates \"wrap\" around the sphere and −179.9 and +179.9 are near neighbors; a `$near` on a 2d index gets no such wrapping. <https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere.md>",
+          "text": "On a 2dsphere index, coordinates \"wrap\" around the sphere, so -179.9 and +179.9 are near neighbors. A 2d index calculates on a flat, Euclidean plane. Sources: https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere.md ; https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/edge-cases.md#a-silent-wrong-missing-results",
           "note": null
         },
@@ -538,7 +538,7 @@
           "note": null
         },
         {
-          "text": "20. Neither operator is permitted in an aggregation pipeline; the `$geoNear` aggregation stage is the documented substitute. Both are classified as \"Match Execution\" operators. — <https://www.mongodb.com/docs/manual/reference/operator/query/near/>, <https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere/>",
+          "text": "Neither `$near` nor `$nearSphere` is permitted in an aggregation pipeline; both are classified as \"Match Execution\" operators. The `$geoNear` aggregation stage is the pipeline form for nearest-first queries, per a MongoDB Jira ticket. Sources: https://www.mongodb.com/docs/manual/reference/operator/query/near/ ; https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere/ ; https://jira.mongodb.org/browse/SERVER-57932",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/history.md#current-semantics-mongodb-8-x-manual",
           "note": null
         },
@@ -603,12 +603,12 @@
           "note": null
         },
         {
-          "text": "24. Neither operator is permitted in an aggregation pipeline. The manual states `$near` \"is a Match Execution operator and is not permitted in aggregation pipelines\", and the `$match` page names the two substitutes: use `$geoNear` as a stage, or use `$geoWithin` with `$center` / `$centerSphere` inside `$match`. — https://www.mongodb.com/docs/v8.0/reference/operator/query/near.md — https://www.mongodb.com/docs/manual/reference/operator/aggregation/match/",
+          "text": "24. Neither operator is permitted in an aggregation pipeline. The manual states `$near` \"is a Match Execution operator and is not permitted in aggregation pipelines\", and the `$match` page names the two substitutes: use `$geoNear` as a stage, or use `$geoWithin` with `$center` / `$centerSphere` inside `$match`. — — Sources: https://www.mongodb.com/docs/manual/reference/operator/query/near.md ; https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere.md ; https://www.mongodb.com/docs/manual/reference/operator/aggregation/match.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/mechanism.md#limits-and-restrictions",
           "note": null
         },
         {
-          "text": "31. `$near` returns ordering but not distance. To obtain the computed distance as a field you must use `$geoNear` with `distanceField`; on a `2d` index the value is in radians and `distanceMultiplier` (e.g. 6371 for kilometres) converts it. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "text": "To get the computed distance as an output field, use the `$geoNear` aggregation stage with `distanceField` (required before MongoDB 8.1, and still required for time series collections). Spherical queries return distances in radians for legacy coordinate pairs, and `distanceMultiplier` multiplies all returned distances, for example by the Earth's radius, to convert radians to kilometers. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/mechanism.md#limits-and-restrictions",
           "note": null
         },
@@ -648,12 +648,12 @@
           "note": null
         },
         {
-          "text": "1. MongoDB 1.4 was released on 25 March 2010 and shipped \"2d geospatial search\" as a headline new feature, alongside the `$center` and `$box` geo operators. — <https://raw.githubusercontent.com/mongodb/docs/v2.4/source/release-notes/1.4.txt>, <https://www.infoq.com/news/2010/03/mongodb/>",
+          "text": "MongoDB 1.4 was released on 25 March 2010 and its release notes list \"2d geospatial search\" along with geo $center and $box searches under a Geo heading. Sources: https://raw.githubusercontent.com/mongodb/docs/v2.4/source/release-notes/1.4.txt ; https://www.infoq.com/news/2010/03/mongodb/",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/history.md#origins-2010-2013",
           "note": null
         },
         {
-          "text": "3. `$nearSphere` was added in MongoDB 1.8. The v2.4 manual's reference page for the operator carries the \"new in version 1.8\" marker. This makes `$nearSphere` a *later* addition than 2d geospatial search — it was introduced to give the existing flat 2d index a great-circle distance ordering. — <https://raw.githubusercontent.com/mongodb/docs/v2.4/source/reference/operator/query/nearSphere.txt>",
+          "text": "`$nearSphere` was added in MongoDB 1.8 (the v2.4 and v2.2 manuals mark it \"versionadded 1.8\"). 2d geospatial search had already shipped in MongoDB 1.4, so `$nearSphere` is a later addition. The 2.2 manual describes it as the spherical equivalent of `$near`, calculating distances using spherical geometry. Sources: https://raw.githubusercontent.com/mongodb/docs/v2.4/source/reference/operator/query/nearSphere.txt ; https://raw.githubusercontent.com/mongodb/docs/v2.4/source/release-notes/1.4.txt ; https://raw.githubusercontent.com/mongodb/docs/v2.2/source/reference/operator/query/nearSphere.txt",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/history.md#origins-2010-2013",
           "note": null
         },
@@ -663,7 +663,7 @@
           "note": null
         },
         {
-          "text": "21. Neither operator can be combined with another operator that requires a different special index; `$text` is the example MongoDB gives. — <https://www.mongodb.com/docs/manual/reference/operator/query/near/>",
+          "text": "21. Neither operator can be combined with another operator that requires a different special index; `$text` is the example MongoDB gives. — <> Sources: https://www.mongodb.com/docs/manual/reference/operator/query/near.md ; https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere.md",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/history.md#current-semantics-mongodb-8-x-manual",
           "note": null
         },
@@ -678,7 +678,7 @@
           "note": null
         },
         {
-          "text": "13. Both operators execute through `NearStage`, described in the source as \"an abstract stage which uses a progressive sort to return results sorted by distance.\" It does not compute a global ordering; it widens a search region step by step. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/near.h",
+          "text": "NearStage is described in the source as \"An abstract stage which uses a progressive sort to return results sorted by distance.\" It is used when there is no full ordering computed over the distance metric, and it searches intervals progressively. Both $near and $nearSphere are parsed into the same GeoNearExpression (distinguished by an isNearSphere flag), and the concrete GeoNear stages for 2d and 2dsphere indexes derive from NearStage. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/near.h ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/matcher/expression_geo.h ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/geo_near.h",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/mechanism.md#execution-mechanism",
           "note": null
         },
@@ -698,12 +698,12 @@
           "note": null
         },
         {
-          "text": "19. The `DensityEstimator` walks index levels from coarse to fine, searching neighbouring cells at the current level until it finds a document, and uses that cell size to seed the increment. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/geo_near.h — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/geo_near.cpp",
+          "text": "The `DensityEstimator` walks index levels from fine to coarse: it starts at the finest usable level (bits - 1) and, while the neighbouring cells at the current level contain no document, moves to the next-coarsest level. When it finds a document, it uses that level's cell size as the estimated distance, and the stage seeds its bounds increment from that estimate (3 * estimatedDistance for 2d). Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/geo_near.cpp",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/mechanism.md#execution-mechanism",
           "note": null
         },
         {
-          "text": "22. On the flat path, index-cell containment and true distance are computed separately: \"Due to floating point math issues, FLAT searches of a 2D index need to treat containment and distance separately.\" Buffered candidates are re-sorted by exact computed distance before being emitted. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/geo_near.cpp",
+          "text": "22. On the flat path, index-cell containment and true distance are computed separately: \"Due to floating point math issues, FLAT searches of a 2D index need to treat containment and distance separately.\" Buffered candidates are re-sorted by exact computed distance before being emitted. — Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/geo_near.cpp ; https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/near.cpp",
           "source": "~/.global-ai-hub/research-runs/frontier-current/near-and-nearsphere/reports/mechanism.md#execution-mechanism",
           "note": null
         },
