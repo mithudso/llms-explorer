@@ -1,3 +1,10 @@
+## v0.22.142 - 2026-11-08
+
+- Delta: add projection ownership regressions to the existing remote research integrity test step.
+- .github/workflows/ci.yml now explicitly runs tests/test_research_transaction.py alongside gate/artifact tests, so equal/nested ownership and scoped-recovery regressions run in CI.
+- Local checks already passed:80 integration tests plus6 subtests,61 artifact/site/transaction tests plus6 subtests, Ruff and28-file sync validation.
+- Remaining: final prerequisite CI/merge; user-approved Codex research follow-ups are being consolidated and gated separately.
+
 # Memory
 
 ## v0.22.141 - 2026-11-08
