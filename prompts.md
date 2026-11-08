@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v123 - 2026-11-08
+
+Run the full-suite skill on identifying coins that would make ideal candidates for a grid or dca strategy. What do the prices look like over time that would make that strategy the most profitable? What criteria could you use when looking at a set of coins which ones would be best suited for that?
+
+Follow-up: Use available Codex agents instead (Recommended). This delivery contains the accepted research projections, separate from the already merged recovery-safety prerequisite.
+
 ## Prompt v122 - 2026-11-08
 
 ```text

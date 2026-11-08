@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.149 - 2026-11-08
+
+- Merge concurrent PR286 delivery without replacing its source tree, publication decisions, source readers, privacy metadata or logs. Add only this run's seven nodes and parent edge, then regenerate derived data from all tracked inputs. Preserve the existing v148 and research v147 entries. Delta: memory0.22.148 to0.22.149; prompt123.
+
+## v0.22.147 - 2026-11-08
+
+- Full-suite artifact delivery preserves both existing research logs and incoming design/wiki history from origin/main. Historical version collisions in already published entries are retained verbatim. New delivery adds seven source-bound concept/aggregate projections and queue/CVS metadata; no raw evidence bodies or private extractive packs are published. Delta: memory0.22.146 to0.22.147; prompt122.
+
 ## v0.22.148 - 2026-11-08
 
 - TASK-1228: Resolve PR 286 against main 30f00dc8 in an isolated worktree. Preserve the original dirty checkout.

@@ -4779,3 +4779,4 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [x] Concept: `Pinned classic-applier replicated-metadata checkpoint validation boundaries` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `3.90`
 - [x] Concept: `Pinned replicated-metadata repair command and no-op ingestion boundaries` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `3.90`
 - [x] Concept: `Pinned streaming replicated-metadata scan progress and transaction-chain visibility` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `3.90`
+- [ ] Concept: `Value averaging as a target-value accumulation-policy comparator` | Parent: `Crypto coin selection for grid and DCA strategies` | Mode: `dr` | CVS: `3.20`
