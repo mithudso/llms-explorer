@@ -1,5 +1,19 @@
 # Prompts Log
 
+## Prompt v117 - 2026-11-08
+
+```text
+Run the full-suite skill on high margin leveraged perps trading strategies like exists here https://jup.ag/perps/long/SOL-SOL. Effectively betting on how the price will move in the next 5 minutes. What signals, indicators, and technicals best predict an extremely short timeframe, but that also cannot withstand a big swing in the wrong direction.
+```
+
+Continuation authorization:
+
+```text
+Yes, Approve moving /Users/mitch/.research intact to /Users/mitch/.global-ai-hub/research/.legacy-archives/research-20261107-task808 so the workflow can continue
+```
+
+TASK-808 in dev-y3seh; source-bound perps research only. This worktree owns publication artifacts produced by the v4 adapter after its claim gate. Preserve all unrelated original-checkout changes. Delta: prompt116 to117; memory0.22.135 to0.22.136.
+
 ## Prompt v116 - 2026-11-07
 
 > 1. It's turned on. 2. Yes do it again. 3. yes.

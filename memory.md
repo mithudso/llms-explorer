@@ -1,5 +1,28 @@
 # Memory
 
+## v0.22.138 - 2026-11-08
+
+- Final local TASK-808 publication checks passed:328site tests,2849page productionbuild/publicationpolicy,0type errors, and18611file combined-private-denylist scan with0findings. The allowlist is byte-identical to baseline; generated unrelated exactissue exceptions were removed. All8reader pages retain canonical statements and344internal links resolve.
+- Mandatory CFEscore/placement sync completed for8existing cohort nodes:7node scores plus50sidecar records,0queued concepts; tree counts unchanged2866private/2709repository and baseline structural issue counts unchanged308/312. Process-local legacy auto-refresh was disabled for this scoped apply, followed by scoped tree generation and explicit build. No broad pack regeneration or service configuration change.
+- Canonical proof and publication remain distinct from conceptual saturation and knowledge coverage. The private full-suite has7current-format packs,164derived rows/110unique accepted claims, a7member rollup, localFTS/vector indexes, and recorded incomplete explanatory/empirical coverage. Remote source/CI/deployment acceptance is still required after this local checkpoint.
+- Delta: memory0.22.137 to0.22.138; final local validation and safe publication scope recorded before source delivery. The original dirty checkout and unrelated research remain preserved.
+
+## v0.22.137 - 2026-11-08
+
+- TASK-808 canonical research finish succeeded after parent metadata was anchored to an existing ancestor shared by both trees. The project virtualenv supplies the compiler dependency. No source/gate assertion changed. The accepted artifact contains110canonicalclaims; all165reviewedassertions retain their125SUPPORTED/40non-assertion dispositions.
+- Generated8proof-awarepacks and8publicartifactprojections; privatehubtree2858to2866, repositorytree2701to2709. Independent auditor checked365judgmentspans across63pinnedsnapshots, exactpack/claim/source/evidence parity and currenttreebindings. CanonicalartifactSHA1254521eda688b644884b05e9bb69be9922b7de9759a38c1cc82b0ea9e48c349.
+- Sitebuild passed2849pages and publicationpolicy. Combined canonical/target operator-denylist checking found3historical continuation-note matches; minimally redacted those2files without addingallowlist exceptions. Rebuild/finalprivacy andsitepytest remain required. Source snapshots, gate transcripts and private configuration stay outside publication.
+- Skills PR https://github.com/mithudso/skills/pull/91 merged5765c8d755322292b6076d116a7b8e3a4526567b; installedcompactparent+7guides, guardedbackups/readbacks and3stableactualCodexdiscovery checks passed. Currentv3 privatepackindexes, readercoverage, rollup andfrontier gates remain separate from canonical website proof projections; original full-suite completion must not be inferred from this cohort's COMPLETED status.
+- Delta: memory0.22.136 to0.22.137; prompt117 preserved. Privacy-only hub snapshot continuation also recorded in its own hub-track logs. Root owns siteverification andGitdelivery; coordinator owns remaining privatefull-suite qualification and originalproject runreport.
+
+## v0.22.136 - 2026-11-08
+
+- TASK-808 resumes original five-minute high-leverage SOL Jupiter Perps full-suite research after explicit archive approval. The legacy archive was relocated with matching complete metadata/content inventories; preflight passes. New canonical v4 run: /Users/mitch/.global-ai-hub/research/five-minute-high-leverage-sol-perps-task808. Seven retained gaps are being researched; previous47 supported claims are preserved. New legacy/heuristic overlapping corpus is source leads only.
+- Isolation: /Users/mitch/dev/worktrees/llms-explorer-perps-task808, branch research/perps-task808, created from current origin/main2a440c5a. Preserve original /Users/mitch/dev/llms-explorer dirty state and historical research. Do not import old pre-rewrite ancestry or purge-protected files.
+- Root owns prompt/memory and Git delivery. Coordinator owns supported-only adapter publication, trusted authored claim projections, private source snapshots, pack/index/tree receipts and quality gates. LLMS_EXPLORER_REPO must point to this worktree for finish. No code changes, service starts or broad queue activity are needed. On-demand task-local semantic indexing may use the existing localhost model under the later scoped full-suite/index authorization; historical background/LAN/eGPU jobs remain untouched.
+- Remaining: research and all-claim v4 review; supported-only artifacts and preserved binding checks; per-concept/rollup quality; actual site tests/check/build, privacy inspection, commit/push/PR/CI/merge and remote verification. No saturation or profitable five-minute edge is established by initialization.
+- Delta: memory0.22.135 to0.22.136; prompt117.
+
 ## v0.22.135 - 2026-11-07
 
 - TASK-1225: the user approved a second history rewrite and removing docs/verification/blog-ddo-2026-09-30/. git filter-repo dropped 49 purged files and that directory from main and the PR #303, PR #286 and dependabot branches. snapshot was unchanged. Every branch was pushed with --force-with-lease on its old SHA. New main is de5c5b26. Backup: ~/.local/share/llms-explorer-history-backup-2026-11-07/original.git.
@@ -78,7 +101,7 @@
 
 - TASK-1196 inventories live LLMSX offerings and researches peers to refine site identity. Scope is advisory; no website or product changes are authorized by this review.
 - Live inventory: guides/experiments, 31 published skills, downloadable context and concept tree, plus LLMSX, Skills Explorer and GitHub Explorer terminal applications. The task-first research hub already connects references, guides and skills.
-- Firecrawl catalog review selects search/scrape and market research. Competitive-intel is recurring monitoring; shop is purchase research. Alexandria GitHub repository records provide dated stars/forks and repository metadata. These are attention proxies, not active-user or commercial-success measurements.
+- Firecrawl catalog review selects search/scrape and market research. Competitive-intel is recurring monitoring; shop is purchase research. A public search provider’s GitHub repository records provide dated stars/forks and repository metadata. These are attention proxies, not active-user or commercial-success measurements.
 - Report and sources are in docs/research/llmsx-peer-positioning-2026-11-06/. Eight peers and37source records support a proposed practical-agent-engineering identity, four navigation destinations and a workflow/evidence/artifact journey. Preserve the concept tree and all existing content. These are recommendations, not implemented changes.
 - Similarweb provider discovery adds eight comparable September2026 worldwide total-web visit estimates. Keep modeled visits separate from unique users, API traffic, retention and revenue. The LLMSX lookup returned HTTP502; it supplies no traffic count.
 - Private capture bundle llmsx-20261106 retains page text and provider receipts. All21page records bind exact readable excerpts with Unicode code-point offsets and SHA-256. Independent review qualifies all material claims and metrics. Follow-up independently verifies21Markdown hashes and69exact Unicode-codepoint quote slices/hashes, with no remaining findings. Privacy and diff checks pass; no application behavior changed. Git delivery is tracked by PR293; inspect its merge/check state for the delivery receipt.
