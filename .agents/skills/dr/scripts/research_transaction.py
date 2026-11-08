@@ -82,7 +82,6 @@ class Transaction:
 
     def write(self, path, value):
         path = Path(path)
-        self.assert_paths_available([path])
         self.remember(path)
         if value is None:
             if path.is_dir():
