@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v118 - 2026-11-08
+
+```text
+Add this to the ads.txt file in the root directory: google.com, pub-1706083044457708, DIRECT, f08c47fec0942fa0
+```
+
+TASK-1226: Verify the existing seller entry and root HTTP response. The requested line already exists once; preserve it and record verification. Delta: prompt v117 to v118; memory v0.22.138 to v0.22.139.
+
 ## Prompt v117 - 2026-11-08
 
 ```text
