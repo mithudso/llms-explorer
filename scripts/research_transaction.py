@@ -112,18 +112,29 @@ def registry_dir(research_dir):
     return Path(research_dir) / '.projection-journals'
 
 
-def recover_pending(research_dir, repo):
+def recover_pending(research_dir, repo, *, scope_root=None):
     """Recover all shared writers under the caller's research global lock.
 
     Registered locations cover other checkouts. The two legacy globs also find
-    interrupted journals created before registry support was installed.
+    interrupted journals created before registry support was installed. A scoped
+    caller recovers only transactions below scope_root and leaves other writers'
+    journals and registry markers untouched.
     """
     research_dir, repo = Path(research_dir), Path(repo)
+    scope = Path(scope_root).resolve() if scope_root is not None else None
+
+    def in_scope(journal):
+        return scope is None or journal.parent.resolve().is_relative_to(scope)
+
     journals = set(research_dir.glob('*/artifacts/transactions/*/journal.json'))
     journals.update((repo / 'tmp/research-site-sync-backups').glob('*/transaction/journal.json'))
-    markers = list(registry_dir(research_dir).glob('*.json'))
-    for marker in markers:
+    journals = {journal for journal in journals if in_scope(journal)}
+    markers = []
+    for marker in registry_dir(research_dir).glob('*.json'):
         journal = Path(json.loads(marker.read_text())['root']) / 'journal.json'
+        if not in_scope(journal):
+            continue
+        markers.append(marker)
         if not journal.is_file():
             raise ValueError('registered projection journal is missing: ' + str(journal))
         journals.add(journal)

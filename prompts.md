@@ -1,5 +1,19 @@
 # Prompts Log
 
+## Prompt v119 - 2026-11-08
+
+```text
+Run the full-suite skill on identifying coins that would make ideal candidates for a grid or dca strategy. What do the prices look like over time that would make that strategy the most profitable? What criteria could you use when looking at a set of coins which ones would be best suited for that?
+```
+
+Continuation choice:
+
+```text
+Use available Codex agents instead (Recommended)
+```
+
+This isolated checkout owns the necessary local-finalization prerequisite and generated proof-bound artifacts. Scope recovery to the current research run. Preserve unrelated journals, frozen outputs, and the maintained dirty checkout. Parent owns final Git delivery; no website deployment. Delta: prompt v118 to v119; memory v0.22.139 to v0.22.140.
+
 ## Prompt v118 - 2026-11-08
 
 ```text

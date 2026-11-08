@@ -1,5 +1,14 @@
 # Memory
 
+## v0.22.140 - 2026-11-08
+
+- Crypto grid/DCA full-suite prerequisite: `research_transaction.recover_pending` now accepts an optional keyword-only `scope_root`. The default keeps existing global recovery behavior. Scoped recovery leaves other authors' interrupted journals and registry markers unchanged.
+- `codex_dr_artifacts._transactional_finalize` passes the current run's existing artifacts/transactions directory. No live recovery or deployment was performed while implementing this guard.
+- Targeted transaction tests: 6 passed. Ruff passed for the helper, caller and tests; Python compilation passed. Tests cover own rollback, unrelated journal and marker byte preservation, unrelated missing registration, and backward-compatible global behavior.
+- Research remains private at `/Users/mitch/.global-ai-hub/research/crypto-coin-selection-for-grid-and-dca-strategies`. The accepted base gate reviewed 107 assertions: 89 supported and 18 non-assertions. Six quota-failed deeper attempts remain explicit; the user authorized native Codex replacements. New or changed assertions require fresh bound semantic review before final projections.
+- This sparse checkout starts at remote main `1282536faf9c822accf0b5caa43fff7f77a68896` on `research/grid-dca-finalization-20261108`. Parent owns review, push, checks and merge. Remaining work: finish native follow-ups, gate deltas, render/install the skill, finalize local projections serially, verify generated proof and deliver owned changes.
+- Delta: memory v0.22.139 to v0.22.140; prompt v118 to v119.
+
 ## v0.22.139 - 2026-11-08
 
 - TASK-1226: The requested Google seller row already occurs once in `site/public/ads.txt` on remote main. Preserve the existing entry; no duplicate or repository-root copy is needed.
