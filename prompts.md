@@ -1,5 +1,30 @@
 # Prompts Log
 
+## Prompt v121 - 2026-11-07
+
+> Implement your design I like it, do it the whoel way
+
+## Prompt v120 - 2026-11-07
+
+> I like this logo I need one just less than 150kb in png
+
+(Screenshot showed llmsx-mark.svg, llmsx-mark-reversed.svg, llmsx-favicon.svg.)
+
+## Prompt v119 - 2026-11-07
+
+> I need a logo
+
+## Prompt v118 - 2026-11-07
+
+> yes create a docs wiki
+
+Ran /project-docs-setup --lite.
+
+## Prompt v117 - 2026-11-07
+
+> https://llmsx.org/tree/
+
+Started from the Design System template. Interpreted as: build a design system from the llmsx.org concept tree page and the site/ code that serves it.
 ## Prompt v121 - 2026-11-08
 
 ````text
