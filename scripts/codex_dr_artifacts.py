@@ -456,7 +456,7 @@ def _transactional_finalize(shared, manifest: dict, claims: dict[str, dict], sta
     canonical = load_module("canonical_research_artifact", Path(__file__).with_name("research_artifact.py"))
     transactions = load_module("research_projection_transaction", Path(__file__).with_name("research_transaction.py"))
     root = shared.run_dir(manifest["slug"]) / "artifacts/transactions"
-    transactions.recover_pending(shared.RESEARCH_DIR, repo or repository())
+    transactions.recover_pending(shared.RESEARCH_DIR, repo or repository(), scope_root=root)
     artifact, path = canonical.build(shared, manifest, claims, status)
     transaction = transactions.Transaction(root / datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ"),
                                            registry=transactions.registry_dir(shared.RESEARCH_DIR))

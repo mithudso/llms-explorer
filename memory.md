@@ -1,5 +1,37 @@
 # Memory
 
+## v0.22.146 - 2026-11-08
+
+- Merge continuation: reconcile incoming main 26ed830f (TASK-905, PR 307) with the recovery-safety prerequisite head 535d5406 (PR 308) on research/grid-dca-finalization-20261108. Both log histories and all exact prompt text survive. Incoming memory v0.22.140 through v0.22.142 and prompt v119 remain unchanged; our unpublished memory entries now use v0.22.143 through v0.22.145 and our full-suite prompt uses v120.
+- Only the two conflicted append-only logs were resolved. The Git conflict stages provide the reversible originals. Fresh working-file hashes and stage identities were checked before writing. No source, generated artifact, private research, paused service or unrelated worktree was changed by this log resolution.
+- Remaining: parent must review and stage the resolved logs, finish the active merge, run the relevant checks and complete Git delivery. Native follow-up consolidation, fresh delta gates and subsequent generated-artifact delivery remain with the parent task; historical pending notes above and below remain preserved.
+- Delta: memory v0.22.145 to v0.22.146; prompt v120 to v121 records this merge-resolution instruction.
+
+## v0.22.145 - 2026-11-08
+
+- Delta: add projection ownership regressions to the existing remote research integrity test step.
+- .github/workflows/ci.yml now explicitly runs tests/test_research_transaction.py alongside gate/artifact tests, so equal/nested ownership and scoped-recovery regressions run in CI.
+- Local checks already passed:80 integration tests plus6 subtests,61 artifact/site/transaction tests plus6 subtests, Ruff and28-file sync validation.
+- Remaining: final prerequisite CI/merge; user-approved Codex research follow-ups are being consolidated and gated separately.
+- Delta: memory v0.22.144 to v0.22.145; prompt remains v120.
+
+## v0.22.144 - 2026-11-08
+
+- Added fail-closed pending-destination ownership checks to registry-backed projection transactions. Equal paths and ancestor/descendant paths conflict. Checks run before remember/write and before rollback or scoped recovery; the transaction excludes itself. Explicit unscoped administrative recovery retains serial recovery behavior.
+- A valid foreign shared-tree JSON document now triggers the ownership guard before finalization mutates it. Regression cases preserve the foreign output, journal and registry marker byte for byte, and cover disjoint writers and a write recheck after remember.
+- Validation: transaction/Codex integration 80 tests plus 6 subtests passed; transaction/artifact/site-sync 61 tests plus 6 subtests passed. Ruff, diff checks and 28-file Codex research skill synchronization passed. Only the isolated helper, tests and derived helper/manifest changed. No live journal recovery, deployment or global installation ran.
+- All six user-authorized native Codex follow-up contexts completed. Private consolidation and fresh delta gates remain pending; the previous accepted 107-assertion gate stays preserved. Parent owns Git delivery and subsequent generated-artifact delivery.
+- Delta: memory v0.22.143 to v0.22.144; prompt remains v120.
+
+## v0.22.143 - 2026-11-08
+
+- Crypto grid/DCA full-suite prerequisite: `research_transaction.recover_pending` now accepts an optional keyword-only `scope_root`. The default keeps existing global recovery behavior. Scoped recovery leaves other authors' interrupted journals and registry markers unchanged.
+- `codex_dr_artifacts._transactional_finalize` passes the current run's existing artifacts/transactions directory. No live recovery or deployment was performed while implementing this guard.
+- Targeted transaction tests: 6 passed. Ruff passed for the helper, caller and tests; Python compilation passed. Tests cover own rollback, unrelated journal and marker byte preservation, unrelated missing registration, and backward-compatible global behavior.
+- Research remains private at `/Users/mitch/.global-ai-hub/research/crypto-coin-selection-for-grid-and-dca-strategies`. The accepted base gate reviewed 107 assertions: 89 supported and 18 non-assertions. Six quota-failed deeper attempts remain explicit; the user authorized native Codex replacements. New or changed assertions require fresh bound semantic review before final projections.
+- This sparse checkout starts at remote main `1282536faf9c822accf0b5caa43fff7f77a68896` on `research/grid-dca-finalization-20261108`. Parent owns review, push, checks and merge. Remaining work: finish native follow-ups, gate deltas, render/install the skill, finalize local projections serially, verify generated proof and deliver owned changes.
+- Delta: memory v0.22.142 to v0.22.143; prompt v119 to v120.
+
 ## v0.22.142 - 2026-11-08
 
 - TASK-905: removed three task-added operator filesystem paths from the v0.22.140 continuation notes and prompt v119 metadata. Neutral run and repository identifiers retain the continuation context. The exact user request and all pre-task history remain unchanged.

@@ -1,5 +1,27 @@
 # Prompts Log
 
+## Prompt v121 - 2026-11-08
+
+````text
+Resolve ONLY merge conflicts in /Users/mitch/dev/llms-explorer-grid-dca-finalize-20261108/memory.md and /Users/mitch/dev/llms-explorer-grid-dca-finalize-20261108/prompts.md. Active Git merge on branch research/grid-dca-finalization-20261108 merges origin/main26ed830f (other author's completed Task905PR307) into our completed recovery-safety prerequisite PR308 head535d5406. Only these two append-only logs conflict; code merged cleanly. Preserve BOTH sides' full content, prompt text and durable records. Renumber only OUR unpublished log headers/delta references if needed so our additions follow incoming max version/prompt ID; do not alter other author's narrative/records. Add a concise current merge continuation note with incremented version/delta if appropriate. No truncation, no dropped hunks, no staging/commit/push/checkout/reset, no edits elsewhere. Before writes capture current hash/version and conflict stages; enforce fresh preconditions/readback. You are not alone; parent owns Git delivery, CFE sibling source edits are held during this merge. Source raw research, paused services and private output stay untouched. Return exact resolutions, target hashes, verification that no conflict markers remain and both semantic additions survive; parent will stage/commit merge.
+````
+
+Delegated workflow instruction for merge-log resolution; this is not a new user request. Parent owns staging, commit, checks and delivery. Delta: prompt v120 to v121; memory v0.22.145 to v0.22.146.
+
+## Prompt v120 - 2026-11-08
+
+```text
+Run the full-suite skill on identifying coins that would make ideal candidates for a grid or dca strategy. What do the prices look like over time that would make that strategy the most profitable? What criteria could you use when looking at a set of coins which ones would be best suited for that?
+```
+
+Continuation choice:
+
+```text
+Use available Codex agents instead (Recommended)
+```
+
+This isolated checkout owns the necessary local-finalization prerequisite and generated proof-bound artifacts. Scope recovery to the current research run. Preserve unrelated journals, frozen outputs, and the maintained dirty checkout. Parent owns final Git delivery; no website deployment. Delta: prompt v119 to v120; memory v0.22.142 to v0.22.143.
+
 ## Prompt v119 - 2026-11-08
 
 ````text
