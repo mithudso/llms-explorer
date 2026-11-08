@@ -8,7 +8,7 @@
       "title": "Structure and components",
       "facts": [
         {
-          "text": "OWASP recommends deny-by-default authorization and testing authorization checks. Atlas resource policies narrow existing RBAC permissions; their allow-by-default guardrail layer does not replace the underlying grant decision. Test allowed and denied configuration changes together. (low confidence)",
+          "text": "OWASP recommends deny-by-default authorization and creating tests that validate authorization is correctly enforced. Atlas resource policies are allow-by-default and can only restrict (forbid) actions; they do not grant permissions, so users can still perform only what their Atlas user role allows. Sources: https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html ; https://www.mongodb.com/docs/atlas/atlas-resource-policies.md",
           "source": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
           "note": null
         }
@@ -33,7 +33,7 @@
           "note": null
         },
         {
-          "text": "The Terraform provider (PR #4735, opened 2026-09-16, closed 2026-09-18) made secret_expires_after_hours optional on service account creation; omitting it sends withoutInitialSecret=true, documented as the recommended flow so an org-owned bootstrap secret does not live in Terraform state. (low confidence) (verified as of 2026-09-18)",
+          "text": "Terraform provider PR #4735 (opened 2026-09-16, closed 2026-09-18 without being merged) proposed making secret_expires_after_hours optional on service account creation; omitting it would have the provider set withoutInitialSecret: true on the create request, documented as the recommended flow so an org-owned bootstrap secret is not managed in Terraform state. The PR was closed, so it is not evidence that the change shipped. Sources: https://github.com/mongodb/terraform-provider-mongodbatlas/pull/4735",
           "source": "https://github.com/mongodb/terraform-provider-mongodbatlas/pull/4735",
           "note": null
         },
@@ -43,7 +43,7 @@
           "note": null
         },
         {
-          "text": "Atlas configuration of a Workload Identity Provider needs Issuer URI (resolved via /.well-known/openid-configuration), Audience, Authorization Type (User ID or Group Membership), User Claim (default sub, do not change) and a Groups Claim (default groups) when using group membership. Setup requires Organization Owner access, then linking the IdP to organizations and adding federated database users. (high confidence)",
+          "text": "Atlas configuration of a Workload Identity Provider needs Issuer URI (the OpenID Connect metadata document value without the /.well-known/openid-configuration part), Audience, Authorization Type (User ID or Group Membership), User Claim (default sub, do not modify) and a Groups Claim (default groups) when using group membership. Setup requires Organization Owner access, then adding federated database users. Sources: https://www.mongodb.com/docs/atlas/workload-oidc/",
           "source": "https://www.mongodb.com/docs/atlas/workload-oidc/",
           "note": null
         }
@@ -53,12 +53,12 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "Cedar's native model has both permit and forbid effects plus entities, scope and optional schema; Atlas exposes only the forbid subset, which is why Atlas policies cannot express allow-lists directly and use `unless` for allow-list-style constraints. (medium confidence)",
+          "text": "Cedar's native model has both permit and forbid effects, plus entities, a scope and a schema; Atlas Resource Policies allow only forbid (permit is not allowed), and use the `unless` clause to express allow-only-style constraints, such as permitting clusters only on Google Cloud. Sources: https://docs.cedarpolicy.com/overview/terminology.html ; https://www.mongodb.com/docs/atlas/atlas-resource-policies/",
           "source": "https://docs.cedarpolicy.com/overview/terminology.html",
           "note": null
         },
         {
-          "text": "Atlas service accounts authenticate via the OAuth 2.0 client-credentials flow: Basic-auth client ID:secret with grant_type=client_credentials sent to POST https://cloud.mongodb.com/api/oauth/token returns a Bearer JWT with expires_in 3600 (1 hour). Tokens are reusable within that hour and are replaced by requesting a new one before expiry (the access token cannot be refreshed). (high confidence)",
+          "text": "Atlas service accounts authenticate via the OAuth 2.0 client-credentials flow: Basic-auth client ID:secret with grant_type=client_credentials sent to POST returns a Bearer JWT with expires_in 3600 (1 hour). Tokens are reusable within that hour and are replaced by requesting a new one before expiry (the access token cannot be refreshed). (high confidence) Sources: https://www.mongodb.com/docs/atlas/api/service-accounts/generate-oauth2-token/ ; https://www.mongodb.com/docs/atlas/api/api-authentication/",
           "source": "https://www.mongodb.com/docs/atlas/api/service-accounts/generate-oauth2-token/",
           "note": null
         },
@@ -68,7 +68,7 @@
           "note": null
         },
         {
-          "text": "IP access lists apply to using a token, not to creating one: tokens can be minted from any IP but API calls with them are only accepted from listed IPs (403 access_denied on failure). Token requests are subject to API rate limits (429 with Retry-After). (low confidence)",
+          "text": "IP access lists apply to using a token, not to creating one: tokens can be minted from any IP but API calls with them are only accepted from listed IPs (403 access_denied on failure). Token requests are subject to API rate limits (429 with Retry-After). (low confidence) Sources: https://www.mongodb.com/docs/atlas/api/service-accounts/generate-oauth2-token/ ; https://mongodb.com/docs/atlas/api/service-accounts/generate-oauth2-token",
           "source": "https://www.mongodb.com/docs/atlas/api/service-accounts/generate-oauth2-token/",
           "note": null
         }
@@ -83,7 +83,7 @@
           "note": null
         },
         {
-          "text": "RFC 6749 section 4.4 describes client-credentials clients acting on their own behalf, requires client authentication, and says a refresh token SHOULD NOT be included. Separately, Atlas documents replacing its access token by requesting a new token rather than refreshing the existing access token. (medium confidence)",
+          "text": "RFC 6749 section 4.4 describes client-credentials clients acting on their own behalf, requires client authentication, and says a refresh token SHOULD NOT be included. Separately, Atlas documents replacing its access token by requesting a new token rather than refreshing the existing access token. (medium confidence) Sources: https://datatracker.ietf.org/doc/html/rfc6749 ; https://www.mongodb.com/docs/atlas/api/api-authentication/",
           "source": "https://datatracker.ietf.org/doc/html/rfc6749",
           "note": null
         },
@@ -123,12 +123,12 @@
           "note": null
         },
         {
-          "text": "Policies can be managed through the Atlas Admin API, Terraform (mongodbatlas_resource_policy), CloudFormation and the Atlas UI, so Cedar files can be versioned in Git and code-reviewed. (high confidence)",
+          "text": "Policies can be managed through the Atlas Admin API, Terraform (mongodbatlas_resource_policy), CloudFormation and the Atlas UI, so Cedar files can be versioned in Git and code-reviewed. (high confidence) Sources: https://www.mongodb.com/company/blog/7-new-resource-policies-strengthen-atlas-security ; https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/resource_policy.md ; https://aws.amazon.com/blogs/opensource/decoupling-authorization-at-scale-mongodb-atlas-and-cedar-based-resource-policies/",
           "source": "https://www.mongodb.com/company/blog/7-new-resource-policies-strengthen-atlas-security",
           "note": null
         },
         {
-          "text": "MongoDB recommends service accounts over API keys for the Atlas Administration API and calls API keys (HTTP Digest, public/private key pair) a legacy method. Service accounts became generally available on 2025-04-02. (high confidence) (verified as of 2026-10-01)",
+          "text": "MongoDB recommends service accounts over API keys for the Atlas Administration API and calls API keys (HTTP Digest, public/private key pair) a legacy method. Service accounts became generally available on 2025-04-02. (high confidence) (verified as of 2026-10-01) Sources: https://www.mongodb.com/docs/atlas/api/api-authentication/ ; https://www.mongodb.com/blog/post/introducing-mongodb-atlas-service-accounts-via-oauth-2-0",
           "source": "https://www.mongodb.com/docs/atlas/api/api-authentication/",
           "note": null
         },
@@ -168,7 +168,7 @@
           "note": null
         },
         {
-          "text": "Using '.*' as the groups-claim filter is discouraged: it pulls every group into the token and can push it past preAuthMaximumMessageSizeBytes (16 KiB default), causing auth failures; use a dedicated Atlas group naming prefix filter instead. (low confidence)",
+          "text": "Using '.*' as the groups-claim filter is discouraged: it pulls every group into the token and can push it past preAuthMaximumMessageSizeBytes (16 KiB default), causing auth failures; use a dedicated Atlas group naming prefix filter instead. (low confidence) Sources: https://www.mongodb.com/docs/atlas/security/oidc-okta-setup/",
           "source": "https://www.mongodb.com/docs/atlas/workforce-oidc/",
           "note": null
         },
@@ -193,7 +193,7 @@
           "note": null
         },
         {
-          "text": "Federated database users and groups can receive database roles, be temporary, and be restricted to selected clusters. Keep project/database authorization separate from organization-level IdP linkage; do not interpret org linkage as database access to every project. (low confidence) (verified as of 2026-10-01)",
+          "text": "Workforce federated database users and groups are added per project and can receive database roles (built-in, custom or specific privileges), can be temporary, and can be restricted to selected clusters and federated database instances. Connecting a Workforce IdP to an organization enables it for all projects in that organization, but it grants no database access by itself: users or groups still have to be added on each project's Database & Network Access page with roles. Sources: https://www.mongodb.com/docs/atlas/workforce-oidc/",
           "source": "https://www.mongodb.com/docs/atlas/workforce-oidc/",
           "note": null
         },
@@ -203,7 +203,7 @@
           "note": null
         },
         {
-          "text": "WIF was announced 2024-05-02 and became generally available 2024-06-05, initially with Java, C#, Node and Python drivers; current docs list Java 5.1+, .NET 2.25+, Go 1.17+, PyMongo 4.7+, Node 6.7+, Kotlin 5.1+, Rust 3.0+, Scala 5.1+. (medium confidence) (verified as of 2026-10-01)",
+          "text": "WIF was announced 2024-05-02 and became generally available 2024-06-05, initially with Java, C#, Node and Python drivers; current docs list Java 5.1+,.NET 2.25+, Go 1.17+, PyMongo 4.7+, Node 6.7+, Kotlin 5.1+, Rust 3.0+, Scala 5.1+. (medium confidence) (verified as of 2026-10-01) Sources: https://www.mongodb.com/blog/post/mongodb-introduces-workload-identity-federation-database-access ; https://www.mongodb.com/docs/atlas/workload-oidc/",
           "source": "https://www.mongodb.com/blog/post/mongodb-introduces-workload-identity-federation-database-access",
           "note": null
         },

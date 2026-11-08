@@ -1,8 +1,21 @@
 # Memory
 
+## v0.22.149 - 2026-11-08
+
+- Merge concurrent PR286 delivery without replacing its source tree, publication decisions, source readers, privacy metadata or logs. Add only this run's seven nodes and parent edge, then regenerate derived data from all tracked inputs. Preserve the existing v148 and research v147 entries. Delta: memory0.22.148 to0.22.149; prompt123.
+
 ## v0.22.147 - 2026-11-08
 
 - Full-suite artifact delivery preserves both existing research logs and incoming design/wiki history from origin/main. Historical version collisions in already published entries are retained verbatim. New delivery adds seven source-bound concept/aggregate projections and queue/CVS metadata; no raw evidence bodies or private extractive packs are published. Delta: memory0.22.146 to0.22.147; prompt122.
+
+## v0.22.148 - 2026-11-08
+
+- TASK-1228: Resolve PR 286 against main 30f00dc8 in an isolated worktree. Preserve the original dirty checkout.
+- Combine source tree changes, preserve canonical validation status and deletions, regenerate derived indexes, and retain both prompt/memory histories.
+- Independent audit replay passes for 88 canonical packs and a 261-passage extractive reader. Withhold 14 ungated/unverifiable readers. Preserve current main runtime contracts.
+- Validation passes: 1300 hub/research/script tests plus 12 subtests; 1012 site/CLI tests; site build/publication, privacy (25 denylist terms), Ruff, Astro check and generator parity. Push, final CI and merge commit remain.
+- Continuation record: docs/maintenance/pr-286-2026-11-08/memory.md.
+- Delta: memory 0.22.146 to 0.22.148; prompt v122.
 
 ## v0.22.140 - 2026-11-07
 

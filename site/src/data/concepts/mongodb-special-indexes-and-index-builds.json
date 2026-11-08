@@ -88,7 +88,7 @@
           "note": null
         },
         {
-          "text": "An index build is not stopped if there is insufficient available disk space.",
+          "text": "In MongoDB versions before 7.1, an index build is not stopped if there is insufficient available disk space. Starting in MongoDB 7.1, an index build may be automatically stopped if the available disk space is below the minimum set by the indexBuildMinAvailableDiskSpaceMB parameter, unless a member has already voted to commit the index. Sources: https://www.mongodb.com/docs/manual/core/index-creation.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
@@ -333,7 +333,7 @@
           "note": null
         },
         {
-          "text": "A community forum test reported that hiding an index on the primary also showed as hidden on a secondary, i.e. the hide replicates (anecdotal, single test). Because the toggle is a collMod oplog entry, it is expected to replicate.",
+          "text": "A community forum test reported that hiding an index on the primary also showed as hidden on a secondary, i.e. the hide replicates (anecdotal, single test). Because the toggle is a collMod oplog entry, it is expected to replicate. Sources: https://www.mongodb.com/community/forums/t/hiding-index-replication-ops-manager/270730 ; https://www.mongodb.com/docs/manual/reference/method/db.collection.hideindex/",
           "source": "https://www.mongodb.com/community/forums/t/hiding-index-replication-ops-manager/270730",
           "note": null
         },
@@ -553,7 +553,7 @@
           "note": null
         },
         {
-          "text": "Since MongoDB 4.2 all index builds use one optimized process: an exclusive X lock on the collection only at the start and end, with the middle phase downgraded to IX and yielding to reads and writes. The old foreground/background distinction is gone and the `background` option is ignored.",
+          "text": "Since MongoDB 4.2 all index builds use one optimized process: an exclusive X lock on the collection only at the start and end, with the middle phase downgraded to IX and yielding to reads and writes. The old foreground/background distinction is gone and the `background` option is ignored. Sources: https://www.mongodb.com/docs/v4.2/reference/command/createIndexes.md ; https://www.mongodb.com/docs/manual/core/index-creation.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation.md",
           "note": null
         },
@@ -1143,7 +1143,7 @@
       "title": "Measurements and reference values",
       "facts": [
         {
-          "text": "With the default votingMembers quorum, an unreachable data-bearing voting member makes the createIndexes hang until it returns. Percona's test (3-node, one down) ran about 4,678 s; the index was listed by getIndexes() but unusable and queries used COLLSCAN. With 'majority' the same build finished in about 2.5 s.",
+          "text": "With the default votingMembers quorum, an unreachable data-bearing voting member makes the createIndexes hang until it returns. Percona's test (3-node, one down) ran about 4,678 s; the index was listed by getIndexes() but unusable and queries used COLLSCAN. With 'majority' the same build finished in about 2.5 s. Sources: https://www.mongodb.com/docs/manual/core/index-creation/ ; https://www.percona.com/blog/commitquorum-in-index-creation-from-percona-server-for-mongodb-4-4/",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
@@ -1178,7 +1178,7 @@
           "note": null
         },
         {
-          "text": "commitQuorum accepts 'votingMembers' (default, all data-bearing voting members), 'majority', a positive integer, a replica-set tag name, or 0. Nodes with buildIndexes:false cannot be in a quorum, so if any voting node has buildIndexes:false the default votingMembers cannot be used.",
+          "text": "commitQuorum accepts \"votingMembers\" (default, all data-bearing voting members), \"majority\", an integer number of data-bearing members, or a replica-set tag name. Nodes with buildIndexes:false cannot be in a quorum, so if any voting node has buildIndexes:false the default votingMembers cannot be used. A commitQuorum of 0 disables commit quorum (per MongoDB Jira SERVER-103659; that ticket was fixed in 8.3.0-rc0 with a proposal to upgrade 0 to 1, so behavior in 8.3+ is not confirmed). Sources: https://www.mongodb.com/docs/manual/reference/command/createIndexes.md ; https://www.mongodb.com/docs/manual/reference/command/setIndexCommitQuorum.md ; https://jira.mongodb.org/browse/SERVER-103659",
           "source": "https://www.mongodb.com/docs/manual/reference/command/createIndexes/",
           "note": null
         },
@@ -1668,7 +1668,7 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "Stop an in-flight build with dropIndexes (or dropIndex helpers), not killOp: the docs say not to use killOp on replica sets or sharded clusters. dropIndexes aborts the build via abortIndexBuild, and it must name every index from the same createIndexes batch. Percona's post instead says killOp cancels the build, which conflicts with the docs.",
+          "text": "Stop an in-flight build with dropIndexes (or the dropIndex()/dropIndexes() helpers), not killOp: the docs say not to use killOp to terminate in-progress index builds in replica sets or sharded clusters. On a replica set, run dropIndexes on the primary; the primary stops the build and creates an \"abortIndexBuild\" oplog entry, which secondaries replicate to stop and discard the build. Sources: https://www.mongodb.com/docs/manual/core/index-creation.md ; https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
           "note": null
         },
@@ -1898,7 +1898,7 @@
           "note": null
         },
         {
-          "text": "Per-index size is available from the indexSizes document in db.collection.stats() (collStats); $indexStats gives per-index usage counters used to find unused indexes before dropping them.",
+          "text": "Per-index size is available from the indexSizes document in db.collection.stats() (collStats); $indexStats gives per-index usage counters used to find unused indexes before dropping them. Sources: https://www.mongodb.com/docs/manual/reference/command/collStats.md ; https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes.md",
           "source": "https://www.mongodb.com/docs/manual/faq/indexes.md",
           "note": null
         },
@@ -1998,7 +1998,7 @@
           "note": null
         },
         {
-          "text": "db.collection.hideIndex() and unhideIndex() are mongosh wrappers for the collMod command (index.hidden option). They accept an index name or key document; a text index must be hidden by name. Required privilege is collMod on the database (built-in role dbAdmin). Hiding an already hidden index is a no-op that still writes an empty oplog entry.",
+          "text": "db.collection.hideIndex() and unhideIndex() are mongosh wrappers for the collMod command (index.hidden option). They accept an index name or key document; a text index must be hidden by name. Required privilege is collMod on the database (built-in role dbAdmin). Hiding an already hidden index is a no-op that still writes an empty oplog entry. Sources: https://www.mongodb.com/docs/manual/reference/method/db.collection.hideIndex.md ; https://www.mongodb.com/docs/manual/reference/method/db.collection.unhideIndex.md",
           "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.hideIndex/",
           "note": null
         },
@@ -2088,7 +2088,7 @@
           "note": null
         },
         {
-          "text": "In the 9.0 manual, hiding an index (hideIndex / collMod) and creating one with createIndex({...},{hidden:true}) both require featureCompatibilityVersion 7.0 or greater. Earlier manual versions listed lower thresholds (4.4 for the original feature), so check the FCV of an older deployment.",
+          "text": "In the current manual, hiding an index (hideIndex / collMod) and creating one with createIndex({...},{hidden:true}) both require featureCompatibilityVersion 7.0 or greater. Sources: https://www.mongodb.com/docs/manual/core/index-hidden.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-hidden/",
           "note": null
         },
@@ -2523,7 +2523,7 @@
           "note": null
         },
         {
-          "text": "Compound wildcard indexes were introduced in MongoDB 7.0. They hold one wildcard term plus one or more regular terms, e.g. { tenantId: 1, \"customFields.$**\": 1 } or { Region: 1, \"Attributes.$**\": 1 }, and target the attribute pattern so one index serves many dynamic sub-field queries.",
+          "text": "Compound wildcard indexes were introduced in MongoDB 7.0. They hold one wildcard term plus one or more regular terms, e.g. { tenantId: 1, \"customFields.$**\": 1 }, and target the attribute pattern so one index serves many dynamic sub-field queries. Sources: https://www.mongodb.com/docs/v7.0/core/indexes/index-types/index-wildcard/index-wildcard-compound.md",
           "source": "https://mongodb.com/docs/v7.0/core/indexes/index-types/index-wildcard/index-wildcard-compound",
           "note": null
         },
@@ -2533,7 +2533,7 @@
           "note": null
         },
         {
-          "text": "A wildcard index can satisfy a sort only if the planner picks it for the predicate, the sort names only the predicate field, and that field is never an array. A covered query additionally needs exactly one wildcard-covered predicate field and a projection that excludes _id and includes only that field.",
+          "text": "A wildcard index can satisfy a sort only if the planner picks it for the predicate, the sort names only the predicate field, and that field is never an array. A covered query additionally needs exactly one wildcard-covered predicate field and a projection that excludes _id and includes only that field. Sources: https://www.mongodb.com/docs/upcoming/core/indexes/index-types/index-wildcard/reference/restrictions/ ; https://www.mongodb.com/docs/manual/core/index-wildcard/",
           "source": "https://www.mongodb.com/docs/upcoming/core/indexes/index-types/index-wildcard/reference/restrictions/",
           "note": null
         },
@@ -3093,7 +3093,7 @@
           "note": null
         },
         {
-          "text": "Hiding an unhidden index, or unhiding a hidden one, resets that index's $indexStats counters. Hiding an already hidden index (or unhiding an unhidden one) does not reset them. Usage counts gathered before the toggle are lost, so record them first.",
+          "text": "Hiding an unhidden index, or unhiding a hidden one, resets that index's $indexStats counters. Hiding an already hidden index (or unhiding an already unhidden one) does not reset them. Sources: https://www.mongodb.com/docs/manual/core/index-hidden.md",
           "source": "https://www.mongodb.com/docs/manual/core/index-hidden/",
           "note": null
         },

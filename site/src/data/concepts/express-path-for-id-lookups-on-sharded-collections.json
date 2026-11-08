@@ -8,7 +8,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "When assessing coverage, run explain with executionStats and examine document-examination counts alongside the stage names. Covered execution must answer from index keys without examining collection documents; an Express stage label alone is insufficient evidence. (medium confidence)",
+          "text": "When assessing coverage, run explain with executionStats and examine document-examination counts (totalDocsExamined) alongside the stage names. A covered query can match the query conditions and return results using only the index keys, without examining collection documents. Sources: https://www.mongodb.com/docs/manual/reference/explain-results.md",
           "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md",
           "note": null,
           "claimId": "clm:79ed4cc2c377d939f725f32b931c625385940d95008b83c490266c6a7acc5514",
@@ -20,7 +20,12 @@
           ],
           "also": [
             "https://github.com/mongodb/mongo/blob/v8.0/src/mongo/db/exec/express/express_plan.h"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:a03c9d090a804a1f681da8704ae30b1acd62ce457eadd3e654159ef6e55009f7",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:36:37Z"
+          }
         },
         {
           "text": "In the MongoDB v8.0 implementation, makeExpressExecutorForFindById constructs IdLookupViaIndex and passes an optional ScopedCollectionFilter to the Express plan. Sharded execution therefore need not fall back merely because a collection filter is required. This is implementation evidence, not a guarantee that every _id query is eligible. (high confidence)",
@@ -54,15 +59,21 @@
       "title": "How-to and procedures",
       "facts": [
         {
-          "text": "To assess coverage, request executionStats through mongos and inspect every accessed shard, including totalDocsExamined. Coverage requires matching and returning results from index keys without examining collection documents. An empty lookup with zero examined documents alone does not demonstrate coverage for matching records. (high confidence)",
-          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md",
+          "text": "To assess coverage on a sharded collection, request executionStats through mongos; explain includes the execution statistics for each accessed shard, so inspect each shard, including totalDocsExamined. Coverage requires matching and returning results using only the index keys, without examining collection documents. Sources: https://mongodb.com/docs/v6.2/reference/explain-results ; https://www.mongodb.com/docs/manual/reference/explain-results.md",
+          "source": "https://mongodb.com/docs/v6.2/reference/explain-results",
           "note": null,
           "claimId": "clm:ae196b9b5901bdc6c73992fd720d0af467f389de490e01c7b3f1852d7bf671ca",
           "validationStatus": "NOT-SAMPLED",
           "evidenceIds": [],
           "also": [
-            "https://github.com/mongodb/mongo/blob/v8.0/src/mongo/db/exec/express/express_plan.h"
-          ]
+            "https://github.com/mongodb/mongo/blob/v8.0/src/mongo/db/exec/express/express_plan.h",
+            "https://www.mongodb.com/docs/manual/reference/explain-results.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:f976de25b93bc7ee3a95329937b645b88e44290daf27ec20c3598168c804680b",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:36:37Z"
+          }
         }
       ]
     },
@@ -133,7 +144,7 @@
           ]
         },
         {
-          "text": "SERVER-98300 documents that Express can perform shard filtering for simple find-by-key reads while explain shows only EXPRESS_IXSCAN on _id_, so absence of a separate SHARDING_FILTER stage does not prove absence of that work. (medium confidence)",
+          "text": "SERVER-98300 documents that the Express path performs shard filtering in some cases for simple find-by-key reads in sharded deployments, yet explain shows only EXPRESS_IXSCAN on _id_ with no indication that filtering occurred, so the absence of a separate SHARDING_FILTER stage does not prove that no shard filtering happened. The ticket is an unresolved improvement request. Sources: https://jira.mongodb.org/browse/SERVER-98300",
           "source": "https://jira.mongodb.org/browse/SERVER-98300",
           "note": null,
           "claimId": "clm:a306785cebedc8962d9ea5711a39cf4d554aa8083a569e04fd4c34248a15b9bd",
@@ -143,11 +154,16 @@
           ],
           "also": [
             "https://github.com/mongodb/mongo/blob/v8.0/src/mongo/db/query/plan_executor_express.cpp"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:284024537c8c447ad44cf123805f523fac636ede43982bf4db1cbea5060865bd",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:36:37Z"
+          }
         },
         {
-          "text": "Express lookup execution and mongos targeting are separate concerns. For an _id-only find where _id supplies no shard-key field or compound shard-key prefix, mongos broadcasts to all shards; a fast local lookup does not remove that fan-out. (medium confidence)",
-          "source": "https://www.mongodb.com/docs/manual/sharding.md",
+          "text": "For a find that does not include the shard key (for example an _id-only find where _id is not the shard key or a shard-key prefix), mongos must query all shards, i.e. it performs a broadcast operation. Sources: https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md",
           "note": null,
           "claimId": "clm:4455e9b384103f9fb47c3c75b21a753a052e55aa70da12f26b7750af340cd1ad",
           "validationStatus": "SUPPORTED",
@@ -157,7 +173,12 @@
           ],
           "also": [
             "https://github.com/mongodb/mongo/blob/v8.0/src/mongo/db/query/plan_executor_express.cpp"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:5fe37a5ffd318082475a85b1d16e44b4ade8993e067574e8e597ea081252d603",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T09:36:37Z"
+          }
         },
         {
           "text": "Anjum reports EXPRESS_IXSCAN for a unique orderNo lookup in a standalone MongoDB 9.0.4 benchmark. That original experiment supplies independent evidence of Express execution but does not measure sharded _id lookups or isolate Express speedup. (low confidence) (verified as of 2026-10-29)",

@@ -1,10 +1,18 @@
 # Prompts Log
 
-## Prompt v122 - 2026-11-08
+## Prompt v123 - 2026-11-08
 
 Run the full-suite skill on identifying coins that would make ideal candidates for a grid or dca strategy. What do the prices look like over time that would make that strategy the most profitable? What criteria could you use when looking at a set of coins which ones would be best suited for that?
 
 Follow-up: Use available Codex agents instead (Recommended). This delivery contains the accepted research projections, separate from the already merged recovery-safety prerequisite.
+
+## Prompt v122 - 2026-11-08
+
+```text
+resolve the conflicts in the https://github.com/mithudso/llms-explorer/pull/286 pr and merge commit pr
+```
+
+TASK-1228. Resolve PR 286 in isolation, validate final changes, and merge with a merge commit. Preserve unrelated work. Delta: prompt v121 to v122.
 
 ## Prompt v121 - 2026-11-07
 

@@ -13,7 +13,7 @@
           "note": null
         },
         {
-          "text": "The bucket catalog is an in-memory cache in WiredTiger that tracks open buckets to coordinate concurrent writes. Its memory use grows with the number of distinct metaField values open at once.",
+          "text": "The bucket catalog is a specialized in-memory cache in WiredTiger that tracks buckets to minimize latency and coordinate concurrent writes. Because MongoDB creates separate buckets for documents with a different metaField, multiple buckets are typically open at the same time, and the catalog is limited to a total memory allocation (by default 2.5% of available system memory). Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing.md",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
           "note": null
         },
@@ -463,7 +463,7 @@
           "note": null
         },
         {
-          "text": "Because buckets group by exact metaField value, many unique metaField values produce many sparse buckets, which lowers query efficiency; pushdown then prunes fewer useful buckets.",
+          "text": "Because metaField values must match exactly to group documents, the number of buckets depends on the number of unique metaField values. Collections with fine-grained or changing metaField values generate many sparsely packed, short-lived buckets, which decreases storage and query efficiency. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing.md",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices.md",
           "note": null
         },
@@ -573,7 +573,7 @@
           "note": null
         },
         {
-          "text": "During 8.0 development, Jira SERVER-88316 (fixed in 8.0.0-rc0) showed the server using block processing for a GroupByNull test case with only featureFlagSbeFull set, when the test expected none. This shows the block-processing decision depended on several feature flags.",
+          "text": "Jira SERVER-88316 (fixed in 8.0.0-rc0) reports that timeseries_group.js passed when run with featureFlagTimeSeriesInSbe, featureFlagSbeBlockHashAgg and featureFlagSbeFull all enabled, but failed with only featureFlagSbeFull on mongod: block processing was used for the GroupByNull test case while the test expected it not to be. The ticket says the true root cause may be incorrect determination in the server code of whether to use block processing. Sources: https://jira.mongodb.org/browse/SERVER-88316",
           "source": "https://jira.mongodb.org/browse/SERVER-88316",
           "note": null
         },
@@ -628,7 +628,7 @@
           "note": null
         },
         {
-          "text": "Granularity must match per-source ingest interval: 'seconds' (1h bucket span) with sparse data leads to buckets with a single document; 'hours' (30-day span) leads to longer traversal. Custom bucketMaxSpanSeconds/bucketRoundingSeconds exist since 6.3. Granularity mismatch compounds metaField cardinality fragmentation.",
+          "text": "Granularity must match per-source ingest interval: 'seconds' (1h bucket span) with sparse data leads to buckets with a single document; 'hours' (30-day span) leads to longer traversal. Custom bucketMaxSpanSeconds/bucketRoundingSeconds exist since 6.3. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices.md",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices.md",
           "note": null
         },
@@ -1748,12 +1748,12 @@
           "note": null
         },
         {
-          "text": "A MongoDB staff forum answer (March 2022) gave an informal rule of thumb of RAM at 15-20% of total data size, covering indexes, working set, queries and OS. It is not an official time-series formula and cites MongoDB 4.0 docs.",
+          "text": "A MongoDB community forum answer (March 8, 2022) gave an informal rule of thumb of RAM at 15 to 20% of total data size, with RAM covering indexes, working set, queries and the operating system. The answer says it is a general direction and not valid for all use cases. Sources: https://www.mongodb.com/community/forums/t/working-set-should-be-sized-to-fit-into-ram-or-wiredtiger-internal-cache/140684",
           "source": "https://www.mongodb.com/community/forums/t/working-set-should-be-sized-to-fit-into-ram-or-wiredtiger-internal-cache/140684",
           "note": null
         },
         {
-          "text": "A new bucket is created when the metaField matches no active bucket, the timestamp is outside all active buckets' ranges, or the doc exceeds remaining size/count limits. Buckets close at 1000 docs by default, 125KiB size cap, when the active bucket set exceeds storage-engine cache, or when the bucket catalog exceeds its memory allocation (default 2.5% of system memory). High cardinality means many open buckets and so earlier closures.",
+          "text": "A new bucket is created when the metaField matches no active bucket, the timestamp is outside all active buckets' ranges, or the doc exceeds remaining size/count limits. Buckets close at 1000 docs by default, 125KiB size cap, when the active bucket set exceeds storage-engine cache, or when the bucket catalog exceeds its memory allocation (default 2.5% of system memory). High cardinality means many open buckets and so earlier closures. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing.md ; https://jira.mongodb.org/browse/SERVER-69899",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing.md",
           "note": null
         },
@@ -1808,7 +1808,7 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "Since MongoDB 6.3 the server automatically creates a compound index on the metaField and timeField for new time series collections. No index exists on _id; a hint on _id fails unless the user creates that index, and in 8.3 an index or hint named \"_id_\" returns an error.",
+          "text": "Since MongoDB 6.3 the server automatically creates a compound index on the metaField and timeField for new time series collections. No index exists on _id; a hint on _id fails unless the user creates that index, and in 8.3 an index or hint named \"_id_\" returns an error. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md ; https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations.md",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md",
           "note": null
         },
@@ -1873,7 +1873,7 @@
           "note": null
         },
         {
-          "text": "Forum reports show a blank-filter sort on timeField descending produces a backward COLLSCAN on system.buckets followed by $_internalUnpackBucket, with multi-second runtimes and memory-limit errors unless allowDiskUse is set; explain on a time series collection reports the bucket collection plan.",
+          "text": "A forum report shows a blank-filter query sorted on timeField descending producing a backward COLLSCAN on the system.buckets collection followed by $_internalUnpackBucket, with a memory-limit error unless allowDiskUse is enabled; with allowDiskUse the query still took about 500 ms (not multiple seconds) on 100,000 documents. explain on a time series collection reports the bucket collection plan (namespace system.buckets.<name>). Sources: https://www.mongodb.com/community/forums/t/is-sorting-in-mongodb-supposed-to-be-very-slow-and-memory-consuming/229344",
           "source": "https://www.mongodb.com/community/forums/t/is-sorting-in-mongodb-supposed-to-be-very-slow-and-memory-consuming/229344",
           "note": null
         },
@@ -1943,12 +1943,12 @@
           "note": null
         },
         {
-          "text": "Anti-pattern: using a unique per-device ID (e.g. UUID) as a top-level string metaField makes one bucket per ID per time window (example: 100,000 UUIDs -> 100,000 buckets). The blog suggests grouping attributes (region, device type) with the raw ID as a subfield so region queries still co-locate. Blog advice, not MongoDB-endorsed; blog gives no numeric threshold.",
+          "text": "Anti-pattern: using a unique per-device ID (e.g. UUID) as a top-level string metaField makes one bucket per ID per time window (example: 100,000 UUIDs -> 100,000 buckets). The blog suggests grouping attributes (region, device type) with the raw ID as a subfield so region queries still co-locate. Blog advice, not MongoDB-endorsed; blog gives no numeric threshold. Sources: https://oneuptime.com/blog/post/2026-03-31-mongodb-time-series-metafields/view",
           "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-time-series-metafields/markdown",
           "note": null
         },
         {
-          "text": "Anti-pattern: putting measurement values (temperature, CPU) or frequently changing status flags in the metaField forces a new bucket whenever the value changes.",
+          "text": "Anti-pattern: putting fields that change often (or are not used for filtering) in the metaField. A document whose metaField value doesn't match any active bucket goes into a new bucket, so changing metaField values generate many sparsely packed, short-lived buckets and decrease storage and query efficiency; use such fields as measurements instead. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/ ; https://www.mongodb.com/docs/manual/core/timeseries/timeseries-considerations.md",
           "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-time-series-metafields/markdown",
           "note": null
         },
@@ -2368,7 +2368,7 @@
           "note": null
         },
         {
-          "text": "Query tip: MongoDB reorders object metaField contents, so query scalar sub-fields (e.g. metaField.sensorId) rather than equality on the whole metaField object. Arrays as metaField may behave unexpectedly because array equality is order-dependent. The metaField field itself cannot be redefined after creation.",
+          "text": "Query tip: MongoDB reorders object metaField contents, so query scalar sub-fields (e.g. metaField.sensorId) rather than equality on the whole metaField object. Arrays as metaField may behave unexpectedly because array equality is order-dependent. The metaField field itself cannot be redefined after creation. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices.md ; https://www.mongodb.com/docs/manual/core/timeseries/timeseries-considerations.md",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices.md",
           "note": null
         },
@@ -2453,7 +2453,7 @@
           "note": null
         },
         {
-          "text": "SERVER-63279: pushing a metaField predicate past a stage that changes document contents (for example $project) returned wrong results. Affected 5.0.5 and 5.2.0; fixed in 5.0.7, 5.2.2 and 5.3.0. After the fix, a $match placed after a document-reshaping stage may stay after the unpack and cost more.",
+          "text": "SERVER-63279: pushing a metaField predicate past a stage that changes document contents (for example $project) could return incorrect results. It affected 5.2.0 and 5.0.5 and was fixed in 5.3.0, 5.0.7 and 5.2.2. Sources: https://jira.mongodb.org/browse/SERVER-63279",
           "source": "https://jira.mongodb.org/browse/SERVER-63279",
           "note": null
         },
@@ -2498,7 +2498,7 @@
           "note": null
         },
         {
-          "text": "Guidance on field roles: use the metaField index for filtering and equality, and use the timeField and other indexed fields for range queries. If timeField values fall before 1970-01-01 or after 2038-01-19, create an index on the timeField to keep queries fast.",
+          "text": "Guidance on field roles: use the metaField index for filtering and equality, and use the timeField and other indexed fields for range queries. If timeField values fall before 1970-01-01 or after 2038-01-19, create an index on the timeField to keep queries fast. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-index.md ; https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations.md",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-index.md",
           "note": null
         },
@@ -2513,7 +2513,7 @@
           "note": null
         },
         {
-          "text": "Put metaField and time-range $match stages first in the pipeline, and index the metaField (and time) fields. A leading $match on indexed meta fields restricts the buckets that get unpacked; a compound index on meta subfields supports a $match then $group pattern in place of distinct().",
+          "text": "Create secondary indexes on the timeField and metaField; use the metaField index for filtering and equality and the timeField for range queries. MongoDB attempts to push predicates on the metaField past the bucket-unpacking stage so it can avoid unpacking buckets when possible. Instead of distinct(), create a compound index on meta subfields and use a $match then $group aggregation. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices.md ; https://jira.mongodb.org/browse/SERVER-63279",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices.md",
           "note": null
         },
@@ -2543,7 +2543,7 @@
           "note": null
         },
         {
-          "text": "2dsphere indexes can be created on the timeField, metaField or measurement fields since 6.0, per the secondary index page. The OneUptime blog says they are supported only on metaField subfields. Time series collections support only $geoNear for sorting by distance; $near and $nearSphere do not work.",
+          "text": "Since MongoDB 6.0, 2dsphere indexes can be created on the timeField, metaField, or measurement fields of a time series collection. Time series collections only support the $geoNear aggregation stage for sorting geospatial data; the $near and $nearSphere operators cannot be used. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md ; https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations.md",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md",
           "note": null
         },
@@ -2598,7 +2598,7 @@
           "note": null
         },
         {
-          "text": "Granularity mismatch inflates bucket count or traversal cost: granularity 'hours' for 5-minute data puts up to a month of events in one bucket (slower queries); 'seconds' creates many single-document buckets. Granularity or bucketing span can later be increased but not decreased.",
+          "text": "Granularity mismatch inflates bucket count or traversal cost: granularity 'hours' for 5-minute data puts up to a month of events in one bucket (slower queries); 'seconds' creates many single-document buckets. Granularity or bucketing span can later be increased but not decreased. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices.md ; https://www.mongodb.com/docs/manual/core/timeseries/timeseries-granularity.md",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices/",
           "note": null
         },
@@ -2688,7 +2688,7 @@
           "note": null
         },
         {
-          "text": "Collection data in the WiredTiger cache is uncompressed, so block compression saves disk but not cache space; the OS filesystem cache holds the compressed on-disk form. Indexes in cache still benefit from prefix compression. Compressed time series storage size therefore understates the cache footprint of hot buckets.",
+          "text": "In WiredTiger, collection data in the internal cache is uncompressed, so block compression saves disk but not cache space; the OS filesystem cache holds the same form as the on-disk files. Indexes in cache still benefit from prefix compression. For time series collections, column compression (5.2+) also significantly reduces space used in the WiredTiger cache. Sources: https://www.mongodb.com/docs/manual/faq/storage/ ; https://www.mongodb.com/docs/manual/core/timeseries/timeseries-compression.md",
           "source": "https://www.mongodb.com/docs/manual/faq/storage/",
           "note": null
         },
@@ -2748,7 +2748,7 @@
           "note": null
         },
         {
-          "text": "Before downgrading the feature compatibility version, drop every time series secondary index that the lower FCV does not support. Otherwise the downgrade is blocked.",
+          "text": "Before downgrading the feature compatibility version, drop every time series secondary index that the lower FCV does not support. Otherwise the downgrade is blocked. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-index.md ; https://www.mongodb.com/docs/manual/reference/command/setfeaturecompatibilityversion.md",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-index.md",
           "note": null
         },
@@ -2928,7 +2928,7 @@
           "note": null
         },
         {
-          "text": "MongoDB's docs state a bucket holds at most 1000 measurements or 125 KiB, whichever is lower, and MongoDB may enforce a lower maximum for high-cardinality data so the working set of buckets fits in the WiredTiger cache.",
+          "text": "MongoDB closes a bucket when it hits the document limit (default 1000) or exceeds its size limit (default 125KiB), and also closes buckets when the set of active buckets doesn't fit within the allowed storage engine cache size. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
           "note": null
         },

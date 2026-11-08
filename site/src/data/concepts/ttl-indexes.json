@@ -8,26 +8,18 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "TTL cleanup is asynchronous. The background task runs every 60 seconds, but because removal duration depends on workload, expired data may exist for some time beyond that interval. Sources: https://www.mongodb.com/docs/manual/core/index-ttl.md",
+          "text": "TTL cleanup is asynchronous. The background task normally runs every 60 seconds, but load and deletion backlogs can extend retention beyond that interval. Therefore, applications requiring exact expiry should check expiration timestamps when reading or authorizing access. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/index-ttl.md",
           "note": null,
           "claimId": "clm:adbb4d36c616446d49288f814fed6eb9086f44ef349026b8fe04009b3e1db022",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2dcee7da56f047ad55eabc0de1d5442bd742cdfa15f6f2effd55909fe8eda7eb"
+          ],
           "also": [
             "https://www.percona.com/blog/mongodb-index-usage-and-mongodb-explain-part-1/",
             "https://www.alibabacloud.com/help/en/mongodb/use-cases/best-practices-for-ttl-indexes-in-apsaradb-for-mongodb"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
-            "ev:2dcee7da56f047ad55eabc0de1d5442bd742cdfa15f6f2effd55909fe8eda7eb"
-          ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "355147b828bc5c0cda0093e4d28c5992b263a00755a1c248c6d15c2390458def"
-          }
+          ]
         }
       ]
     },
@@ -121,25 +113,17 @@
           ]
         },
         {
-          "text": "TTL cleanup alone cannot guarantee timely removal of expired records, because MongoDB does not guarantee that expired data is deleted immediately upon expiration. Sources: https://www.mongodb.com/docs/manual/core/index-ttl.md",
+          "text": "Application inference: enforce a strict session or token deadline when reading or authorizing access; TTL cleanup alone cannot guarantee timely rejection of expired records. (medium confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/index-ttl.md",
           "note": null,
           "claimId": "clm:a58e44227892f9eedad929ac4dc1e0d23bfb930405b4174fd56311ae1135d63c",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "also": [
-            "https://www.mongodb.com/docs/manual/tutorial/expire-data.md"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:2dcee7da56f047ad55eabc0de1d5442bd742cdfa15f6f2effd55909fe8eda7eb"
           ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "d9a013b8eeb50da0ed29908b68eda447703377db8b571c4680d06d8eb4db5154"
-          }
+          "also": [
+            "https://www.mongodb.com/docs/manual/tutorial/expire-data.md"
+          ]
         },
         {
           "text": "For PBM logical restores of time series collections with collection-level expireAfterSeconds, Percona warns that TTL can remove buckets needed by oplog replay. Its current procedure disables the monitor on each data-bearing target and restores its original setting afterward; it explicitly excludes regular TTL indexes from this failure. (low confidence) (verified as of 2026-10-05)",
@@ -271,24 +255,16 @@
           ]
         },
         {
-          "text": "SERVER-92779 reports that if more than TTLIndexDeleteTargetDocs expired orphan (unowned) documents exist for a TTL index, more recently expired documents cannot be removed by the TTLMonitor through the index. The issue lists 6.1.0-rc0, 7.0.0 and 8.0.0 as affected and was Unresolved with no fix version when last updated on Oct 30 2026. Sources: https://jira.mongodb.org/browse/SERVER-92779",
+          "text": "SERVER-92779 reports that enough expired orphan or unowned documents can stall TTL deletion of owned documents during chunk migration. The issue lists 6.1.0-rc0, 7.0.0 and 8.0.0 as affected and remained unresolved in its May 14, 2026 update. (low confidence) (verified as of 2026-05-14)",
           "source": "https://jira.mongodb.org/browse/SERVER-92779",
           "note": null,
           "claimId": "clm:a3620038e573a0a8a72dcbca273c55765a56920a5df1d227e66e2ebefb6303ce",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:239dbea3f943f9aa4c0ac094778c89616aaee3ea90ba70e8508bc8072489d103",
             "ev:a70d6a1ad52778a1d39d704e98c78c594354956df2faee4254ba5e01ca5c289f",
             "ev:c3f90b21f95af258092e20f7f008f8072e619767d4ffe9f262c8c76979ffd097"
-          ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "40eef94def472f9a61ea069a10bc9a99a6079d509637c0b1e394124585f1e711"
-          }
+          ]
         },
         {
           "text": "SERVER-56274 documented much slower TTL deletion with descending indexes on MongoDB 4.4.0 and records resolution in October 2022. Treat this as a historical performance defect, not a universal rule that descending TTL indexes are unsupported. (low confidence)",
@@ -302,50 +278,32 @@
           ]
         },
         {
-          "text": "TTL deletion leaves empty WiredTiger records available for reuse but does not normally return that space to the operating system; compact or replica-set resync can release it. (high confidence) Sources: https://www.alibabacloud.com/help/en/mongodb/use-cases/best-practices-for-ttl-indexes-in-apsaradb-for-mongodb ; https://www.mongodb.com/docs/manual/core/index-ttl.md ; https://www.mongodb.com/docs/manual/reference/command/compact.md",
-          "source": "https://www.alibabacloud.com/help/en/mongodb/use-cases/best-practices-for-ttl-indexes-in-apsaradb-for-mongodb",
+          "text": "TTL deletion leaves empty WiredTiger records available for reuse but does not normally return that space to the operating system; compact or replica-set resync can release it. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-ttl.md",
           "note": null,
           "claimId": "clm:b95df4378f541dd65e7999553422018d530b18204c44fb423d77f7dbbbf01383",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "also": [
-            "https://www.mongodb.com/docs/manual/faq/storage.md",
-            "https://www.mongodb.com/docs/manual/core/index-ttl.md",
-            "https://www.mongodb.com/docs/manual/reference/command/compact.md"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:39dc591482617bdb7c4d4d978ffb71d6268421fd63a6f1d61dfe3395543e6fc3",
             "ev:cc2cf34836d0f5b199c048bc37269f2827d8a2b13d615f3b8e818974c9bf33c4"
           ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "0592d59b6aec087ee82bf84b320b18d10982f520d51ad6ae54afad295b1cdb51"
-          }
+          "also": [
+            "https://www.mongodb.com/docs/manual/faq/storage.md"
+          ]
         },
         {
-          "text": "The manual dates conversion of an existing single-field index to TTL through collMod to MongoDB 5.1. Alibaba Cloud's ApsaraDB for MongoDB guide documents this capability from 6.0 for its product; distinguish that product baseline from the original MongoDB introduction. (medium confidence) Sources: https://www.mongodb.com/docs/manual/core/index-ttl.md ; https://www.alibabacloud.com/help/en/mongodb/use-cases/best-practices-for-ttl-indexes-in-apsaradb-for-mongodb",
+          "text": "The manual dates conversion of an existing single-field index to TTL through collMod to MongoDB 5.1. Alibaba Cloud's ApsaraDB for MongoDB guide documents this capability from 6.0 for its product; distinguish that product baseline from the original MongoDB introduction. (medium confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/index-ttl.md",
           "note": null,
           "claimId": "clm:29f2f38822606b93edec548d891f9355ba0a4e4ba44b00ef2447a74b089f06b9",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "also": [
-            "https://www.alibabacloud.com/help/en/mongodb/use-cases/best-practices-for-ttl-indexes-in-apsaradb-for-mongodb"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:12af99e89c4dda0d650b12b618c990a8f8a83b6a1b48a8a25b799e82e7efad72",
             "ev:a0a365c60e8bbe3bda53ed62192a227dd71ad71a615d19ef73f1938dc4a8ce14"
           ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "13d1c62a2e958943d4fe8e92f881ca7015da673d6ca9fa7ea84e3f7be8e4e71b"
-          }
+          "also": [
+            "https://www.alibabacloud.com/help/en/mongodb/use-cases/best-practices-for-ttl-indexes-in-apsaradb-for-mongodb"
+          ]
         },
         {
           "text": "Alibaba Cloud's ApsaraDB for MongoDB guide recommends adding a random offset to spread synchronized TTL expirations and avoid CPU spikes from mass deletions; for retention periods of at least 24 hours, it recommends a 0-to-10-minute offset. (low confidence)",
@@ -358,26 +316,18 @@
           ]
         },
         {
-          "text": "MongoDB's manual dates batched TTL deletions and the BATCHED_DELETE explain stage to 6.1. Alibaba Cloud's ApsaraDB for MongoDB guide describes the batched delete optimization as MongoDB 7.0+ and says the feature was originally introduced in development version 6.1. Sources: https://www.mongodb.com/docs/manual/core/index-ttl.md ; https://www.alibabacloud.com/help/en/mongodb/use-cases/best-practices-for-ttl-indexes-in-apsaradb-for-mongodb",
+          "text": "MongoDB's manual dates batched TTL deletions and the BATCHED_DELETE stage to 6.1. Alibaba Cloud's ApsaraDB for MongoDB guide lists 7.0+ as its product baseline and says the feature first appeared in development version 6.1. (medium confidence)",
           "source": "https://www.mongodb.com/docs/manual/core/index-ttl.md",
           "note": null,
           "claimId": "clm:8b1f3815d6f8f9d6ec5233e337033935909a48dcbd954afe74b18f12fb58e42b",
-          "validationStatus": "REMEDIATED-PROJECTION",
-          "evidenceIds": [],
-          "also": [
-            "https://www.alibabacloud.com/help/en/mongodb/use-cases/best-practices-for-ttl-indexes-in-apsaradb-for-mongodb"
-          ],
-          "originValidationStatus": "SUPPORTED",
-          "originEvidenceIds": [
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
             "ev:8758d3736f353b9db6aff6c97af6723a7c370a0a333dd98d5d2f311c013584a1",
             "ev:b8c5868bdb5c4e6792d8de2518857e293a3423af16b1fdd8681be714302608e8"
           ],
-          "remediation": {
-            "schema": "claim-remediation-projection/v1",
-            "record": "remediation.json",
-            "requires_revalidation": true,
-            "claim_text_sha256": "2f4822e2d46510925362a6c497111362a0587e2c7f7ba1c0679045a74e8d0491"
-          }
+          "also": [
+            "https://www.alibabacloud.com/help/en/mongodb/use-cases/best-practices-for-ttl-indexes-in-apsaradb-for-mongodb"
+          ]
         },
         {
           "text": "A 2015 performance thread initially blamed TTL, but its reporter later identified the tags index after further tests. It does not establish a general TTL throughput penalty. (low confidence)",

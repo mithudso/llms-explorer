@@ -23,8 +23,8 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "Hydration does not establish backup consistency. MongoDB requires a valid database at snapshot time; its filesystem-snapshot guidance requires suspending writes when data and journal reside on separate volumes. Inference: a successfully initialized EBS volume cannot repair a snapshot that omitted required writes. (medium confidence)",
-          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
+          "text": "Hydration does not establish backup consistency. MongoDB requires a valid database at snapshot time; its filesystem-snapshot guidance requires suspending writes when data and journal reside on separate volumes. Inference: a successfully initialized EBS volume cannot repair a snapshot that omitted required writes. (medium confidence) Sources: https://www.mongodb.com/docs/manual/tutorial/backup-with-filesystem-snapshots.md ; https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/backup-with-filesystem-snapshots.md",
           "note": null,
           "claimId": "clm:4ac82b6c4e72cba5827648cda6c6923cc2d96bfca157c903920c8da580dd68ea",
           "validationStatus": "SUPPORTED",
@@ -34,8 +34,14 @@
             "ev:d11b73e793202fbe0f7e6ccc4fb62864bd021087ada285f49f40cac3c78d60e7"
           ],
           "also": [
-            "https://www.mongodb.com/docs/manual/tutorial/backup-and-restore-with-filesystem-snapshots/"
-          ]
+            "https://www.mongodb.com/docs/manual/tutorial/backup-and-restore-with-filesystem-snapshots/",
+            "https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html"
+          ],
+          "remediation": {
+            "claim_id": "clm:9adcfbeea7b5ebcdb359870dc67a025e2258a29760feccaa688094e048e0f8fe",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:39:08Z"
+          }
         }
       ]
     },
@@ -43,7 +49,7 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "A short benchmark is not a full hydration pass: AWS requires reading every block. fio uses the full existing device size when size is omitted, but runtime or smaller size/io_size settings can stop or constrain coverage. Let the full sequential read complete successfully rather than treating elapsed time or a sampled region as completion. (medium confidence)",
+          "text": "A short benchmark is not a full hydration pass: AWS requires reading every block. fio uses the full existing device size when size is omitted, but runtime or smaller size/io_size settings can stop or constrain coverage. Let the full sequential read complete successfully rather than treating elapsed time or a sampled region as completion. (medium confidence) Sources: https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html ; https://fio.readthedocs.io/en/latest/fio_doc.html",
           "source": "https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
           "note": null,
           "claimId": "clm:def8265c4228758b840d976e5dace0180ecfc79ffb483ef71c360152dbe52fcf",
@@ -56,7 +62,12 @@
           ],
           "also": [
             "https://fio.readthedocs.io/en/latest/fio_doc.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:b885dd01f135f215ed2365aeccbe51edcf07e6a452c1fe515f894c1189ef85bf",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:39:08Z"
+          }
         },
         {
           "text": "The documented EventBridge completion notification uses source aws.ec2, detail-type EBS Volume Notification, detail.event initializeVolume, and detail.result succeeded. Delivery is best effort and can lag five minutes; polling is a reasonable fallback rather than treating a missing event as failure. (low confidence) (verified as of 2026-10-31)",
@@ -119,7 +130,7 @@
           ]
         },
         {
-          "text": "AWS’s dd initialization example reads the verified restored device as input and writes to /dev/null; a 2024 Windows walkthrough uses fio rw=read. AWS warns that incorrect dd use can destroy volume data and says only the verified input-device parameter should vary from its example. (medium confidence)",
+          "text": "AWS's dd initialization example reads the restored device as input (if=) and writes to /dev/null; AWS's Windows instructions use fio with --rw=read. AWS warns that incorrect dd use can destroy volume data and says only the if= input-device parameter should vary from its example. Sources: https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
           "source": "https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
           "note": null,
           "claimId": "clm:cf5bba91f71f6645a8d22715cabed013c228665ba70a57cacca2f67fa497d268",
@@ -130,7 +141,12 @@
           ],
           "also": [
             "https://jeremypedersen.com/posts/2024-04-08-warming-ebs-volumes/"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:8b2dc341a2e2de2a1b16660ddafd1294b0638982ae89c26abc44b5f0b6e16f4a",
+            "outcome": "CORRECTED",
+            "at": "2026-11-02T11:39:08Z"
+          }
         },
         {
           "text": "Restoring EBS snapshot data requires downloading blocks from S3 and writing them to the restored volume; initialization can increase I/O latency until all required blocks are present. This provides a storage-level explanation for cold reads on a self-managed recovery host, not proof of any particular MongoDB incident. (low confidence)",
@@ -143,7 +159,7 @@
           ]
         },
         {
-          "text": "On Linux, identify the restored device with lsblk. AWS illustrates an attached, unmounted device and a full-device command: sudo fio --filename=/dev/DEVICE --rw=read --bs=1M --iodepth=32 --ioengine=libaio --direct=1 --name=volume-initialize. Add --readonly as an upstream fio safety guard that rejects write and trim workloads; replace DEVICE only after identifying the intended restored volume. The added --readonly guard comes from fio; it is not present in the AWS example quoted here. (medium confidence)",
+          "text": "On Linux, identify the restored device with lsblk. AWS illustrates an attached, unmounted device and a full-device command: sudo fio --filename=/dev/DEVICE --rw=read --bs=1M --iodepth=32 --ioengine=libaio --direct=1 --name=volume-initialize. Add --readonly as an upstream fio safety guard that rejects write and trim workloads; replace DEVICE only after identifying the intended restored volume. The added --readonly guard comes from fio; it is not present in the AWS example quoted here. (medium confidence) Sources: https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html ; https://fio.readthedocs.io/en/latest/fio_doc.html",
           "source": "https://docs.aws.amazon.com/ebs/latest/userguide/initalize-volume.html",
           "note": null,
           "claimId": "clm:392f2054a0611e40e33b00a316e99269eb89660263bfe209bad3529d4afeec65",
@@ -154,7 +170,12 @@
           ],
           "also": [
             "https://fio.readthedocs.io/en/latest/fio_doc.html"
-          ]
+          ],
+          "remediation": {
+            "claim_id": "clm:b6a9397267aaedd83fa39f7fe3e000ca9aad0fb95bb6172bfde35b86ef22f8c0",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:39:08Z"
+          }
         },
         {
           "text": "For Linux libaio, fio warns that buffered I/O may prevent the requested asynchronous queue depth from being achieved. Its documentation recommends checking the reported I/O-depth distribution; specifying iodepth=32 alone does not demonstrate that 32 operations were in flight. (low confidence)",
@@ -167,7 +188,7 @@
           ]
         },
         {
-          "text": "Treat storage initialization and MongoDB cache readiness separately. fio direct=1 uses non-buffered I/O; MongoDB distinguishes the filesystem cache from WiredTiger’s internal cache, whose collection data is uncompressed. Inference: completing raw-device fio reads neither loads MongoDB’s internal cache nor proves representative query latency. Measure application readiness after MongoDB starts with a workload-specific latency check. Raw-device fio reads do not execute MongoDB queries; record storage initialization and application readiness as separate observations. (medium confidence)",
+          "text": "Treat storage initialization and MongoDB cache readiness separately. fio direct=1 uses non-buffered I/O; MongoDB distinguishes the filesystem cache from WiredTiger’s internal cache, whose collection data is uncompressed. Inference: completing raw-device fio reads neither loads MongoDB’s internal cache nor proves representative query latency. Measure application readiness after MongoDB starts with a workload-specific latency check. Raw-device fio reads do not execute MongoDB queries; record storage initialization and application readiness as separate observations. (medium confidence) Sources: https://fio.readthedocs.io/en/latest/fio_doc.html ; https://www.mongodb.com/docs/manual/administration/production-notes.md",
           "source": "https://fio.readthedocs.io/en/latest/fio_doc.html",
           "note": null,
           "claimId": "clm:8e377b046c2eda55c8133b33f7e214d78dc261d377092b7ae27260f207527cde",
@@ -181,8 +202,14 @@
           ],
           "also": [
             "https://www.mongodb.com/docs/manual/core/wiredtiger/",
-            "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-initialize-monitor.html"
-          ]
+            "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-initialize-monitor.html",
+            "https://www.mongodb.com/docs/manual/administration/production-notes.md"
+          ],
+          "remediation": {
+            "claim_id": "clm:ab2776844298f373f3b00688eeed0276e59b6f5121e3797cef623594ccbd5312",
+            "outcome": "VERIFIED",
+            "at": "2026-11-02T11:39:08Z"
+          }
         }
       ]
     }
