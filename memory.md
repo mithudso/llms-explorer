@@ -1,5 +1,25 @@
 # Memory
 
+## v0.22.151 — 2026-11-08 native stream repair
+
+Version: 0.22.151. Delta: v0.22.150 to v0.22.151; verify the necessary TASK-994 fix before research continuation.
+
+parse_events now uses LF JSONL framing. Literal U+0085, U+2028 and U+2029 remain valid string content; CRLF/blank lines are accepted and genuinely malformed tails still fail. Focused native adapter/coordinator/planning tests passed106 tests and9subtests. Both retained completed bot attempts reparsed with zero errors and one completed turn; raw bytes stayed unchanged. Canonical generated native-skill companions were synchronized and checked.
+
+Research remains private and active. No full research completion, semantic-index resumption or trading-performance claim is made by this fix. Retained recovery must match each event stream to the output it actually wrote; a retry moves that output into the next attempt's previous-output.json. Do not launch a paid worker merely to reparse a completed event stream.
+
+Remaining for TASK-994: final checks, merge and selected installed activation. Remaining for EPIC-980: research acceptance and final artifact delivery, tracked separately.
+
+## v0.22.150 — 2026-11-08 EPIC-980
+
+Version: 0.22.150. Delta: v0.22.149 to v0.22.150; research and stream-repair continuation.
+
+The run researches18 nonlinear frontier labels and the named crypto bot family. Frontier TASK-981 and bots TASK-982 retain their private canonical claims, source snapshots and audits. Completed TASK-905 parent research stays frozen. Scientific claims require independent original-group authority checks in addition to exact-span semantic gates. Publication is serialized after acceptance.
+
+TASK-994 repairs parse_events in scripts/codex_dr_run.py: str.splitlines splits literal U+2028 within otherwise valid JSON strings. Two retained completed bot attempts reparse correctly with LF framing; completed drafts must be recovered rather than rediscovered. Focused parser regressions precede delivery. No new embedding calls or paused-service restarts are authorized.
+
+Remaining: research, original-source authority audits, exact-span semantic gates, accepted skill/pack/rollup compilation and keyword indexing, optimization, serial completion, final tests/CI/merges and production acceptance.
+
 ## v0.22.149 - 2026-11-08
 
 - Merge concurrent PR286 delivery without replacing its source tree, publication decisions, source readers, privacy metadata or logs. Add only this run's seven nodes and parent edge, then regenerate derived data from all tracked inputs. Preserve the existing v148 and research v147 entries. Delta: memory0.22.148 to0.22.149; prompt123.

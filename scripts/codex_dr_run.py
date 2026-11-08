@@ -247,7 +247,8 @@ def build_command(binary: str, model: str, effort: str, run_dir: Path, research_
 def parse_events(raw: str) -> dict:
     messages, tools, errors, warnings, usage = [], [], [], [], {}
     turns = 0
-    for line in raw.splitlines():
+    # JSONL uses LF framing; Unicode line separators can be valid string content.
+    for line in raw.split("\n"):
         if not line.strip():
             continue
         try:

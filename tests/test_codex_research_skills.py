@@ -167,6 +167,56 @@ class AdapterTests(unittest.TestCase):
         for raw in ("", "[]", "not json", '{"type":"turn.failed","error":{"message":"model unavailable"}}', '{"type":"item.completed","item":{"type":"error","message":"failed"}}', '{"type":"turn.completed","usage":{}}'):
             self.assertTrue(adapter.parse_events(raw)["is_error"])
 
+    def test_jsonl_preserves_unicode_separators_inside_payloads(self):
+        for separator in ("\u0085", "\u2028", "\u2029"):
+            with self.subTest(separator=hex(ord(separator))):
+                final = "done:" + separator + "claims saved"
+                raw = "\n".join(json.dumps(event, ensure_ascii=False) for event in (
+                    {"type": "item.completed", "item": {
+                        "type": "command_execution",
+                        "aggregated_output": "source" + separator + "passage",
+                    }},
+                    {"type": "item.completed", "item": {
+                        "type": "agent_message", "text": final,
+                    }},
+                    {"type": "turn.completed", "usage": {
+                        "input_tokens": 10, "output_tokens": 3,
+                    }},
+                ))
+                parsed = adapter.parse_events(raw)
+                self.assertFalse(parsed["is_error"])
+                self.assertEqual(parsed["errors"], [])
+                self.assertEqual(parsed["result"], final)
+                self.assertEqual(parsed["tools"], ["command_execution"])
+                self.assertEqual(parsed["num_turns"], 1)
+                self.assertEqual(parsed["tokens"], 13)
+
+    def test_jsonl_accepts_crlf_framing_and_blank_lines(self):
+        raw = "\r\n".join(json.dumps(event) for event in (
+            {"type": "item.completed", "item": {
+                "type": "agent_message", "text": "done",
+            }},
+            {"type": "turn.completed", "usage": {"output_tokens": 3}},
+        )) + "\r\n\r\n"
+        parsed = adapter.parse_events(raw)
+        self.assertFalse(parsed["is_error"])
+        self.assertEqual(parsed["result"], "done")
+        self.assertEqual(parsed["num_turns"], 1)
+        self.assertEqual(parsed["tokens"], 3)
+
+    def test_jsonl_malformed_tail_still_fails_after_completed_turn(self):
+        raw = "\n".join(json.dumps(event) for event in (
+            {"type": "item.completed", "item": {
+                "type": "agent_message", "text": "done",
+            }},
+            {"type": "turn.completed", "usage": {}},
+        )) + '\n{"type":'
+        parsed = adapter.parse_events(raw)
+        self.assertTrue(parsed["is_error"])
+        self.assertEqual(parsed["num_turns"], 1)
+        self.assertEqual(len(parsed["errors"]), 1)
+        self.assertIn("invalid Codex JSON event", parsed["errors"][0])
+
     def test_nonfatal_cli_diagnostics_are_separate_from_model_failures(self):
         raw = '\n'.join(json.dumps(event) for event in (
             {"type": "item.completed", "item": {"type": "error", "message": "Under-development features enabled: skip_host_skill_discovery."}},
