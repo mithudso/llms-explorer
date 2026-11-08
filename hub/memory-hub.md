@@ -1,3 +1,16 @@
+## v1.0.2 - 2026-11-08
+
+- TASK-808 publication privacy check found three operator-denylist matches in historical continuation notes. This update removes the private mounted-root spelling here and a provider identifier in the root memory. Existing operational outcomes and remaining work stay intact.
+- Delta: v1.0.1 to v1.0.2; privacy-only continuation redaction. No runtime, queue or indexing service changed. The current perps research is tracked in the root workflow logs and its canonical accepted evidence cohort.
+
+## v1.0.1 - 2026-11-06
+
+- TASK-1184: active mounted-path repair. The live hub-daemon rejects files and index-tree roots outside HOME. The configured mounted root is private. Preserve system/vendor and configured directory exclusions.
+- Work in isolated mounted-index worktrees for both repositories. The original explorer branch is diverged; the original hub has unrelated dirty research. Do not reset or synchronize those checkouts.
+- Validation: 31 focused explorer tests and 50 focused hub tests pass. The live daemon restarted from PID1530 to PID24518. Its /index accepts a README under the private mounted root; /index-tree accepts that repository root and finds89 eligible files with a zero-work batch. /Applications stays rejected. Preserve the live embedding queue and port18000 differences.
+- Remaining: commit/push/PR/CI/merge for both repositories. Mounted acceptance is verified; the full818-repository indexing run is not a completion claim. The unchanged standalone idle indexer remains PID1511.
+- Delta: 1.0.0 to 1.0.1; prompt 3.
+
 
 ## 2026-09-27 — llms placement: routing block, query-first order, access ledger
 - New `scripts/llms_routing.py` (`route` / `answers` / `indexes` / `install` / `reorder`) and `scripts/llms_ledger.py` (`record` / `hook` / `report` / `rank`); tests `tests/test_llms_ledger.py`, `tests/test_llms_routing.py`. Copies live in `~/.global-ai-hub/scripts` (canonical) and here; both added to `scripts/refresh_snapshot.sh`'s whitelist.

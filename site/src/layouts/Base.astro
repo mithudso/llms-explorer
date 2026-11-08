@@ -14,18 +14,31 @@ const twin = twinProp === undefined ? route.replace(/\/$/, "") + ".md" : twinPro
 const STRICT_ROUTES = ["/login/", "/account/", "/keys/", "/usage/", "/contribute/",
                        "/donate/", "/moderate/", "/proposals/", "/playground/"];
 const strict = STRICT_ROUTES.some((r) => route.startsWith(r));
+// Account, form and live-status pages hold no reading content of their own:
+// keep them out of search so the index is the site's writing and curated
+// references (AdSense judged the site "low value" on 2026-11-07; KNOW-558).
+const UTILITY_ROUTES = ["/queue/"];
+const hidden = noindex || strict || UTILITY_ROUTES.some((r) => route.startsWith(r));
+// AdSense runs only on pages a reader comes to read (articles and curated
+// concept packs pass `adEligible`), never on account routes or pages kept out
+// of search. Google requires a certified consent message for EEA/UK/CH
+// visitors; it is configured in the AdSense account (Privacy & messaging),
+// and adsbygoogle.js loads it, so no consent code lives here.
+const ads = adEligible && !strict && !hidden;
 // Reader journeys lead. The resource catalogue remains in the More menu.
 const NAV = [
-  ["/start-here/", "Start here", "Try a small workflow before installing anything"],
-  ["/research/", "Find by task", "Match an AI task to reference files, guides and skills"],
-  ["/blog/", "Guides & research", "Worked guides, experiments and architecture reports"],
-  ["/downloads/", "Tools", "Choose a workbench and find its installation guide"],
-  ["/skills/", "Skills", "Reusable instructions for your coding agent"],
-  ["/tree/", "Concept tree", "Explore connected topics and their published references"],
+  ["/skills/", "Agent skills", "Bounded review-and-fix instructions"],
+  ["/apps/", "Workbenches", "Local terminal tools: llmsx, skillsx and ghx"],
+  ["/context/", "Context libraries", "Download source-linked Markdown and .llms packs"],
+  ["/workflows/", "Guides & experiments", "Worked tasks and the evidence behind them"],
 ];
 const RESOURCES = [
   ["/queue/", "Research queue", "What is being researched now, and what is waiting"],
-  ["/context/", "Context files", "Research and concept facts as Markdown"],
+  ["/toolkit/", "The full toolkit", "Offerings, commands and requirements"],
+  ["/research/", "Find context by task", "Reference files, guides and skills for an AI task"],
+  ["/blog/", "Article archive", "All guides, experiments and case studies"],
+  ["/start-here/", "Start here", "Try a short handoff without installing anything"],
+  ["/downloads/", "Installation reference", "All setup instructions and download options"],
   ["/reference/", "Technical reference", "Formats, lint rules and publishing conventions"],
   ["/examples/", "Code examples", "Copyable recipes with stated assumptions"],
   ["/demo/", "Retrieval demo", "Recorded keyword, vector and hybrid results"],
@@ -47,39 +60,76 @@ const menuResources = route.startsWith("/net-dns-monitor/")
   : RESOURCES;
 ---
 <html lang="en"><head>
+  <meta charset="utf-8" />
   {!strict && (<>
   <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0E31PW5CE9" crossorigin="anonymous"></script>
   <script is:inline>
+    if (navigator.doNotTrack !== "1" && !navigator.globalPrivacyControl && !window["ga-disable-G-0E31PW5CE9"]) {
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-    gtag('config', 'G-0E31PW5CE9');
+    window.gtag = gtag;
+    gtag('config', 'G-0E31PW5CE9', {
+      page_location: location.origin + location.pathname,
+      page_referrer: document.referrer ? new URL(document.referrer).origin : "",
+      allow_google_signals: false
+    });
+    var tag = document.createElement("script");
+    tag.async = true;
+    tag.src = "https://www.googletagmanager.com/gtag/js?id=G-0E31PW5CE9";
+    tag.crossOrigin = "anonymous";
+    document.head.append(tag);
+    }
   </script>
   </>)}
-  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  {/* Ownership verification is separate from page-level ad eligibility.
-      Enable ads only after assessing the page and the consent setup. */}
+  {/* Ownership verification is separate from page-level ad eligibility. */}
   <meta name="google-adsense-account" content="ca-pub-1706083044457708" />
-  {adEligible && !strict && !noindex && <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1706083044457708" crossorigin="anonymous"></script>}
-  <title>{title} · LLMS-Explorer</title>
+  {ads && (<>
+  {/* A browser that sends Global Privacy Control or Do Not Track gets
+      non-personalized ads (Google's documented NPA flag, set before the tag
+      loads); analytics skip such browsers entirely. */}
+  <script is:inline>
+    (window.adsbygoogle = window.adsbygoogle || []).requestNonPersonalizedAds =
+      (navigator.globalPrivacyControl || navigator.doNotTrack === "1") ? 1 : 0;
+  </script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1706083044457708" crossorigin="anonymous"></script>
+  </>)}
+  <title>{title} · LLMSX</title>
+  <meta name="llmsx-release" content="three-pillars-2026-11-07" />
   <meta name="description" content={description} />
-  {noindex && <meta name="robots" content="noindex, follow" />}
+  {hidden && <meta name="robots" content="noindex, follow" />}
   <link rel="canonical" href={new URL(route, Astro.site).href} />
   {twin && <link rel="alternate" type="text/markdown" href={twin} />}
   <link rel="describedby" href="/llms.txt" />
+  {/* llmsx logo set: docs/design-system/llmsx/project/assets/Logos. The .ico
+      covers browsers and crawlers that ask for /favicon.ico directly. */}
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#f5f6f8" />
+  <meta property="og:site_name" content="LLMSX" />
+  <meta property="og:title" content={`${title} · LLMSX`} />
+  {description && <meta property="og:description" content={description} />}
+  <meta property="og:url" content={new URL(route, Astro.site).href} />
+  <meta property="og:image" content={new URL("/og-image.png", Astro.site).href} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="The llmsx logo: a tree mark and the llmsx wordmark" />
+  <meta name="twitter:card" content="summary_large_image" />
   <script src="../scripts/lx-polish.js"></script>
-</head><body>
+</head><body data-analytics-enabled={strict ? "false" : "true"}>
   <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header">
     <nav class="site-nav" aria-label="Primary">
-      <a class="brand" href="/" aria-label="LLMSX home">llmsx<span class="brand-note"> / practical AI workflows</span></a>
+      <a class="brand" href="/" aria-label="LLMSX home"><svg class="brand-logo" viewBox="0 0 296 64" aria-hidden="true" focusable="false"><rect class="brand-mark" width="64" height="64" rx="12"/><g class="brand-glyph" transform="translate(32 32) scale(1.15) translate(-29.5 -32.1)"><circle cx="19" cy="17" r="5.5"/><path d="M19 22 V40 Q19 47 26 47 H33 M19 32 H33" fill="none" stroke-width="4.5"/><circle cx="40" cy="32" r="5.5"/><circle cx="40" cy="47" r="4.25" fill="none" stroke-width="3"/></g><g class="brand-word" fill="none" stroke-width="7"><path transform="translate(88 2)" d="M8 2 H16 V48 Q16 58 28 58"/><path transform="translate(128 2)" d="M8 2 H16 V48 Q16 58 28 58"/><path transform="translate(168 2)" d="M4 22 V58 M4 32 Q4 22 12 22 Q20 22 20 32 V58 M20 32 Q20 22 28 22 Q36 22 36 32 V58"/><path transform="translate(208 2)" d="M31 28 Q27 22 19 22 Q8 22 8 31 Q8 38 19 40 Q31 42 31 50 Q31 58 19 58 Q9 58 6 52"/><path transform="translate(248 2)" d="M7 22 L32 58 M32 22 L7 58"/></g></svg><span class="brand-note">  / toolkit for coding agents</span></a>
       <span class="links">
         {NAV.map(([href, label, note]) => (
-          <a href={href} title={note} aria-current={route.startsWith(href) ? "page" : null} data-track="nav_click" data-label={label} data-destination={href}>{label}</a>
+          <a href={href} title={note} aria-current={(route.startsWith(href) || (href === "/workflows/" && (route.startsWith("/blog/") || route === "/start-here/")) || (href === "/context/" && (route.startsWith("/tree/") || route === "/research/"))) ? "page" : null} data-track="nav_click" data-label={label} data-destination={href}>{label}</a>
         ))}
-        <details class="menu"><summary data-track="resources_menu_open">More</summary>
+        <a class="tree-shortcut" href="/tree/" data-track="nav_click" data-label="concept-tree">Concept tree</a>
+        <details class="menu"><summary data-track="resources_menu_open">Resources & account</summary>
           <div class="menu-items">
             {menuResources.map(([href, name, note]) => (
               <a href={href}>{name}<span class="menu-note">{note}</span></a>
@@ -89,9 +139,9 @@ const menuResources = route.startsWith("/net-dns-monitor/")
       </span>
     </nav>
   </header>
-  <main id="main-content"><h1>{heading}</h1><slot /></main>
+  <main id="main-content" tabindex="-1"><h1>{heading}</h1><slot /></main>
   <footer class="site-footer">
-    <p>LLMSX — practical guides, open tools and reusable context for AI work.</p>
+    <p>LLMSX — tools, skills and context for AI coding agents.</p>
     <nav aria-label="Footer">
       <a href="/about/">About & contact</a>
       <a href="/editorial/">Sources & editorial standards</a>
@@ -101,36 +151,8 @@ const menuResources = route.startsWith("/net-dns-monitor/")
       {twin && <a href={twin}>This page as Markdown</a>}
     </nav>
   </footer>
-  <script is:inline>
-    // Delegated GA4 click tracking (measurement-plan-2026-09-07.md §2, redesign-spec-2026-09-07.md §9).
-    // One listener covers every current and future [data-track] element; no-ops if gtag is
-    // unavailable (ad blockers) rather than throwing. Never blocks navigation.
-    document.addEventListener("click", function (event) {
-      if (typeof gtag !== "function") return;
-      var el = event.target.closest && event.target.closest("[data-track]");
-      if (!el) return;
-      var name = el.dataset.track;
-      // resources_menu_open fires from the toggle listener below, not from this click delegate,
-      // so a click that merely opens/closes the <details> doesn't double-count or fire on close.
-      if (name === "resources_menu_open") return;
-      var params = {};
-      if (el.dataset.card) params.card = el.dataset.card;
-      if (el.dataset.ctaId) params.cta_id = el.dataset.ctaId;
-      if (el.dataset.label) params.label = el.dataset.label;
-      if (el.dataset.destination) params.destination = el.dataset.destination;
-      else if (el.href) params.destination = el.pathname;
-      gtag("event", name, params);
-    });
-    document.addEventListener(
-      "toggle",
-      function (event) {
-        if (typeof gtag !== "function") return;
-        var details = event.target;
-        if (details.matches && details.matches("details.menu") && details.open) {
-          gtag("event", "resources_menu_open", {});
-        }
-      },
-      true,
-    );
+  <script>
+    import { installEngagement } from "../scripts/engagement";
+    installEngagement();
   </script>
 </body></html>

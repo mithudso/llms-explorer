@@ -50,9 +50,16 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from llms_txt.family import IndexEntry
-from llms_txt.family import render_full as _lib_render_full
-from llms_txt.family import render_index as _lib_render_index
+try:
+    from llms_txt.family import IndexEntry
+    from llms_txt.family import render_full as _lib_render_full
+    from llms_txt.family import render_index as _lib_render_index
+except ImportError as exc:
+    raise ImportError(
+        "Corpus family generation needs the optional llms-txt renderer. "
+        "Install llmsx[corpus] with authorized renderer-repository access. "
+        "Public context downloads and tree/concept browsing do not need it."
+    ) from exc
 
 from .coverage import CoverageReport, Topic
 from .ingest import Corpus

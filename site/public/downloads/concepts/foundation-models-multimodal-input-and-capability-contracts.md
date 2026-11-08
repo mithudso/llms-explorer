@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/foundation-models-multimodal-input-and-capability-contracts/ · pack 2026-10-23 · ~2043 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/foundation-models-multimodal-input-and-capability-contracts/ · pack 2026-10-23 · ~2039 tokens -->
 
 # Foundation Models multimodal input and capability contracts
 
 > Source-anchored research for Foundation Models multimodal input and capability contracts. Run status: COMPLETED.
 
-Parent: [Apple Foundation Models framework](https://llms-explorer.com/tree/apple-foundation-models-framework/) · 5 facets · 10 facts · page: https://llms-explorer.com/tree/foundation-models-multimodal-input-and-capability-contracts/
+Parent: [Apple Foundation Models framework](https://llmsx.org/tree/apple-foundation-models-framework/) · 5 facets · 10 facts · page: https://llmsx.org/tree/foundation-models-multimodal-input-and-capability-contracts/
 
 ## Structure and components
 

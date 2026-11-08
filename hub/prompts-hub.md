@@ -15,3 +15,16 @@ The user asked to stop Node compatibility testing and focus on the failing Cloud
 ## Prompt — 2026-10-22 Cloudflare build repair
 
 The user restored Wrangler login and supplied a fine-grained GitHub key for private library access. Diagnose the Pages failure, configure encrypted credentials and verify the build while preserving private repositories.
+
+## Prompt v3 - 2026-11-06
+- User request:
+  - Make the indexer that is currently running not ignore filepaths that are not in the users' home directory. I have a mounted folder that I want indexed and that stupid rule is blocking it.
+- Scope: TASK-1184. Remove the home-only file/tree guard. Preserve exclusions and live runtime differences. Verify mounted paths, activate the running daemon, and deliver both repositories.
+- Delta: prompt 2 to 3.
+
+## Prompt v4 - 2026-11-08T07:58:29.528545+00:00
+- User request:
+  - Run the full-suite skill on high margin leveraged perps trading strategies like exists here https://jup.ag/perps/long/SOL-SOL. Effectively betting on how the price will move in the next 5 minutes. What signals, indicators, and technicals best predict an extremely short timeframe, but that also cannot withstand a big swing in the wrong direction.
+- Continuation authorization:
+  - Yes, Approve moving /Users/mitch/.research intact to /Users/mitch/.global-ai-hub/research/.legacy-archives/research-20261107-task808 so the workflow can continue
+- Hub scope: minimal publication-privacy correction in historical hub continuation notes; no runtime or service changes.

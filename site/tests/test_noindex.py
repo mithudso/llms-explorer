@@ -31,9 +31,31 @@ def test_mirrored_pages_are_absent():
         assert not (DIST / section).exists()
 
 
+def _curated_and_generated():
+    """One editor's pick from research-tasks.json and one generated pack that no task picks."""
+    tasks = json.loads((SITE / "src" / "data" / "research-tasks.json").read_text(encoding="utf-8"))
+    picked = {slug for task in tasks["tasks"] for slug in task["references"]}
+    tree = json.loads((SITE / "src" / "data" / "tree.json").read_text(encoding="utf-8"))
+    packs = {p.stem for p in (SITE / "src" / "data" / "concepts").glob("*.json")}
+    generated = sorted(n["slug"] for n in tree["nodes"].values()
+                       if n["slug"] in packs and n["slug"] not in picked and n["state"] != "domain")
+    return f"/tree/{sorted(picked & packs)[0]}/", f"/tree/{generated[0]}/"
+
+
 def test_the_sites_own_pages_stay_indexable():
-    for route in ("/", _first("tree"), _first("blog"), _first("reference")):
+    curated, _ = _curated_and_generated()
+    for route in ("/", "/tree/", curated, "/tree/ai-llm-engineering/",
+                  _first("blog"), _first("reference")):
         assert not NOINDEX.search(_html(route)), f"{route} was dropped from the index"
+
+
+def test_generated_concept_pages_and_utility_pages_stay_out_of_search():
+    """AdSense rejected the site as "low value content" (2026-11-07) when 94% of
+    its sitemap was generated concept pages. Only topic groups and editor's picks
+    are indexable; the rest stay published for readers and agents (KNOW-1220)."""
+    _, generated = _curated_and_generated()
+    for route in (generated, "/queue/", "/moderate/", "/proposals/", "/donate/", "/contribute/"):
+        assert NOINDEX.search(_html(route)), f"{route} should carry noindex"
 
 
 def test_noindex_pages_leave_the_sitemap():
@@ -41,6 +63,21 @@ def test_noindex_pages_leave_the_sitemap():
     assert "/sources/" not in sitemap
     assert re.search(r"/directory/[^<]+/</loc>", sitemap) is None
     assert "/tree/" in sitemap and "/blog/" in sitemap
+    curated, generated = _curated_and_generated()
+    assert curated in sitemap and generated not in sitemap
+    for route in ("/queue/", "/moderate/", "/proposals/"):
+        assert f"{route}</loc>" not in sitemap
+    tree_urls = re.findall(r"<loc>[^<]*/tree/[^<]*</loc>", sitemap)
+    assert len(tree_urls) < 100, \
+        f"{len(tree_urls)} concept pages in the sitemap; curate, do not bulk-index"
+
+
+def test_concept_pages_never_link_a_local_research_path():
+    """19,513 facts cite a research note on the build machine (~/.global-ai-hub/...).
+    Linking one publishes a private path and a 404 (KNOW-1221)."""
+    for page in (DIST / "tree").glob("*/index.html"):
+        html = page.read_text(encoding="utf-8")
+        assert 'href="~' not in html and 'href="/Users/' not in html, page
 
 
 def test_downloads_carry_the_noindex_header():

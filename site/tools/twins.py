@@ -14,7 +14,8 @@ import re
 from pathlib import Path
 
 FM_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
-DEFAULT_SITE_URL = "https://llms-explorer.com"
+from site_origin import DEFAULT_SITE_URL as DEFAULT_SITE_URL
+from site_origin import default_site_url as default_site_url
 # The API the account islands call. Same default as AccountNav.astro, same
 # build-time env var: `connect-src` has to name whatever origin the pages were
 # built to talk to, or every signed-in fetch is blocked by our own policy.
@@ -31,12 +32,6 @@ _SLUG_STRIP_RE = re.compile(r"[^\w\- ]", re.UNICODE)
 def default_api_url() -> str:
     """The account islands' API origin (AccountNav.astro reads the same var)."""
     return os.environ.get("PUBLIC_API_URL", "").strip().rstrip("/") or DEFAULT_API_URL
-
-
-def default_site_url() -> str:
-    """CI and Cloudflare Pages both set SITE_URL (astro.config.mjs reads it too);
-    a custom domain must not leave the twins pointing at pages.dev."""
-    return os.environ.get("SITE_URL", "").strip().rstrip("/") or DEFAULT_SITE_URL
 
 
 def _title(fm: str) -> str:
@@ -126,11 +121,16 @@ PAGE_SECTIONS = [
      "explains": "reference/concept-tree.md", "data": "tree.json", "dated": "generated",
      "index": lambda d, **_: [(n["concept"], f"/tree/{n['slug']}/") for n in
                          sorted(d["nodes"].values(), key=lambda n: n["concept"])]},
-    {"route": "/context/", "title": "Context files",
+    {"route": "/context/", "title": "Agent context libraries",
      "page": "src/pages/context/index.astro",
      "description": "Every "
                     "concept facts file, filed under the roots of the concept tree — each "
-                    "one a plain markdown fetch.",
+                    "one a plain markdown fetch. Public .llms ZIP packs contain the "
+                    "five-file LLMSX family, "
+                    "a one-node graph and integrity manifest. "
+                    "Use llmsx context get <slug> in 0.2.9+, "
+                    "or download /downloads/context-packs/<slug>.llms.zip. "
+                    "No correctness guarantee.",
      "explains": "reference/context-files.md", "data": "context.json", "dated": "generated",
      # every download, absolute, grouped by root: the one file an agent reads to
      # pick the second and last hop
@@ -167,7 +167,7 @@ PAGE_SECTIONS = [
 _GUIDE = Path(__file__).resolve().parents[1] / "src" / "data" / "explorer-guide.md"
 
 STATIC_PAGES = [
-    {"route": "/explorer/", "title": "LLMSX Explorer — The Dynamic Research Workbench",
+    {"route": "/explorer/", "title": "LLMSX Explorer reference",
      "page": "src/pages/explorer.astro",
      "description": "A terminal research workbench with a concept tree, job queue, "
                     "highlights, flashcards and quizzes.",
@@ -320,6 +320,20 @@ STATIC_PAGES = [
 
 
 # Authored orientation and trust pages publish Markdown overviews too.
+_toolkit = json.loads((Path(__file__).resolve().parents[1] / "src/data/toolkit.json").read_text())
+STATIC_PAGES.append({"route": "/toolkit/", "title": "The LLMSX toolkit",
+                     "description": _toolkit["description"],
+                     "body": "\n\n".join("## " + p["title"] + "\n\n" + p["body"] +
+                         "\n\n[" + p["action"] + "](" + p["href"] + ")\n\n```sh\n" +
+                         p["command"] + "\n```" for p in _toolkit["pillars"]) +
+                         "\n\nSupporting material: [llms.txt convention](/family/), "
+                         "[guides and experiments](/blog/), "
+                         "[account interfaces](/account/). Public/local tools "
+                         "do not require an account. "
+                         "Hosted-service availability is separate. "
+                         "Bounded loops and source links are not correctness guarantees.\n"})
+
+
 STATIC_PAGES += [{'route': '/start-here/',
   'title': 'Start here',
   'page': 'src/pages/start-here.astro',
@@ -391,10 +405,13 @@ STATIC_PAGES += [{'route': '/start-here/',
   'description': 'How LLMSX website analytics, accounts, external links and local tools '
                  'handle information, and where to send privacy requests.',
   'body': 'This notice covers llms-explorer.com and llmsx.org. Publisher: Mitchell '
-          'Hudson. Updated 30 September 2026. Public guides and downloads need no '
+          'Hudson. Updated 7 November 2026. Public guides and downloads need no '
           'account. Hosting infrastructure receives ordinary request information.\n'
           '\n'
-          'Public pages use Google Analytics for visits and navigation events. Google '
+          'Public pages use Google Analytics for visits and bounded useful-action events. '
+          'Browser Do Not Track, Global Privacy Control and the Google disable flag '
+          'suppress the loader and custom events. Custom events omit copied text and '
+          'search queries. Google '
           'may receive URLs and IP addresses and may use cookies. See [Google '
           'partner-site '
           'information](https://policies.google.com/technologies/partner-sites) and '
@@ -415,6 +432,72 @@ STATIC_PAGES += [{'route': '/start-here/',
           'details out of public issues. Downloaded tools and external services have '
           'their own data flows. [Net-DNS-Monitor has a separate '
           'policy](/net-dns-monitor/privacy/).\n'}]
+
+
+# The same authored data drives HTML and agent-readable workflow/application pages.
+_JOURNEY_DATA = Path(__file__).resolve().parents[1] / "src" / "data"
+_workflows = json.loads((_JOURNEY_DATA / "workflows.json").read_text())
+_apps = json.loads((_JOURNEY_DATA / "apps.json").read_text())
+
+
+def _workflow_body(w: dict) -> str:
+    parts = [w["problem"]]
+    for step in w["steps"]:
+        parts.extend(["## " + step["title"], step["body"]])
+        if "code" in step:
+            parts.append("```text\n" + step["code"] + "\n```")
+    parts.extend(["## Check your result", w["check"], "## Evidence and reuse", w["evidence"]])
+    parts.append(
+        f"[Supporting article](/blog/{w['article']}/) · "
+        f"[Reference](/tree/{w['reference']}/) · "
+        f"[Context file](/downloads/concepts/{w['reference']}.md) · "
+        f"[Skill prompt](/skills/{w['skill']}/#prompt) · [App](/apps/{w['app']}/)"
+    )
+    parts.append(f"`npx skills add https://github.com/mithudso/llms-explorer/tree/main/"
+                 f".claude/skills/{w['skill']} --skill {w['skill']}`")
+    return "\n\n".join(parts) + "\n"
+
+
+def _app_body(a: dict) -> str:
+    parts = [a["task"], a["requirements"], "\n".join("- " + f for f in a["features"])]
+    if a["command"]:
+        parts.append("```sh\n" + a["command"] + "\n```")
+    parts.extend(["## First useful result", a["first"], "## Limits", a["limits"]])
+    parts.append(f"[Setup]({a['setup']}) · [Guide]({a['guide']}) · [Source]({a['source']})")
+    return "\n\n".join(parts) + "\n"
+
+
+STATIC_PAGES += [
+    {
+        "route": "/workflows/", "title": "Practical agent workflows",
+        "page": "src/pages/workflows/index.astro",
+        "description": "Three worked paths from an agent problem to evidence, "
+                       "reusable instructions and a result you can check.",
+        "body": "Start with one useful workflow.\n\n" + "\n".join(
+            f"- [{w['title']}](/workflows/{w['slug']}/): {w['summary']}" for w in _workflows
+        ),
+    },
+    {
+        "route": "/apps/", "title": "Apps", "page": "src/pages/apps/index.astro",
+        "description": "Compare LLMSX Explorer, Skills Explorer and GitHub Explorer "
+                       "by task, requirements and first useful result.",
+        "body": "Three separate terminal applications.\n\n" + "\n".join(
+            f"- [{a['name']}](/apps/{a['slug']}/): {a['description']}" for a in _apps
+        ),
+    },
+]
+for w in _workflows:
+    STATIC_PAGES.append({
+        "route": f"/workflows/{w['slug']}/", "title": w["title"],
+        "page": "src/pages/workflows/[slug].astro", "description": w["summary"],
+        "body": _workflow_body(w),
+    })
+for a in _apps:
+    STATIC_PAGES.append({
+        "route": f"/apps/{a['slug']}/", "title": a["name"],
+        "page": "src/pages/apps/[slug].astro", "description": a["description"],
+        "body": _app_body(a),
+    })
 
 
 def _static_twin(spec: dict, dist_dir: Path, site_url: str, stamp: str) -> Path | None:
@@ -503,6 +586,31 @@ def write_twins(content_dir: Path, dist_dir: Path, site_url: str) -> list[Path]:
         lede = f"{_description(fm)}\n\n" if _description(fm) else ""
         twin.write_text(f"<!-- llms-explorer twin of {site_url}{route} · generated {stamp} -->\n\n"
                         f"# {_title(fm)}\n\n{lede}{body.lstrip()}", encoding="utf-8")
+        if rel.parts and rel.parts[0] == "skills":
+            demos = json.loads((Path(__file__).resolve().parents[1] /
+                                "src/data/skill-demos.json").read_text())
+            demo = demos["bySkill"].get(src.stem) or demos[
+                demos["familyBySkill"].get(src.stem, "default")]
+            prompt_file = (Path(__file__).resolve().parents[2] /
+                           ".claude/skills" / src.stem / "SKILL.md")
+            prompt = prompt_file.read_text() if prompt_file.is_file() else ""
+            with twin.open("a", encoding="utf-8") as output:
+                output.write("\nInstall the displayed bundle: `npx skills add "
+                             f"https://github.com/mithudso/llms-explorer/tree/main/"
+                             f".claude/skills/{src.stem} --skill {src.stem}`\n" +
+                             "\n## Illustrative instruction diff\n\n" + demo["title"] +
+                             ". Not a recorded optimizer run or performance result.\n\n" +
+                             "Before:\n```text\n" + demo["before"] + "\n```\n\nAfter:\n```text\n" +
+                             demo["after"] + "\n```\n\n## Prompt size and run cost\n\n" +
+                             f"Full SKILL.md estimate: {len(prompt) // 4} tokens " +
+                             "(characters /4). " +
+                             "Supporting files, task, outputs and repeated passes " +
+                             "are additional. " +
+                             "Cost per run is not fixed. " +
+                             "Use provider-reported billable token usage " +
+                             "and prices; cache, tools and other charges " +
+                             "require separate accounting. " +
+                             "The HTML page has an optional local usage-cost calculator.\n")
         out.append(twin)
     data_dir = content_dir.parent / "data"
     for spec in PAGE_SECTIONS:

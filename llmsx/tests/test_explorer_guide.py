@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -13,7 +14,9 @@ from llmsx.__main__ import main
 def test_guide_ships_and_covers_every_main_screen_key():
     text = es.guide_text()
     assert text.startswith("# LLMSX Explorer — User Guide")
-    assert "https://llms-explorer.com/explorer/guide/" in text
+    urls = [urlsplit(url) for url in re.findall(r"https?://[^\s)>]+", text)]
+    assert any(url.scheme == "https" and url.netloc == "llmsx.org" and
+               url.path == "/explorer/guide/" for url in urls)
     pytest.importorskip("textual")
     from llmsx.explorer import Explorer
     keys = {b.key for b in Explorer.BINDINGS}

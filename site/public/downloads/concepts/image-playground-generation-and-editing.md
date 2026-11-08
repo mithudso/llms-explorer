@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/image-playground-generation-and-editing/ · pack 2026-10-23 · ~2136 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/image-playground-generation-and-editing/ · pack 2026-10-23 · ~2132 tokens -->
 
 # Image Playground generation and editing
 
 > Source-anchored research for Image Playground generation and editing. Run status: COMPLETED.
 
-Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 3 facets · 15 facts · page: https://llms-explorer.com/tree/image-playground-generation-and-editing/
+Parent: [Apple Intelligence](https://llmsx.org/tree/apple-intelligence/) · 3 facets · 15 facts · page: https://llmsx.org/tree/image-playground-generation-and-editing/
 
 ## Definitions
 

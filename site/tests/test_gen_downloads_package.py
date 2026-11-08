@@ -12,6 +12,8 @@ import zipfile
 from configparser import ConfigParser
 from pathlib import Path
 
+from packaging.requirements import Requirement
+
 SITE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SITE / "tools"))
 import gen_downloads as gd  # noqa: E402
@@ -23,6 +25,26 @@ def _declared_scripts() -> dict[str, str]:
     assert scripts["llmsx"] == "llmsx.__main__:main"
     assert scripts["llmsx-ollama-agent"] == "llmsx.ollama_agent:main"
     return scripts
+
+
+def test_public_base_and_tui_install_do_not_require_private_renderer(tmp_path):
+    project = gd._pyproject()["project"]
+    assert project["dependencies"] == []
+    assert all("git+" not in dependency for dependency in project["optional-dependencies"]["tui"])
+    assert any("llms-txt" in dependency for dependency in project["optional-dependencies"]["corpus"])
+    assert any("llms-txt" in dependency for dependency in project["optional-dependencies"]["dev"])
+    manifest = gd.build_package(tmp_path)
+    wheel = next(tmp_path.glob("*.whl"))
+    with zipfile.ZipFile(wheel) as zf:
+        metadata = zf.read(f"llmsx-{manifest['version']}.dist-info/METADATA").decode()
+    renderer = [line for line in metadata.splitlines() if line.startswith("Requires-Dist: llms-txt")]
+    assert renderer and all('extra == "corpus"' in line or 'extra == "dev"' in line for line in renderer)
+    requirements = [Requirement(line.removeprefix("Requires-Dist: ")) for line in metadata.splitlines()
+                    if line.startswith("Requires-Dist: ")]
+    assert all(not requirement.marker.evaluate({"extra": "tui"})
+               for requirement in requirements if requirement.name == "llms-txt")
+    assert any(requirement.name == "textual" and requirement.marker.evaluate({"extra": "tui"})
+               for requirement in requirements)
 
 
 def test_build_package_writes_a_valid_wheel_sdist_and_manifest(tmp_path):
@@ -38,7 +60,7 @@ def test_build_package_writes_a_valid_wheel_sdist_and_manifest(tmp_path):
         assert "llmsx/explorer_store.py" in names and "llmsx/explorer_screens.py" in names
         meta = zf.read(f"{di}/METADATA").decode()
         assert "Name: llmsx" in meta and f"Version: {manifest['version']}" in meta
-        assert "Provides-Extra: tui" in meta and 'Requires-Dist: textual>=8,<9; extra == "tui"' in meta
+        assert "Provides-Extra: tui" in meta and 'Requires-Dist: textual>=8,<9 ; extra == "tui"' in meta
         assert "Requires-Python: >=3.11" in meta
         scripts = _declared_scripts()
         entry_points = ConfigParser(interpolation=None)

@@ -78,7 +78,7 @@
           "note": null
         },
         {
-          "text": "**B4. Consequence (derived from B1 + B3, not independently sourced): a `binSize`-wide bin aligns with calendar day boundaries only when the bin duration divides a day evenly.** Because the anchor `2000-01-01T00:00:00.00Z` sits on a day boundary and fixed-duration units (`day`, `hour`, `minute`, `second`) tile uniformly from it, `binSize: 240` minutes (4 hours) lands on 00:00/04:00/08:00…, whereas a bin duration that does not divide 1440 minutes will drift across midnight and produce bins of inconsistent calendar meaning. There is no user-settable origin parameter to correct this. (https://www.",
+          "text": "For units other than week, $dateTrunc bins start at the reference date 2000-01-01T00:00:00.00Z, so a two-hour bin returns 10:00:00 for 11:30:05, i.e. bins are aligned to that anchor. By arithmetic (derived, not stated in the docs), a bin duration that divides 24 hours evenly, such as 240 minutes, aligns with day boundaries, while one that does not will drift across midnight. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc.md",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#b-the-anchor-the-invariant-that-governs-bin-placement",
           "note": null
         },
@@ -88,7 +88,7 @@
           "note": null
         },
         {
-          "text": "**D2. The explanation offered in that report is that binned hour tiles inherit the timezone offset in force at the reference date and are not re-aligned when the offset changes during the queried range.** Stated by the reporter as: \"Using dateTrunc with unit hour and timezone, it will create buckets starting from the reference date … considering the timezone offset that applies for the reference date, and it will not change the buckets when the timezone offset changes during the year.\" This is a user hypothesis, not a vendor statement — see Disagreements §2. (https://www.mongodb.com/community/",
+          "text": "**D2. The explanation offered in that report is that binned hour tiles inherit the timezone offset in force at the reference date and are not re-aligned when the offset changes during the queried range.** Stated by the reporter as: \"Using dateTrunc with unit hour and timezone, it will create buckets starting from the reference date … considering the timezone offset that applies for the reference date, and it will not change the buckets when the timezone offset changes during the year.\" This is a user hypothesis, not a vendor statement — see Disagreements §2.",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#d-limits-and-failure-modes",
           "note": null
         },
@@ -143,7 +143,7 @@
           "note": null
         },
         {
-          "text": "1. MongoDB Manual — `$dateTrunc` (expression operator), current — https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/ 2. MongoDB Manual v8.0 — `$dateTrunc` (expression operator) — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/datetrunc/ 3. MongoDB Manual — Build Materialized Views on Top of Time Series Data — https://www.mongodb.com/docs/manual/core/timeseries/timeseries-build-materialized-views/ 4. MongoDB Manual — About Querying Time Series Data (block processing) — https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/ 5. MongoD",
+          "text": "1. MongoDB Manual — `$dateTrunc` (expression operator), current — 2. MongoDB Manual v8.0 — `$dateTrunc` (expression operator) — 3. MongoDB Manual — Build Materialized Views on Top of Time Series Data — 4. MongoDB Manual — About Querying Time Series Data (block processing) — 5. MongoDB Manual — Aggregation and Operator Considerations (time series) — 6. MongoDB Manual v8.0 — Time Series Collection Limitations — 7. MongoDB Manual — `$out` (aggregation stage) — 8. MongoDB Atlas Docs — Scheduled Triggers — 9. MongoDB company blog — \"Key Enhancements in MongoDB 8.0 with Block Processing\", published",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#sources",
           "note": null
         }
@@ -173,7 +173,7 @@
           "note": null
         },
         {
-          "text": "**1. The supported unit set differs between MongoDB and independent reimplementations.** MongoDB documents `year, quarter, month, week, day, hour, minute, second` (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/). Microsoft's DocumentDB MQL reference documents `year, month, week, day, hour, minute, second, and millisecond` — omitting `quarter`, adding `millisecond` (https://learn.microsoft.com/en-us/documentdb/query/operators/date-expression/$datetrunc). The community DocumentDB reference lists the same eight units (https://documentdb.io/docs/reference/operators/d",
+          "text": "MongoDB's $dateTrunc supports the units year, quarter, month, week, day, hour, minute and second. Microsoft's Azure DocumentDB reference and the community DocumentDB reference both say supported values \"include\" year, month, week, day, hour, minute, second, and millisecond, which omits quarter and adds millisecond. Portability of a $dateTrunc downsample across these engines should not be assumed. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/ ; https://learn.microsoft.com/en-us/documentdb/query/operators/date-expression/%24datetrunc",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#unresolved-disagreements",
           "note": null
         },
@@ -223,12 +223,12 @@
           "note": null
         },
         {
-          "text": "**Implication — the central operational trade-off of `$dateTrunc` downsampling:** the incremental writer (`$merge`, with `whenMatched: \"replace\"` keyed on the truncated date) cannot target a time series collection, and the writer that can target one (`$out`) is full-replace, not incremental. So a `$dateTrunc` rollup must pick one of: (a) rollup target is a regular collection, refreshed incrementally with `$merge` over a trailing window; or (b) rollup target is itself a time series collection, rebuilt in full with `$out` each run. Option (b) costs a full re-scan of history per refresh; option (",
+          "text": "**Implication — the central operational trade-off of `$dateTrunc` downsampling:** the incremental writer (`$merge`, with `whenMatched: \"replace\"` keyed on the truncated date) cannot target a time series collection, and the writer that can target one (`$out`) is full-replace, not incremental. So a `$dateTrunc` rollup must pick one of: (a) rollup target is a regular collection, refreshed incrementally with `$merge` over a trailing window; or (b) rollup target is itself a time series collection, rebuilt in full with `$out` each run. Option (b) costs a full re-scan of history per refresh; option",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#persisting-the-rollup",
           "note": null
         },
         {
-          "text": "1. **MongoDB's own downsampling example does not use `$dateTrunc`.** The manual page dedicated to building materialized views on time series data — the page a practitioner reaches when searching for downsampling — groups by `$dateToParts` components (`year`/`month`/`day`) rather than by `$dateTrunc` (https://www.mongodb.com/docs/manual/core/timeseries/timeseries-build-materialized-views/), while the operator reference, the 8.0 block-processing blog, and third-party guidance all present `$dateTrunc` as the bucketing key of choice. The `$dateToParts` form yields a nested-document group key rathe",
+          "text": "MongoDB's manual page on building materialized views on time series data does not use `$dateTrunc`. Its daily-average example projects `$dateToParts` and groups by year/month/day components, so the group key is a nested document rather than a Date. Sources: https://www.mongodb.com/docs/manual/core/timeseries/timeseries-build-materialized-views/",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#unresolved-disagreements",
           "note": null
         },
@@ -538,12 +538,12 @@
           "note": null
         },
         {
-          "text": "**Primary / official — MongoDB** - `$dateTrunc` operator reference (manual) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/> - Time series: Aggregation and Operator Considerations — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-aggregations-operators/> - Time series: Build Materialized Views on Top of Time Series Data — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-build-materialized-views/> - Time series: About Querying Time Series Data (block processing) — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-quer",
+          "text": "**Primary / official — MongoDB** - `$dateTrunc` operator reference (manual) — <> - Time series: Aggregation and Operator Considerations — <> - Time series: Build Materialized Views on Top of Time Series Data — <> - Time series: About Querying Time Series Data (block processing) — <> - SERVER-54390, Implement $dateTrunc in DocumentSource execution — <> - SERVER-54391, Support expression $dateTrunc in SBE — <> - MongoDB 5.0 GA press release, 2021-07-13 — <> - Key Enhancements in MongoDB 8.0 with Block Processing, 2024-12-09 (upd. 2025-07-21) — <> - Community forum: Hourly group with dateTrunc, b",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#sources",
           "note": null
         },
         {
-          "text": "**Independent** - Amazon DocumentDB developer guide, `$dateTrunc` — <https://docs.aws.amazon.com/documentdb/latest/developerguide/dateTrunc.html> - Allegro Tech, Evaluating performance of time series collections, 2021-12-20 — <https://blog.allegro.tech/2021/12/performance-evaluation-of-timeseries.html> - Spring Data MongoDB API, `DateOperators.DateTrunc` — <https://docs.spring.io/spring-data/mongodb/docs/current/api/org/springframework/data/mongodb/core/aggregation/DateOperators.DateTrunc.html> - The Register, MongoDB 5.0 hits GA, 2021-07-13 — <https://www.theregister.com/2021/07/13/mongodb_5/",
+          "text": "**Independent** - Amazon DocumentDB developer guide, `$dateTrunc` — <https://docs.aws.amazon.com/documentdb/latest/developerguide/dateTrunc.html> - Allegro Tech, Evaluating performance of time series collections, 2021-12-20 — <https://blog.allegro.tech/2021/12/performance-evaluation-of-timeseries.html> - Spring Data MongoDB API, `DateOperators.DateTrunc` — <https://docs.spring.io/spring-data/mongodb/docs/current/api/org/springframework/data/mongodb/core/aggregation/DateOperators.DateTrunc.html> - The Register, MongoDB 5.0 hits GA, 2021-07-13 — <",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#sources",
           "note": null
         },
@@ -638,7 +638,7 @@
           "note": null
         },
         {
-          "text": "13. A user-reported case shows multi-hour bins misaligning under an Olson zone during DST: `$dateTrunc` on `ISODate(\"2024-04-24T01:00:00Z\")` with `unit: \"hour\", binSize: 2` returned `2024-04-24T00:00:00Z` with `timezone: \"+02:00\"` but `2024-04-24T01:00:00Z` with `timezone: \"Europe/Warsaw\"`, even though Warsaw was on UTC+02:00 that date. The reporter noted that `$dateSubtract`'s documentation explicitly promises DST-offset application for Olson identifiers while `$dateTrunc`'s does not carry the same sentence. No workaround was supplied in the thread. — https://www.mongodb.com/community/forums/",
+          "text": "13. A user-reported case shows multi-hour bins misaligning under an Olson zone during DST: `$dateTrunc` on `ISODate(\"2024-04-24T01:00:00Z\")` with `unit: \"hour\", binSize: 2` returned `2024-04-24T00:00:00Z` with `timezone: \"+02:00\"` but `2024-04-24T01:00:00Z` with `timezone: \"Europe/Warsaw\"`, even though Warsaw was on UTC+02:00 that date. The reporter noted that `$dateSubtract`'s documentation explicitly promises DST-offset application for Olson identifiers while `$dateTrunc`'s does not carry the same sentence. No workaround was supplied in the thread.",
           "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#timezone-and-dst-failure-mode",
           "note": null
         },

@@ -77,9 +77,11 @@ def test_the_home_page_leads_with_practical_work_and_keeps_library_access():
     assert 'href="/start-here/"' in html
     assert 'href="/blog/what-docs-llms-files-and-indexes-actually-save/"' in html
     main = html[html.index('<main'):html.index('</main>')]
-    assert main.index('id="feature-title"') < main.index('id="tools-title"')
+    assert main.index('id="pillars"') < main.index('id="feature-title"')
+    for pillar in ("skills", "workbenches", "context"):
+        assert f'id="{pillar}"' in main
     assert "Instant expert agents" not in main
-    assert "Explore the concept tree." in main
+    assert "Choose context from the concept tree." in main
     assert 'href="/tree/3d/"' in main
     # A reader can enter real branches directly, rather than only a catalogue index.
     tree = json.loads((SITE / "src/data/tree.json").read_text(encoding="utf-8"))

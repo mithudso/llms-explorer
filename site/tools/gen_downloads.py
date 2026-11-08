@@ -96,7 +96,7 @@ def _metadata(project: dict) -> str:
     for extra, deps in (project.get("optional-dependencies") or {}).items():
         lines.append(f"Provides-Extra: {extra}")
         for dep in deps:
-            lines.append(f"Requires-Dist: {dep}; extra == \"{extra}\"")
+            lines.append(f"Requires-Dist: {dep} ; extra == \"{extra}\"")
     readme = PACKAGE_DIR / str(project.get("readme") or "README.md")
     body = readme.read_text(encoding="utf-8") if readme.is_file() else ""
     lines.append("Description-Content-Type: text/markdown")

@@ -319,21 +319,32 @@ def test_content_pages_let_adsense_and_analytics_load():
     assert csp["object-src"] == "object-src 'none'"
 
 
-def test_ads_default_off_ownership_retained_and_strict_pages_have_no_google_scripts():
+def test_ads_load_only_on_reading_pages_and_strict_pages_have_no_google_scripts():
     """Base.astro and twins.STRICT_ROUTES are two copies of one list; the built
-    HTML is where a drift between them would show."""
+    HTML is where a drift between them would show. Ads run on articles and
+    curated concept packs only (TASK-1223): never on the home page, account
+    routes, skill install pages or pages kept out of search."""
     base = (SITE / "src" / "layouts" / "Base.astro").read_text(encoding="utf-8")
     for r in twins.STRICT_ROUTES:
         assert f'"{r}"' in base, f"Base.astro does not strip the ad tag from {r}"
     home = (DIST / "index.html").read_text(encoding="utf-8")
-    assert AD_HOST not in home, "ads must stay disabled during content review"
+    assert AD_HOST not in home, "the front door carries no ads"
     assert 'name="google-adsense-account" content="ca-pub-1706083044457708"' in home
     assert "googletagmanager" in home, "public analytics still measures reader journeys"
     pages = list(DIST.rglob("index.html"))
     assert pages, "the site must be built before validating its tags"
+    with_ads = set()
     for page in pages:
         html = page.read_text(encoding="utf-8")
-        assert AD_HOST not in html, f"unassessed page loads ads: {page}"
+        relative_route = "/" + page.parent.relative_to(DIST).as_posix() + "/"
+        if AD_HOST in html:
+            with_ads.add(relative_route.replace("/./", "/"))
+            assert not any(relative_route.startswith(p) for p in twins.STRICT_ROUTES), page
+            assert not re.search(r'<meta name="robots" content="noindex', html), f"noindex page loads ads: {page}"
+            assert relative_route.startswith(("/blog/", "/examples/", "/reference/", "/tree/")), page
+            npa = html.find("requestNonPersonalizedAds")
+            assert 0 <= npa < html.find(AD_HOST), f"non-personalized flag must precede the tag: {page}"
+            assert "navigator.globalPrivacyControl" in html[npa - 200:npa + 200], page
         assert "G-0KWFPMH6WX" not in html, f"old Analytics destination remains: {page}"
         # Astro alias redirects omit Base.astro and do not measure a content visit.
         if re.search(r'<meta\b[^>]*http-equiv=["\']refresh["\']', html, re.I):
@@ -346,11 +357,15 @@ def test_ads_default_off_ownership_retained_and_strict_pages_have_no_google_scri
         if any(route.startswith(prefix) for prefix in twins.STRICT_ROUTES):
             assert not google_loaders and not configs, f"private route loads Analytics: {route}"
         else:
-            assert google_loaders == ["https://www.googletagmanager.com/gtag/js?id=G-0E31PW5CE9"], route
+            assert not google_loaders, f"loader must wait for browser opt-out checks: {route}"
+            assert 'tag.src = "https://www.googletagmanager.com/gtag/js?id=G-0E31PW5CE9"' in html, route
+            assert 'navigator.doNotTrack !== "1"' in html and "navigator.globalPrivacyControl" in html, route
             assert configs == ["G-0E31PW5CE9"], route
-            assert re.search(r"<head>\s*(?:<!--.*?-->\s*)?<script\b", html, re.S), route
+            assert re.search(r'<head>\s*<meta charset="utf-8"', html), route
         charset_offset = html.encode("utf-8").find(b'charset="utf-8"')
         assert 0 <= charset_offset < 1024, f"charset declaration is too late: {route}"
+    assert any(r.startswith("/blog/") and r != "/blog/" for r in with_ads), "articles must carry ads"
+    assert not any(r.startswith("/skills/") for r in with_ads), "skill install pages carry no ads"
 
 
 # --- The /usage/ island reads the API's field names, not names of its own -----

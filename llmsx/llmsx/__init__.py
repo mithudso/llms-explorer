@@ -1,6 +1,6 @@
 """llmsx — a read-only CLI/TUI over the llms-explorer concept tree and the
 llms-concept-abstractor concept packs, plus a thin invocation layer over the
-skills SDK.
+skills SDK. Advanced corpus generation uses the optional `corpus` extra.
 
 Three genuinely different surfaces share this distribution:
 

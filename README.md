@@ -1,6 +1,25 @@
-# LLMS-Explorer
+# LLMSX
 
-An integrated platform providing documentation exploration for LLMs, semantic search indexing, accounts/metering infrastructure, and an interactive web portal.
+The toolkit for AI coding agents: terminal workbenches, bounded convergence skills and source-linked context libraries.
+
+Choose a skill, run a local workbench or download a portable .llms context pack. Inspect the examples, source links and limits before use.
+
+- Website: https://llmsx.org/
+- Agent skills: https://llmsx.org/skills/
+- Terminal workbenches (`llmsx`, `skillsx`, `ghx`): https://llmsx.org/apps/
+- Agent context libraries: https://llmsx.org/context/
+- Concept tree: https://llmsx.org/tree/
+- Guides and empirical research: https://llmsx.org/workflows/ and https://llmsx.org/blog/
+- Full offering map and requirements: https://llmsx.org/toolkit/
+
+```sh
+npx skills add https://github.com/mithudso/llms-explorer/tree/main/.claude/skills/code-deep-optimizer --skill code-deep-optimizer
+```
+
+The explicit directory selects the source prompt shown on the website. Check the
+skill's prerequisites and stopping conditions before running it. Public context
+packs require no model or credentials; advanced corpus rendering is an optional
+integration with separate repository access.
 
 ## Monorepo Structure
 

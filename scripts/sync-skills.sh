@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Sync the installable skill copies under .claude/skills/ from the canonical hub.
 #
-# The copies in .claude/skills/ are what `npx skills add mithudso/llms-explorer`
-# installs and what the site renders as each skill page's prompt; the
+# The site displays the published copies in .claude/skills/. Its install links
+# target each exact GitHub tree directory: repository-wide discovery can prefer
+# older copies under skills/. The CLI may adapt metadata for some harnesses. The
 # canonical sources live in the hub (~/.claude/skills, itself a mirror of
 # ~/.global-ai-hub/skills). Run this after optimizing a skill in the hub so
 # the published copies don't drift.

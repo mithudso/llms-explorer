@@ -28,7 +28,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "50. In each region, Atlas creates the endpoint service and puts the clusters behind an NLB. The customer creates the interface endpoint. https://www.mongodb.com/docs/atlas/security-private-endpoint/ 51. Atlas gives each replica-set node a unique NLB port, starting at 1024, and all nodes share one hostname (`pl-0-<region>.<id>.mongodb.net`). The SRV record lists one port per node. https://www.mongodb.com/docs/atlas/security-private-endpoint/ 52. That hostname is a CNAME to the Regional DNS name of the interface endpoint. The Regional name resolves to one private IP per endpoint subnet. https://",
+          "text": "50. In each region, Atlas creates the endpoint service and puts the clusters behind an NLB. The customer creates the interface endpoint. https://www.mongodb.com/docs/atlas/security-private-endpoint/ 51. Atlas gives each replica-set node a unique NLB port, starting at 1024, and all nodes share one hostname (`pl-0-<region>.<id>.mongodb.net`). The SRV record lists one port per node. https://www.mongodb.com/docs/atlas/security-private-endpoint/ 52. That hostname is a CNAME to the Regional DNS name of the interface endpoint. The Regional name resolves to one private IP per endpoint subnet.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/mechanism.md#h-atlas-mapping-child-specific-deltas",
           "note": null
         },
@@ -43,7 +43,7 @@
           "note": null
         },
         {
-          "text": "5. On 2017-11-08, AWS launched PrivateLink for AWS services as interface VPC endpoints. — https://aws.amazon.com/about-aws/whats-new/2017/11/introducing-aws-privatelink-for-aws-services/ 6. The first services were Amazon EC2 (API), Elastic Load Balancing (API), Kinesis Streams, Service Catalog and EC2 Systems Manager. — https://aws.amazon.com/about-aws/whats-new/2017/11/introducing-aws-privatelink-for-aws-services/ 7. The launch text says interface endpoints \"appear as Elastic Network Interface (ENI) with private IPs\" inside the customer's VPC. — https://aws.amazon.com/about-aws/whats-new/2017",
+          "text": "5. On 2017-11-08, AWS launched PrivateLink for AWS services as interface VPC endpoints. — 6. The first services were Amazon EC2 (API), Elastic Load Balancing (API), Kinesis Streams, Service Catalog and EC2 Systems Manager. — 7. The launch text says interface endpoints \"appear as Elastic Network Interface (ENI) with private IPs\" inside the customer's VPC. — 8. Because the endpoint sits inside the VPC, security groups control access to it. On-premises networks can also reach it over Direct Connect. — 9. On 2017-11-28 (re:Invent), AWS extended PrivateLink to customer and partner services, called",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/history.md#launch-november-2017",
           "note": null
         },
@@ -53,7 +53,7 @@
           "note": null
         },
         {
-          "text": "46. Choose PrivateLink over peering when you need any of: overlapping CIDRs, one-way trust, on-prem access over Direct Connect without public IPs, or many consumer VPCs without peering-mesh limits. Choose peering when cost per GB and the extra hop's latency matter more. Claims 3, 4, 32 and 45 support this; the latency side is under Disagreements. 47. Check connectivity in two steps: run `nslookup -type=SRV _mongodb._tcp.<cluster>-pl-0.<id>.mongodb.net` to list the ports, then `telnet pl-0-<…>.mongodb.net <port>` for each port. https://www.mongodb.com/docs/atlas/troubleshoot-private-endpoints.m",
+          "text": "Choose PrivateLink over peering when you need overlapping CIDRs or one-way trust (the consumer initiates; Atlas cannot initiate connections back). To check connectivity, run `nslookup -type=SRV _mongodb._tcp.<cluster>-pl-0.<id>.mongodb.net` to get the port numbers, then run `telnet pl-0-<xyz>.mongodb.net <port>` for each port. Also test from a VPC that has no endpoint: AWS's walkthrough could not connect from such a VPC, as expected. Sources: https://aws.amazon.com/blogs/apn/connecting-applications-securely-to-a-mongodb-atlas-data-plane-with-aws-privatelink/",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/practice.md#evaluation-checklist-how-to-decide-and-verify",
           "note": null
         },
@@ -98,17 +98,17 @@
           "note": null
         },
         {
-          "text": "23. For a multi-region cluster, PrivateLink must be **Available in every region with a node**. If it is not, Atlas may stop publishing the SRV record, and clients get `querySrv ENOTFOUND _mongodb._tcp.<cluster>-pl-0.<id>.mongodb.net`. — https://www.mongodb.com/docs/atlas/security-private-endpoint.md 24. Altering or removing private endpoints during multi-region cluster maintenance can cause cluster downtime. When you move from multi-region to single-region, remove the old endpoints only after traffic runs through the new one. — https://www.mongodb.com/docs/atlas/security-private-endpoint.md 25",
+          "text": "23. For a multi-region cluster, PrivateLink must be **Available in every region with a node**. If it is not, Atlas may stop publishing the SRV record, and clients get `querySrv ENOTFOUND _mongodb._tcp.<cluster>-pl-0.<id>.mongodb.net`. — 24. Altering or removing private endpoints during multi-region cluster maintenance can cause cluster downtime. When you move from multi-region to single-region, remove the old endpoints only after traffic runs through the new one. — 25. If the cluster has nodes in more than one region with one endpoint service per region, **each service accepts at most one endp",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/edge-cases.md#e-multi-region-cross-region-and-regionalized-mode",
           "note": null
         },
         {
-          "text": "46. Atlas tells AWS users to place endpoint subnets in multiple AZs to survive an AZ outage. It says Azure and GCP need no extra action. — https://www.mongodb.com/docs/atlas/security-private-endpoint.md 47. If the endpoint has an ENI in only one AZ, clients in other AZs lose access when that AZ is impaired. — https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-access-aws-services.html 48. The NLB TCP idle timeout defaults to 350 s and is configurable from 60 to 6000 s. After the timeout, sending data on the idle flow gets a **TCP RST**. TCP keepalives reset the timer. — https://docs",
+          "text": "Atlas tells AWS users to deploy subnets to multiple availability zones in a region so private endpoint connections can withstand an AZ outage; no additional action is needed for Azure or Google Cloud. If a VPC endpoint has a network interface in only one AZ and that AZ is impaired, resources in other AZs lose access. The NLB TCP idle timeout defaults to 350 seconds and can be set between 60 and 6000 seconds; if a client or target sends data after the timeout, the client receives a TCP RST, and TCP keepalives restart the timeout. AWS says cross-Region PrivateLink access is not supported for NLB",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/edge-cases.md#h-availability-and-idle-connections",
           "note": null
         },
         {
-          "text": "33. Each VPC endpoint supports 10 Gbps per AZ by default and scales automatically to 100 Gbps per AZ. https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-limits-endpoints.html 34. VPC endpoints support an MTU of 8500 bytes and drop larger packets. They do **not** support Path MTU Discovery, because they send no ICMP \"fragmentation needed\", and they clamp MSS. https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-limits-endpoints.html 35. The default quota is 50 interface endpoints per VPC (adjustable). PrivateLink API calls are throttled at the account level and also at the AWS Organizatio",
+          "text": "Each VPC endpoint supports up to 10 Gbps per Availability Zone by default and scales automatically up to 100 Gbps. A VPC endpoint supports an MTU of 8500 bytes and drops larger packets. Path MTU Discovery is not supported (VPC endpoints do not generate ICMP Fragmentation needed), and VPC endpoints enforce MSS clamping. The default quota is 50 interface and Gateway Load Balancer endpoints per VPC (adjustable). PrivateLink API calls are throttled at the account level and the organization level, which can surface as RequestLimitExceeded. An NLB stops tracking a TCP flow after the idle timeout (35",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/practice.md#data-plane-limits-that-bite-databases",
           "note": null
         },
@@ -178,7 +178,7 @@
           "note": null
         },
         {
-          "text": "12. By default an endpoint service is not available to anyone. The provider must allow specific principals by ARN (account root, role or user), or allow `*`. https://docs.aws.amazon.com/vpc/latest/privatelink/configure-endpoint-service.html 13. If the provider allows `*` and accepts all requests automatically, the load balancer is effectively public even without a public IP. https://docs.aws.amazon.com/vpc/latest/privatelink/configure-endpoint-service.html 14. Removing a principal's permission does not break connections that the provider already accepted. https://docs.aws.amazon.com/vpc/latest",
+          "text": "12. By default an endpoint service is not available to anyone. The provider must allow specific principals by ARN (account root, role or user), or allow `*`. https://docs.aws.amazon.com/vpc/latest/privatelink/configure-endpoint-service.html 13. If the provider allows `*` and accepts all requests automatically, the load balancer is effectively public even without a public IP. https://docs.aws.amazon.com/vpc/latest/privatelink/configure-endpoint-service.html 14. Removing a principal's permission does not break connections that the provider already accepted.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/mechanism.md#b-connection-lifecycle-and-access-control",
           "note": null
         },
@@ -218,7 +218,7 @@
           "note": null
         },
         {
-          "text": "I1 [Ed; Pr, Hi] - C105. Moving from several endpoint services to one service requires downtime. I1 [Ed; Pr] - C106. Changing endpoints during multi-region maintenance can cause downtime. When moving from multi-region to single-region, remove the old endpoints only after traffic has moved. I1 [Ed; Pr] - C107. On a multi-cloud cluster, an endpoint reaches only the nodes in its own provider and region. I1 [Ed] - C108. The index `0` in a multi-region private-endpoint string can be renumbered. After a restart, clients on the old string fail with `DNSHostNotFound: Failed to look up service`. M1 [Ed;",
+          "text": "I1 [Ed; Pr, Hi] - C105. Moving from several endpoint services to one service requires downtime. I1 [Ed; Pr] - C106. Changing endpoints during multi-region maintenance can cause downtime. When moving from multi-region to single-region, remove the old endpoints only after traffic has moved. I1 [Ed; Pr] - C107. On a multi-cloud cluster, an endpoint reaches only the nodes in its own provider and region. I1 [Ed] - C108. The index `0` in a multi-region private-endpoint string can be renumbered. After a restart, clients on the old string fail with `DNSHostNotFound: Failed to look up service`. M1 [Ed",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/rabbithole-synthesis.md#9-atlas-limits-and-topology",
           "note": null
         },
@@ -238,22 +238,22 @@
           "note": null
         },
         {
-          "text": "1. On 2015-05-11, AWS added gateway VPC endpoints for Amazon S3. — https://docs.aws.amazon.com/vpc/latest/privatelink/doc-history.html 2. On 2017-08-16, AWS added gateway VPC endpoints for DynamoDB. — https://docs.aws.amazon.com/vpc/latest/privatelink/doc-history.html 3. Gateway endpoints do not use AWS PrivateLink, unlike every other VPC endpoint type. — https://docs.aws.amazon.com/vpc/latest/privatelink/concepts.html 4. AWS's launch post described PrivateLink as \"the newest generation of VPC Endpoints\". With the older gateway endpoints, \"the endpoint remains outside of your VPC\". — https://a",
+          "text": "1. On 2015-05-11, AWS added gateway VPC endpoints for Amazon S3. — https://docs.aws.amazon.com/vpc/latest/privatelink/doc-history.html 2. On 2017-08-16, AWS added gateway VPC endpoints for DynamoDB. — https://docs.aws.amazon.com/vpc/latest/privatelink/doc-history.html 3. Gateway endpoints do not use AWS PrivateLink, unlike every other VPC endpoint type. — https://docs.aws.amazon.com/vpc/latest/privatelink/concepts.html 4. AWS's launch post described PrivateLink as \"the newest generation of VPC Endpoints\". With the older gateway endpoints, \"the endpoint remains outside of your VPC\".",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/history.md#lineage-before-privatelink",
           "note": null
         },
         {
-          "text": "- **DynamoDB gateway endpoint date.** The 2017 AWS launch blog says S3 and DynamoDB access has existed \"since VPC Endpoints launched in 2015\". The official doc history dates DynamoDB gateway endpoints to 2017-08-16 (https://aws.amazon.com/blogs/aws/new-aws-privatelink-endpoints-kinesis-ec2-systems-manager-and-elb-apis-in-your-vpc/ vs https://docs.aws.amazon.com/vpc/latest/privatelink/doc-history.html). Both statements are kept. - **Is a gateway endpoint \"PrivateLink\"?** The doc history lists S3 and DynamoDB gateway endpoints under PrivateLink releases. The concepts page says gateway endpoints",
+          "text": "DynamoDB gateway endpoint date: the AWS launch blog says 'Since VPC Endpoints launched in 2015' S3 and DynamoDB could be reached privately, while the AWS PrivateLink doc history has a separate entry for DynamoDB gateway endpoints (dated August 16, 2017) and for S3 (May 11, 2015). The PrivateLink doc history lists S3 and DynamoDB gateway endpoints, but the AWS concepts page says gateway endpoints do not use AWS PrivateLink. MongoDB says private endpoint connections are one-way: Atlas VPCs can't initiate connections back to the customer's VPCs. The current Atlas docs say AWS ports are 1024-65535",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/history.md#unresolved-disagreements-and-gaps",
           "note": null
         },
         {
-          "text": "1. **Encryption (correction to an inherited parent fact).** The parent extract says PrivateLink traffic is \"encrypted by AWS infrastructure automatically\". AWS's own FAQ says \"PrivateLink does not provide any encryption by default for data in transit\" (https://aws.amazon.com/privatelink/faqs/). This run did not fetch AWS's separate statements about physical-layer or Nitro encryption, so it cannot confirm whether some underlay encryption still applies. Treat the parent claim as unsupported for PrivateLink itself. For Atlas, confidentiality comes from TLS on the MongoDB connection. 2. **Same-reg",
+          "text": "1. AWS's FAQ says PrivateLink does not provide any encryption by default for data in transit, so the parent claim that traffic is encrypted automatically is unsupported for PrivateLink itself. 2. The AWS NLB quota of 50 listeners per Network Load Balancer cannot be adjusted, and Atlas documents a 50-addressable-target limit per region for AWS PrivateLink, with a one-time increase to 90 targets per Atlas project available through Support. 3. AWS says its DNS selects a healthy endpoint network interface, round-robining across Availability Zones. 4. The AWS multi-VPC whitepaper still describes Pr",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/mechanism.md#unresolved-disagreements-and-corrections",
           "note": null
         },
         {
-          "text": "- **Same-region requirement vs cross-region.** The Prerequisites section says \"Configure the private endpoint in the same region as the Atlas cluster\". The same page documents Accepted Endpoint Regions for cross-region connections. https://www.mongodb.com/docs/atlas/security-private-endpoint.md. The connection-string FAQ still says multi-region clusters need VPC peering between regions. https://www.mongodb.com/docs/atlas/reference/faq/connection-changes.md. Read the Prerequisites line and the FAQ as possibly predating cross-region support. Both positions are left standing here. - **Target limi",
+          "text": "The Atlas private endpoint page's prerequisites say to configure the private endpoint in the same region as the Atlas cluster, while the same page documents Accepted Endpoint Regions for cross-region connections. The connection-string FAQ says that for AWS a single SRV string for a multi-region cluster needs VPC/VNet peering between regions. The page says the limit is 50 addressable targets per region, but the one-time increase is to 90 per Atlas project, so the unit is ambiguous. The FAQ shows AZ-suffixed hosts (pl-0-us-east-1a...), while the main page and its nslookup example show region-lev",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/practice.md#unresolved-disagreements-and-gaps",
           "note": null
         },
@@ -263,12 +263,12 @@
           "note": null
         },
         {
-          "text": "5. Atlas fronts each region's nodes with one NLB and gives each node a unique NLB port. All nodes share one hostname, such as `pl-0-us-east-1.<id>.mongodb.net:1024/1025/1026`. — https://www.mongodb.com/docs/atlas/security-private-endpoint.md 6. On AWS, Atlas can use ports 1024–65535 and typically starts at 1024. \"The ports can change under specific circumstances, including (but not limited to) cluster changes.\" — https://www.mongodb.com/docs/atlas/security-private-endpoint.md 7. MongoDB therefore \"strongly recommends\" two things. First, use the SRV (`mongodb+srv://`) private-endpoint string so",
+          "text": "Atlas assigns a unique port on the load balancer to each node in the region, and all nodes share one hostname, such as pl-0-us-east-1.<id>.mongodb.net with ports 1024/1025/1026. On AWS, Atlas can use ports 1024-65535 and typically starts at 1024; the ports can change under specific circumstances, including cluster changes. MongoDB strongly recommends the DNS seedlist (SRV) private-endpoint-aware connection string and allow-listing the entire port range instead of specific ports. The client security group must allow outbound traffic to the interface endpoint's private IPs on all ports (1024-655",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/edge-cases.md#b-port-mapping-the-most-common-breakage",
           "note": null
         },
         {
-          "text": "Optimized strings are therefore the main way to fit large sharded clusters under the 50-target limit. — https://www.mongodb.com/docs/atlas/security-private-endpoint.md 12. Support can grant a **one-time** increase to 90 addressable targets **per project**. See disagreement D1 for the per-project vs per-region scoping. — https://www.mongodb.com/docs/atlas/security-private-endpoint.md 13. On the AWS side, the default quota is 50 interface + GWLB endpoints per VPC (adjustable). A VPC that also holds endpoints for S3, STS, ECR and similar services shares this quota with Atlas endpoints. — https://",
+          "text": "Optimized connection strings reduce the number of addressable targets a sharded cluster consumes: a sharded cluster using optimized strings counts as one target, while with non-optimized strings each mongos counts. Other options for exceeding the 50-per-region limit are contacting MongoDB Support or using additional projects or regions. Support can grant a one-time increase to 90 addressable targets per Atlas project (the docs say the base limit is 50 per region, so the unit is ambiguous). On the AWS side, the default quota is 50 interface and Gateway Load Balancer endpoints per VPC (combined",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/edge-cases.md#c-capacity-limits",
           "note": null
         },
@@ -308,7 +308,7 @@
           "note": null
         },
         {
-          "text": "9. On AWS, Atlas can use ports 1024–65535, usually starting at 1024, and the ports can change, for example after cluster changes. MongoDB \"strongly recommends\" two things: use the SRV (DNS seedlist) private-endpoint-aware string, and allow the whole port range in rules rather than specific ports. https://www.mongodb.com/docs/atlas/security-private-endpoint.md 10. Client security groups must allow outbound traffic to the interface endpoint IPs on 1024–65535. The interface endpoint's security group must allow inbound traffic on all ports from each client. https://www.mongodb.com/docs/atlas/troub",
+          "text": "9. On AWS, Atlas can use ports 1024–65535, usually starting at 1024, and the ports can change, for example after cluster changes. MongoDB \"strongly recommends\" two things: use the SRV (DNS seedlist) private-endpoint-aware string, and allow the whole port range in rules rather than specific ports. https://www.mongodb.com/docs/atlas/security-private-endpoint.md 10. Client security groups must allow outbound traffic to the interface endpoint IPs on 1024–65535. The interface endpoint's security group must allow inbound traffic on all ports from each client.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/practice.md#ports-connection-strings-dns",
           "note": null
         }
@@ -348,7 +348,7 @@
           "note": null
         },
         {
-          "text": "31. MongoDB announced Atlas support for AWS PrivateLink on 2019-12-03. The announcement also covered CloudFormation and EventBridge. — https://www.mongodb.com/company/newsroom/press-releases/mongodb-atlas-adds-support-for-aws-cloudformation-eventbridge-privatelink-and-more (date from a search snippet; the fetch timed out) 32. MongoDB's 2019-12-12 blog calls Atlas \"one of the first approved AWS PrivateLink Ready partners\". — https://www.mongodb.com/blog/post/enhanced-security-measures-in-atlas-with-aws-privatelink 33. In Atlas, the Atlas side creates the VPC endpoint service, which puts a regio",
+          "text": "MongoDB announced Atlas support for AWS PrivateLink on 2019-12-03, in a press release that also covered AWS CloudFormation and EventBridge. MongoDB's 2019-12-12 blog says Atlas is 'one of the first approved AWS PrivateLink Ready partners'. In Atlas, the private endpoint service (AWS VPC endpoint service) places a region's clusters behind a network load balancer; the customer creates the interface endpoint in their AWS account. The Atlas docs say AWS PrivateLink supports 50 addressable targets and Atlas can use ports 1024 through 65535, typically starting at 1024; ports can change, so MongoDB r",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/history.md#atlas-specific-evolution",
           "note": null
         },
@@ -368,12 +368,12 @@
           "note": null
         },
         {
-          "text": "17. The node hostname is a public `mongodb.net` CNAME that points to the AWS endpoint-specific regional name `vpce-…vpce-svc-….<region>.vpce.amazonaws.com`. That name has one record per endpoint subnet, each holding a private ENI IP. — https://www.mongodb.com/docs/atlas/security-private-endpoint.md 18. AWS states that interface-endpoint DNS records \"are public… publicly resolvable\". Queries from outside the VPC still return the private IPs. — https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-access-aws-services.html 19. It follows from claims 17–18 that clients do **not** need the",
+          "text": "The Atlas PrivateLink node hostname is a public mongodb.net CNAME that resolves to the endpoint-specific regional DNS name AWS generates for the interface endpoint (vpce-...vpce-svc-....<region>.vpce.amazonaws.com). Atlas documents an ALIAS record for each subnet where the interface endpoint is deployed, each holding the private IP of that subnet's endpoint network interface. AWS states that the DNS records created for an interface VPC endpoint are public and publicly resolvable, but requests from outside the VPC still return private IPs that cannot be used without access to the VPC. The IP ad",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/edge-cases.md#d-dns-behaviour",
           "note": null
         },
         {
-          "text": "40. AWS endpoint states are `NONE`/Not configured, `PENDING_ACCEPTANCE`, `PENDING`, `AVAILABLE`, `REJECTED`/`Failed` and `DELETING`. — https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/privatelink_endpoint_service.md 41. If you create the interface endpoint with no subnet, it fails with `No dns entries found for endpoint vpce-<guid>, your endpoint must be provisioned in at least one subnet.` — https://www.mongodb.com/docs/atlas/troubleshoot-private-endpoints.md 42. A wrong VPC Endpoint ID also produces `Failed`/`Rejected`. — https://www.mongodb.com",
+          "text": "40. AWS endpoint states are `NONE`/Not configured, `PENDING_ACCEPTANCE`, `PENDING`, `AVAILABLE`, `REJECTED`/`Failed` and `DELETING`. — https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/privatelink_endpoint_service.md 41. If you create the interface endpoint with no subnet, it fails with `No dns entries found for endpoint vpce-<guid>, your endpoint must be provisioned in at least one subnet.` — https://www.mongodb.com/docs/atlas/troubleshoot-private-endpoints.md 42. A wrong VPC Endpoint ID also produces `Failed`/`Rejected`.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/edge-cases.md#g-endpoint-lifecycle-failures",
           "note": null
         },
@@ -443,12 +443,12 @@
           "note": null
         },
         {
-          "text": "— https://www.mongodb.com/docs/atlas/reference/faq/connection-changes.md 37. If you convert a single-region sharded cluster to multi-region **without** regionalized mode, the optimized string stops working. Switch to the Legacy SRV string first. — https://www.mongodb.com/docs/atlas/reference/faq/connection-changes.md 38. Disabling optimized strings on clusters that have no legacy string requires a Support ticket. — https://www.mongodb.com/docs/atlas/reference/faq/connection-changes.md 39. Through the NLB, client source IPs appear in logs as `sourceClient` only on AWS clusters running 7.0.22+,",
+          "text": "If you convert a single-region sharded cluster to multi-region without enabling regionalized private endpoints, you cannot continue to use the optimized connection string; update to the Legacy SRV Connection string before converting. To disable optimized connection strings for clusters that don't have the Legacy SRV Connection option, contact support. Through private endpoints, the client source IP appears in the sourceClient field of mongod/mongos logs; this is supported on AWS for 8.1 and 8.1.0+, 8.0 and 8.0.10+, and 7.0 and 7.0.22+.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/edge-cases.md#f-optimized-lb-connection-strings",
           "note": null
         },
         {
-          "text": "**D2. Port range to open.** - MongoDB says open all of 1024–65535: https://www.mongodb.com/docs/atlas/troubleshoot-private-endpoints.md - A third-party KB, summarised in search results and now 404, said \"1024–1074\", reasoning that PrivateLink uses \"the first 50 ports\": https://docs.duplocloud.com/docs/kbs/pylon/customer/9991176808__troubleshooting-mongodb-private-endpoint-connection-timeouts - A 2026 tutorial says open TCP 27017 only: https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-set-up-private-endpoints-for-mongodb-atlas/view - Claim 6 says ports can move anywhere up to 65535, so",
+          "text": "Port range to open: MongoDB says to allow outbound traffic to the interface endpoint's private IPs on all ports (1024-65535), and strongly recommends allow-listing the entire port range rather than specific ports, because Atlas can use ports 1024-65535 and they can change. Sources: https://www.mongodb.com/docs/atlas/troubleshoot-private-endpoints.md ; https://www.mongodb.com/docs/atlas/security-private-endpoint.md",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-privatelink-374973e438/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-averaged",
           "note": null
         },

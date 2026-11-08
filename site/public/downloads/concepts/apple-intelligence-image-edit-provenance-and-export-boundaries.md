@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/apple-intelligence-image-edit-provenance-and-export-boundaries/ · pack 2026-10-23 · ~1293 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/apple-intelligence-image-edit-provenance-and-export-boundaries/ · pack 2026-10-23 · ~1289 tokens -->
 
 # Apple Intelligence image edit provenance and export boundaries
 
 > Source-anchored research for Apple Intelligence image edit provenance and export boundaries. Run status: COMPLETED.
 
-Parent: [Intelligent Photos editing and memory workflows](https://llms-explorer.com/tree/intelligent-photos-editing-and-memory-workflows/) · 4 facets · 10 facts · page: https://llms-explorer.com/tree/apple-intelligence-image-edit-provenance-and-export-boundaries/
+Parent: [Intelligent Photos editing and memory workflows](https://llmsx.org/tree/intelligent-photos-editing-and-memory-workflows/) · 4 facets · 10 facts · page: https://llmsx.org/tree/apple-intelligence-image-edit-provenance-and-export-boundaries/
 
 ## How it works
 

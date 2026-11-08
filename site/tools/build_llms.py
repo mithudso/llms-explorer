@@ -50,7 +50,7 @@ BANNER = "=" * 10
 FILES = ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "manifest.json")
 VOCAB = "llms-vocabulary.txt"
 FACTS = "llms-facts.txt"
-SUBJECT = "LLMS-Explorer"
+SUBJECT = "LLMSX"
 TREE_DIR = REPO / "concept-tree"
 OVERRIDES = HERE / "llms.overrides.json"
 # `/reference/` and `/examples/` are the durable layers — the spec and the
@@ -105,7 +105,7 @@ def write_mirror(dist: Path, site_url: str, out: Path) -> int:
     """One banner block per twin: `==========\\nURL: <site_url><route>\\n==========\\n<body>`."""
     parts = []
     for twin in sorted(Path(dist).rglob("*.md")):
-        if twin.name.startswith("llms"):
+        if re.fullmatch(r"llms(?:-(?:full|small|facts|vocabulary))?\.md", twin.name):
             continue
         # `downloads/` is gen_downloads.py's verbatim copy of
         # src/content/sources/**, which twins.py already keeps out of this

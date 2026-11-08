@@ -1,0 +1,61 @@
+---
+import Base from "../../layouts/Base.astro";
+import CopyBlock from "../../components/CopyBlock.astro";
+import WORKFLOWS from "../../data/workflows.json";
+import { skillInstall } from "../../data/skill-install";
+export function getStaticPaths() { return WORKFLOWS.map(workflow => ({ params: { slug: workflow.slug }, props: { workflow } })); }
+const { workflow } = Astro.props;
+const app = workflow.app === "llmsx" ? "/apps/llmsx/" : "/apps/skills-explorer/";
+const reference = `/downloads/concepts/${workflow.reference}.md`;
+---
+<Base title={workflow.title} description={workflow.summary} route={`/workflows/${workflow.slug}/`}>
+  <p class="eyebrow">Worked workflow · {workflow.time}</p>
+  <p class="lede">{workflow.problem}</p>
+  <p>{workflow.summary} Use a coding agent you already have; the example itself needs no application install.</p>
+  <ol class="workflow-steps">
+    {workflow.steps.map((step, i) => <li><h2>{step.title}</h2><p>{step.body}</p>
+      {step.code && <CopyBlock text={step.code} item={`${workflow.slug}-step-${i + 1}`} />}
+    </li>)}
+  </ol>
+  <section class="journey-check" aria-labelledby="check-heading">
+    <h2 id="check-heading">Check your result</h2><p>{workflow.check}</p>
+  </section>
+  <section aria-labelledby="evidence-heading">
+    <h2 id="evidence-heading">Inspect the evidence</h2>
+    <p>{workflow.evidence}</p>
+    <p><a href={`/blog/${workflow.article}/`} data-track="workflow_evidence" data-label={workflow.slug}>Read the supporting article →</a></p>
+  </section>
+  <section aria-labelledby="reuse-heading">
+    <h2 id="reuse-heading">Take the method into your setup</h2>
+    <ul class="resource-links">
+      <li><a href={`/tree/${workflow.reference}/`} data-track="reference_open" data-label={workflow.reference}>Inspect the reference and its sources</a><span>Check the dates, version boundaries and the original source before relying on a fact.</span></li>
+      <li><a href={reference} download data-track="context_download" data-label={workflow.reference}>Download the context file</a><span>Plain Markdown to attach or load; source links do not certify accuracy.</span></li>
+      <li><a href={`/skills/${workflow.skill}/#prompt`} data-track="skill_prompt_link" data-label={workflow.skill}>Read the reusable skill prompt</a><span>Check compatibility and dependencies before installing.</span></li>
+      <li><a href={app} data-track="app_open" data-label={workflow.app}>Use {workflow.appLabel}</a><span>A workbench when you need to maintain more files or research.</span></li>
+    </ul>
+    <CopyBlock text={skillInstall(workflow.skill)} kind="install" label="Copy install command" item={workflow.skill} />
+  </section>
+  <section class="workflow-feedback" data-workflow={workflow.slug} aria-labelledby="feedback-heading">
+    <h2 id="feedback-heading">Did you complete this workflow?</h2>
+    <p>Optional: report only whether you reached the result. No text or files are submitted. Analytics opt-outs are respected.</p>
+    <div class="hero-actions"><button type="button" class="btn secondary" data-outcome="completed" hidden>Yes, I reached the result</button><button type="button" class="btn secondary" data-outcome="blocked" hidden>Not yet</button></div>
+    <p role="status" data-feedback-status></p>
+  </section>
+  <p><a href="/workflows/">Choose another workflow</a> · <a href="/blog/">All guides & experiments</a></p>
+</Base>
+<script>
+  import { track } from "../../scripts/engagement";
+  const feedback = document.querySelector<HTMLElement>("[data-workflow]")!;
+  const status = feedback.querySelector<HTMLElement>("[data-feedback-status]")!;
+  const buttons = feedback.querySelectorAll<HTMLButtonElement>("[data-outcome]");
+  buttons.forEach(button => {
+    button.hidden = false;
+    button.addEventListener("click", () => {
+      const queued = track("workflow_outcome", { item: feedback.dataset.workflow, outcome: button.dataset.outcome });
+      status.textContent = queued
+        ? "Thanks. Your report was queued for analytics; it is a self-report, not an independent test."
+        : "Thanks. Analytics is unavailable or opted out, so no report was sent.";
+      buttons.forEach(b => b.disabled = true);
+    });
+  });
+</script>

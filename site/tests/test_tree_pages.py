@@ -58,7 +58,7 @@ def fixture_dist(tmp_path_factory) -> Path:
     if shutil.which("npx") is None or not (SITE / "node_modules" / "astro").is_dir():
         pytest.skip("needs node + `npm ci` in site/ to build a fixture tree")
     root = tmp_path_factory.mktemp("fixroot")
-    for item in ("src", "public", "astro.config.mjs", "tsconfig.json", "package.json"):
+    for item in ("src", "public", "astro.config.mjs", "site-origin.json", "tsconfig.json", "package.json"):
         src = SITE / item
         if not src.exists():
             continue
@@ -84,6 +84,8 @@ def fixture_dist(tmp_path_factory) -> Path:
             {"text": "Archived secondary evidence.", "source": "https://example.test/current-document",
              "also": ["https://llms-explorer.com/sources/retired?x=1&y=2",
                       "https://llms-explorer.com/sources/retired?x=1&y=2"], "note": None},
+            {"text": "[low] Pipeline-labelled claim. Sources: https://example.test/a ; https://example.test/b",
+             "source": "~/.global-ai-hub/research/run/report.md#core", "note": None},
         ]),
         "empty-pack": fixture_pack("empty-pack", facts=[]),
         "unsourced-pack": fixture_pack("unsourced-pack", facts=[
@@ -92,6 +94,12 @@ def fixture_dist(tmp_path_factory) -> Path:
     }
     for slug, pack in packs.items():
         (root / "src" / "data" / "concepts" / f"{slug}.json").write_text(json.dumps(pack))
+    # Search indexes only curated concept pages (KNOW-1220): make the one usable
+    # fixture pack an editor's pick for a task, as research-tasks.json does.
+    tasks_path = root / "src" / "data" / "research-tasks.json"
+    tasks = json.loads(tasks_path.read_text())
+    tasks["tasks"][0]["references"].append("available-reference")
+    tasks_path.write_text(json.dumps(tasks))
     out = root / "dist"
     r = subprocess.run(["npx", "astro", "build", "--outDir", str(out)],
                        cwd=root, capture_output=True, text=True)
@@ -142,7 +150,7 @@ def test_node_page_shows_state_and_links_its_parent():
     assert "Published reference" in html or "Topic entry" in html or "Topic group" in html
 
 
-@pytest.mark.parametrize("slug", ["root", "kid", "empty-pack", "unsourced-pack", "blank-summary"])
+@pytest.mark.parametrize("slug", ["kid", "empty-pack", "unsourced-pack", "blank-summary"])
 def test_unpublished_topics_are_noindex_and_keep_their_routes(fixture_dist, slug):
     page = fixture_dist / "tree" / slug / "index.html"
     assert page.is_file(), "navigation and existing links must retain their route"
@@ -152,8 +160,18 @@ def test_unpublished_topics_are_noindex_and_keep_their_routes(fixture_dist, slug
     assert metadata.excluded, "an absent or unusable pack must not enter the public index"
     assert 'content="noindex, follow"' in html
     assert "A published reference is not available for this topic yet" in html
-    assert "Topic group" in html if slug == "root" else "Topic entry" in html
+    assert "Topic entry" in html
     assert "researched 2026-08" not in html
+
+
+def test_topic_groups_are_indexable_navigation_with_their_summary(fixture_dist):
+    html = (fixture_dist / "tree" / "root" / "index.html").read_text()
+    metadata = build_sitemap.PageMetadata()
+    metadata.feed(html)
+    assert not metadata.excluded, "a topic group carries an editorial summary and stays in search"
+    assert "Topic group" in html
+    assert "A navigation group for the fixture topics." in html
+    assert "A published reference is not available for this topic yet" not in html
 
 
 def test_source_linked_fixture_reference_is_indexable(fixture_dist):
@@ -165,7 +183,11 @@ def test_source_linked_fixture_reference_is_indexable(fixture_dist):
     assert "This claim has a source." in html
     assert 'href="https://example.test/primary-document"' in html
     assert 'href="/editorial/"' in html
-    assert "does not certify independent review or accuracy" in html
+    assert "Editor's pick" in html and 'href="/research/#task-' in html
+    # The page describes the pack from its own shape, never from pack.summary,
+    # which is often generator boilerplate (KNOW-968).
+    assert "A reference with a source-linked fact." not in html
+    assert "4 facts in 1 section, citing example.test." in html
 
 
 
@@ -190,9 +212,22 @@ def test_archived_secondary_citation_remains_a_nonlink_label(fixture_dist):
     item = next(item for item in re.findall(r"<li>(.*?)</li>", html, re.DOTALL)
                 if "Archived secondary evidence." in item)
     assert re.findall(r'href="([^"]*)"', item) == ["https://example.test/current-document"]
-    label = "[archived source: https://llms-explorer.com/sources/retired?x=1&amp;y=2]"
+    label = '<span class="fact-source fact-note">[unpublished research note]</span>'
     assert item.count(label) == 1
-    assert '<span class="fact-source">' + label + "</span>" in item
+    assert "llms-explorer.com/sources" not in item
+
+
+def test_local_research_paths_and_inline_labels_become_badges_not_links(fixture_dist):
+    """A fact whose source is a path on the build machine must not become a
+    link (it 404s and publishes the path; KNOW-1221), and the pipeline's inline
+    confidence label and trailing "Sources:" list become a badge and links."""
+    html = (fixture_dist / "tree" / "available-reference" / "index.html").read_text()
+    item = next(item for item in re.findall(r"<li>(.*?)</li>", html, re.DOTALL)
+                if "Pipeline-labelled claim." in item)
+    assert re.findall(r'href="([^"]*)"', item) == ["https://example.test/a", "https://example.test/b"]
+    assert '<span class="conf" data-confidence="low">low</span>' in item
+    assert "[low]" not in item and "Sources:" not in item
+    assert "global-ai-hub" not in item and "[unpublished research note]" in item
 
 
 def test_tree_index_labels_only_available_references_as_readable(fixture_dist):
@@ -206,10 +241,12 @@ def test_tree_index_labels_only_available_references_as_readable(fixture_dist):
 
 
 def test_sitemap_excludes_unpublished_fixture_topics(fixture_dist):
-    urls = build_sitemap.build(fixture_dist, "https://llms-explorer.com")
-    assert "https://llms-explorer.com/tree/available-reference/" in urls
-    for slug in ("root", "kid", "empty-pack", "unsourced-pack", "blank-summary"):
-        assert f"https://llms-explorer.com/tree/{slug}/" not in urls
+    origin = build_sitemap.default_site_url()
+    urls = build_sitemap.build(fixture_dist, origin)
+    assert f"{origin}/tree/available-reference/" in urls
+    assert f"{origin}/tree/root/" in urls, "topic groups stay in search"
+    for slug in ("kid", "empty-pack", "unsourced-pack", "blank-summary"):
+        assert f"{origin}/tree/{slug}/" not in urls
 
 
 def test_frontier_children_are_marked_and_not_linked(fixture_dist):

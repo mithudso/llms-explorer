@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/foundation-models-evaluation-and-os-regression-workflow/ · pack 2026-10-23 · ~2573 tokens -->
+<!-- llms-explorer concept facts · https://llmsx.org/tree/foundation-models-evaluation-and-os-regression-workflow/ · pack 2026-10-23 · ~2569 tokens -->
 
 # Foundation Models evaluation and OS regression workflow
 
 > Source-anchored research for Foundation Models evaluation and OS regression workflow. Run status: COMPLETED.
 
-Parent: [Apple Foundation Models framework](https://llms-explorer.com/tree/apple-foundation-models-framework/) · 5 facets · 20 facts · page: https://llms-explorer.com/tree/foundation-models-evaluation-and-os-regression-workflow/
+Parent: [Apple Foundation Models framework](https://llmsx.org/tree/apple-foundation-models-framework/) · 5 facets · 20 facts · page: https://llmsx.org/tree/foundation-models-evaluation-and-os-regression-workflow/
 
 ## How it works
 

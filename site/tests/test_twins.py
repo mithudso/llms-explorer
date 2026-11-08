@@ -178,7 +178,7 @@ def test_generated_sections_get_twins_with_an_inventory(tmp_path):
     assert "why split big files" in (dist / "demo.md").read_text()
     # /context/ lists every download absolutely — the file IS the second hop
     context_twin = (dist / "context.md").read_text()
-    assert "# Context files" in context_twin
+    assert "# Agent context libraries" in context_twin
     assert "/downloads/sources/" not in context_twin
     assert "[Alpha · Alpha kid — facts](https://ex.dev/downloads/concepts/alpha-kid.md)" in context_twin
     assert "What this section holds (1)" in context_twin
@@ -302,7 +302,10 @@ def _run_middleware(dist, paths, assets_js=None):
       const out = [];
       for (const path of {json.dumps(list(paths))}) {{
         const res = await onRequest({{
-          request: new Request("https://llms-explorer.com" + path), env,
+          // Each route is requested from its home host, as in production:
+          // account routes stay on llms-explorer.com, everything else is llmsx.org.
+          request: new Request((["login", "account", "keys", "usage", "contribute", "donate", "moderate",
+            "proposals", "playground"].includes(path.split("/")[1]) ? "https://llms-explorer.com" : "https://llmsx.org") + path), env,
           next: async () => new Response("asset body"),
         }});
         out.push({{ status: res.status, body: await res.text(), headers: Object.fromEntries(res.headers) }});

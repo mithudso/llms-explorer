@@ -5,6 +5,8 @@
     llmsx tree search <query>            concept + alias substring
     llmsx tree frontier [slug]           concepts named but never researched
     llmsx tui                            the Textual tree browser (needs the `tui` extra)
+    llmsx context get <slug>             download a public .llms pack (no model required)
+    llmsx context list                   list published packs and estimated sizes
     llmsx concepts list [--query Q]      catalog llms-concept-abstractor packs
     llmsx concepts show <slug>           one pack's summary, facets, related terms, files
     llmsx concepts serve <slug> [--file] raw file content from a pack (pipeable)
@@ -104,6 +106,20 @@ def _cmd_frontier(args) -> int:
               f"  (under {entry['parent']})")
     sys.stdout.flush()   # the count is commentary on stderr; keep it after the data
     print(f"{len(entries)} frontier concept(s)", file=sys.stderr)
+    return 0
+
+
+def _cmd_context(args) -> int:
+    from . import context
+    if args.context_command == "list":
+        for row in context.catalog(args.base_url):
+            if isinstance(row, dict):
+                print(f"{row.get('slug', '?')}  {row.get('concept', '')}  "
+                      f"~{row.get('tokens', '?')} tokens")
+        return 0
+    target = Path(args.output) if args.output else Path(f"{args.slug}.llms")
+    saved = context.get(args.slug, target, args.base_url)
+    print(f"Saved {saved}; SHA-256 integrity checks passed. Inspect sources before use.")
     return 0
 
 
@@ -338,6 +354,18 @@ def build_parser() -> argparse.ArgumentParser:
     ctui = csub.add_parser("tui", help="the Textual concept-pack browser",
                            parents=[common_concepts])
     ctui.set_defaults(func=_cmd_concepts_tui)
+
+    ctx = sub.add_parser("context", help="download public source-linked .llms context packs")
+    ctxsub = ctx.add_subparsers(dest="context_command", required=True)
+    for action in ("list", "get"):
+        command = ctxsub.add_parser(action, help="list published packs" if action == "list"
+                                   else "download and verify one pack without overwriting files")
+        command.add_argument("--base-url", default="https://llmsx.org",
+                             help="public website origin; HTTP is supported for local testing")
+        if action == "get":
+            command.add_argument("slug", help="exact published slug")
+            command.add_argument("--output", help="new directory (default: <slug>.llms)")
+        command.set_defaults(func=_cmd_context)
 
     # skill-backed nouns
     fam = sub.add_parser("family", help="run the concept-family-explorer skill "

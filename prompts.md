@@ -1,5 +1,189 @@
 # Prompts Log
 
+## Prompt v122 - 2026-11-08
+
+```text
+resolve the conflicts in the https://github.com/mithudso/llms-explorer/pull/286 pr and merge commit pr
+```
+
+TASK-1228. Resolve PR 286 in isolation, validate final changes, and merge with a merge commit. Preserve unrelated work. Delta: prompt v121 to v122.
+
+## Prompt v121 - 2026-11-07
+
+> Implement your design I like it, do it the whoel way
+
+## Prompt v120 - 2026-11-07
+
+> I like this logo I need one just less than 150kb in png
+
+(Screenshot showed llmsx-mark.svg, llmsx-mark-reversed.svg, llmsx-favicon.svg.)
+
+## Prompt v119 - 2026-11-07
+
+> I need a logo
+
+## Prompt v118 - 2026-11-07
+
+> yes create a docs wiki
+
+Ran /project-docs-setup --lite.
+
+## Prompt v117 - 2026-11-07
+
+> https://llmsx.org/tree/
+
+Started from the Design System template. Interpreted as: build a design system from the llmsx.org concept tree page and the site/ code that serves it.
+## Prompt v121 - 2026-11-08
+
+````text
+Resolve ONLY merge conflicts in /Users/mitch/dev/llms-explorer-grid-dca-finalize-20261108/memory.md and /Users/mitch/dev/llms-explorer-grid-dca-finalize-20261108/prompts.md. Active Git merge on branch research/grid-dca-finalization-20261108 merges origin/main26ed830f (other author's completed Task905PR307) into our completed recovery-safety prerequisite PR308 head535d5406. Only these two append-only logs conflict; code merged cleanly. Preserve BOTH sides' full content, prompt text and durable records. Renumber only OUR unpublished log headers/delta references if needed so our additions follow incoming max version/prompt ID; do not alter other author's narrative/records. Add a concise current merge continuation note with incremented version/delta if appropriate. No truncation, no dropped hunks, no staging/commit/push/checkout/reset, no edits elsewhere. Before writes capture current hash/version and conflict stages; enforce fresh preconditions/readback. You are not alone; parent owns Git delivery, CFE sibling source edits are held during this merge. Source raw research, paused services and private output stay untouched. Return exact resolutions, target hashes, verification that no conflict markers remain and both semantic additions survive; parent will stage/commit merge.
+````
+
+Delegated workflow instruction for merge-log resolution; this is not a new user request. Parent owns staging, commit, checks and delivery. Delta: prompt v120 to v121; memory v0.22.145 to v0.22.146.
+
+## Prompt v120 - 2026-11-08
+
+```text
+Run the full-suite skill on identifying coins that would make ideal candidates for a grid or dca strategy. What do the prices look like over time that would make that strategy the most profitable? What criteria could you use when looking at a set of coins which ones would be best suited for that?
+```
+
+Continuation choice:
+
+```text
+Use available Codex agents instead (Recommended)
+```
+
+This isolated checkout owns the necessary local-finalization prerequisite and generated proof-bound artifacts. Scope recovery to the current research run. Preserve unrelated journals, frozen outputs, and the maintained dirty checkout. Parent owns final Git delivery; no website deployment. Delta: prompt v119 to v120; memory v0.22.142 to v0.22.143.
+
+## Prompt v119 - 2026-11-08
+
+````text
+Do a /dr on the 4 unresearched child concepts: Conditional nonlinear information transfer (frontier, viability 3.60 / 5)
+Finite-sample dependency uncertainty (frontier, viability 3.60 / 5)
+Lag-selection multiplicity (frontier, viability 3.60 / 5)
+Directed graph preservation (frontier, viability 3.60 / 5)
+````
+
+TASK-905: standard-depth four-concept /dr. Root project: solmargintrader. Delta: prompt v118 to v119; memory v0.22.139 to v0.22.140.
+
+## Prompt v118 - 2026-11-08
+
+```text
+Add this to the ads.txt file in the root directory: google.com, pub-1706083044457708, DIRECT, f08c47fec0942fa0
+```
+
+TASK-1226: Verify the existing seller entry and root HTTP response. The requested line already exists once; preserve it and record verification. Delta: prompt v117 to v118; memory v0.22.138 to v0.22.139.
+
+## Prompt v117 - 2026-11-08
+
+```text
+Run the full-suite skill on high margin leveraged perps trading strategies like exists here https://jup.ag/perps/long/SOL-SOL. Effectively betting on how the price will move in the next 5 minutes. What signals, indicators, and technicals best predict an extremely short timeframe, but that also cannot withstand a big swing in the wrong direction.
+```
+
+Continuation authorization:
+
+```text
+Yes, Approve moving /Users/mitch/.research intact to /Users/mitch/.global-ai-hub/research/.legacy-archives/research-20261107-task808 so the workflow can continue
+```
+
+TASK-808 in dev-y3seh; source-bound perps research only. This worktree owns publication artifacts produced by the v4 adapter after its claim gate. Preserve all unrelated original-checkout changes. Delta: prompt116 to117; memory0.22.135 to0.22.136.
+
+## Prompt v116 - 2026-11-07
+
+> 1. It's turned on. 2. Yes do it again. 3. yes.
+
+The user enabled the AdSense EEA consent message, approved a second history rewrite (KNOW-726 method), and approved removing docs/verification/blog-ddo-2026-09-30/. TASK-1225. Delta: prompt115 to116; memory0.22.134 to0.22.135.
+
+## Prompt v115 - 2026-11-07
+
+> 1. I added llmsx.org and got myself verified, now I'm just waiting on the site verification.  2. Yes good call remove them. 3. turn ads on
+
+TASK-1223 removes the restored employer and customer posts and drafts, adds a regression guard, and enables AdSense on reading pages with a GPC/DNT non-personalized fallback. Delta: prompt114 to115; memory0.22.133 to0.22.134.
+
+## Prompt v114 - 2026-11-07
+
+> 1. I think the domain should be migrated to llmsx.org which is easier and better. SO I'm going to do that. Which I guess means adding it as a new site. 2. Yah go ahead, implement all of your suggestions. I wanted to find a better way to present the concept packs anyway.
+
+This follows the AdSense "Low value content" audit (KNOW-558). TASK-1218 consolidates on llmsx.org, curates the search index, removes scaffolding and broken local-path links from concept pages, and presents the editor's picks first on /context/. Delta: prompt113 to114; memory0.22.132 to0.22.133.
+
+## Prompt v113 - 2026-11-07
+
+> Implement all of these suggestions.
+
+Continuation of the same exact user request stored in docs/site/three-pillars-request-2026-11-07.md. TASK-1209 delivery follow-up corrects strict pip metadata after PR298: use LLMSX0.2.9, validate emitted requirements with the standard parser and execute normal pip installation before final production acceptance. This is a delivery correction, not a new user instruction. Delta: prompt112 to113; memory0.22.131 to0.22.132.
+
+## Prompt v112 - 2026-11-07
+
+> Implement all of these suggestions.
+
+Exact supplied prompt: docs/site/three-pillars-request-2026-11-07.md. TASK-1209 implements the three toolkit pillars, skill demonstrations/cost transparency, context downloads and coherent branding. Verify all claims and commands; preserve the Concept tree, library, existing URLs and installed command compatibility. Deliver through passing CI, merged source and live acceptance. Delta: prompt111 to112; memory0.22.129 to0.22.131.
+
+## Prompt v111 - 2026-11-07
+
+> Implement all suggested changes.
+
+Scope: TASK-1202. Implement the complete recommendations in docs/research/llmsx-peer-positioning-2026-11-06/README.md: identity/navigation, three usable workflows, focused app pages, skill discovery, GitHub presentation and useful-action measurement with a baseline. Preserve the broad concept tree, stable URLs and existing setup anchors. Work only in the isolated task checkout; leave the concurrent primary session intact. Verify desktop/mobile and live behavior, then commit/push/PR/green checks/merge/deploy. Delta: prompt110 to111; memory0.22.127 to0.22.129.
+
+## Prompt v110 - 2026-11-06
+
+> Implement all of the recommendations. (DOC-754, workstream F follow-up.)
+
+Scope: agent-asset-parity-auditor 1.1.2 corrects its Antigravity tool-name example: agy 1.3.4 uses read_file, edit_file, write_file; the 2026-09 names can hang a subagent; and call_mcp_tool, list_resources and read_resource stop a subagent from starting. Port it into the catalog so the rendering stays byte-identical, record the rendering, and update the Codex mirror.
+
+## Prompt v109 - 2026-11-06
+
+> Implement all of the recommendations. (DOC-754, workstream F: asset parity across Claude, Codex and Antigravity.)
+
+Scope: the eleven workflow agents are rendered from agents/workflows/catalog.json, but the renderer could not produce the sections added by hand to continuation-recovery and local-model-qualification, so regeneration would overwrite them. Port those changes (and the agent-asset-parity-auditor 1.1.0 extension) into the catalog, extend the renderer so regeneration reproduces the current definitions byte for byte, add a guarded update path for the Codex mirrors, and ship through a PR from a fresh worktree off origin/main.
+
+## Prompt v108 - 2026-11-06
+
+> Implement all of the recommendations (DOC-754). Workstream J: rotate the oversized llms-explorer memory.md through a PR, from a fresh worktree off origin's default branch.
+
+Scope: move old memory.md sections to docs/archive/ with worklog.py rotate. No content edits.
+
+## Prompt v107 - 2026-11-06
+
+> Look at my https://llmsx.org website, and identify the major offerings like the applications, the skills, the concept tree, the blog posts, guides, etc. and do a web lookup to try and find anybody else that is doing roughly what I'm doing.  The purpose of this is I want to find out how they're presenting their offerings, how successful they are, and generally identify how to streamline and hone what the site identity is. Look at all of the firecrawl skills and mcp servers and identify if there are any that would help with this search, maybe the competitive intel workflow?  maybe the shopping workflow? see what makes more sense and do that.
+
+Scope: TASK-1196. Advisory review of live offerings, peer positioning and public traction. Use Firecrawl search/scrape and the market-research workflow. Do not implement a redesign or treat stars, catalog counts or publisher claims as active users or revenue. Preserve all unrelated work. Delta: prompt106 to107; memory0.22.123 to0.22.124.
+
+## Prompt v106 - 2026-11-06
+
+> Run the full-suite skill on custom board game manufacturing, automatic professional playing card printing,
+
+> I also want to know if buying an automated card printer is worth it, if they're any good, and how much effort they take to operate.
+
+Clarification: **Identical game decks**, US/USD planning. User subsequently authorized: **Run the isolated indexing job (Recommended)** for the prepared 26-pack/605-row manufacturing-only job with a 30-minute cap and temporary-server cleanup. Preserve accepted checkpoints, unrelated dirty work and the existing pause on other inference/indexing services. Do not contact suppliers, buy equipment, place orders or change the game service.
+
+Continuation: deliver the qualified 26-topic mapped family, 605 structured rows/841 assertions, 34 paired packs, generated local/public family indexes, scoped semantic/FTS registration and source-backed purchasing/quote guides. CFE exits SATURATED-COVERAGE; no strong frontier-exhaustion claim. The isolated job completed and its server is stopped. Skills PR68 is merged with frozen source hashes verified. Finish primary PR281 CI/merge and actual published acceptance, preserving the original divergent checkout. Root task TASK-1171; report docs/research/card-manufacturing-full-suite-2026-11-06/README.md. Delta: prompt105 to106; memory0.22.121 to0.22.122.
+
+## Prompt v105 - 2026-11-06
+
+> Run the full-suite skill on custom board game manufacturing, automatic professional playing card printing,
+
+> I also want to know if buying an automated card printer is worth it, if they're any good, and how much effort they take to operate.
+
+Clarification: **Identical game decks**. Use US/USD cost scenarios as stated in the question unless corrected. Run the actual full-suite workflow: CFE plan/scout, evidence-bound research through the native Codex adapter, reusable per-concept packs and family rollup, available indexes/registration, independent contract review and verified Git delivery. Compare owned paper-card production including finishing/labor with outsourced POD/bulk/API fulfillment. Do not buy equipment, contact suppliers, place orders, alter game production, restart paused inference/indexing or disturb active MongoDB/R14. TASK-1171; scope decision KNOW-1172. Worktree /Users/mitch/dev/worktrees/llms-explorer-card-manufacturing-20261106. Delta: prompt104to105; memory0.22.118to0.22.119.
+
+## Prompt v104 - 2026-11-06
+
+> Resume and finish the interrupted /full-suite research run on Aero (aero.xyz) liquidity. Preserve every accepted checkpoint: do not redo work that already passed.
+
+Continuation: repair the 9 failed Aero assertions with exact evidence spans, re-gate, render the Aero spoke into the defi-liquidity-automation hub, finish and register both runs with short topics, index the three docs packs, audit the hub and spokes, and re-run placement. Delta: prompt103 to 104; memory 0.22.117 to 0.22.118.
+
+## Prompt v103 - 2026-11-06
+
+> Antigravity has done a lot of work explanding frontier concepts, finding sources, and seeeding preliminary concepts to save you time and effort. Use these resources and do a representative sampling audit to test how well antigravity did, and determine if it saved you time and tokens versus the cost of audting. Finish the research on the unfinished mongodb frontier concepts. l
+
+Continuation: deliver the accepted Percona-only mongot documentation supplement with10stored facts and15assertions (11SUPPORTED,4NO-FACTUAL-ASSERTION). Preserve inherited zero novelty, attributed catalog-example disagreement,640unreviewed drafts and stale private11/current10 caveat. Paired Git and independent production acceptance remain distinct. Remaining212priority candidates include2withheld pilots and210pending. Delta: prompt102to103; memory0.22.116to0.22.117.
+
+## Prompt v102 - 2026-11-06
+
+> Antigravity has done a lot of work explanding frontier concepts, finding sources, and seeeding preliminary concepts to save you time and effort. Use these resources and do a representative sampling audit to test how well antigravity did, and determine if it saved you time and tokens versus the cost of audting. Finish the research on the unfinished mongodb frontier concepts. l
+
+Continuation: deliver the accepted three-scope catalog cohort with59stored factual rows and73assertions (64SUPPORTED,9NO-FACTUAL-ASSERTION). Preserve inherited-context zero novelty, explicit specification disagreement,640unreviewed drafts, holds and paused state. Remaining212priority candidates and production acceptance stay separate. Delta: prompt101to102; memory0.22.115to0.22.116.
+
 ## Prompt v101 - 2026-11-06
 
 > Antigravity has done a lot of work explanding frontier concepts, finding sources, and seeeding preliminary concepts to save you time and effort. Use these resources and do a representative sampling audit to test how well antigravity did, and determine if it saved you time and tokens versus the cost of audting. Finish the research on the unfinished mongodb frontier concepts. l

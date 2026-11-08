@@ -8,22 +8,22 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "- **Helm CRD lifecycle: upgrade-safe or uninstall-dangerous?** Helm's guidance (claim 31) says CRDs are deliberately never upgraded or deleted, to prevent data loss. AKO's chart puts CRDs in `templates/` (claim 32), which makes them upgradeable. Inference, not verified: `helm uninstall` of the CRD chart may then delete the CRDs. Per claim 7, that would delete every Atlas CR. Atlas objects would likely survive only because of 2.0 deletion protection (claim 1). The AtlasDeployment CRD metadata I read showed no `helm.sh/resource-policy: keep` annotation (https://raw.githubusercontent.com/mongodb/",
+          "text": "Helm's CRD guidance says there is no support for upgrading or deleting CRDs installed from a chart's crds/ directory, an explicit decision to avoid unintentional data loss. AKO's CRD chart serves its CRDs from charts/atlas-operator-crds/templates/, so they are treated as ordinary templated resources. Deleting a CRD makes the API server delete all custom objects stored in it. The AtlasDeployment CRD in that chart carries no helm.sh/resource-policy annotation (its only metadata annotation is controller-gen.kubebuilder.io/version). Whether `helm uninstall` of the CRD chart deletes the CRDs is an",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/edge-cases.md#unresolved-disagreements-and-gaps",
           "note": null
         },
         {
-          "text": "— https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 15. Two install-time switches set deletion protection for the whole operator. `resourceDeletionProtection` covers projects, deployments and similar resources. `subresourceDeletionProtection` covers alerts, integrations and similar subresources. Both default to true. — https://www.mongodb.com/docs/atlas/cli/current/command/atlas-kubernetes-operator-install/ 16. AKO does not delete an Atlas team when you remove that team from an AtlasProject in Kubernetes. — https://www.mongodb.com/docs/atlas/operator/current/custom-resource",
+          "text": "— https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 15. Two install-time switches set deletion protection for the whole operator. `resourceDeletionProtection` covers projects, deployments and similar resources. `subresourceDeletionProtection` covers alerts, integrations and similar subresources. Both default to true. — https://www.mongodb.com/docs/atlas/cli/current/command/atlas-kubernetes-operator-install/ 16. AKO does not delete an Atlas team when you remove that team from an AtlasProject in Kubernetes.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/practice.md#lifecycle-annotations-and-deletion",
           "note": null
         },
         {
-          "text": "13. The root (independent) kinds are AtlasProject, AtlasOrgSettings and Group. Most other kinds hang off a project. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ [M7] 14. AtlasOrgSettings (v2.11.0, short name `aos`) is the first org-scoped kind. — https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases?per_page=10&page=2 [H31] 15. A CEL rule enforces an XOR between the two parent references: `(has(self.externalProjectRef) && !has(self.projectRef)) || (!has(self.externalProjectRef) && has(self.projectRef))`. Its message is \"must define only one project r",
+          "text": "AtlasOrgSettings (added in v2.11.0, short name `aos`) manages settings for an organization. A CEL rule enforces an XOR between the two parent references: `(has(self.externalProjectRef) && !has(self.projectRef)) || (!has(self.externalProjectRef) && has(self.projectRef))`. Its message is \"must define only one project reference through externalProjectRef or projectRef\". A second CEL rule requires `connectionSecret` whenever `externalProjectRef` is set (\"must define a local connection secret when referencing an external project\"). Credentials resolve from most to least specific: the child's `spec.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/rabbithole-synthesis.md#b-reference-graph-and-credentials",
           "note": null
         },
         {
-          "text": "7. The docs class AtlasProject, AtlasOrgSettings, and Group as independent (root) resources. Most other kinds hang off a project. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 8. A project-scoped CR names its parent in one of two ways: `spec.projectRef`, which points to a Kubernetes AtlasProject object, or `spec.externalProjectRef.id`, which holds an Atlas project ID. The two fields are mutually exclusive. — https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ 9. A CEL rule enforces the mutual exclusion (XOR): `(has(self.externalProject",
+          "text": "A project-scoped CR names its parent in one of two ways: `spec.projectRef`, which points to a Kubernetes AtlasProject object, or `spec.externalProjectRef.id`, which holds an Atlas project ID. The two fields are mutually exclusive, enforced by a CEL rule: `(has(self.externalProjectRef) && !has(self.projectRef)) || (!has(self.externalProjectRef) && has(self.projectRef))`, with the message \"must define only one project reference through externalProjectRef or projectRef\". A second CEL rule requires `connectionSecret` when `externalProjectRef` is set (\"must define a local connection secret when ref",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/mechanism.md#reference-graph-parent-links-and-credentials",
           "note": null
         },
@@ -68,22 +68,22 @@
           "note": null
         },
         {
-          "text": "1. AKO's hand-written CRD family uses API group `atlas.mongodb.com`, version `v1`. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/ [M2,P1] 2. The current docs list 18 hand-written kinds: AtlasProject, AtlasDeployment, AtlasDatabaseUser, AtlasIPAccessList, AtlasCustomRole, AtlasTeam, AtlasPrivateEndpoint, AtlasNetworkPeering, AtlasNetworkContainer, AtlasBackupPolicy, AtlasBackupSchedule, AtlasBackupCompliancePolicy, AtlasDataFederation, AtlasFederatedAuth, AtlasOrgSettings, AtlasSearchIndexConfig, AtlasStreamConnection and AtlasStreamWorkspace. — https://www.mongodb",
+          "text": "1. AKO's hand-written CRD family uses API group atlas.mongodb.com, version v1. 2. The current docs list 18 hand-written Atlas* kinds (AtlasProject, AtlasDeployment, AtlasDatabaseUser, AtlasIPAccessList, AtlasCustomRole, AtlasTeam, AtlasPrivateEndpoint, AtlasNetworkPeering, AtlasNetworkContainer, AtlasBackupPolicy, AtlasBackupSchedule, AtlasBackupCompliancePolicy, AtlasDataFederation, AtlasFederatedAuth, AtlasOrgSettings, AtlasSearchIndexConfig, AtlasStreamConnection, AtlasStreamWorkspace) plus a Group row that belongs to the generated family. 3. Every Atlas* kind has a short name (for example — https://www.mongodb",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/rabbithole-synthesis.md#a-crd-families-and-catalog",
           "note": null
         },
         {
-          "text": "17. AtlasDeployment serves and stores a single API version, `v1`. There is no conversion webhook path to a newer version. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator-crds/templates/atlas.mongodb.com_atlasdeployments.yaml 18. v2.0.1 removed `advancedDeploymentSpec` (folded into `deploymentSpec`) without bumping `atlas.mongodb.com/v1`, so existing manifests broke in place. The issue asking for a versioned API (`v2alpha1`) was closed \"not planned\". — https://github.com/mongodb/mongodb-atlas-kubernetes/issues/1330 19. Earlier renames under the same API: v1.0.",
+          "text": "AtlasDeployment serves and stores a single API version, `v1`, and the published CRD defines no conversion stanza. v2.0.1 replaced `advancedDeploymentSpec` with `deploymentSpec` without bumping `atlas.mongodb.com/v1`, so existing manifests broke in place; the issue asking for a versioned API (`v2alpha1`) was closed as not planned. Earlier, v1.0.0 renamed `AtlasCluster` to `AtlasDeployment` and `spec.clusterSpec` to `spec.deploymentSpec`. v2.0.1 also forced `secretRef` fields for encryption-at-rest and alert configurations and removed `replicationSpecId` from AtlasBackupSchedule. AtlasDeployment",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/edge-cases.md#schema-versioning-validation",
           "note": null
         },
         {
-          "text": "23. With `externalProjectRef`, `connectionSecret.name` is mandatory because the CR cannot inherit credentials from a parent project. — https://www.mongodb.com/docs/atlas/operator/v2.16/ak8so-independent-crd/ 24. Each project supports at most one AtlasIPAccessList. Multiple AtlasIPAccessList CRs for the same project conflict. — https://www.mongodb.com/docs/atlas/operator/current/atlasipaccesslist-custom-resource/ 25. A project can have only one integration of each type, whether it comes from AtlasProject `spec.integrations` or from AtlasThirdPartyIntegration. For example, DATADOG cannot be decl",
+          "text": "23. With `externalProjectRef`, `connectionSecret.name` is mandatory because the CR cannot inherit credentials from a parent project. — 24. Each project supports at most one AtlasIPAccessList. Multiple AtlasIPAccessList CRs for the same project conflict. — 25. A project can have only one integration of each type, whether it comes from AtlasProject `spec.integrations` or from AtlasThirdPartyIntegration. For example, DATADOG cannot be declared in both. — 26. Migration hazard: moving a field out of AtlasProject into its own CRD without first setting `atlas-reconciliation-policy: skip` has two fail",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/edge-cases.md#independent-vs-embedded-crds-conflicts",
           "note": null
         },
         {
-          "text": "15. MongoDB says not to use v2.0.0, because it cannot reconcile `AtlasBackupSchedule` when deletion protection is on. v2.0.1 (2023-12-04) is the first usable 2.x release. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 16. In 2.0.1, deleting a CR in Kubernetes no longer deletes the matching Atlas resource; AKO only stops managing it. This deletion-protection default is the behavioural break between 1.x and 2.x CRDs. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 17. In 2.0.1, `deploymentSpec` replaced `advancedDeploymentSpec` in `AtlasDeployment`.",
+          "text": "15. MongoDB says not to use v2.0.0, because it cannot reconcile AtlasBackupSchedule when deletion protection is enabled; use 2.0.1 instead (released 4 December). 16. In 2.0.1, custom resources deleted in Kubernetes are not deleted in Atlas; AKO stops managing them. This is listed as a breaking change. 17. In 2.0.1, deploymentSpec replaces advancedDeploymentSpec in AtlasDeployment; users of the old deploymentSpec must rewrite to the new format. 18. In 2.0.1, replicationSpecId was removed from AtlasBackupSchedule and is set automatically per deployment, so one schedule can be reused by several d",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/history.md#2-0-2023-12-breaking-schema-and-semantics-change",
           "note": null
         },
@@ -93,12 +93,12 @@
           "note": null
         },
         {
-          "text": "29. In 1.0.0, `AtlasCluster` was renamed to `AtlasDeployment` and `clusterSpec` to `deploymentSpec`. In 2.0.x, `advancedDeploymentSpec` was folded into `deploymentSpec`, and secrets moved to `*Ref` fields (e.g. `APITokenRef`). — https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 30. AKO moved sub-resources out of AtlasProject into standalone CRDs over several releases. 2.6.0 added AtlasPrivateEndpoint and AtlasCustomRole. 2.7.0 added AtlasIPAccessList and made AtlasDeployment and AtlasDatabaseUser usable without a managed project. 2.8.0 added AtlasNetworkPeering and AtlasNetw",
+          "text": "In 1.0.0, `AtlasCluster` was renamed to `AtlasDeployment` and `clusterSpec` to `deploymentSpec`. In 2.0.1, `deploymentSpec` replaced `advancedDeploymentSpec`, and secrets moved to `*Ref` fields (e.g. `APITokenRef`). AKO moved sub-resources out of AtlasProject into standalone CRDs over several releases. 2.5.0 made AtlasDeployment and AtlasDatabaseUser usable as independent resources without a managed project. 2.6.0 added AtlasPrivateEndpoint and AtlasCustomRole. 2.7.0 added AtlasIPAccessList. 2.8.0 added AtlasNetworkPeering and AtlasNetworkContainer. The legacy AtlasProject subresource forms ar",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/mechanism.md#evolution-of-the-crd-set",
           "note": null
         },
         {
-          "text": "34. A full-state AtlasProject treats Atlas items missing from its spec as errors. In issue #2234, private endpoints managed outside AKO left the project stuck at `ProjectPrivateEndpointIsNotReadyInAtlas`, because the code compares the spec count with the Atlas count. Independent CRDs avoid this coupling. — https://github.com/mongodb/mongodb-atlas-kubernetes/issues/2234 35. Fields left unset inherit Atlas defaults, and that inheritance can loop reconciliation forever. Issue #3142 reports AtlasDeployments created before 2.4.1 that never reached Ready after an upgrade to 2.5.0. The documented fix",
+          "text": "In issue #2234, a project with private endpoints in Atlas but not in its spec stayed at `ProjectPrivateEndpointIsNotReadyInAtlas`, because the code compares the spec count with the Atlas count. Maintainers fixed it in 2.8.1 (PR #2236). Issue #3142 reports AtlasDeployments created before 2.4.1 that never reached Ready after an upgrade to 2.5.0. The AKO docs for 2.5.0 onwards say to explicitly define the desired configuration, for example autoscaling, because inheriting Atlas defaults can cause a reconciliation loop. In issue #1186, a reporter found that the version check used the generic `app.k",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/mechanism.md#failure-modes-seen-in-the-field-disconfirming-evidence",
           "note": null
         },
@@ -108,12 +108,12 @@
           "note": null
         },
         {
-          "text": "— https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start/ 20. Helm deliberately never upgrades or deletes CRDs that sit in a chart's `crds/` directory: \"There is no support at this time for upgrading or deleting CRDs using Helm.\" Helm recommends putting CRDs in their own chart. — https://helm.sh/docs/chart_best_practices/custom_resource_definitions/ 21. MongoDB ships the CRDs as their own chart, `mongodb/mongodb-atlas-operator-crds`, and upgrades them with `helm upgrade atlas-operator-crds mongodb/mongodb-atlas-operator-crds`. The atlas-operator chart can also install this chart",
+          "text": "Helm deliberately never upgrades or deletes CRDs that sit in a chart's `crds/` directory: \"There is no support at this time for upgrading or deleting CRDs using Helm.\" Helm's best-practices guide offers putting CRDs in their own chart as an alternative. MongoDB ships the CRDs as their own chart, `mongodb/mongodb-atlas-operator-crds`, and upgrades them with `helm upgrade atlas-operator-crds mongodb/mongodb-atlas-operator-crds`. The atlas-operator chart can also install this chart as a dependency. That chart keeps its CRDs under `templates/`, with no `crds/` directory, so Helm treats them as tem",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/practice.md#installing-and-upgrading-the-crds",
           "note": null
         },
         {
-          "text": "35. `mongodb.com/atlas-reconciliation-policy: \"skip\"` pauses sync. While it is set, AKO does not revert manual changes made in Atlas. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ [M24,E8,P14] 36. From 2.0.1 on, deleting a CR does not delete the Atlas object; AKO only stops managing it. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ [M25,E1,H16,P13] 37. The operator-wide deletion-protection switches have different names on different surfaces: - Flag `--object-deletion-protection`, or env var `OBJECT_DELETION_PROTECTION` (default true). [M25] -",
+          "text": "35. `mongodb.com/atlas-reconciliation-policy: \"skip\"` stops AKO from reconciling the annotated resource and its subresources. 36. From Atlas Kubernetes Operator 2.0.1 on, custom resources deleted in Kubernetes are not deleted in Atlas; the operator stops managing them. 37. The operator-wide deletion-protection settings have different names on different surfaces: the flag `--object-deletion-protection` (environment variable OBJECT_DELETION_PROTECTION; the default is true from 2.x); `--subobject-deletion-protection` (the 2.1.0 changelog disables it due to a bug); and Atlas CLI install options `r",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/rabbithole-synthesis.md#e-annotations-and-deletion-lifecycle",
           "note": null
         },
@@ -123,7 +123,7 @@
           "note": null
         },
         {
-          "text": "1. Since AKO 2.0, deleting a CR in Kubernetes does not delete the Atlas object by default. AKO stops managing it instead. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 2. The per-resource override is the annotation `mongodb.com/atlas-resource-policy: \"delete\"`. Users who reverted to pre-2.0 delete-by-default behavior use `\"keep\"` to protect individual resources. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 3. Operator-wide flags `--object-deletion-protection` and `--subobject-deletion-protection` revert to v1.x behavior. The quick-start page",
+          "text": "1. Since AKO 2.0, deleting a CR in Kubernetes does not delete the Atlas object by default; AKO stops managing it instead. 2. The per-resource override is the annotation mongodb.com/atlas-resource-policy: \"delete\". Users who reverted to pre-2.0 delete-by-default behavior use \"keep\" to protect individual resources. 3. The operator-wide --object-deletion-protection flag (or OBJECT_DELETION_PROTECTION environment variable) reverts to the pre-2.0 behavior. The --subobject-deletion-protection flag was disabled in 2.1.0 because of a bug. 4. AKO does not delete teams from Atlas when you remove them fr",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/edge-cases.md#deletion-semantics",
           "note": null
         },
@@ -133,7 +133,7 @@
           "note": null
         },
         {
-          "text": "28. A second CRD family is generated from the Atlas Admin API OpenAPI spec: Group, Cluster, DatabaseUser, FlexCluster, IpaccessListEntry. MongoDB says it will become the standard. — https://www.mongodb.com/docs/atlas/operator/current/generated-crds-overview/ 29. You cannot manage one Atlas resource with both a generated CRD and a classic CRD. You must pick one family per resource. — https://www.mongodb.com/docs/atlas/operator/current/generated-crds-overview/ 30. The generated CRDs ship in the same `atlas-operator-crds` Helm chart as the classic ones, so they are installed even if unused. — htt",
+          "text": "28. A second CRD family is generated from the Atlas Admin API OpenAPI spec: Group, Cluster, DatabaseUser, FlexCluster, IpaccessListEntry. MongoDB says it will become the standard. — https://www.mongodb.com/docs/atlas/operator/current/generated-crds-overview/ 29. You cannot manage one Atlas resource with both a generated CRD and a classic CRD. You must pick one family per resource. — https://www.mongodb.com/docs/atlas/operator/current/generated-crds-overview/ 30. The generated CRDs ship in the same `atlas-operator-crds` Helm chart as the classic ones, so they are installed even if unused.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/edge-cases.md#generated-crds-atlas-generated-mongodb-com",
           "note": null
         },
@@ -143,7 +143,7 @@
           "note": null
         },
         {
-          "text": "21. AKO reports reconcile outcome in `status.conditions`. A `Ready` condition sits alongside per-feature condition types (e.g. `IPAccessListReady`), each with a `reason` (e.g. `ProjectIPAccessListNotCreatedInAtlas`) and a `message` that can embed the raw Atlas Admin API error. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 22. AtlasDeployment status also carries `stateName` (IDLE, CREATING, UPDATING, DELETING, DELETED, or REPAIRING), `observedGeneration`, `connectionStrings`, `mongoDBVersion`, and `mongoURIUpdated`. — https://www.mongodb.com/docs/atlas/operator/current",
+          "text": "21. AKO reports reconcile outcome in `status.conditions`. A `Ready` condition sits alongside per-feature condition types (e.g. `IPAccessListReady`), each with a `reason` (e.g. `ProjectIPAccessListNotCreatedInAtlas`) and a `message` that can embed the raw Atlas Admin API error. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 22. AtlasDeployment status also carries `stateName` (IDLE, CREATING, UPDATING, DELETING, DELETED, or REPAIRING), `observedGeneration`, `connectionStrings`, `mongoDBVersion`, and `mongoURIUpdated`.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/mechanism.md#status-contract",
           "note": null
         },
@@ -168,32 +168,32 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "21. v2.1.0 (2024-02-16) deprecated the `cloudProviderAccess*` fields in favour of `cloudProviderIntegration*` in `AtlasProject`. It also added OIDC and AWS IAM fields to `AtlasDatabaseUser`. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 22. v2.3.0 (2024-06-06) added Atlas Stream Processing, which became the stream instance and connection kinds, and Atlas Search and Vector Search indexes, which became `AtlasSearchIndexConfig`. — https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases?per_page=10&page=3 ; https://www.mongodb.com/docs/atlas/operator/current",
+          "text": "v2.1.0 deprecated the `cloudProviderAccess*` fields in favour of `cloudProviderIntegration*` in `AtlasProject`. v2.3.0 (2024-06-06) added Atlas Stream Processing and Atlas Search indexes. v2.4.0 (2024-07-16) added Backup Compliance Policy support and short names for AKO custom resources. v2.5.0 (2024-10-29) made `AtlasDeployment` and `AtlasDatabaseUser` usable as independent resources. An independent CR names its project with `spec.externalProjectRef.id` instead of an AtlasProject reference; `spec.connectionSecret.name` is then required and takes precedence over other credentials. To migrate",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/history.md#2-x-2024-2026-new-kinds-independent-crds-decomposition-of-atlasproject",
           "note": null
         },
         {
-          "text": "60. An AtlasProject manifest has to list everything Atlas holds. If private endpoints in Atlas are missing from the spec, the project sticks at `ProjectPrivateEndpointIsNotReadyInAtlas`, because AKO compares the count in the spec with the count in Atlas. Independent CRDs avoid this coupling. — https://github.com/mongodb/mongodb-atlas-kubernetes/issues/2234 [M34,P34] 61. If a CR leaves a field unset and inherits the Atlas default, reconciliation can loop forever. The docs say: \"inheriting Atlas defaults may result in a reconciliation loop which can prevent your custom resource from achieving a",
+          "text": "Issue #2234 (operator 2.8.0): an AtlasProject whose Atlas project had private endpoints that were not in the spec kept the status ProjectPrivateEndpointIsNotReadyInAtlas, because the code compared the spec private-endpoint count with the Atlas count. It was fixed by #2236 in 2.8.1. The reporter only wondered whether the PrivateEndpoint CRD would hit the same issue; no source says independent CRDs avoid it. The docs warn that \"inheriting Atlas defaults may result in a reconciliation loop which can prevent your custom resource from achieving a READY state\", and advise defining autoscaling explic",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/rabbithole-synthesis.md#h-failure-modes-field-evidence",
           "note": null
         },
         {
-          "text": "| # | Topic | Side A | Side B | |---|---|---|---| | D1 | When AtlasDeployment and AtlasDatabaseUser became independent | **v2.5.0 (2024-10-29)**: inherited parent extract, plus H24 citing the releases API (page 3) and the changelog | **v2.7.0**: M30, citing the changelog. M's summary bundles it with AtlasIPAccessList. Both reports cite the same changelog, so a summarizer conflated the two releases. | | D2 | Which kinds accept `externalProjectRef` | Independent-CRD page (current and v2.16): only AtlasDeployment and AtlasDatabaseUser | Per-kind pages: AtlasIPAccessList (both CEL rules), AtlasNet",
+          "text": "The AKO docs describe the stream kind as `AtlasStreamWorkspace`, while the Go source on `main` defines `AtlasStreamInstance` with `shortName=asi`. Sources: https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/api/v1/atlasstreaminstance_types.go ; https://www.mongodb.com/docs/atlas/operator/current/atlasstreamworkspace-custom-resource/",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/rabbithole-synthesis.md#disagreements-both-sides-kept-neither-resolved",
           "note": null
         },
         {
-          "text": "IN: the Atlas Kubernetes Operator's custom resource definitions themselves. That covers CRD schema and API versioning, CEL validation, lifecycle (install, upgrade, delete), deletion and reconciliation annotations, independent versus project-embedded CRDs, generated CRDs, and the CRD-level reconcile failure modes. OUT: AKO vs MCK and Terraform comparisons, Atlas cluster tuning, networking and backup semantics beyond what a CRD field does, and sibling frontier concepts. Inherited parent facts are not repeated as findings. Those facts are: AKO uses controller-runtime, custom condition types, and",
+          "text": "The Atlas Kubernetes Operator v2.5.0 made AtlasDeployment and AtlasDatabaseUser usable as independent resources, meaning they can be managed without also managing the Project with the operator. Sources: https://github.com/mongodb/mongodb-atlas-kubernetes/releases/tag/v2.5.0",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/edge-cases.md#scope",
           "note": null
         },
         {
-          "text": "14. AtlasDeployment requires exactly one of its deployment shapes: \"Only one of DeploymentSpec, AdvancedDeploymentSpec and ServerlessSpec should be defined.\" The current shapes are `deploymentSpec`, `flexSpec`, and the deprecated `serverlessSpec`. — https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ 15. CEL transition rules (`self == oldSelf`) make some fields immutable after creation: `deploymentSpec.name`, `flexSpec.providerSettings.backingProviderName`, and `flexSpec.providerSettings.regionName`. Group's `projectOwnerId` is immutable as well. — https://www.",
+          "text": "AtlasDeployment documents that only one of its deployment shapes should be defined (deploymentSpec, flexSpec, and the deprecated serverlessSpec). CEL transition rules (self == oldSelf) make deploymentSpec.name, flexSpec.providerSettings.backingProviderName and flexSpec.providerSettings.regionName immutable after creation, and Group's projectOwnerId is immutable too. These x-kubernetes-validations rules are evaluated by the Kubernetes API server, and transition rules compare against oldSelf. AKO rejects new AtlasDeployments that define spec.serverlessSpec; that field only manages existing Serve — https://www.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/mechanism.md#schema-invariants",
           "note": null
         },
         {
-          "text": "- **When independent CRDs arrived.** The inherited parent extract says \"v2.5+ allows AtlasDeployment / …\" as independent CRDs. The changelog puts AtlasDeployment and AtlasDatabaseUser independence at **2.7.0**, and AtlasPrivateEndpoint and AtlasCustomRole at 2.6.0. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ . This report does not resolve the conflict. The changelog is the primary source. - **Which kinds support `externalProjectRef`.** The independent-CRD page lists only AtlasDeployment and AtlasDatabaseUser. The AtlasIPAccessList page shows both CEL rules and full `",
+          "text": "The changelog puts AtlasDeployment and AtlasDatabaseUser independence at 2.5.0, which agrees with the parent extract's \"v2.5+\"; there is no conflict. AtlasPrivateEndpoint and AtlasCustomRole arrived in 2.6.0 and AtlasIPAccessList in 2.7.0. The independent-CRD page names AtlasDeployment and AtlasDatabaseUser only as examples (\"resources such as\"), and the AtlasIPAccessList page documents `externalProjectRef`, so the independent-CRD page is not an exhaustive list of kinds that support `externalProjectRef`. Issue #1186 (label-based version check) is closed (Dec 5, 2023), fixed by #1209, which ren",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/mechanism.md#unresolved-disagreements",
           "note": null
         },
@@ -208,12 +208,12 @@
           "note": null
         },
         {
-          "text": "20. The API server enforces CEL `x-kubernetes-validations` at admission time; the operator does not. Transition rules compare against `oldSelf`. — https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/ [M16] 21. AtlasDeployment accepts exactly one deployment shape. The CEL message still reads \"Only one of DeploymentSpec, AdvancedDeploymentSpec and ServerlessSpec should be defined\", but the current shapes are `deploymentSpec`, `flexSpec` and the deprecated `serverlessSpec`. *Delta (inference):* the message names a field that was removed in 2.0.1. — http",
+          "text": "20. Transition rules in `x-kubernetes-validations` compare against `oldSelf`. 21. The AtlasDeploymentSpec schema description still reads \"Only one of DeploymentSpec, AdvancedDeploymentSpec and ServerlessSpec should be defined.\" This is description text, not a CEL message; the CEL rules on the CRD enforce one project reference (projectRef or externalProjectRef) and reject adding serverlessSpec. 22. These fields are immutable through `self == oldSelf`: deploymentSpec.name, flexSpec.providerSettings.backingProviderName, flexSpec.providerSettings.regionName, and the Group `spec.v20250312.projectOw — http",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/rabbithole-synthesis.md#c-schema-invariants-and-validation",
           "note": null
         },
         {
-          "text": "12. Disabling compute autoscaling with `enabled: false` while leaving `minInstanceSize` set fails with `COMPUTE_AUTO_SCALING_MIN_INSTANCE_SIZE_INVALID_FOR_DISABLED` (\"min instance size must be unset when scale down is disabled\"). You must remove the fields, not just set the flags to false (v0.5.0, 2021). — https://github.com/mongodb/mongodb-atlas-kubernetes/issues/311 13. AKO v2.8.2 fixed an infinite AtlasDeployment reconcile. The trigger was `autoscaling.compute.enabled: false` with `minInstanceSize`/`maxInstanceSize` still set. v2.8.1 fixed a related loop where `minInstanceSize` was not clea",
+          "text": "Disabling compute autoscaling (`enabled: false`, `scaleDownEnabled: false`) while minInstanceSize was still set failed in 2021 with `COMPUTE_AUTO_SCALING_MIN_INSTANCE_SIZE_INVALID_FOR_DISABLED` (\"Compute auto-scaling min instance size must be unset when scale down is disabled\"). Removing the autoscaling blocks did not work either, and the operator was fixed by PR #322 (\"Unset fields which should be empty for updates\"). AKO v2.8.2 fixed an infinite AtlasDeployment reconcile triggered by `autoscaling.compute.enabled: false` with `minInstanceSize`/`maxInstanceSize` still set. v2.8.1 fixed a relat",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/edge-cases.md#autoscaling-field-traps-reconcile-loop-class",
           "note": null
         },
@@ -233,12 +233,12 @@
           "note": null
         },
         {
-          "text": "30. If a CR leaves a field unset and inherits the Atlas default, the operator can loop forever. The docs give autoscaling as the example: a static `instanceSize` gets re-applied to a cluster that autoscaling has resized. The docs say: \"Explicitly define your desired configuration details … inheriting Atlas defaults may result in a reconciliation loop which can prevent your custom resource from achieving a READY state\". — https://www.mongodb.com/docs/atlas/operator/current/atlasproject-custom-resource/ 31. A user reported that AtlasDeployments created before v2.4.1 loop forever after an upgrade",
+          "text": "If a CR leaves a field unset and inherits the Atlas default, the operator can loop forever. The docs give autoscaling as the example: a static `instanceSize` gets re-applied to a cluster that autoscaling has resized. The docs say: \"Explicitly define your desired configuration details in order to avoid implicitly using default Atlas configuration values. In some cases, inheriting Atlas defaults may result in a reconciliation loop which can prevent your custom resource from achieving a `READY` state.\" A user reported that AtlasDeployments created before v2.4.1 loop forever after an upgrade to 2.",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/practice.md#failure-modes-seen-in-practice",
           "note": null
         },
         {
-          "text": "- **Which kinds support independent CRs.** The independent-CRD page lists only AtlasDeployment and AtlasDatabaseUser (https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/). But per-kind pages and search snippets also document `externalProjectRef` for AtlasNetworkPeering, AtlasCustomRole, AtlasIPAccessList, AtlasNetworkContainer and AtlasThirdPartyIntegration (https://www.mongodb.com/docs/atlas/operator/v2.12/atlasnetworkpeering-custom-resource/). Both are recorded here and neither is chosen. - **The API group of `Group`.** The current custom-resources summary listed `Grou",
+          "text": "Which kinds support independent CRs: the independent-CRD page names AtlasDeployment and AtlasDatabaseUser as examples (\"resources such as\"), not as an exhaustive list. The per-kind pages for AtlasNetworkPeering, AtlasCustomRole, AtlasIPAccessList, AtlasNetworkContainer and AtlasThirdPartyIntegration also document `externalProjectRef`. The API group of `Group`: the Group reference page gives `atlas.generated.mongodb.com/v1`, and its spec holds a versioned `spec.v20250312`. Is \"v1\" stable: users expected a bump to `v2alpha1` for the 2.0 breaking changes, and a maintainer said bumping the CRD ver",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/practice.md#unresolved-disagreements",
           "note": null
         }
@@ -268,7 +268,7 @@
           "note": null
         },
         {
-          "text": "31. Helm never upgrades or deletes CRDs placed in a chart's `crds/` directory. It also does not template them, and `--dry-run` is not supported for them. Helm recommends a separate CRD chart. — https://helm.sh/docs/chart_best_practices/custom_resource_definitions/ 32. AKO follows that separate-chart pattern. `mongodb-atlas-operator-crds` keeps its CRDs under `templates/`, not `crds/`, so `helm upgrade` does update them. — https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator-crds/templates 33. For kubectl installs, CRDs must be applied before the operator manifest (`deploy/nam",
+          "text": "Helm does not support upgrading or deleting CRDs placed in a chart's `crds/` directory. It also does not template them, and `--dry-run` is not supported for them. Helm offers putting the CRDs in their own chart as an alternative. AKO publishes a separate CRD chart, `mongodb-atlas-operator-crds`, whose CRD files live under `templates/`, not `crds/`, and which is described as a chart for installing and upgrading the CRDs. Sources: https://helm.sh/docs/chart_best_practices/custom_resource_definitions/",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/edge-cases.md#install-upgrade-lifecycle",
           "note": null
         },
@@ -293,7 +293,7 @@
           "note": null
         },
         {
-          "text": "34. v2.14.0 (2026-05-05) added \"custom resources that are automatically generated based on the OpenAPI Atlas API specification\". — https://github.com/mongodb/mongodb-atlas-kubernetes/releases/tag/v2.14.0 35. The generated kinds use a separate API group, `atlas.generated.mongodb.com/v1`. The documented kinds are `Cluster`, `DatabaseUser`, `FlexCluster`, `Group` and `IPAccessListEntry`. — https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/docs/api-docs-generated.md 36. The specs of generated kinds are keyed by Atlas API version (for example `v20250312`), and \"At most one ver",
+          "text": "34. v2.14.0 (2026-05-05) added \"custom resources that are automatically generated based on the OpenAPI Atlas API specification\". — 35. The generated kinds use a separate API group, `atlas.generated.mongodb.com/v1`. The documented kinds are `Cluster`, `DatabaseUser`, `FlexCluster`, `Group` and `IPAccessListEntry`. — 36. The specs of generated kinds are keyed by Atlas API version (for example `v20250312`), and \"At most one versioned spec can be specified\". A generated `Cluster` points to a `Group` through `groupRef`, which reads `$.status.v20250312.id`. `groupRef` and `groupId` are mutually excl",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/history.md#generated-crds-2-14-2026",
           "note": null
         },
@@ -303,12 +303,12 @@
           "note": null
         },
         {
-          "text": "45. Helm never upgrades or deletes CRDs in a chart's `crds/` directory. It also does not template them, and `--dry-run` does not cover them. Helm recommends a separate CRD chart. — https://helm.sh/docs/chart_best_practices/custom_resource_definitions/ [M32,E31,P20] 46. MongoDB ships a separate CRD chart: directory `atlas-operator-crds`, published as `mongodb/mongodb-atlas-operator-crds`. It keeps the CRDs under `templates/`, so `helm upgrade` updates them. The atlas-operator chart can pull this chart in as a dependency. — https://github.com/mongodb/helm-charts/blob/main/charts/atlas-operator-c",
+          "text": "Helm does not support upgrading or deleting CRDs placed in a chart's crds/ directory. Those CRDs are not templated, and --dry-run is not supported for CRDs. Helm suggests moving CRDs to their own chart. MongoDB ships a separate CRD chart, atlas-operator-crds, installed as mongodb/mongodb-atlas-operator-crds and upgraded with helm upgrade. The atlas-operator chart can install it automatically as a dependency. The AtlasDeployment CRD in the chart's templates/ directory carries only the controller-gen.kubebuilder.io/version annotation, with no helm.sh/resource-policy annotation. The Atlas CLI com — https://github.com/mongodb/helm-charts/blob/main/charts/atlas-operator-c",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/rabbithole-synthesis.md#f-installing-and-upgrading-the-crds",
           "note": null
         },
         {
-          "text": "— changelog and releases API [H9–H13] 54. **2.0.1: breaking changes, still under `v1`** - `advancedDeploymentSpec` folded into `deploymentSpec`; manifests using the old 1.x `deploymentSpec` must be rewritten. - `replicationSpecId` removed from BackupSchedule; AKO now sets it, so one schedule can be shared. - Alert and encryption-at-rest credentials must be Secret references (`*Ref`, `secretRef`). Sources: https://www.mongodb.com/docs/atlas/operator/v2.7/ak8so-changelog ; https://newreleases.io/project/github/mongodb/mongodb-atlas-kubernetes/release/v2.0.1 ; https://mongodb.com/docs/atlas/operator/stable/atlasdeployment-custom-resource",
+          "text": "— changelog and releases API [H9–H13] 54. **2.0.1: breaking changes, still under `v1`** - `advancedDeploymentSpec` folded into `deploymentSpec`; manifests using the old 1.x `deploymentSpec` must be rewritten. - `replicationSpecId` removed from BackupSchedule; AKO now sets it, so one schedule can be shared. - Alert and encryption-at-rest credentials must be Secret references (`*Ref`, `secretRef`). Sources: https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ ; https://newreleases.io/project/github/mongodb/mongodb-atlas-kubernetes/release/v2.0.1 ; https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/rabbithole-synthesis.md#g-history-of-the-kind-set",
           "note": null
         },
@@ -358,7 +358,7 @@
           "note": null
         },
         {
-          "text": "24. AKO 2.0 changed the CRD schema but kept the `atlas.mongodb.com/v1` API version: - AtlasDeployment `advancedDeploymentSpec` was renamed to `deploymentSpec`. - AtlasProject inline credentials, such as the alert-notification tokens and the encryption-at-rest keys, became Secret references, such as `APITokenRef` and `secretRef`. Sources: https://www.mongodb.com/docs/atlas/operator/v2.5/ak8so-changelog ; https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource.md",
+          "text": "24. AKO 2.0 changed the CRD schema but kept the `atlas.mongodb.com/v1` API version: - AtlasDeployment `advancedDeploymentSpec` was renamed to `deploymentSpec`. - AtlasProject inline credentials, such as the alert-notification tokens and the encryption-at-rest keys, became Secret references, such as `APITokenRef` and `secretRef`. Sources: https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ ; https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource.md",
           "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-crds-2148af7b61/reports/practice.md#schema-evolution-and-breaking-changes",
           "note": null
         },

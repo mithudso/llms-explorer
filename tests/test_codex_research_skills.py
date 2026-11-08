@@ -530,7 +530,8 @@ class ResearchFlowTests(unittest.TestCase):
                          "scripts/codex_dr_artifacts.py", "scripts/repair_dr_exports.py",
                          "scripts/publish_scrub.py", "scripts/check_publish_privacy.py",
                          "site/tools/gen_concepts.py", "site/tools/gen_tree.py",
-                         "site/tools/gen_context.py", "site/tools/gen_concept_facts.py",
+                         "site/tools/gen_context.py", "site/tools/gen_concept_facts.py", "site/tools/site_origin.py",
+                         "site/site-origin.json",
                          "hub/scripts/concept_tree.py", "hub/scripts/research_site_hook.py"):
             target = self.repo / relative
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -565,6 +566,8 @@ class ResearchFlowTests(unittest.TestCase):
             self.assertEqual(child["parentConcept"], "Atomic publication")
         self.assertEqual(len(json.loads((self.repo / "site/src/data/tree.json").read_text())["nodes"]), 3)
         self.assertTrue((self.repo / "site/public/downloads/concepts/rename-durability.md").is_file())
+        site_origin = module_at("test_artifact_site_origin", REPO / "site/tools/site_origin.py")
+        reader_prefix = site_origin.default_site_url() + "/tree/"
         for pack in receipt["packs"]:
             path = Path(pack["path"])
             for filename in ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "llms-vocabulary.txt"):
@@ -575,7 +578,7 @@ class ResearchFlowTests(unittest.TestCase):
                     from llms_txt import split_llms_full
                     pages = split_llms_full((path / filename).read_text())
                     self.assertEqual(len(pages), 1)
-                    self.assertTrue(pages[0].url.startswith("https://llms-explorer.com/tree/"))
+                    self.assertTrue(pages[0].url.startswith(reader_prefix))
             units = [json.loads(line) for line in (path / "units.jsonl").read_text().splitlines()]
             self.assertEqual(len(units), 8)
             self.assertTrue(all(unit["source_url"].startswith("https://") for unit in units))
@@ -640,18 +643,55 @@ class ResearchFlowTests(unittest.TestCase):
         self.invoke("finish", "publication", "--status", "COMPLETED")
         self.assertEqual(self.shared.load_manifest("publication")["status"], "finalized")
 
-    def test_finish_recovers_other_run_before_publishing_new_shared_state(self):
+    def test_finish_preserves_other_run_journal_and_requires_its_owner_to_recover(self):
         self.research()
         self.artifact_targets()
         self.render()
         transactions = module_at("test_other_run_recovery", REPO / "scripts/research_transaction.py")
-        tx = transactions.Transaction(self.hub / "research/older-run/artifacts/transactions/old")
+        registry = transactions.registry_dir(self.hub / "research")
+        tx = transactions.Transaction(self.hub / "research/older-run/artifacts/transactions/old",
+                                      registry=registry)
         tx.write(self.hub / "concept-tree/tree.json", "interrupted invalid JSON")
+        journal = tx.root / "journal.json"
+        marker = next(registry.glob("*.json"))
+        before_journal, before_marker = journal.read_bytes(), marker.read_bytes()
+        with self.assertRaises(json.JSONDecodeError):
+            self.invoke("finish", "publication", "--status", "COMPLETED")
+        self.assertEqual((self.hub / "concept-tree/tree.json").read_text(), "interrupted invalid JSON")
+        self.assertEqual(journal.read_bytes(), before_journal)
+        self.assertEqual(marker.read_bytes(), before_marker)
+        self.assertEqual(self.shared.load_manifest("publication")["status"], "research-complete")
+        # The older run's owner can recover it explicitly, then the new run retries.
+        self.assertTrue(transactions.recover(tx.root))
         self.invoke("finish", "publication", "--status", "COMPLETED")
         published = (self.hub / "concept-tree/tree.json").read_bytes()
         self.assertIn(b"Rename durability", published)
         self.assertFalse(transactions.recover(tx.root))
         self.assertEqual((self.hub / "concept-tree/tree.json").read_bytes(), published)
+
+    def test_finish_refuses_valid_shared_tree_owned_by_another_pending_run(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        transactions = module_at("test_valid_foreign_tree", REPO / "scripts/research_transaction.py")
+        registry = transactions.registry_dir(self.hub / "research")
+        tx = transactions.Transaction(self.hub / "research/older-run/artifacts/transactions/old",
+                                      registry=registry)
+        tree = self.hub / "concept-tree/tree.json"
+        pending_tree = json.loads(tree.read_text()) + [{"concept": "Foreign pending concept",
+                         "slug": "foreign-pending-concept", "parentConcept": None,
+                         "childConcepts": [], "skillId": None}]
+        tx.write(tree, json.dumps(pending_tree))
+        journal, marker = tx.root / "journal.json", next(registry.glob("*.json"))
+        before_tree, before_journal, before_marker = tree.read_bytes(), journal.read_bytes(), marker.read_bytes()
+
+        with self.assertRaisesRegex(ValueError, "overlaps a pending foreign transaction"):
+            self.invoke("finish", "publication", "--status", "COMPLETED")
+
+        self.assertEqual(tree.read_bytes(), before_tree)
+        self.assertEqual(journal.read_bytes(), before_journal)
+        self.assertEqual(marker.read_bytes(), before_marker)
+        self.assertEqual(self.shared.load_manifest("publication")["status"], "research-complete")
 
     def test_finish_resolves_case_and_alias_owners_before_tree_upsert(self):
         self.research()

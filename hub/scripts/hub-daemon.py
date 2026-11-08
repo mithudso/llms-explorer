@@ -36,9 +36,9 @@ cfg = hub_lib.load_config()
 
 HOME = os.path.expanduser("~")
 STARTED_AT = time.time()
-# System/vendor trees must never be indexed: an earlier feeder once shoveled
-# all of /Applications into the store. Every path written to the index must
-# live under $HOME and outside these subtrees.
+# Keep system/vendor trees out of the index while allowing mounted and
+# other explicitly selected paths outside HOME.
+DENY_SYSTEM_SUBTREES = ("Applications", "Library", "System")
 DENY_HOME_SUBTREES = ("Library", "Applications", ".Trash")
 # Hidden top-level dirs under $HOME are vendor/cache trees (.vscode, .cargo,
 # .npm, ...) except the knowledge homes the hub actually serves.
@@ -57,16 +57,18 @@ def _normalize(abs_path: str) -> str:
 
 
 def _path_permitted(abs_path: str) -> bool:
-    """Home-anchored guard applied to every path entering the index,
-    regardless of which endpoint or loop submitted it."""
-    if not abs_path.startswith(HOME + os.sep):
-        return False
-    rel = abs_path[len(HOME) + 1:]
-    parts = rel.split(os.sep)
-    if parts and parts[0] in DENY_HOME_SUBTREES:
-        return False
-    if parts and parts[0].startswith(".") and parts[0] not in ALLOWED_HOME_DOTDIRS:
-        return False
+    """Apply exclusions to local and mounted paths from every indexing entry point."""
+    abs_path = _normalize(os.path.realpath(abs_path))
+    if abs_path.startswith(HOME + os.sep):
+        parts = abs_path[len(HOME) + 1:].split(os.sep)
+        if parts[0] in DENY_HOME_SUBTREES:
+            return False
+        if parts[0].startswith(".") and parts[0] not in ALLOWED_HOME_DOTDIRS:
+            return False
+    else:
+        parts = abs_path.strip(os.sep).split(os.sep)
+        if parts[0] in DENY_SYSTEM_SUBTREES:
+            return False
     return not any(hub_lib.is_excluded_dir(p, cfg) for p in parts[:-1])
 
 
@@ -137,11 +139,7 @@ def api_index_tree(payload: dict, background_tasks: BackgroundTasks):
     root = payload.get("root")
     if not root:
         return {"status": "error", "message": "No root provided"}
-    root = os.path.realpath(os.path.expanduser(str(root)))
-    # Inline home-anchor (also enforced by _path_permitted) so static analysis
-    # sees the path is confined before it touches the filesystem.
-    if not root.startswith(HOME + os.sep):
-        return {"status": "error", "message": "root not permitted"}
+    root = _normalize(os.path.realpath(os.path.expanduser(str(root))))
     if not os.path.isdir(root) or not _path_permitted(os.path.join(root, "probe")):
         return {"status": "error", "message": f"root not permitted: {root}"}
     try:

@@ -5,8 +5,8 @@ llms-concept-abstractor concept packs, plus a thin invocation layer over the
 Claude skills SDK.
 
 **Scope, precisely.** `llmsx tree …` and `llmsx concepts list/show/serve` are
-read-only and install with no third-party dependencies (the first-party, stdlib-only
-`llms-txt` library is the one requirement). `llmsx tui` and
+read-only and install with no runtime dependencies. Public context downloads also
+use only the Python standard library. `llmsx tui` and
 `llmsx concepts tui` need the `tui` extra; the concept-pack TUI's "edit"
 action opens `$EDITOR` on a pack file, which is a write. `llmsx family` and
 `llmsx optimize` need the `skills` extra and make an outbound network call to
@@ -15,11 +15,47 @@ does and does not do.
 
 ## Install
 
+Download the current wheel from https://llmsx.org/downloads/ or install it directly:
+
 ```bash
-pip install llmsx                 # tree + concepts list/show/serve only
-pip install 'llmsx[tui]'          # + the Textual browsers
-pip install 'llmsx[skills]'       # + `llmsx family` / `llmsx optimize`
+python -m pip install 'llmsx[tui] @ https://llmsx.org/downloads/llmsx/llmsx-0.2.9-py3-none-any.whl'
 ```
+
+For a source checkout, select the extras you need:
+
+```bash
+python -m pip install './llmsx[tui]'     # Textual browsers
+python -m pip install './llmsx[skills]'  # model-backed family/optimize commands
+# Advanced corpus generation requires authorized private renderer access:
+python -m pip install './llmsx[corpus]'
+```
+
+## Public agent context packs (0.2.9+)
+
+Install the current wheel from https://llmsx.org/downloads/ for these commands.
+The public context path needs no model, API key, Textual extra or private hub.
+Version0.2.9 removes the private shared renderer from base/TUI installs. The
+optional `llmsx.pipeline` / `llmsx.family` generation API needs `llmsx[corpus]`
+and authorized access to that renderer; public pack reading/downloading does not.
+
+```sh
+llmsx context list
+llmsx context get prompt-caching
+llmsx concepts --data . show prompt-caching
+llmsx concepts --data . serve prompt-caching --file llms-facts.txt
+```
+
+The downloader creates a new `prompt-caching.llms/` directory. It checks the
+archive catalog hash, exact member names and each manifest hash before writing.
+It refuses existing output paths. Use `--output <new-directory>` for another copy.
+These hashes establish transfer integrity, not factual correctness or independent
+review. Inspect the pack date, original sources and task relevance before loading.
+The five-file family and one-node graph contain public reference material only;
+no private research ledger or full private concept graph is included.
+
+The cohesive suite uses `llmsx`, `skillsx` and `ghx`. Skills Explorer and GitHub
+Explorer are separate applications. `github-explorer` remains an alias for `ghx`.
+`llmsx tui` remains the tree browser; `llmsx explorer` opens the richer workbench.
 
 ## Speculative decoding experiment
 
@@ -132,7 +168,7 @@ llmsx tree show "LLMs.txt" --depth 2
 llmsx tree detail <slug>            # one node's fields
 llmsx tree search caching           # concept + alias substring
 llmsx tree frontier [slug]          # named but never researched
-llmsx tui                           # the Textual tree browser (pip install 'llmsx[tui]')
+llmsx tui                           # the Textual tree browser (tui extra)
 ```
 
 Data comes from the site's generated `site/src/data/tree.json`
@@ -153,7 +189,7 @@ llmsx concepts list --query caching # substring filter over name/summary/related
 llmsx concepts show <slug>          # one pack's summary, facets, related terms, files
 llmsx concepts serve <slug>         # llms.txt to stdout — pipeable: > out.md
 llmsx concepts serve <slug> --file llms-full.txt
-llmsx concepts tui                  # the Textual concept-pack browser (pip install 'llmsx[tui]')
+llmsx concepts tui                  # the Textual concept-pack browser (tui extra)
 ```
 
 `<slug>` may be an exact slug or a case-insensitive substring of the slug or
@@ -196,7 +232,7 @@ available_skills()                       # every skill on the search path
 skill = load_skill("notes-to-llms-txt")  # SkillNotFoundError lists the paths tried
 skill.description, skill.model           # frontmatter; `model` is the skill's own default
 
-run = run_skill(skill, "…my messy notes…")     # needs pip install 'llmsx[skills]'
+run = run_skill(skill, "…my messy notes…")     # needs the skills extra; see Install
 run = run_skill(skill, "…", client=my_client)  # or inject any transport
 print(run.text, run.model, run.usage)
 ```
@@ -227,7 +263,7 @@ same API and the same boundary.
 
 `llmsx family <topic>` and `llmsx optimize <file-or-text>` are thin CLI
 wrappers over `run_skill` for `concept-family-explorer` and
-`llms-deep-optimizer` respectively (needs `pip install 'llmsx[skills]'`).
+`llms-deep-optimizer` respectively (requires the `skills` extra; see Install).
 Both print a one-line disclaimer to stderr before the model's output: this is
 one model turn against the skill's instructions, not its full multi-pass
 loop.
@@ -254,10 +290,10 @@ Two different things share the name "Concepts" here, deliberately kept apart:
 
 **Complete user guide:** [`llmsx/USER_GUIDE.md`](llmsx/USER_GUIDE.md) — shipped in the
 package; press `g` in the app, run `llmsx explorer --guide`, or read it at
-https://llms-explorer.com/explorer/guide/
+https://llmsx.org/explorer/guide/
 
 ```bash
-pip install 'llmsx[tui]'
+# Install the wheel with the tui extra (see Install above).
 llmsx explorer                 # inside an llms-explorer checkout, or clones one to ~/.llmsx/llms-explorer
 llmsx explorer --repo ~/src/llms-explorer --no-sync
 llmsx explorer --guide         # print the user guide and exit

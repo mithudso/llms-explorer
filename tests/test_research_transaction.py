@@ -45,3 +45,128 @@ def test_symlink_destination_is_refused(tmp_path):
     link.symlink_to(target)
     with pytest.raises(ValueError): transaction.Transaction(tmp_path / 'journal').write(link, 'changed')
     assert target.read_text() == 'original'
+
+
+def test_scoped_recovery_preserves_unrelated_journal_and_registry_marker(tmp_path):
+    research, repo = tmp_path / 'research', tmp_path / 'repo'
+    own_root = research / 'own-run/artifacts/transactions'
+    registry = transaction.registry_dir(research)
+    own_output, other_output = tmp_path / 'own-output', tmp_path / 'other-output'
+    own_output.write_text('own original')
+    other_output.write_text('other original')
+    own = transaction.Transaction(own_root / 'attempt', registry=registry)
+    other = transaction.Transaction(research / 'other-run/artifacts/transactions/attempt', registry=registry)
+    own.write(own_output, 'own interrupted')
+    other.write(other_output, 'other active')
+    other_journal = other.root / 'journal.json'
+    before_journal = other_journal.read_bytes()
+    other_marker = next(marker for marker in registry.glob('*.json')
+                        if json.loads(marker.read_text())['root'] == str(other.root))
+    before_marker = other_marker.read_bytes()
+
+    assert transaction.recover_pending(research, repo, scope_root=own_root) == [str(own.root)]
+
+    assert own_output.read_text() == 'own original'
+    assert json.loads((own.root / 'journal.json').read_text())['status'] == 'rolled-back'
+    assert other_output.read_text() == 'other active'
+    assert other_journal.read_bytes() == before_journal
+    assert other_marker.read_bytes() == before_marker
+    assert list(registry.glob('*.json')) == [other_marker]
+
+
+def test_scoped_recovery_ignores_unrelated_missing_registered_journal(tmp_path):
+    research, repo = tmp_path / 'research', tmp_path / 'repo'
+    registry = transaction.registry_dir(research)
+    registry.mkdir(parents=True)
+    marker = registry / 'other-author.json'
+    marker.write_text(json.dumps({'root': str(tmp_path / 'missing-other-journal')}))
+    before = marker.read_bytes()
+
+    assert transaction.recover_pending(
+        research, repo, scope_root=research / 'own-run/artifacts/transactions') == []
+    assert marker.read_bytes() == before
+    with pytest.raises(ValueError, match='registered projection journal is missing'):
+        transaction.recover_pending(research, repo)
+
+
+def test_default_recovery_still_recovers_all_registered_writers(tmp_path):
+    research, repo = tmp_path / 'research', tmp_path / 'repo'
+    registry = transaction.registry_dir(research)
+    transactions = []
+    for name in ['first', 'second']:
+        tx = transaction.Transaction(research / name / 'artifacts/transactions/attempt', registry=registry)
+        tx.write(tmp_path / name, 'interrupted')
+        transactions.append(tx)
+
+    recovered = transaction.recover_pending(research, repo)
+
+    assert set(recovered) == {str(tx.root) for tx in transactions}
+    assert not list(registry.glob('*.json'))
+    assert all(not (tmp_path / name).exists() for name in ['first', 'second'])
+
+
+@pytest.mark.parametrize('owned, requested', [('tree', 'tree'), ('tree', 'tree/child'), ('tree/child', 'tree')])
+@pytest.mark.parametrize('operation', ['remember', 'write'])
+def test_registry_writer_refuses_equal_and_nested_pending_destinations(tmp_path, owned, requested, operation):
+    research = tmp_path / 'research'
+    registry = transaction.registry_dir(research)
+    foreign = transaction.Transaction(research / 'foreign/artifacts/transactions/attempt', registry=registry)
+    foreign.write(tmp_path / owned, 'foreign pending')
+    journal = foreign.root / 'journal.json'
+    marker = next(registry.glob('*.json'))
+    before_journal, before_marker = journal.read_bytes(), marker.read_bytes()
+    writer = transaction.Transaction(research / 'new/artifacts/transactions/attempt', registry=registry)
+
+    with pytest.raises(ValueError, match='overlaps a pending foreign transaction'):
+        if operation == 'remember':
+            writer.remember(tmp_path / requested)
+        else:
+            writer.write(tmp_path / requested, 'must not publish')
+
+    assert (tmp_path / owned).read_text() == 'foreign pending'
+    assert journal.read_bytes() == before_journal
+    assert marker.read_bytes() == before_marker
+    assert not writer.root.exists()
+
+
+def test_write_rechecks_pending_ownership_after_remember(tmp_path):
+    research, target = tmp_path / 'research', tmp_path / 'shared'
+    registry = transaction.registry_dir(research)
+    target.write_text('original')
+    writer = transaction.Transaction(research / 'new/artifacts/transactions/attempt', registry=registry)
+    writer.remember(target)
+    # Simulate an older writer that predates the registry ownership guard.
+    foreign = transaction.Transaction(research / 'foreign/artifacts/transactions/attempt')
+    foreign.write(target, 'foreign pending')
+    with pytest.raises(ValueError, match='overlaps a pending foreign transaction'):
+        writer.write(target, 'must not publish')
+    assert target.read_text() == 'foreign pending'
+
+
+def test_scoped_recovery_and_rollback_refuse_preexisting_foreign_overlap(tmp_path):
+    research, repo, target = tmp_path / 'research', tmp_path / 'repo', tmp_path / 'shared'
+    registry = transaction.registry_dir(research)
+    target.write_text('original')
+    own_root = research / 'own/artifacts/transactions'
+    own = transaction.Transaction(own_root / 'attempt')
+    foreign = transaction.Transaction(research / 'foreign/artifacts/transactions/attempt')
+    own.write(target, 'own pending')
+    foreign.write(target, 'foreign pending')
+    # Register journals that already overlapped before this safety change.
+    for tx in [own, foreign]:
+        tx.registry = registry
+        tx.save()
+    before_journals = {tx.root: (tx.root / 'journal.json').read_bytes() for tx in [own, foreign]}
+    before_markers = {p: p.read_bytes() for p in registry.glob('*.json')}
+
+    for recover in [own.rollback, lambda: transaction.recover_pending(research, repo, scope_root=own_root)]:
+        with pytest.raises(ValueError, match='overlaps a pending foreign transaction'):
+            recover()
+        assert target.read_text() == 'foreign pending'
+        assert all((root / 'journal.json').read_bytes() == body for root, body in before_journals.items())
+        assert all(p.read_bytes() == body for p, body in before_markers.items())
+
+    # An explicit unscoped admin recovery keeps its historical serial behavior.
+    assert set(transaction.recover_pending(research, repo)) == {str(own.root), str(foreign.root)}
+    assert target.read_text() == 'original'
+    assert not list(registry.glob('*.json'))

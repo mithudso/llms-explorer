@@ -188,6 +188,59 @@ def test_topical_route_and_root_topics(hub_tmp, monkeypatch):
         srv.shutdown()
 
 
+def test_topical_index_graph_link_supports_get_and_head(hub_tmp, monkeypatch):
+    srv, base = _setup(hub_tmp, monkeypatch)
+    pack = hub_tmp / "llms-topical" / "example.llms"
+    pack.mkdir(parents=True)
+    (pack / "llms.txt").write_text(
+        "# Example\n\n> A concept pack.\n\n## Facets\n\n"
+        "- [Concept graph](concept-graph.json): Named concepts and relations.\n"
+    )
+    graph = '{"nodes": [{"id": "c1", "name": "Café"}], "edges": []}\n'.encode()
+    (pack / "concept-graph.json").write_bytes(graph)
+    try:
+        status, _, index = _get(f"{base}/t/example/llms.txt")
+        assert status == 200 and "(concept-graph.json)" in index
+        url = f"{base}/t/example/concept-graph.json"
+        for method in ("GET", "HEAD"):
+            request = urllib.request.Request(url, method=method)
+            with urllib.request.urlopen(request, timeout=5) as response:
+                assert response.status == 200
+                assert response.headers["Content-Type"] == "application/json; charset=utf-8"
+                assert int(response.headers["Content-Length"]) == len(graph)
+                assert response.headers.get("X-Markdown-Tokens") is None
+                assert response.read() == (graph if method == "GET" else b"")
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_topical_graph_route_keeps_other_files_and_traversal_private(hub_tmp, monkeypatch):
+    srv, base = _setup(hub_tmp, monkeypatch)
+    pack = hub_tmp / "llms-topical" / "example.llms"
+    pack.mkdir(parents=True)
+    for name in ("units.jsonl", "private.json"):
+        (pack / name).write_text('{"private": true}\n')
+    (hub_tmp / "llms-topical" / "concept-graph.json").write_text('{"outside": true}\n')
+    try:
+        for path in (
+            "/t/example/units.jsonl",
+            "/t/example/private.json",
+            "/t/example/nested/concept-graph.json",
+            "/t/../concept-graph.json",
+            "/t/%2e%2e/concept-graph.json",
+            "/t/example/%2e%2e/concept-graph.json",
+        ):
+            for method in ("GET", "HEAD"):
+                request = urllib.request.Request(f"{base}{path}", method=method)
+                with pytest.raises(urllib.error.HTTPError) as error:
+                    urllib.request.urlopen(request, timeout=5)
+                assert error.value.code == 404, (method, path)
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
 def test_split_index_section_route(hub_tmp, monkeypatch):
     srv, base = _setup(hub_tmp, monkeypatch)
     sec = next(hub_tmp.rglob("ex.dev.llms")) / "getting-started"
