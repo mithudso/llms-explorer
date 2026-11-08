@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v124 — 2026-11-08
+
+```text
+Run the /dr skill on all of the frontier children concepts of https://llmsx.org/tree/nonlinear-lead-lag-inference-conditional-information-transfer-finite-sample-uncertainty-lag-selection-multiplicity-and-directed-graph-preservation/ and run the full-suite skill on crypto trading bots: trend-following, mean-reversion, signal-based, arbitrage, loop, combo, TWAP, geographic, statistical, dip-buying, martingale, rebalancing, moon  https://www.tradingview.com/chart/GOLD/CvDZ1ttE-The-5-Types-of-Trading-Bots-Every-Trader-Should-Know/
+```
+
+Scope: EPIC-980; preserve prior accepted research. The necessary runtime repair TASK-994 fixes native JSONL framing so completed worker outputs can be recovered without repeated discovery.
+
 ## Prompt v123 - 2026-11-08
 
 Run the full-suite skill on identifying coins that would make ideal candidates for a grid or dca strategy. What do the prices look like over time that would make that strategy the most profitable? What criteria could you use when looking at a set of coins which ones would be best suited for that?
