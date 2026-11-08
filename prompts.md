@@ -1,5 +1,36 @@
 # Prompts Log
 
+## Prompt v122 - 2026-11-08
+
+Run the full-suite skill on identifying coins that would make ideal candidates for a grid or dca strategy. What do the prices look like over time that would make that strategy the most profitable? What criteria could you use when looking at a set of coins which ones would be best suited for that?
+
+Follow-up: Use available Codex agents instead (Recommended). This delivery contains the accepted research projections, separate from the already merged recovery-safety prerequisite.
+
+## Prompt v121 - 2026-11-07
+
+> Implement your design I like it, do it the whoel way
+
+## Prompt v120 - 2026-11-07
+
+> I like this logo I need one just less than 150kb in png
+
+(Screenshot showed llmsx-mark.svg, llmsx-mark-reversed.svg, llmsx-favicon.svg.)
+
+## Prompt v119 - 2026-11-07
+
+> I need a logo
+
+## Prompt v118 - 2026-11-07
+
+> yes create a docs wiki
+
+Ran /project-docs-setup --lite.
+
+## Prompt v117 - 2026-11-07
+
+> https://llmsx.org/tree/
+
+Started from the Design System template. Interpreted as: build a design system from the llmsx.org concept tree page and the site/ code that serves it.
 ## Prompt v121 - 2026-11-08
 
 ````text
