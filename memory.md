@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.139 - 2026-11-08
+
+- TASK-1226: The requested Google seller row already occurs once in `site/public/ads.txt` on remote main. Preserve the existing entry; no duplicate or repository-root copy is needed.
+- Live verification at 2026-11-08 08:55 UTC: `https://llmsx.org/ads.txt` returned HTTP 200 and `text/plain; charset=utf-8`. Its body matches the committed source byte for byte, including `google.com, pub-1706083044457708, DIRECT, f08c47fec0942fa0`.
+- Only prompt and memory history change. The original dirty checkout and other worktrees remain preserved. Remaining delivery: commit these records, pass required PR checks, merge, and verify remote contents. No product changes or user decisions remain.
+- Delta: memory v0.22.138 to v0.22.139; prompt v117 to v118.
+
 ## v0.22.138 - 2026-11-08
 
 - Final local TASK-808 publication checks passed:328site tests,2849page productionbuild/publicationpolicy,0type errors, and18611file combined-private-denylist scan with0findings. The allowlist is byte-identical to baseline; generated unrelated exactissue exceptions were removed. All8reader pages retain canonical statements and344internal links resolve.
