@@ -42,3 +42,21 @@ def test_prompt_optimizer_includes_its_acceptance_gate():
     scripts = ROOT / ".claude/skills/prompt-deep-optimizer/scripts"
     assert (scripts / "evidence_gate.py").is_file()
     assert "resolve().parent / 'evidence_gate.py'" in (scripts / "pdo_tools.py").read_text()
+
+
+def test_eval_optimizer_bundles_templates_and_does_not_claim_simulated_runs():
+    skill = ROOT / ".claude/skills/deep-eval-optimizer"
+    for name in (
+        "functional-eval-template.json",
+        "code-eval-template.json",
+        "trigger-eval-template.json",
+    ):
+        assert (skill / "templates" / name).is_file()
+    assert (skill / "scripts/suite_validator.py").is_file()
+    prompt = (skill / "SKILL.md").read_text()
+    assert "EXECUTOR_UNAVAILABLE" in prompt
+    assert (
+        "generated expected outputs and simulated grading are not executed skill results"
+        in prompt
+    )
+    assert "~/dev/evals/runner/" not in prompt

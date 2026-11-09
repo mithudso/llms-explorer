@@ -1,7 +1,7 @@
 ---
 name: deep-eval-optimizer
 description: >-
-  Audit, grade, optimize, and generate evaluation suites for AI agent skills across the corpus: runs a 12-pass convergence loop (Passes A-L) on eval prompts, assertions, near-miss trigger sets, and fixtures; writes Medium+ fixes in place; creates missing evals from templates; executes test runs via --run.
+  Audit, grade, optimize, and generate evaluation suites for AI agent skills across the corpus: runs a 12-pass convergence loop (Passes A-L) on eval prompts, assertions, near-miss trigger sets, and fixtures; writes Medium+ fixes in place; creates missing evals from templates; runs tests via --run only when a verified real executor is available.
   TRIGGER: "optimize evals", "audit skill evals", "create evals for skill", "eval optimizer", "run deo", "deep eval optimizer", "grade evals", "fix evals", "run skill evals", "eval test cases".
   SKIP: optimize skill markdown/code/prompts → skill-optimizer / sko; optimize general system prompts → prompt-deep-optimizer / pdo; code AST refactoring → code-deep-optimizer / cdo; tree rebalancing → skill-tree-architect.
 whenToUse:
@@ -46,7 +46,7 @@ metadata:
 
 # Deep Eval Optimizer (DEO)
 
-Audit, grade, optimize, and generate evaluation suites for AI agent skills. Operates across both functional execution evals (`<skill-dir>/evals/evals.json`) and trigger-accuracy evals (`<skill-dir>/evals/trigger-eval.json`). Runs a 12-pass convergence loop (Passes A–L, defined in `references/passes.md`) to fix Medium+ findings in place, creates missing evals using standard templates from `~/dev/evals/templates/`, and optionally executes benchmarks via `--run`.
+Audit, grade, optimize, and generate evaluation suites for AI agent skills. Operates across both functional execution evals (`<skill-dir>/evals/evals.json`) and trigger-accuracy evals (`<skill-dir>/evals/trigger-eval.json`). Runs a 12-pass convergence loop (Passes A–L, defined in `references/passes.md`) to fix Medium+ findings in place, creates missing evals using bundled templates from `templates/`, and optionally executes benchmarks via a separately configured real executor. Resolve bundle paths from this skill directory.
 
 ## Invocation
 
@@ -54,7 +54,7 @@ Trigger with `/deo <skill-id-or-path> [flags]` or naming the skill in conversati
 
 - `/deo prompt-deep-optimizer`: Audits and optimizes existing evals for `prompt-deep-optimizer`.
 - `/deo my-skill --create`: Generates missing eval suites from templates if not present.
-- `/deo my-skill --run`: Optimizes evals and immediately executes them via `~/dev/evals/runner/eval_runner.py`.
+- `/deo my-skill --run`: Optimizes evals and runs them only when an actual executor and its measurement contract are available; otherwise report `EXECUTOR_UNAVAILABLE`.
 - `/deo my-skill --audit`: Read-only pass; reports findings across Passes A-L without writing.
 - `/deo my-skill --max-iter=2`: Caps convergence iterations.
 
@@ -93,7 +93,7 @@ Defined in detail in `references/passes.md`:
 ### Step 2 — Missing Eval Generation
 If evals are absent (or caller passed `--create`):
 1. Create `<skill-dir>/evals/` directory.
-2. Read appropriate template from `~/dev/evals/templates/` (`functional-eval-template.json`, `code-eval-template.json`, or `trigger-eval-template.json`).
+2. Read the appropriate bundled template from `templates/` (`functional-eval-template.json`, `code-eval-template.json`, or `trigger-eval-template.json`).
 3. Tailor prompts, expected outputs, assertions, and trigger queries specifically to the target skill's domain and instructions.
 4. Write `<skill-dir>/evals/evals.json` and `<skill-dir>/evals/trigger-eval.json`.
 
@@ -106,25 +106,12 @@ The optimizer **always** executes the rewrite-commit-eval loop until convergence
    - **Medium:** Vague/subjective assertions, insufficient near-misses, underspecified expected outputs, missing edge cases, prompt token bloat. (Must fix).
    - **Low:** Minor wording polish, cosmetic formatting. (Defer).
 3. **Rewrite in Place:** Apply all High and Medium fixes directly to `SKILL.md`, `evals/evals.json`, and `evals/trigger-eval.json`.
-4. **Git Commit Changes:** Automatically commit modifications to git with a clear audit diff trail:
-   ```bash
-   git add <skill-dir> && git commit -m "fix(<skill-id>): deo convergence loop iteration <N> - resolve Medium+ findings"
-   ```
-5. **Execute Eval Test Suite:**
-   - Validate suite schema & assertions: `python3 ~/dev/evals/benchmarks/suite_validator.py <eval-file>`
-   - Execute functional runner: `python3 ~/dev/evals/runner/eval_runner.py <evals.json> --output-dir ~/dev/evals/results/<skill-name>`
-   - Execute trigger runner: `python3 ~/dev/evals/runner/trigger_runner.py <trigger-eval.json>`
-6. **Convergence Decision:**
-   - If findings count (High + Medium) == 0 AND all eval runner assertions pass: **Converged**. Proceed to Step 4.
-   - If findings remain OR assertions fail: Advance iteration count $N \leftarrow N + 1$ and repeat from Step 3.1.
-   - If iterations reach 5 without full convergence: Terminate with `UNRESOLVED_FINDINGS` warning and detailed triage diff.
+4. **Preserve work:** Follow the target repository's instructions and user authorization for commits. Stage only owned changes; do not automatically commit another person's work.
+5. **Validate and execute:** Run the bundled validator with `python3 <skill-dir>/scripts/suite_validator.py <eval-file>`. Inspect its findings; a zero process exit alone does not mean the suite passed. If `--run` is requested, discover a real execution harness, verify that it actually invokes the target skill, and record its command, observations and exit status. Replay, generated expected outputs and simulated grading are not executed skill results. If no suitable executor exists, report `EXECUTOR_UNAVAILABLE` and do not claim benchmark rates or convergence.
+6. **Convergence decision:** Require zero unresolved Medium-or-higher findings and the selected verification evidence. Missing requested execution remains `EXECUTOR_UNAVAILABLE`. Stop at the iteration cap with unresolved findings reported.
 
-### Step 4 — Verification & Benchmark Aggregation
-1. Final verification of git working tree status and clean test pass.
-2. Re-aggregate corpus benchmark:
-   ```bash
-   python3 ~/dev/evals/benchmarks/aggregate.py ~/dev/evals/results ~/dev/evals/results/summary.md
-   ```
+### Step 4 — Verification and aggregation
+Verify the final changes and report completed checks. Aggregate benchmark results only from actual recorded executions; label simulated or replay data separately.
 
 ### Step 5 — Report
 Emit report containing:
@@ -135,7 +122,7 @@ Emit report containing:
 - Benchmark test results and pass rates
 
 ## Quality Bar
-An evaluation suite passes when:
+Apply the following checks when the required tools, evidence and scope exist. Mark unavailable methods UNAVAILABLE; never claim a measurement without executing it. A clean or converged verdict requires all selected checks and evidence. An evaluation suite passes when:
 - 0 High or Medium findings remain across Passes A–L
 - Contains at least 2–3 diverse functional test cases (happy path, edge case, data/fixture handling)
 - Contains at least 2 verifiable, objective assertions per test case (Structural, Schema, Deterministic, Negative Bounds, Count Reconciliation)
