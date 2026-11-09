@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v125 — 2026-11-09 UI/UX full suite
+
+```text
+Run the full-suite skill on UI/UX design
+```
+
+Delta: prompt v124 to v125. This independent checkpoint repairs the native gate publisher-identity false positive discovered during the full suite. Preserve all completed research, exact judgments, private evidence and paused embeddings. The full-suite continuation is maintained with PR311; this fix does not claim suite completion.
+
 ## Prompt v124 — 2026-11-08
 
 ```text

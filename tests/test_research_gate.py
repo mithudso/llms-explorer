@@ -136,6 +136,91 @@ def test_dissent_is_never_rewritten_as_support(pinned):
     assert not gate.validate(packet, response, root)['all_supported']
 
 
+@pytest.fixture
+def publisher_evidence(tmp_path):
+    def make(url='https://design-system.service.gov.uk/components/',
+             label='GOV.UK', extra='', claim_text='GOV.UK recommends accessible components.'):
+        substance = 'The design system recommends accessible components.'
+        text = f'Publisher: {label}\n{extra}\n{substance}'
+        (tmp_path / 'publisher.txt').write_text(text)
+        start = text.index(substance)
+        source = {'source_id': 'src:publisher', 'snapshot_sha256': gate.digest(text.encode()),
+                  'available': True, 'file': 'publisher.txt'}
+        packet = {'schema': gate.STRICT_SCHEMA, 'sources': {url: source}}
+        claim = {'claim_id': 'publisher-claim', 'claim_sha256': gate.digest(claim_text),
+                 'text': claim_text, 'sources': [url]}
+        span = {**source, 'url': url, 'start': start, 'end': len(text),
+                'quote': substance, 'extraction_status': 'complete'}
+        judgment = {**{key: claim[key] for key in ('claim_id', 'claim_sha256', 'text')},
+                    'verdict': 'SUPPORTED', 'rationale': 'The selected official paragraph supports the complete statement.',
+                    'evidence': [span]}
+        return packet, claim, judgment, tmp_path
+    return make
+
+
+@pytest.mark.parametrize('url', ['https://gov.uk/components/',
+                                'https://design-system.service.gov.uk/components/'])
+def test_official_publisher_identity_does_not_need_to_repeat_in_judge_excerpt(publisher_evidence, url):
+    packet, claim, judgment, root = publisher_evidence(url=url)
+    assert gate.validate_judgment(packet, claim, judgment, root) == 'SUPPORTED'
+    # The authored all-claim integrity check remains stricter and unchanged.
+    with pytest.raises(ValueError, match='GOV.UK'):
+        gate.check_spans(packet, claim, judgment['evidence'], root, authored=True)
+
+
+@pytest.mark.parametrize('url', ['https://gov.uk.example.com/components/',
+                                'https://evilgov.uk/components/',
+                                'https://example.org/components/',
+                                'http://design-system.service.gov.uk/components/'])
+def test_publisher_identity_requires_a_cited_official_https_host(publisher_evidence, url):
+    packet, claim, judgment, root = publisher_evidence(url=url)
+    with pytest.raises(ValueError, match='GOV.UK'):
+        gate.validate_judgment(packet, claim, judgment, root)
+
+
+def test_publisher_identity_requires_the_exact_label_in_immutable_body(publisher_evidence):
+    packet, claim, judgment, root = publisher_evidence(label='Another publisher')
+    with pytest.raises(ValueError, match='GOV.UK'):
+        gate.validate_judgment(packet, claim, judgment, root)
+
+
+def test_publisher_identity_cannot_borrow_an_uncited_or_unjudged_source(publisher_evidence):
+    packet, claim, judgment, root = publisher_evidence()
+    official = claim['sources'][0]
+    other = 'https://example.org/components/'
+    packet['sources'][other] = dict(packet['sources'][official])
+    claim['sources'] = [other]
+    with pytest.raises(ValueError, match='not bound'):
+        gate.validate_judgment(packet, claim, judgment, root)
+    claim['sources'].append(official)
+    judgment['evidence'][0]['url'] = other
+    with pytest.raises(ValueError, match='GOV.UK'):
+        gate.validate_judgment(packet, claim, judgment, root)
+
+
+@pytest.mark.parametrize('literal', ['`GOV.UK`', 'HTTP.OK', 'GOV.UK.field',
+                                    'rowCount', '$user.name', 'v1.2.3', '0x1A', '64'])
+def test_publisher_identity_never_waives_code_or_factual_literal_coverage(publisher_evidence, literal):
+    packet, claim, judgment, root = publisher_evidence(
+        extra=f'Technical context outside the selected paragraph: {literal.strip(chr(96))}',
+        claim_text=f'GOV.UK recommends {literal} for accessible components.')
+    with pytest.raises(ValueError, match='evidence omits claim identifiers or numbers'):
+        gate.validate_judgment(packet, claim, judgment, root)
+
+
+@pytest.mark.parametrize('mutation', ['snapshot', 'offset', 'omissions'])
+def test_publisher_identity_preserves_snapshot_offset_and_extraction_guards(publisher_evidence, mutation):
+    packet, claim, judgment, root = publisher_evidence()
+    if mutation == 'snapshot':
+        judgment['evidence'][0]['snapshot_sha256'] = 'wrong'
+    elif mutation == 'offset':
+        judgment['evidence'][0]['start'] = True
+    else:
+        packet, claim, judgment, root = publisher_evidence(extra='[truncated]')
+    with pytest.raises(ValueError):
+        gate.validate_judgment(packet, claim, judgment, root)
+
+
 @pytest.mark.parametrize('verdict', ['SUPPORTED', 'NOT-IN-SOURCE', 'CONTRADICTED', 'UNVERIFIED'])
 def test_packet_source_cannot_be_borrowed_from_another_claim(pinned, verdict):
     *_, root, packet, response = pinned
