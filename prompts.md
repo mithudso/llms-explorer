@@ -1,5 +1,76 @@
 # Prompts Log
 
+## Prompt v126 — 2026-11-09 AdSense units
+
+```text
+I'm going to give you a few pieces of ad code, and I want  you to find the best placement for them:
+Copy and paste the ad unit code in between the <body></body> tags of your pages
+Place this code where you want an ad to appear. Do this for each individual ad unit, on every page.
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1706083044457708"
+     crossorigin="anonymous"></script>
+<!-- Vertical -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-1706083044457708"
+     data-ad-slot="5433692360"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+Copy and paste the ad unit code in between the <body></body> tags of your pages
+Place this code where you want an ad to appear. Do this for each individual ad unit, on every page.
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1706083044457708"
+     crossorigin="anonymous"></script>
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-format="autorelaxed"
+     data-ad-client="ca-pub-1706083044457708"
+     data-ad-slot="8630701349"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+[Image: In-article ad. The visible code specifies data-ad-layout="in-article", data-ad-format="fluid" and data-ad-slot="9911993425". Guidance suggests placing it two paragraphs into the article, not in a sidebar, with sufficient content between ads.]
+
+Copy and paste the ad unit code in between the <body></body> tags of your pages
+Place this code where you want an ad to appear. Do this for each individual ad unit, on every page.
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1706083044457708"
+     crossorigin="anonymous"></script>
+<!-- Horizontal -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-1706083044457708"
+     data-ad-slot="8482527534"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+Copy and paste the ad unit code in between the <body></body> tags of your pages
+Place this code where you want an ad to appear. Do this for each individual ad unit, on every page.
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1706083044457708"
+     crossorigin="anonymous"></script>
+<!-- Square -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-1706083044457708"
+     data-ad-slot="5347876541"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+```
+
+Delta: v125 to v126. Place supplied units on eligible reading pages while preserving existing loader, privacy and route exclusions.
+
 ## Prompt v125 — 2026-11-09 UI/UX full suite
 
 ```text

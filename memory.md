@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.153 — 2026-11-09 AdSense unit placement
+
+Version: 0.22.153. Delta: v0.22.152 to v0.22.153; implement prompt v126 and TASK-1250.
+
+Use the existing single AdSense loader and eligibility guard. Put the supplied matched-content unit after the reading content and the vertical unit beside it on wide screens. Place the supplied in-article unit after the second substantial paragraph when at least four are present. Place the horizontal unit after the fourth substantial paragraph only when at least six are present. Initialize the vertical unit only on wide screens and the square unit only on very wide screens. Strict, noindex and utility pages remain excluded. Google account approval and ad fill remain external to the site. The site build and publication checks passed. Thirty content/account tests passed. Browser checks verified slot initialization and layout at 375, 1280 and 1600 px, plus the ad-free account page. The generated CSP includes the initializer hash. Ad requests were blocked in the browser test, so ad fill and account approval remain unverified.
+
 ## v0.22.152 — 2026-11-09 GOV.UK publisher binding
 
 Version: 0.22.152. Delta: v0.22.151 to v0.22.152; correct publisher identity classification while running prompt v125.
