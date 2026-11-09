@@ -1,32 +1,18 @@
-# UI/UX design full-suite continuation
+# UI/UX full-suite continuation
 
-Version: 1.0.2
-Delta: 1.0.1 to 1.0.2; preserve completed evidence gates, merged validator correction and frontier continuation.
+Version: 3.0.0
+Delta: preserve the final accepted corpus and user-requested pause.
 
-Task: TASK-1234; steps TASK-1235 through TASK-1238.
+The user requested a disk checkpoint and wrap-up. No more inference, CI waits, ready transitions or merges are authorized during this stop. Keep all three task worktrees.
 
-The workflow is /Users/mitch/.agents/skills/llms-txt-tooling/references/full-suite.md, composed with the current CFE workflow and repository-native /dr adapter. Threshold: 3.2; default frontier rounds: 3; no concept-count or wall-clock cap was requested. Reuse installed coverage before discovering gaps.
+Research:26questions;573structured claims;676gate rows (607SUPPORTED/69pure questions);31public native packs. All full-scope/origin checks pass. Three expansions found3,2,0gaps: mapped coverage, not frontier saturation. All15competency questions and51exact bindings pass. Native model invocations were52research,26merge and8gate; costs remain unknown.
 
-The primary checkout had 916 dirty paths and remains untouched. Public changes use this isolated origin/main worktree. Keep source snapshots and model logs private. Preserve held research and paused embeddings; semantic indexing is withheld under that standing pause.
+Private LCA:26packs (24single/twofamily),676records,743citation lines;260keyword probes;29reader contexts/290questions meet their bars. Keep raw misses, genuine gaps, retries and resource-SHA rebinding. Do not repeat successful authors, gates or readers. The stable private compiler snapshot is exactv1.6.3.
 
-All three initial Stele outbox writes were replayed and acknowledged. Knowledge nodes KNOW-1239, KNOW-1240 and KNOW-1241 hold the current queue, isolation and embedding constraints.
+Skills source PR104 merged at9bccdfdbc2d9d3a0119f07984caf0f1ab0d6c411;40selected installed assets are verified. Card1.7.5 retains auditDissent0H/2M/1Low. Actual static53/53; functional/trigger scores predicted. Follow-up proposals remain unapplied. Existing semantic pause, Claude429quota, native architecture tool failure, historical duplicate and concurrent index exception remain explicit.
 
-Remaining: finish inventory/CVS planning, scout viable gaps, run native research and all-claim gates, audit skills, compile packs/rollup, verify projections and indexes, deliver through a checked PR, record actual saturation verdict.
+The site branch research/ui-ux-full-suite-20261108 remains draftPR311. This checkpoint includes the accepted31native packs and final tree/scored metadata. The private hub branch research/ui-ux-hub-tree-20261109 remains draftPR154 atf40c0200a565d0a29b2ebba726c01cbb92a0b1ab; its253ownedpaths are pushed,130localtests pass, CI was in progress at stop. Neither draft was merged.
 
-Planning completed TASK-1235. Research TASK-1236 is active. Native slugs: ui-ux-design-research-methods-20261108, ui-ux-design-inclusive-systems-20261108, ui-ux-design-emerging-interactions-20261108. Their manifests live under /Users/mitch/.global-ai-hub/research/. Full-suite plan, logs, seeds and run list live under /Users/mitch/.global-ai-hub/research/.full-suite/ui-ux-design-20261108/. The CFE state and lock use /Users/mitch/.claude/skill-consolidation/run-state/cfe-ui-ux-design.{json,lock}. Read saved worker outputs before retrying; do not restart successful authors.
+The authoritative private handoff is /Users/mitch/.global-ai-hub/research/.full-suite/ui-ux-design-20261108/continuation.md. Read runtime.json, final-contract-audit.json, lca-report.json, skill-quality.json, asset-parity-installation.json and hub-delivery.json there. Full per-file inventories are saved. Original checkouts and their unrelated dirty work remain preserved.
 
-## Evidence checkpoint, 2026-11-09
-
-All 21 initial questions finalized through the native adapter. They contain 451 structured claims. The complete factual-assertion gates contain 531 rows: 479 supported assertions and 52 pure questions. Emerging interactions produced 12 pack copies; research methods and inclusive systems each produced 18. Every copy has a native canonical publication receipt. Do not rerun successful authors or replace accepted verdicts.
-
-The original GOV.UK publisher binding false positive is fixed in merged https://github.com/mithudso/llms-explorer/pull/312 at 3a240ebd7d04e0d3f1c1fccd26abb08c5b6e733b. All 213 inclusive-system judgments passed reuse without a new model call. Tests: 49 focused and 367 broader; required CI passed. TASK-1242 is complete, and research task TASK-1236 is claimed. The main task branch includes that delivered fix.
-
-The first genuine frontier re-expansion found three new gaps. Native run ui-ux-design-frontier-r1-20261109 completed its research process with exit 0 and 76 claims across diary studies, search interaction and ResearchOps. Its full evidence gate and fourth reference remain pending. No saturation or empty-round credit is claimed.
-
-The three initial references are frozen in the isolated skills repository. Its base now includes upstream frontend-ui v1.4.1 and the exact ui-deep-optimizer handoff. The current candidate preserves that handoff and original model settings. Static checks pass 46/46 at the checkpoint; final certification waits for all frontier references. Claude-native trigger measurement is blocked by an actual weekly 429 usage_limit_reached response. Do not retry Claude or change accounts. Predicted trigger results must be labeled.
-
-The private LCA compiler reads exact qualified canonical claim statements and proof records into separate v3 packs. It must not overwrite frozen native compatibility packs. Source quotes and private provenance stay outside Git. Embeddings, Ollama and indexers remain paused; report semantic indexing as unavailable under that pause.
-
-Measured native research worker records are 9 methods, 9 systems and 6 emerging. The initial emerging finish command supplied 10 agents; use the measured value in final accounting and retain this correction rather than silently treating configured counts as actual usage. Cost fields do not prove zero cost.
-
-Remaining: finish frontier verification and required expansions; finalize skill audit and architecture; compile and verify all per-concept packs and rollup; keyword-index and query them without embeddings; merge-only synchronize trees after final placement; audit public projections; deliver both repositories through checked PRs; selectively install merged task-owned assets and verify actual loaded discovery; complete trackers and clean only this task's merged worktrees.
+Resume only after the user requests it. Start with final site build/generator parity and exact-tip CI, then delivery/live acceptance and task-owned cleanup. Do not restart discovery or local models.

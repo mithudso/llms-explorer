@@ -1,28 +1,46 @@
 # UI/UX design full suite
 
-Version: 1.0.1
-Delta: accepted initial cohort and genuine frontier continuation.
+Version: 2.0.1
+Delta: preserve verified results and pause final delivery at the user’s request.
 
-Status: the first 21 questions are verified and compiled. Three additional frontier questions are in evidence review. Saturation has not been established.
+**Paused at the user’s request.** The site and private hub PRs remain pushed drafts. Resume steps are saved; no additional merge or inference is running.
 
-The full-suite workflow maps UI/UX design, checks existing coverage, researches viable gaps, verifies every factual assertion, and compiles qualified reference packs and a subject rollup. This checkpoint records the commission and plan; it contains no newly qualified UX findings.
+The run qualified **26 topics and 573 structured claims**. Its complete assertion gates contain **676 records: 607 supported assertions and 69 pure questions**. Every bounded question passed its full-scope assessment and the three-independent-origin floor. The five native cohorts produced 31 public concept/aggregate packs; their 1,146 displayed fact rows include aggregate duplication.
 
-## Scope
+## Coverage
 
-The five-neighborhood map has 34 candidates: 20 research gaps, one focused refresh and 13 covered skips. All 21 viable questions remain selected. The threshold is 3.2; three frontier re-expansions use the current CFE default. The user did not request a concept-count or time cap. The exact existing tree parent is UI/UX Design under Frontend Design.
+The result is **SATURATED-COVERAGE of the mapped family**. Three frontier expansions found three, two and zero new viable gaps. This is one empty round; frontier saturation was not established. The threshold was 3.2, with three default expansions and no concept-count or time cap. All 15 competency questions map to accepted statements. Thirteen covered legacy candidates were deliberately left unchanged; their historical dates did not advance.
 
-The checked plan is in [plan.json](plan.json). It records scopes, inventory paths, aliases, scores, source leads and ten competency questions. Historical reference dates do not become current merely because their owning hub was migrated.
+## Compiled material
 
-## Execution
+Five new frontend-ui guides cover research methods and information architecture; inclusive systems and DesignOps; emerging interactions and agent oversight; diary studies/search/ResearchOps; organizational UX maturity and search-log inference. All 18 original reference bodies remain unchanged.
 
-Three native research runs group the queue into eight research-method questions, eight inclusive-system questions and five emerging-interaction questions. Each concept retains its own canonical claims, source snapshots and verification status. The repository Codex adapter enforces v4 evidence integrity before semantic review. A model process exit or preliminary scout result does not establish accepted research.
+The separate private LCA corpus contains 24 single-file packs and two families. It preserves all 676 canonical records and 743 visible citation lines. Its 17,019-byte rollup lists 26 members and 28 sitemap entries. All 260 keyword probes passed. Across 29 isolated reader contexts and 290 questions, every view met its coverage threshold. The record retains five misses, two genuine gaps and two bounded grader retries. No successful research judgment was repeated.
 
-Private source bodies, attempts and model logs stay outside this repository. The standing embedding pause remains in effect. Keyword and semantic indexing results will be reported separately.
+Opaque provenance, source quotes and these private LCA packs remain local. The public native packs contain qualified statement projections and source links. Semantic indexing remains withheld under the existing pause. The existing family generator lists verified member directories in Resources; an additional private resource inventory records the broader tool/skill/tree map.
 
-## Remaining work
+## Skill audit limits
 
-Finish research and exact claim gates; record failed gaps without promoting them; re-expand the evidence-grounded frontier; audit changed skills; compile per-concept packs and the rollup; verify indexing and tree/site projections; deliver qualified public changes through a checked PR. No completion or saturation is claimed by this checkpoint.
+The bounded frontend audit ended **BLIND-AUDIT-DISSENT: 0 High, 2 Medium and 1 Low** after two fresh reviews. The two Medium findings concern request phrasing in the TRIGGER clause and card/manifest routing text. Exact follow-up proposals remain unapplied. The current skill-optimizer Step 6 requires: “re-run blind audit once, second dissent? exit w/ status `BLIND-AUDIT-DISSENT` listing findings.” This report does not claim CLEAN.
 
-## Verified checkpoint
+Actual static checks pass 53/53. The 19-case/83-assertion functional results and 50 trigger queries are **predicted**. Claude-native measurement hit the weekly HTTP 429 quota. Native whole-tree metadata aggregation remains N/A because of a pre-existing declaration-order error; private diagnostic findings are not a native pass. Raw LCA lint findings and exact contract adjudications remain in the private audit, rather than being reported as zero.
 
-The first three native cohorts finalized 451 structured claims and 531 gate rows. The first source-grounded frontier expansion commissioned three further questions and produced 76 claims, pending the complete evidence gate. Private per-concept v3 packs and a categorical rollup are being compiled from accepted canonical records. Existing paused embeddings and Claude trigger quota limits remain explicit; neither is reported as a passing check.
+## Delivery
+
+The skill source and citation-preserving compiler fix are merged and selectively installed:
+
+https://github.com/mithudso/skills/pull/104
+
+The independent GOV.UK publisher-binding correction is merged:
+
+https://github.com/mithudso/llms-explorer/pull/312
+
+Final site/tree delivery is tracked here:
+
+https://github.com/mithudso/llms-explorer/pull/311
+
+The selected private hub tree and native packs are saved in draft PR154. Original dirty checkouts, staged compiler bytes, paused services, historical assets and unrelated research remain preserved. Concurrent global-index changes were archived without rollback; selected installation was verified separately.
+
+## Records
+
+The adjacent results.json contains exact counts and current delivery receipts. concepts.json maps each researched question to its guide. skill-audit.json and evidence-audit.json are public-safe audit summaries. prompts.md preserves the original request; memory.md records continuation steps.

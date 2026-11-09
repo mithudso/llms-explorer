@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v126 — 2026-11-09
+
+```text
+Write to disk what you have and wrap up
+```
+
+Delta: prompt v125 to v126. Save the UI/UX full-suite state and stop. Preserve draft PRs311/154 and all worktrees. Do not wait for CI, mark ready, merge or start more inference. Resume from the saved continuation; the26-topic research and source release are already qualified.
+
 ## Prompt v125 — 2026-11-08, continued 2026-11-09
 
 ```text

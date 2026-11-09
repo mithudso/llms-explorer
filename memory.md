@@ -1,5 +1,35 @@
 # Memory
 
+## v0.22.156 — 2026-11-09 user-requested wrap-up
+
+Version: 0.22.156. Delta: v0.22.155 to v0.22.156; save all current UI/UX results and pause delivery at the user’s request. Prompt v126.
+
+The user said: "Write to disk what you have and wrap up". Stop further inference, CI waiting and merges. Keep main PR311 and private hub PR154 as pushed drafts, with their worktrees preserved. Skills PR104 is already merged at9bccdfdbc2d9d3a0119f07984caf0f1ab0d6c411; the earlier publisher fix PR312 is merged at3a240ebd7d04e0d3f1c1fccd26abb08c5b6e733b.
+
+The corpus is complete for the26mapped questions:573structured claims plus103auxiliary rows,676v4gate records (607SUPPORTED,69pure questions),31native public concept/aggregate packs. The public1,146fact rows include aggregate duplication. Three frontier expansions yielded3,2,0gaps; this is one empty round and mapped coverage only. All15competency questions/51canonical mappings pass. Do not repeat authors or valid judgments.
+
+Private LCA/LDO work preserves676records and743citation lines. It produced24single-file packs,2families and a17,019-byte rollup.260keyword probes pass; all29isolated reader views meet their bars across290questions. Preserve raw scores, two timeouts/retries and resource-path rebinding. Local semantic indexing remains paused. Exact private reports, inventories, compiler snapshots and resume commands are under /Users/mitch/.global-ai-hub/research/.full-suite/ui-ux-design-20261108.
+
+The source card is frontend-ui1.7.5. Forty selected installed files and native discovery were verified; original dirty clone HEADs/index/staged compiler blobs and18legacy references remain intact. Two global indexes changed concurrently and were archived without rollback. Historical duplicate discovery remains. Native architecture aggregation is N/A after its pre-existing declaration-order error.
+
+The bounded skill audit is BLIND-AUDIT-DISSENT:0High,2Medium,1Low. Static checks53/53 pass;19cases/83assertions and50trigger queries are predicted. The two Medium repair proposals are saved and unapplied. The two-review guard forbids a third nested audit in this run. Claude-native trigger measurement hit its weekly429quota. Do not resume Ollama, embeddings or indexers.
+
+CFE merge-only tree updates are complete in the live hub and this site worktree. All26concepts were read back through the actual MCP. Parent ownership is frontend-ui and the parent’sMay25date is preserved. The separate hub source branch contains only31qualified nodes/packs, selected scores and skills Gitlink9bcc; it preserves unrelated runtime nodes and dirty work. Hub headf40c0200a565d0a29b2ebba726c01cbb92a0b1ab is pushed in draftPR154. Its CI was running at the stop; no merge/watch remains.
+
+Remaining on resume: inspect the current private continuation; run final site build/generator parity/tests for the updated tree; inspect final CI on exact main/hub tips; merge only after the user resumes; verify remote/deployed content; clean only this task’s clean merged worktrees/branches; complete delivery trackers. Source skill and compiler delivery are already done. Keep unresolved semantic/Claude/skill-audit limitations explicit.
+
+## v0.22.155 — 2026-11-09 citation integrity and measured invocation accounting
+
+Version: 0.22.155. Delta: v0.22.154 to v0.22.155; correct provisional agent accounting and repair complete canonical citation projection. Prompt v125.
+
+Correction: the prior9/9/6 figures count top-level transport summaries, not research-author invocations. Immutable validated-summary.json records show42initial research calls,21merge calls and4paid gate calls. Caller-supplied finish --agents values are not measured usage. Preserve source metadata and unknown costs; do not infer zero cost from aggregate defaults. The independent audit receipt lists exact attempt bindings.
+
+FrontierR1 finalized76claims and88gate rows after one source-bound timing repair. The total is now24researched questions,527structured claims and619gate rows. R2research completedexit0 with46claims over two questions; verification/rendering is active. Round3 remains due. No saturation is claimed.
+
+TASK-1246, linked lesson KNOW-1247, repairs LCA read_units_jsonl and visible source rendering. JSONL import dropped ordered secondary citations; full/facts/single/vocabulary renderers could truncate them. Existing-API note workarounds failed in Facts. The isolated maintained compiler will preserve all bound citations while retaining legacy behavior and exact statements/proof hashes. The dirty canonical installed compiler has an unrelated research_site_hook.refresh addition; selected deployment must preserve it. Never replace that source wholesale.
+
+The initial public projection audit passes451structured claims,531gate rows and24native public packs/readers/downloads. Private LCA citation verification remains pending the narrow fix. Initial website build passes2981pages;328site tests and62projection tests pass;Astro check has0errors. The public README contradiction was corrected. Full-suite continuation remains active in draftPR311.
+
 ## v0.22.154 — 2026-11-09 UI/UX verified cohort checkpoint
 
 Version: 0.22.154. Delta: v0.22.153 to v0.22.154; finalize the initial21questions, retain exact gate receipts, and continue evidence-grounded frontier research. Prompt v125.
