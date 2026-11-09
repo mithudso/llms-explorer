@@ -1,8 +1,8 @@
 # Leveraged crypto day-trading full suite
 
-Version: 1.0.0
-Delta: Complete three research cohorts, source-bound acceptance and three frontier rounds.
-Status: Research and skill installation accepted; private pack audit and final publication verification in progress.
+Version: 1.1.0
+Delta: Complete source-bound research, installed references, current-format compilation and integrated checks.
+Status: Qualified source-anchored research and installed references. Publication state is recorded by the linked delivery PR.
 
 ## Scope
 
@@ -34,7 +34,7 @@ https://llmsx.org/tree/causal-online-hawkes-background-estimation-for-trading-re
 | Hawkes endogeneity estimation and validation under aggregation and nonstationarity | 4.05 |
 | Causal online estimation of time-varying Hawkes background rates | 3.80 |
 
-The selection threshold was 3.2. Frontier rounds discovered two additional concepts, then one, then none. The bounded map supports **SATURATED-COVERAGE / MAP-BOUNDED-COVERAGE** after installation and audits. It does not establish SATURATED-FRONTIER: the final empty round followed productive rounds, rather than satisfying the stronger repeated-frontier condition.
+The selection threshold was 3.2. Frontier rounds discovered two additional concepts, then one, then none. The bounded map supports **SATURATED-COVERAGE / MAP-BOUNDED-COVERAGE** within the declared map and round bound. It does not establish SATURATED-FRONTIER: the final empty round followed productive rounds, rather than satisfying the stronger repeated-frontier condition.
 
 ## Acceptance
 
@@ -58,4 +58,14 @@ The source skill update merged in the skills repository. Both permanent host var
 
 https://github.com/mithudso/skills/pull/105
 
-Local validation passed 344 research/export regression tests and 333 site tests. The full website build, Astro check (zero errors and warnings), Ruff and privacy scan passed. Eleven private current-format packs and the subject rollup were compiled with 295 keyword rows; their independent final audit remains active. New semantic embeddings remain paused. The user-paused UI/UX draft remains outside this run.
+Local validation passed 344 research/export regression tests, 333 site tests and the expanded 487-case research/companion suite with 15 subtests. The full integrated website build, Astro check (zero errors and warnings), Ruff and privacy scan passed. The generated Codex research companion matches the source resolver. Incompatible authored pins retain the existing per-claim preflight diagnostic receipt.
+
+Eleven private current-format single-file packs retain all 295 bound records. The subject rollup is a 16,535-byte single file with eleven member entries, eleven exact qualified facts and 51 Resources entries (48 verified, three explicitly unverified). The current format checker reads all twelve entrypoints and reports zero findings. Eleven keyword collections contain 295 rows. New semantic embeddings remain paused.
+
+A fresh native Codex session discovered the enabled permanent skill and read both intended test references. Exact hashes match all 32 installed destination files. The initial paraphrased quote and its one successful targeted correction remain in the private acceptance receipt. Claude automatic activation was not exercised.
+
+Delivery and production state are verified by the full-suite tracker and this PR. The user-paused UI/UX draft remains outside this run.
+
+https://github.com/mithudso/llms-explorer/pull/316
+
+https://github.com/mithudso/global-ai-hub/pull/155

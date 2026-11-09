@@ -217,6 +217,8 @@ def test_one_url_cannot_merge_incompatible_authored_versions(history, location):
                 {'text': doc['claims'][1]['text'], 'evidence': [new]}]}}]
     with pytest.raises(ValueError, match='incompatible authored source snapshots'):
         gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+    failures = json.loads((root / 'attempt/preflight.json').read_text())['failures']
+    assert len(failures) == 1 and failures[0]['claim_id']
     assert Path(snapshot['snapshot_path']).is_file()
     assert not (root / 'attempt/evidence').exists()
 

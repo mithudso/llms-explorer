@@ -195,6 +195,12 @@ def _source(shared, url: str, out: Path, fetch: bool, pin: tuple[str, str] | Non
             "file": str(destination.relative_to(out)), "chars": len(text)}
 
 
+class AuthoredSnapshotConflict(ValueError):
+    def __init__(self, url: str, claim_id: str):
+        super().__init__(f"incompatible authored source snapshots for one URL: {url}")
+        self.claim_id = claim_id
+
+
 def authored_source_pins(rows: list[dict]) -> dict[str, tuple[str, str]]:
     """A packet has one body per URL; incompatible authored versions cannot be merged."""
     pins = {}
@@ -213,7 +219,7 @@ def authored_source_pins(rows: list[dict]) -> dict[str, tuple[str, str]]:
             url = span['url']
             pin = (span['source_id'], span['snapshot_sha256'])
             if url in pins and pins[url] != pin:
-                raise ValueError(f"incompatible authored source snapshots for one URL: {url}")
+                raise AuthoredSnapshotConflict(url, row['claim_id'])
             pins[url] = pin
     return pins
 
@@ -443,7 +449,12 @@ def prepare(shared, manifest: dict, out: Path, sample=10, refetch_cap: int = 15)
     rows = claim_rows(manifest, documents)
     inputs = {slug: digest(document) for slug, document in sorted(documents.items())}
     selected = select_claims(rows, "all" if manifest.get("gate_contract_version", 2) >= 4 else sample, digest(inputs), manifest.get("required_gate_claim_ids", []))
-    pins = authored_source_pins(selected) if manifest.get('gate_contract_version', 2) >= 4 else {}
+    try:
+        pins = authored_source_pins(selected) if manifest.get('gate_contract_version', 2) >= 4 else {}
+    except AuthoredSnapshotConflict as error:
+        failures = [{'claim_id': error.claim_id, 'error': str(error)}]
+        shared.atomic_write(out / 'preflight.json', json.dumps({'failures': failures}, indent=2) + '\n')
+        raise ValueError("claim preflight failed; repair only listed claims: " + json.dumps(failures)) from error
     sources = {}
     remaining = refetch_cap
     for url in sorted({url for row in selected for url in row["sources"]}):
