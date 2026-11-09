@@ -1,5 +1,19 @@
 # Memory
 
+## v0.22.157 - 2026-11-09 Crypto bot monitoring
+
+Version: 0.22.157. Delta: v0.22.156 to v0.22.157; preserve native gated auxiliary summaries separately from Facts during prompt v129.
+
+The monitor full-suite is tracked in dev-y3seh TASK-1087. It covers bot state evidence, feed integrity, order reconciliation, risk/halt monitoring, alert recovery, failure drills, net accounting, dashboard security, chain finality and strategy divergence. New embedding permission is limited to these new packs. Do not resume other queues or services. Do not activate trading bots.
+
+The CFE delegate owns /Users/mitch/.global-ai-hub/research/crypto-autotrading-bot-monitor-task1087/ and native cohorts crypto-bot-monitor-operations-task1087 and crypto-bot-monitor-evidence-task1087. Runtime: /Users/mitch/dev/llms-explorer/scripts/codex_dr_run.py. Root isolates native finish publication with LLMS_EXPLORER_REPO=/Users/mitch/dev/worktrees/llms-explorer-bot-monitor-task1087. Root owns publication, tests, PR and merge; preserve other checkout/worktree changes. No research acceptance or saturation is claimed yet.
+
+Remaining: complete native gate/render/finish, verify source and projection bindings, compile private LCA packs and rollup, scope indexes, inspect task-owned public diffs, run required checks, merge delivered changes and verify published behavior. The solmargintrader workflow checkpoint is pushed as draft PR170; all eight CI jobs passed.
+
+The first three monitor cohorts finalized COMPLETED with281assertions/210structured claims. Their13native concept/cohort projections are pending delivery. Private LCA source/hash integrity passed, but9of10firstpacks andtheACKpack fail unchanged practical answerability bars. Keepreconciliationpackunchanged; repair exactmissingpoints. Fourthcohort originallymixed sourcedpremiseswithoriginaldesign; independentgate rejected47assertions. Preserve dissent. Changedtypedpacket23factualatoms+4conditionalsummaries+10questions isundergate; do notassumeacceptance. NativeNFAclassifiesnonassertions, notdesigncorrectness; proposeddrillformulasrequireexplicitfixtureassumptions.
+
+Nativecompilerpreviouslydropped canonicalauxiliarySUMMARYafterartifactverification. Addedoptionalseparate narrative metadata with exacttext,auxiliaryID/hash,documentidentity,verdictandevidenceIDs. Manifest/full/publicartifact/conceptJSON/researchJSON/Markdown/readerretainit. NFAneverentersnativeunits/factfacets/fact-sourcecounts. ScrubbedtextorsourcelistsmarkREDACTED-PROJECTIONwithoriginverdict; canonicalbuild/hash/gateunchanged. Rootneighborregressions93pass+6subtests exit0; workercombined118pass+6subtests; Ruff/diffchecks exit0. ActualAstro markup/escaping tested. Noinstalled/deployedbehaviorclaimyet. Existingprojectionsneedscopedrefreshfromacceptedimmutableartifacts, withoutsourcebuild/gaterevieworbroadsync.
+
 ## v0.22.155 — 2026-11-09 Portable LLMS optimizer
 
 Version: 0.22.155. Delta: v0.22.154 to v0.22.155; implement prompt v128 and TASK-1257.

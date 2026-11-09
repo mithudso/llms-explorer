@@ -1,5 +1,19 @@
 # Prompts Log
 
+## Prompt v129 - 2026-11-09 Crypto bot monitoring
+
+```text
+Run the full-suite skill on crypto autotrading bot monitor
+```
+
+Scoped follow-up:
+
+```text
+Enable embeddings only for new bot-monitor packs
+```
+
+Delta: v128 to v129. TASK-1087 full-suite research on monitoring automated crypto bots. Keep the previous user-stopped strategy-family study separate. Root owns publication in this isolated worktree.
+
 ## Prompt v128 — 2026-11-09 Portable LLMS optimizer
 
 ```text
