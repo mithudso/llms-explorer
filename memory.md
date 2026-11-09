@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.152 — 2026-11-09 GOV.UK publisher binding
+
+Version: 0.22.152. Delta: v0.22.151 to v0.22.152; correct publisher identity classification while running prompt v125.
+
+TASK-1242 unblocks the systems cohort of the UI/UX full suite, TASK-1234. Bare GOV.UK was classified as a dotted API identifier even when official pinned source identity and substantive semantic support were present. Recognize only that known publisher through cited HTTPS gov.uk judged sources and their exact immutable body label. Keep authored preflight and every technical, numeric, version, source, hash, offset and extraction guard unchanged.
+
+All213 saved judgments and conflict review revalidate/reuse without another model call or verdict edit.367related tests, including49focused gate cases, plus9subtests pass; independent contract/code review approves. The full-suite native research is preserved; source snapshots, preimages and attempt receipts stay private. UI/UX delivery remains active in PR311, with semantic indexing paused. Scoped continuation: docs/research/govuk-publisher-binding-2026-11-09/memory.md.
+
 ## v0.22.151 — 2026-11-08 native stream repair
 
 Version: 0.22.151. Delta: v0.22.150 to v0.22.151; verify the necessary TASK-994 fix before research continuation.

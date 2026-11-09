@@ -12,6 +12,7 @@ from collections import Counter
 from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 _claims_spec = importlib.util.spec_from_file_location('research_statement_contract', Path(__file__).with_name('research_claims.py'))
@@ -146,6 +147,16 @@ def _source(shared, url: str, out: Path, fetch: bool) -> dict:
             "file": str(destination.relative_to(out)), "chars": len(text)}
 
 
+def _publisher_identity_literals(url: str, text: str) -> set[str]:
+    """Recognize one prose publisher from its cited, immutable official body."""
+    parsed = urlsplit(url)
+    host = (parsed.hostname or '').lower()
+    if (parsed.scheme == 'https' and (host == 'gov.uk' or host.endswith('.gov.uk'))
+            and re.search(r'(?<![\w.$])GOV\.UK(?![\w.$])', text)):
+        return {'GOV.UK'}
+    return set()
+
+
 def check_spans(packet, claim, spans, root, *, authored=False):
     if not isinstance(spans, list) or not spans:
         raise ValueError("every factual claim requires exact source evidence")
@@ -159,6 +170,7 @@ def check_spans(packet, claim, spans, root, *, authored=False):
     source_versions = set()
     source_prefixed = set()
     source_hex = set()
+    source_publishers = set()
     for span in spans:
         source = packet['sources'].get(span.get('url')) if isinstance(span, dict) else None
         if (not source or span['url'] not in claim['sources'] or not source.get('available')
@@ -175,6 +187,10 @@ def check_spans(packet, claim, spans, root, *, authored=False):
             raise ValueError("source extraction is unverified or incomplete; reacquire and read the original")
         if re.search(r'(?i)\[(?:truncated|content omitted)\]|\.\. (?:include|literalinclude)::', text):
             raise ValueError("source extraction contains unresolved omissions")
+        if not authored:
+            # Publisher identity need not repeat in every substantive paragraph.
+            # Only already bound judged sources qualify; code stays quote-bound.
+            source_publishers.update(_publisher_identity_literals(span['url'], text))
         # Quote edges cannot create lexical boundaries in the pinned source.
         source_versions.update(match.group() for match in re.finditer(version_pattern, text)
                                if start <= match.start() and match.end() <= end)
@@ -187,6 +203,7 @@ def check_spans(packet, claim, spans, root, *, authored=False):
     prefixed = re.findall(prefixed_pattern, claim['text'])
     literal_text = re.sub(prefixed_pattern, ' ', claim['text'])
     literals = [term for term in re.findall(r'`([^`]+)`', claim['text']) if term not in prefixed]
+    quoted_literals = set(literals)
     literals += re.findall(r'\b[a-zA-Z_]\w*(?:[.$][a-zA-Z_]\w*)+\b', literal_text)
     literals += [token for token in re.findall(r'\b[a-z][A-Za-z0-9_.$]*\b', literal_text)
                  if any(char.isupper() for char in token)]
@@ -200,7 +217,9 @@ def check_spans(packet, claim, spans, root, *, authored=False):
         return any(start <= match.start() and match.end() <= end
                    for text, start, end in source_spans for match in re.finditer(pattern, text))
 
-    missing = [term for term in literals if not covered(r'(?<![\w.$])' + re.escape(term) + r'(?![\w.$])')]
+    missing = [term for term in literals
+               if not (term in source_publishers and term not in quoted_literals)
+               and not covered(r'(?<![\w.$])' + re.escape(term) + r'(?![\w.$])')]
     missing += [term for term in versions if term not in source_versions]
     missing += [term for term in prefixed if term not in source_prefixed]
     missing += [term for term in hex_values if term not in source_hex]
