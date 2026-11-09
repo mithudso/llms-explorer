@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.152 — 2026-11-08 UI/UX full suite
+
+Version: 0.22.152. Delta: v0.22.151 to v0.22.152; initialize the UI/UX research suite. Prompt v125.
+
+TASK-1234 runs the current full-suite workflow on UI/UX design. Subtasks TASK-1235 through TASK-1238 track planning, research, compilation/audits and delivery. Public changes use an isolated origin/main worktree; preserve the 916 dirty paths observed in the primary checkout. Use threshold 3.2, three default frontier re-expansions and no user concept-count cap. Reuse existing coverage before research. Native adapter asset sync passes; its separate shared Claude command pair check reports pre-existing PAIR-DRIFT. Do not repair that unrelated drift here. Preserve the existing embedding pause and keep raw evidence private.
+
+Continuation and exact pending operations: docs/research/ui-ux-design-full-suite-2026-11-08/memory.md. No saturation or research completion is claimed at setup.
+
 ## v0.22.151 — 2026-11-08 native stream repair
 
 Version: 0.22.151. Delta: v0.22.150 to v0.22.151; verify the necessary TASK-994 fix before research continuation.

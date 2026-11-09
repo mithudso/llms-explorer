@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v125 — 2026-11-08
+
+```text
+Run the full-suite skill on UI/UX design
+```
+
+Delta: prompt v124 to v125. Run the complete viable UI/UX queue through current CFE and native v4 research. Preserve existing coverage, private evidence, paused embeddings and unrelated work. TASK-1234 tracks the run; scoped continuation lives in docs/research/ui-ux-design-full-suite-2026-11-08/memory.md.
+
 ## Prompt v124 — 2026-11-08
 
 ```text
