@@ -1,9 +1,9 @@
 # UI/UX design full suite
 
-Version: 1.0.0
-Delta: initial checked plan and active research checkpoint.
+Version: 1.0.1
+Delta: accepted initial cohort and genuine frontier continuation.
 
-Status: research in progress. Saturation has not been assessed.
+Status: the first 21 questions are verified and compiled. Three additional frontier questions are in evidence review. Saturation has not been established.
 
 The full-suite workflow maps UI/UX design, checks existing coverage, researches viable gaps, verifies every factual assertion, and compiles qualified reference packs and a subject rollup. This checkpoint records the commission and plan; it contains no newly qualified UX findings.
 
@@ -22,3 +22,7 @@ Private source bodies, attempts and model logs stay outside this repository. The
 ## Remaining work
 
 Finish research and exact claim gates; record failed gaps without promoting them; re-expand the evidence-grounded frontier; audit changed skills; compile per-concept packs and the rollup; verify indexing and tree/site projections; deliver qualified public changes through a checked PR. No completion or saturation is claimed by this checkpoint.
+
+## Verified checkpoint
+
+The first three native cohorts finalized 451 structured claims and 531 gate rows. The first source-grounded frontier expansion commissioned three further questions and produced 76 claims, pending the complete evidence gate. Private per-concept v3 packs and a categorical rollup are being compiled from accepted canonical records. Existing paused embeddings and Claude trigger quota limits remain explicit; neither is reported as a passing check.
