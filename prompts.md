@@ -1,12 +1,14 @@
 # Prompts Log
 
-## Prompt v125 — 2026-11-08
+## Prompt v125 — 2026-11-08, continued 2026-11-09
 
 ```text
 Run the full-suite skill on UI/UX design
 ```
 
-Delta: prompt v124 to v125. Run the complete viable UI/UX queue through current CFE and native v4 research. Preserve existing coverage, private evidence, paused embeddings and unrelated work. TASK-1234 tracks the run; scoped continuation lives in docs/research/ui-ux-design-full-suite-2026-11-08/memory.md.
+Delta: prompt v124 to v125. Run the complete viable UI/UX queue through current CFE and native v4 research, preserving existing coverage, private evidence, paused embeddings and unrelated work. TASK-1234 tracks the suite. The initial21questions are accepted; three source-grounded frontier questions are active. PR311 preserves the public checkpoint.
+
+The necessary independent publisher-identity correction, TASK-1242, shipped through PR312 without repeating paid review or modifying original judgments. Full-suite continuation remains in docs/research/ui-ux-design-full-suite-2026-11-08/memory.md; publisher-fix context remains in docs/research/govuk-publisher-binding-2026-11-09/memory.md. This merged checkpoint does not claim suite completion.
 
 ## Prompt v124 — 2026-11-08
 

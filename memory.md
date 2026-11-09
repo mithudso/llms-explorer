@@ -1,12 +1,24 @@
 # Memory
 
-## v0.22.152 — 2026-11-08 UI/UX full suite
+## v0.22.153 — 2026-11-09 UI/UX full-suite continuation
 
-Version: 0.22.152. Delta: v0.22.151 to v0.22.152; initialize the UI/UX research suite. Prompt v125.
+Version: 0.22.153. Delta: v0.22.152 to v0.22.153; preserve the UI/UX commission and merge the delivered publisher correction. Prompt v125.
 
 TASK-1234 runs the current full-suite workflow on UI/UX design. Subtasks TASK-1235 through TASK-1238 track planning, research, compilation/audits and delivery. Public changes use an isolated origin/main worktree; preserve the 916 dirty paths observed in the primary checkout. Use threshold 3.2, three default frontier re-expansions and no user concept-count cap. Reuse existing coverage before research. Native adapter asset sync passes; its separate shared Claude command pair check reports pre-existing PAIR-DRIFT. Do not repair that unrelated drift here. Preserve the existing embedding pause and keep raw evidence private.
 
 Continuation and exact pending operations: docs/research/ui-ux-design-full-suite-2026-11-08/memory.md. No saturation or research completion is claimed at setup.
+
+Current checkpoint: all21initial questions have531accepted native gate rows (479SUPPORTED factual assertions and52purequestions), including451stored structured claims. Emerging/methods native exports cover13questions; systems is verified/rendered and ready for finalization. Frontier round1 scored17refinements and admitted3new questions (diary/experience sampling, search interaction, ResearchOps repositories), now researching in ui-ux-design-frontier-r1-20261109. No empty-round or saturation credit is claimed.
+
+Publisher correction PR312 merged at3a240ebd7d04e0d3f1c1fccd26abb08c5b6e733b with required checks passing. It reuses213original judgments without another semantic call. UI/UX PR311 remains an active draft. The skills source worktree preserves upstream PR101 and its ui-deep-optimizer handoff. Three initial references are verified; the final consolidated skill audit waits for the frontier cohort. Claude-native trigger evaluation is weekly-quota-blocked; paused embeddings remain untouched.
+
+## v0.22.152 — 2026-11-09 GOV.UK publisher binding
+
+Version: 0.22.152. Delta: v0.22.151 to v0.22.152; correct publisher identity classification while running prompt v125.
+
+TASK-1242 unblocks the systems cohort of the UI/UX full suite, TASK-1234. Bare GOV.UK was classified as a dotted API identifier even when official pinned source identity and substantive semantic support were present. Recognize only that known publisher through cited HTTPS gov.uk judged sources and their exact immutable body label. Keep authored preflight and every technical, numeric, version, source, hash, offset and extraction guard unchanged.
+
+All213 saved judgments and conflict review revalidate/reuse without another model call or verdict edit.367related tests, including49focused gate cases, plus9subtests pass; independent contract/code review approves. The full-suite native research is preserved; source snapshots, preimages and attempt receipts stay private. UI/UX delivery remains active in PR311, with semantic indexing paused. Scoped continuation: docs/research/govuk-publisher-binding-2026-11-09/memory.md.
 
 ## v0.22.151 — 2026-11-08 native stream repair
 
