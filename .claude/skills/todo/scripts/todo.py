@@ -396,9 +396,32 @@ def peer_targets(args_targets):
         return args_targets
     try:
         with open(PEERS_FILE, encoding="utf-8") as f:
-            return [l.strip() for l in f if l.strip() and not l.startswith("#")]
+            lines = [l.strip() for l in f if l.strip() and not l.startswith("#")]
     except OSError:
         return []
+    return [t for t in (resolve_peer_line(l) for l in lines) if t]
+
+
+def resolve_peer_line(line):
+    """`fleet:<box>[|user@host]` -> user@ip from the mitchlists registry; anything else is a literal target.
+
+    Peer IPs change with the network, so .peers names the box and the registry supplies the address
+    (`mitchlists-peer <box> --field ssh`, local files only). After `|` comes a last-known target,
+    used when the resolver is missing or knows no such box.
+    """
+    if not line.startswith("fleet:"):
+        return line
+    box, _, fallback = line[len("fleet:"):].partition("|")
+    resolver = os.environ.get("MITCHLISTS_PEER", os.path.join(HOME, ".local/bin/mitchlists-peer"))
+    try:
+        out = subprocess.run([resolver, box.strip(), "--field", "ssh"], capture_output=True,
+                             text=True, timeout=10).stdout.split()
+    except (OSError, subprocess.SubprocessError):
+        out = []
+    if out:
+        return out[0]
+    log(f"peer {box.strip()}: not in the fleet registry; using {fallback.strip() or 'nothing'}")
+    return fallback.strip() or None
 
 
 # StickySites native-messaging bridge

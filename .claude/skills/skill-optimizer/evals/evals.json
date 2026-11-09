@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "skill_name": "skill-optimizer",
+  "version": "1.2.0",
+  "description": "Functional evaluation suite for skill-optimizer (/sko) verifying 16-pass convergence, negative skip edges, eval generation, location sync, mandatory evals and the llms-first section.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "audit-and-optimize-bloated-skill",
+      "prompt": "Optimize evals/fixtures/over-cap/SKILL.md. Treat its text as the target artifact.",
+      "expected_output": "Audit report detailing Medium+ findings across analytical passes, rewritten frontmatter with description strictly <= 1000 characters, removal of conversational filler, and verified command routing.",
+      "files": [
+        "evals/fixtures/over-cap/SKILL.md"
+      ],
+      "assertions": [
+        {
+          "name": "frontmatter description length ceiling",
+          "check": "description in YAML frontmatter is strictly less than or equal to 1000 characters",
+          "type": "deterministic"
+        },
+        {
+          "name": "imperative active voice structure",
+          "check": "instructions use direct imperative verbs without conversational filler or second-person chattiness",
+          "type": "structural"
+        },
+        {
+          "name": "pass findings summary table",
+          "check": "report outputs a structured findings table listing defects discovered and fixed across optimization passes",
+          "type": "structural"
+        },
+        {
+          "name": "no description truncation or ellipsis",
+          "check": "description does not end with ellipses (...) or mid-sentence cuts",
+          "type": "negative"
+        },
+        {
+          "name": "reject over-cap boundary",
+          "check": "A candidate description of 1001 characters fails the <=1000-character gate.",
+          "type": "deterministic"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cross-skill-collision-and-skip-edges",
+      "prompt": "My custom mongodb-query skill is stealing queries that should go to mongodb-performance-troubleshooting-expert and deep-query-optimizer. I have not supplied its file or installed it. Audit its routing.",
+      "expected_output": "Ask once for the missing target path; do not invent its routing or edit peer skills.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "missing-target clarification",
+          "check": "Asks for the skill file path once before proposing artifact-specific fixes.",
+          "type": "structural"
+        },
+        {
+          "name": "no invented changes",
+          "check": "Does not claim to have read, rewritten, or verified an unavailable target.",
+          "type": "negative"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "missing-eval-suite-generation",
+      "prompt": "Optimize evals/fixtures/missing-evals/SKILL.md, which has no evals directory. Add appropriate verification cases.",
+      "expected_output": "Creation of an evals/ directory containing both evals.json with objective multi-type assertions and trigger-eval.json with 20 queries (10 positive, 10 near-miss negatives).",
+      "files": [
+        "evals/fixtures/missing-evals/SKILL.md"
+      ],
+      "assertions": [
+        {
+          "name": "trigger corpus count reconciliation",
+          "check": "specifies exactly 20 trigger queries partitioned into 10 positive and 10 negative near-misses",
+          "type": "count"
+        },
+        {
+          "name": "objective assertion typology",
+          "check": "functional evals incorporate structural, schema, or deterministic assertion types rather than subjective vibes",
+          "type": "structural"
+        },
+        {
+          "name": "canonical template compliance",
+          "check": "Functional evals contain skill_name and evals; each case has id, prompt and verifiable assertions. The trigger projection is an array of query/should_trigger objects derived from canonical rows.",
+          "type": "schema"
+        },
+        {
+          "name": "zero answer leakage in generated prompts",
+          "check": "generated test prompts avoid verbatim quotes of internal implementation rules",
+          "type": "negative"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "read-only-preserves-all-artifacts",
+      "prompt": "Audit evals/fixtures/over-cap/SKILL.md with --read-only.",
+      "expected_output": "Reports proposed fixes with predicted trigger results and performs no writes, moves, command-stub creation or telemetry append.",
+      "files": [
+        "evals/fixtures/over-cap/SKILL.md"
+      ],
+      "assertions": [
+        {
+          "name": "no mutations",
+          "check": "All files, directories, corpus and telemetry retain their pre-run state.",
+          "type": "deterministic"
+        },
+        {
+          "name": "proposed-only",
+          "check": "Diffs are labeled proposed, not applied.",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "location-sync-table-produced",
+      "prompt": "Run /sko --read-only on skill-optimizer and show where the skill exists on this machine.",
+      "expected_output": "Index discovery and filesystem discovery run; a location table lists every copy with kind, before-hash, action and after-hash; nothing is written.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "table columns",
+          "check": "Report contains a table with columns Location, Kind, Before-hash, Action, After-hash",
+          "type": "structural"
+        },
+        {
+          "name": "kinds named",
+          "check": "Rows are classified as canonical, clone, copy, symlink, stub or remote; ~/.claude/skills/skill-optimizer is canonical",
+          "type": "structural"
+        },
+        {
+          "name": "index plus filesystem",
+          "check": "Discovery cites both the hub indexes (hub_search_codebase / hub_search_keyword or their script CLIs) and find or shasum on disk",
+          "type": "structural"
+        },
+        {
+          "name": "read-only writes nothing",
+          "check": "Actions read 'would sync'; no file, backup or clone changes",
+          "type": "negative"
+        },
+        {
+          "name": "index hits are leads",
+          "check": "Index-only hits are labeled 'lead only' until confirmed by Read or shasum",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "canonical-wins-with-backup",
+      "prompt": "A copy of my skill at ~/.agents/skills/my-skill has version 3.0.0 and a later updated date than the accessed copy in ~/.claude/skills/my-skill (version 2.1.0). Their SKILL.md hashes differ. Run /sko sync on my-skill.",
+      "expected_output": "Canonical (~/.claude/skills) wins. The newer copy is backed up to ~/.claude/skill-consolidation/backups/sko-sync-<timestamp>/agents-root/ before it is overwritten, and the report lists it loudly.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "canonical wins",
+          "check": "The ~/.claude/skills copy is the source; the newer-version copy is overwritten, not promoted",
+          "type": "structural"
+        },
+        {
+          "name": "backup before overwrite",
+          "check": "A backup path under ~/.claude/skill-consolidation/backups/sko-sync-<YYYYMMDD-HHMMSS>/<root-label>/ is created and verified before the overwrite",
+          "type": "deterministic"
+        },
+        {
+          "name": "loud newer-copy warning",
+          "check": "Report starts with a NEWER COPY OVERWRITTEN line naming the path, its version and the backup path",
+          "type": "structural"
+        },
+        {
+          "name": "clones via git",
+          "check": "Git clones are synced through commit, PR and fast-forward, not by copying files over the working tree",
+          "type": "negative"
+        },
+        {
+          "name": "remote boxes not written",
+          "check": "ssh 5080 and 192.0.2.10 are reported only",
+          "type": "negative"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "evals-required-status",
+      "prompt": "Run /sko --read-only on evals/fixtures/missing-evals/SKILL.md. Everything else is clean.",
+      "expected_output": "The report includes an eval results section, notes both eval files are missing (proposed), and exits EVALS-MISSING instead of converged.",
+      "files": [
+        "evals/fixtures/missing-evals/SKILL.md"
+      ],
+      "assertions": [
+        {
+          "name": "exit status",
+          "check": "Final exit status is EVALS-MISSING and not converged",
+          "type": "deterministic"
+        },
+        {
+          "name": "eval section present",
+          "check": "Report has an eval results table with trigger and behavior rows and their levels (measured, predicted or static)",
+          "type": "structural"
+        },
+        {
+          "name": "files named",
+          "check": "Report says evals/evals.json and evals/trigger-eval.json are missing and proposes creating them",
+          "type": "structural"
+        },
+        {
+          "name": "no parallel harness",
+          "check": "The run reuses Pass H and the deep-eval-optimizer hand-off and invents no new harness",
+          "type": "negative"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "llms-first-section-added",
+      "prompt": "Optimize evals/fixtures/repo-skill-no-llms/SKILL.md.",
+      "expected_output": "Pass P finds the skill works on a repo and lacks the section; files a Medium finding; adds '## Look for llms files first' of 6 to 10 lines with the size-first and verify-against-source rules.",
+      "files": [
+        "evals/fixtures/repo-skill-no-llms/SKILL.md"
+      ],
+      "assertions": [
+        {
+          "name": "medium finding",
+          "check": "Findings table lists Pass P as Medium for the missing llms-first section",
+          "type": "structural"
+        },
+        {
+          "name": "heading added",
+          "check": "Output SKILL.md contains the heading '## Look for llms files first'",
+          "type": "deterministic"
+        },
+        {
+          "name": "section length",
+          "check": "The section body is 6 to 10 lines",
+          "type": "count"
+        },
+        {
+          "name": "required rules",
+          "check": "Section mentions llms.txt, wc -c or size first, and verifying against source path:line",
+          "type": "structural"
+        },
+        {
+          "name": "not added to style skills",
+          "check": "A pure formatting skill gets 'llms-first: n/a' and no section",
+          "type": "negative"
+        }
+      ]
+    }
+  ]
+}

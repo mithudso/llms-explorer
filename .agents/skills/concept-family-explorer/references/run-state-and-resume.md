@@ -28,7 +28,7 @@ writes **no** checkpoint — the Step 4/5 write points above apply only to a rea
 run — so a preview is never mislabelled `in-progress` and offered for resume.
 
 Every write also refreshes `updated`. Writes are fail-safe per the canonical
-rule (`~/.claude/skill-consolidation/convergence-and-severity.md` §Telemetry:
+rule (`references/shared/convergence-and-severity.md` §Telemetry:
 a write error never blocks or fails a run) — log the failure in the report and
 continue.
 

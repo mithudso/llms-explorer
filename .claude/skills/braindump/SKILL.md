@@ -1,7 +1,7 @@
 ---
 name: braindump
-version: "1.0.0"
-updated: "2026-09-27"
+version: "1.1.0"
+updated: "2026-11-06"
 owner: mitch
 description: >-
   Quick capture of raw thoughts: saves the dump verbatim, parses it into categorical llms files
@@ -16,7 +16,7 @@ description: >-
 
 Capture first, parse second. The user's words are saved untouched before any interpretation, and every parsed row points back to the exact line it came from, so nothing is lost if the classification is wrong.
 
-Store: `~/dev/personal/Areas/braindump/` (local Obsidian vault, not in git; override with `BRAINDUMP_DIR`). Script: `~/.claude/skills/braindump/scripts/braindump.py`.
+Store: `$HOME/dev/personal/Areas/braindump/` (local Obsidian vault, not in git; override with `BRAINDUMP_DIR`). Script: `$HOME/.claude/skills/braindump/scripts/braindump.py`.
 
 ## Procedure
 
@@ -24,7 +24,7 @@ Store: `~/dev/personal/Areas/braindump/` (local Obsidian vault, not in git; over
 
 2. **Save it verbatim.** Pipe the exact text through a quoted heredoc so nothing is expanded:
    ```bash
-   python3 ~/.claude/skills/braindump/scripts/braindump.py save-raw <<'DUMP'
+   python3 $HOME/.claude/skills/braindump/scripts/braindump.py save-raw <<'DUMP'
    <user's text, unchanged>
    DUMP
    ```
@@ -40,7 +40,7 @@ Store: `~/dev/personal/Areas/braindump/` (local Obsidian vault, not in git; over
 
 4. **File it.** Write the JSON to the scratchpad and pipe it in:
    ```bash
-   python3 ~/.claude/skills/braindump/scripts/braindump.py file < <scratchpad>/parsed.json
+   python3 $HOME/.claude/skills/braindump/scripts/braindump.py file < <scratchpad>/parsed.json
    ```
    The script validates slugs and line numbers, appends rows, rebuilds `llms.txt`, and adds tasks to the to-do list (deduped; a task the user dismissed earlier stays dismissed).
 
@@ -53,14 +53,16 @@ Store: `~/dev/personal/Areas/braindump/` (local Obsidian vault, not in git; over
 - Customer names from TAM work may appear; keep them in the local store only and never quote them into logs, PRs, or shared docs.
 - If the user says a row is misclassified, append a corrected row and tell them to delete the old line by hand, or delete it yourself if asked.
 
+## Index format (v3)
+
+`llms.txt` in the store follows `~/.claude/skills/llms-txt-tooling/references/llms-family-format.md` (v3) in its single-file form (format section 2). The store has no `llms-full.txt` family: the category files `braindump_<category>_llms.md` are the content, and the index stays one file. Required sections:
+
+- `## Facts`: counts per category and the date range, one line each.
+- `## Sitemap`: every `braindump_<category>_llms.md` file (`- <path> — <category>, <n> rows`) and every file under `raw/`, so `Entries:` equals the listed lines.
+- `## Resources`: Related files (the to-do list file, the store directory), Scripts (`braindump.py categories`, `file`, `save-raw`), Skills (`todo`, `note-organizer`), Agents and tools (`hub_search_codebase`). Verify each entry (`test -e`, skill installed) or mark it `(unverified)`.
+
+Keep customer names and raw text out of `## Resources`. Script support: `braindump.py` rebuilds `llms.txt` as a single file with `## Facts` (counts and date range only), `## Sitemap` (every category and raw file, `Entries:` in the Source line) and `## Resources`; older dumps fold to one line per month to stay under the caps.
+
 ## Reading it back
 
-`llms.txt` in the store lists every category file with counts. For "what have I been thinking about X", read the matching `braindump_<category>_llms.md`; the hub also indexes `~/dev`, so `hub_search_codebase` finds rows semantically.
-
-## Placement (mandatory last step)
-
-Every run that writes an llms family ends here, so the map of what was written lands where an agent looks first and the files stay in query-first order:
-
-- Run `python3 ~/.global-ai-hub/scripts/llms_routing.py install <project-dir> --from <output-dir>` (in the llms-explorer checkout: `hub/scripts/llms_routing.py`). It writes the `## llms routing` block — routing table, quick answers, indexes — between `<!-- llms-routing:start -->` / `<!-- llms-routing:end -->` in `CLAUDE.md` (else `AGENTS.md`; both → block in `CLAUDE.md`, pointer in `AGENTS.md`; neither → a minimal `CLAUDE.md`). Idempotent; re-run after every regeneration. Outside any project directory it prints `skipped placement: no project directory`.
-- Run `python3 ~/.global-ai-hub/scripts/llms_routing.py reorder <output-dir>/llms.txt`: inside each H2 section the entries whose target file the access ledger (`llms_ledger.py rank`) has seen go first, most read first; the rest keep their authored order. Sections, `llms-small.txt` and `llms-full.txt` are never reordered. With no ledger data it says `ordering: role order (no ledger data)`.
-- Placement rule: defaults, file roles, formulas and commands are quick answers in `CLAUDE.md`/`AGENTS.md` (cached, cited, data not rules); everything else stays in the llms files, which remain the source of truth.
+`llms.txt` in the store lists every category file with counts. For "what have I been thinking about X", read the matching `braindump_<category>_llms.md`; the hub also indexes `$HOME/dev`, so `hub_search_codebase` finds rows semantically.

@@ -1,6 +1,6 @@
-# Skill-optimizer analytical passes (A–O)
+# Skill-optimizer analytical passes (A–P)
 
-Extracted from `SKILL.md` (the skill body kept a concise Pass index + this pointer to stay under the Pass J ~10k-token budget). This file is the authoritative definition of the 15 analytical passes, the dispatch rules, and the Hub-and-spoke awareness rules that govern Passes I, N, and O. The Step 3 dispatch reads it to build each subagent bundle; the frozen-pass-definitions rule (SKILL.md "Meta-optimization note") applies to this file too when the target is skill-optimizer itself.
+Extracted from `SKILL.md` (the skill body kept a concise Pass index + this pointer to stay under the Pass J ~10k-token budget). This file is the authoritative definition of the 16 analytical passes, the dispatch rules, and the Hub-and-spoke awareness rules that govern Passes I, N, and O. The Step 3 dispatch reads it to build each subagent bundle; the frozen-pass-definitions rule (SKILL.md "Meta-optimization note") applies to this file too when the target is skill-optimizer itself.
 
 ## Dispatch rules
 
@@ -20,7 +20,7 @@ Internal contradictions and external reference errors:
 - Broken cross-references to other skills or prompts
 - Logic that would cause infinite loops (e.g., "always include X" + "never include X")
 - Steps that reference undefined terms or variables
-- **Family freshness check**: when the target is one of the four convergence-contract family skills (prompt-deep-optimizer, skill-optimizer, ddo/document-critique, prompt-helper-optimizer), read the `verified-as-of` stamps of the shared references it cites (`~/.claude/skill-consolidation/convergence-and-severity.md`; `prompt-helper-optimizer/references/prompt-optimization-algorithms.md`). A stamp older than 90 days is a **Medium** finding ("volatile claims unverified for N days"), resolvable in-loop by emitting a BLOCKED/operator-action row ("operator: re-verify via deep-research"); a stale stamp never forces a re-research detour inside the convergence loop, and a stamp is never updated without actually re-verifying the stamped section's claims.
+- **Family freshness check**: when the target is one of the four convergence-contract family skills (prompt-deep-optimizer, skill-optimizer, ddo/document-critique, prompt-helper-optimizer), read the `verified-as-of` stamps of the shared references it cites (`references/shared/convergence-and-severity.md`; `prompt-helper-optimizer/references/prompt-optimization-algorithms.md`). A stamp older than 90 days is a **Medium** finding ("volatile claims unverified for N days"), resolvable in-loop by emitting a BLOCKED/operator-action row ("operator: re-verify via deep-research"); a stale stamp never forces a re-research detour inside the convergence loop, and a stamp is never updated without actually re-verifying the stamped section's claims.
 
 #### Pass B — Inconsistency check
 
@@ -59,6 +59,7 @@ Internal contradictions and external reference errors:
 - Missing "when not to use" / pass-through criteria
 - Missing output format guidance when the deliverable shape matters
 - Missing context-awareness rules (checking what's already established before adding sections)
+- **Evals are part of every run** (`references/eval-gate.md`). Missing evals are a **Medium** finding here, fixed in Step 5, and the run cannot exit clean without eval results (`EVALS-MISSING`).
 - **Missing or deficient evals:** Skill lacks an `evals/` directory or functional test cases in `evals/evals.json` (missing realistic task prompts, expected outputs, or verifiable assertions). Flag as a **Medium** finding with drafted appropriate evals tailored to the skill's domain and workflows.
 
 #### Pass G — Frontmatter / manifest audit
@@ -83,7 +84,7 @@ Measure whether the description actually fires correctly. This is the single mos
    - 10 **should-trigger**: varied phrasings of the skill's intent, including casual, terse, and uncommon wordings
    - 10 **should-not-trigger**: near-miss adjacent queries that share keywords but actually need a different skill (e.g., for `mongodb-encryption`: "encrypt a SQLite database" or "set up TLS on my Atlas cluster")
 3. **Inner iterations (predict).** Under `--read-only`, every iteration uses predictions: do not persist verdicts, project eval files, move installed skills, or invoke a harness that creates command stubs. Write-mode rules below do not override this gate.  For each query, predict (using only the description + frontmatter) whether the skill would trigger. The prediction model is: "given this description, would Claude include this skill in a recommendation set?" Report honestly that these verdicts are same-model trigger predictions, not harness-observed activations; the fixed replayed corpus makes before/after comparable, not objective.
-4. **Final iteration (or `--eval=measured`): measure** with skill-creator's real trigger harness instead of self-grading:
+4. **Final iteration (or `--eval=measured`; not under `--max-iter=1 --no-sync` without `--eval=measured`): measure** with skill-creator's real trigger harness instead of self-grading:
    1. Project the canonical corpus to the target skill's `evals/trigger-eval.json` as `[{"query": ..., "should_trigger": true|false}]` (run_eval's exact input shape). Overwrite it unconditionally — it is generated, never authored.
    2. Resolve the plugin root: `ROOT="$(jq -r '.plugins["skill-creator@claude-plugins-official"][0].installPath' ~/.claude/plugins/installed_plugins.json)"`.
    3. First stage the candidate skill and generated projection in a scratch directory outside every scanned skills tree and every git repository. Verify both staged inputs exist and match the candidate before any move. Use that staged directory for both harness input paths in item 4. Then shadow the installed copy so it cannot absorb triggers, **outside every git repo, and only when the source is outside git and no other Claude session is live**. On this machine `~/.claude/skill-consolidation` is a symlink into the skills repo, and concurrent sessions run a session-start hook that auto-commits and pushes. A shadow move inside the repo was committed as a rename on 2026-10-05 and deleted the skill from every clone until the restore was committed (Stele `KNOW-310`). Procedure:
@@ -106,6 +107,7 @@ Pass H is bundle B3, always dispatched as its own `general-purpose` subagent whe
 
 A skill that triggers when a peer should fire (or vice versa) is broken even if its internal text is perfect.
 
+0. Start from the Step 1.7 collider list (`references/index-discovery.md`): semantic and keyword index hits are leads; confirm each with Read before it becomes a finding.
 1. Extract the target's top 10 trigger keywords from its description + `whenToUse` + `triggers`.
 2. For each, run `hub_route(<keyword>, kinds="skill", top=5)` and capture the results with their `score` and `ref`. Scores are semantic, not keyword-count — two skills scoring within a few points of each other on the same phrase genuinely compete for it, which is the signal this pass is after.
 3. **Concept-tree neighbors (stronger signal than keyword overlap).** If the target has a concept-tree entry, call `hub_concept_lookup(<concept>)` for its parent, siblings, and children (`hub_concept_tree(root=<concept>)` renders the surrounding shape when the flat payload is ambiguous). A tree-sibling under the same parent is a semantic neighbor the keyword search may miss — treat a sibling collision as **Medium even when keyword overlap is below the thresholds below**, and a parent/child pairing as an expected specificity gradient to resolve via a deferral edge (hand to Pass O), not a collision to break. A `hub_concept_lookup` payload marking the concept as a FRONTIER point means the tree knows the concept but nothing has researched it — that is not a collision signal; skip it. Skip this step entirely if the concept tree is unavailable.
@@ -202,6 +204,10 @@ Every routing pass must account for this:
 - **Pass N (target routing surface).** When the target should defer to a folded spoke, write the hub-aware form; when the target should defer to a hub, point at the hub `id`.
 - **Pass O (peer seeding).** Seed edges into the **hub** that owns a topic, not into a `references/*.md` file, because reference files are passive (their provenance banner already neutralizes stale pointers, and the hub's routing table is the authoritative surface). Never edit a reference file as a "peer."
 - **If the target being optimized is itself a hub**, treat its **routing table** and **cross-hub map** as first-class routing surfaces to keep accurate (every routing-table row must resolve to an existing `references/<spoke>.md`); if the target is a reference file, leave referent repair to `referents.mjs` and do not hand-edit its pointers.
+
+#### Pass P — Look for llms files first
+
+Check that the target carries the standard `## Look for llms files first` section when it works on a repo, docs site, docset, research domain, memory store or skill tree. Missing section on an applicable skill: **Medium**; add it. Section added to an exempt skill: **Medium**; revert it (Low would leave it, because `/sko` skips Low). Pure style or formatting skills, llms producers and thin wrappers are exempt and recorded `llms-first: n/a (<reason>)`. The standard text, applicability lists and fix rules live in `references/llms-first-section.md`. Bundle B1.
 
 #### Pass O — Cross-pollination / peer seeding
 

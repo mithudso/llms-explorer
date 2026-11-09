@@ -4,11 +4,11 @@ The full Step 3 procedure. `SKILL.md` keeps the bundle map and the pointer here;
 
 ## Bundle dispatch
 
-Fifteen passes run as four concurrent bundles, dispatched in a single tool-call batch when the harness exposes an `Agent` tool:
+Sixteen passes run as four concurrent bundles, dispatched in a single tool-call batch when the harness exposes an `Agent` tool:
 
 | Bundle | Passes | Note |
 | --- | --- | --- |
-| B1 | A, B, C, D, E, F | content |
+| B1 | A, B, C, D, E, F, P | content |
 | B2 | G, M, N | routing surface, in that order (M and N build on G's audit) |
 | B3 | H | trigger eval, always its own dispatch |
 | B4 | I, J, K, L | |
@@ -19,7 +19,7 @@ Agent-type selection, per-bundle budget rules, N/A handling, and the sequential-
 
 No agent tool available? Run sequentially. Either way, **collect all findings before writing any changes**, so one pass's rewrite cannot invalidate another pass's findings.
 
-## Pass index (A-O)
+## Pass index (A-P)
 
 Per-pass checks, the hub-and-spoke awareness rules governing Passes I, N, and O, and each pass's severity specifics live in `passes.md`. Read it before dispatch.
 
@@ -39,6 +39,7 @@ Per-pass checks, the hub-and-spoke awareness rules governing Passes I, N, and O,
 | L | Whitespace / character hygiene | B4 | deterministic byte-level cleanup (Hygiene row, excluded from Medium+); a YAML-frontmatter tab is High |
 | M | Description optimization | B2 | rewrite the description to its strongest form; 1000-char Glean hard cap |
 | N | SKIP / whenToUse / triggers optimization | B2 | rewrite the routing surface; every SKIP target resolves to a real peer |
+| P | Look for llms files first | B1 | target carries the standard llms-first section when it works on a repo, docs, docset, research domain or memory store (Medium when missing) |
 | O | Cross-pollination / peer seeding | after B2+B4 | seed additive downward, upward, and lifecycle deferral edges into peers (the only pass editing peer files) |
 
 ## Artifact-size profile
@@ -59,7 +60,7 @@ A skill containing an embedded prompt block, such as a system-prompt template or
 
 ## Convergence loop boundary
 
-Steps 3, 4, and 5 (analysis, triage, writes) are wrapped in the loop. Exit conditions, the severity ladder, and guardrails are imported by reference from `~/.claude/skill-consolidation/convergence-and-severity.md`. Cite that file; do not restate or silently diverge from its definitions.
+Steps 3, 4, and 5 (analysis, triage, writes) are wrapped in the loop. Exit conditions, the severity ladder, and guardrails are imported by reference from `references/shared/convergence-and-severity.md`. Cite that file; do not restate or silently diverge from its definitions.
 
 - **Exits.** The loop stops on the seven canonical exits named there: clean, no-progress, content-cycling, stable-rewrite, loop-instability, iteration cap, and budget (the last only when `--budget-minutes` was passed). Evaluate them per the contract's definitions rather than re-deriving them.
 - **Per-iteration snapshot.** Before each iteration's writes, copy the current file state to the run's Step 2 backup dir as `<filename>.iter<N>`.

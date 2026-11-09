@@ -1,15 +1,15 @@
 # Prompt-deep-optimizer Step 6 — verify and output (full procedure)
 
-Verify/output mechanics extracted from `SKILL.md` Step 6 to keep body under Pass J token budget. `SKILL.md` Step 6 keeps the 12-item output-order checklist plus a pointer here; read this file at verify-and-output phase. 6a0 blind re-audit gate and 6a.5 cross-model gate wire canonical guardrails in `~/.claude/skill-consolidation/convergence-and-severity.md`.
+Verify/output mechanics extracted from `SKILL.md` Step 6 to keep body under Pass J token budget. `SKILL.md` Step 6 keeps the 12-item output-order checklist plus a pointer here; read this file at verify-and-output phase. 6a0 blind re-audit gate and 6a.5 cross-model gate wire canonical guardrails in `references/shared/convergence-and-severity.md`.
 
-### 6a0. Blind re-audit gate (CLEAN exits only — runs before 6a)
+### 6a0. Blind re-audit gate (CLEAN and NO_CHANGE exits only — runs before 6a)
 
-Runs ONLY when Step 5 exited on condition 1 (clean iteration). Converged/cycling/cap/budget exits not gated — they already report outstanding findings loop proved it cannot fix. Wires canonical **Blind re-audit gate** guardrail from `~/.claude/skill-consolidation/convergence-and-severity.md` (Guardrails section):
+Runs when the candidate has zero Medium+ findings, including the unchanged-original NO_CHANGE path. Converged/cycling/cap/budget exits not gated — they already report outstanding findings loop proved it cannot fix. Wires canonical **Blind re-audit gate** guardrail from `references/shared/convergence-and-severity.md` (Guardrails section):
 
-1. Dispatch one fresh-context subagent receiving ONLY final candidate and Step 2 pass list — no findings tables, no fix rationale, no revision history — runs finding passes once. (If no isolated dispatch is available — no `Agent` tool, or this skill is itself a subagent — run the re-audit in-context against the bare candidate with all prior findings explicitly set aside, and grade the result **`SIMULATED`**, noting `blind gate: in-context (SIMULATED — self-assessed)` in the Summary line. A model setting aside its own reasoning is not a second opinion; the in-context path is a weaker signal than the dispatched one and is never reported as though it were the same thing. When dispatch succeeds, grade the result `ISOLATED`.)
+1. Dispatch one fresh-context subagent receiving ONLY final candidate and Step 2 pass list — no findings tables, no fix rationale, no revision history — runs finding passes once. (If no isolated dispatch is available — no `Agent` tool, or this skill is itself a subagent — run the re-audit in-context against the bare candidate with all prior findings explicitly set aside, and grade the result **`SIMULATED`**, noting `blind gate: in-context (SIMULATED — self-assessed)` in the Summary line. A model setting aside its own reasoning is not a second opinion; the in-context path is a weaker signal than the dispatched one and is never reported as though it were the same thing. When dispatch succeeds, grade the result `ISOLATED`.) A SIMULATED review cannot authorize CLEAN. If independent review is unavailable, report `BLIND-AUDIT-DISSENT (independent evidence unavailable)` and retain the self-assessment with its grade; do not invent an independent reviewer.
 2. **Corroboration rule:** a blind-audit finding demotes one tier unless corroborated by a **deterministic check** or a **second isolated subagent** — the same standard as `SKILL.md` Step 3. Re-reading the flagged span in this same context is not corroboration. Only corroborated Medium+ findings can fail the gate.
 3. If corroborated Medium+ findings remain, feed into at most ONE additional Step 4–5 loop iteration (counting against cap), then re-run blind audit once. If still reports corroborated Medium+, exit with `Status: BLIND-AUDIT-DISSENT` listing findings. **Gate never runs more than twice per invocation.**
-4. `Status: CLEAN` only after gate returns 0 corroborated Medium+ findings.
+4. `Status: CLEAN` only after an ISOLATED gate returns 0 corroborated Medium+ findings and the shared evidence acceptance check succeeds.
 
 > Non-normative footnote: for max independence, copilot-adversarial-review plugin (different model family + harness) can supplement this gate when prompt lives in recent repo diff — but reviews code changes via own fixed passes and cannot execute this pass list; does not implement gate. See optional cross-model gate (Step 6a.5).
 
@@ -47,7 +47,7 @@ When target model non-Claude, still run, label result `PASS* / FAIL* (cross-mode
 
 ### 6a.5. Cross-model exit gate (optional, `--cross-model`, default OFF)
 
-Opt-in only — never auto-enabled. After 6a/6a2 pass and before final output, one review of final candidate by different model family (copilot-adversarial-review pattern); Medium+ findings re-enter loop for at most ONE extra iteration (counts against cap); unresolved findings reported as "cross-model residuals", never silently applied. Egress precondition (Step 4 redaction must have run; otherwise log `cross-model gate: skipped (content not cleared for cross-model egress)`) and full mechanics: `~/.claude/skill-consolidation/cross-model-gate.md`.
+Opt-in only — never auto-enabled. After 6a/6a2 pass and before final output, one review of final candidate by different model family (copilot-adversarial-review pattern); Medium+ findings re-enter loop for at most ONE extra iteration (counts against cap); unresolved findings reported as "cross-model residuals", never silently applied. Egress precondition (Step 4 redaction must have run; otherwise log `cross-model gate: skipped (content not cleared for cross-model egress)`) and full mechanics: `references/shared/cross-model-gate.md`.
 
 ### 6b. Final output (in this exact order)
 
@@ -76,7 +76,7 @@ Opt-in only — never auto-enabled. After 6a/6a2 pass and before final output, o
 
 Items 9–12 are conditional; when present they keep this order.
 
-After emitting output, append telemetry rows per canonical Telemetry schema in `~/.claude/skill-consolidation/convergence-and-severity.md` (one JSONL row per executed pass; append is fail-safe — a write error never blocks the run, but it is never invisible either: add `telemetry: write failed (<reason>)` to the Summary line), and flag any iteration ≥ 3 that closed zero Medium+ findings as a wasted iteration in the Summary.
+After emitting output, append telemetry rows per canonical Telemetry schema in `references/shared/convergence-and-severity.md` (one JSONL row per executed pass; append is fail-safe — a write error never blocks the run, but it is never invisible either: add `telemetry: write failed (<reason>)` to the Summary line), and flag any iteration ≥ 3 that closed zero Medium+ findings as a wasted iteration in the Summary.
 
 Finally, emit the Step 6f run manifest and run `python3 ~/.claude/skills/prompt-deep-optimizer/scripts/pdo_tools.py selfcheck --manifest <file>`. Report `self-check: N/8` and repair anything it names.
 
@@ -104,7 +104,7 @@ Emit a manifest of what this run actually produced, then have it checked by a pr
  "blocked_rows":0,"redactions":0,"wrote_target":false}
 ```
 
-Run `python3 ~/.claude/skills/prompt-deep-optimizer/scripts/pdo_tools.py selfcheck --manifest <file>`. `status` is the bare exit token (qualifiers go in the Summary line). Optional keys: `skipped` (the N/A pass letters), `backup_path` (required when `wrote_target` is true), `empirical` (true on empirical-mode runs, which then include section 12), `original_omitted` (true when item 3 was omitted because the reader holds the file). A `NO_CHANGE` run has no item 4 and reports gates that did not run as `N/A`. The eight checks: (1) `status` is one of the eight documented exit tokens (`CONVERGED` accepted as the legacy alias of `STALLED`); (2) `sections` lists 1–8 in order (3 may be absent when `original_omitted`, 4 when `status` is `NO_CHANGE`), followed only by any of 9/10/11/12 ascending, with 9 present when `redactions` > 0, 11 when `wrote_target` is true, and 12 when `empirical` is true; (3) a `CLEAN` status carries zero Critical/High/Medium; (4) every gate in `evidence` carries one of the three grades or `N/A` (gate did not run), and at least one gate is reported; (5) `active_passes` is within 1–16 and, when `skipped` is supplied, `active_passes + len(skipped) == 16`; (6) `wrote_target: true` appears only alongside `backup_path`; (7) a `CLEAN` status carries no `blocked_rows`; (8) `profile` is `small` or `standard`. Repair what it names, re-run once, and report the second result whatever it is, as `self-check: N/8`. A self-check you graded yourself is not a self-check.
+Run `python3 ~/.claude/skills/prompt-deep-optimizer/scripts/pdo_tools.py selfcheck --manifest <file>`. `status` is the bare exit token (qualifiers go in the Summary line). Optional keys: `skipped` (the N/A pass letters), `backup_path` (required when `wrote_target` is true), `empirical` (true on empirical-mode runs, which then include section 12), `original_omitted` (true when item 3 was omitted because the reader holds the file). A `NO_CHANGE` run has no item 4; its independent review and acceptance checks still run and require actual evidence. The eight checks: (1) `status` is one of the eight documented exit tokens (`CONVERGED` accepted as the legacy alias of `STALLED`); (2) `sections` lists 1–8 in order (3 may be absent when `original_omitted`, 4 when `status` is `NO_CHANGE`), followed only by any of 9/10/11/12 ascending, with 9 present when `redactions` > 0, 11 when `wrote_target` is true, and 12 when `empirical` is true; (3) CLEAN and NO_CHANGE require explicit integer zero Critical/High/Medium counts; (4) every gate in `evidence` carries one of the three grades or `N/A` (gate did not run), and at least one gate is reported; (5) `active_passes` is within 1–16 and, when `skipped` is supplied, `active_passes + len(skipped) == 16`; (6) `wrote_target: true` appears only alongside `backup_path`; (7) CLEAN and NO_CHANGE carry no `blocked_rows`; (8) `profile` is `small` or `standard`. Repair what it names, re-run once, and report the second result whatever it is, as `self-check: N/8`. A self-check you graded yourself is not a self-check.
 
 ### 6c. Algorithm decision table
 
@@ -144,7 +144,7 @@ Report token delta in summary line as `±N tokens` with parenthetical reason:
 
 ### 6e. Do-nothing path output template
 
-If iteration 1 returns 0 Critical / 0 High / 0 Medium, the original is already clean. Skip rewrite. Output:
+If iteration 1 returns 0 Critical / 0 High / 0 Medium, the original has a clean candidate result. Skip the rewrite, run the independent acceptance gate, and output NO_CHANGE only when it passes:
 
 ```
 Status: NO_CHANGE — original already meets Medium+ bar.
@@ -159,9 +159,26 @@ Iteration log (abbreviated 4-column form for the do-nothing path; full 9-column 
 
 Changes-made table: empty.
 
-Summary: Iterations: 1. Active passes: 13/16. Profile: standard. Final: 0 critical, 0 high, 0 medium, 2 low. Token delta: 0 tokens (structure-only change). Status: NO_CHANGE. Smoke: N/A (NO_CHANGE). Evidence: 6a0=n/a 6a2=n/a edit-dist=n/a. routing: proceed.
+Summary: Iterations: 1. Active passes: 13/16. Profile: standard. Final: 0 critical, 0 high, 0 medium, 2 low. Token delta: 0 tokens (structure-only change). Status: NO_CHANGE. Smoke: N/A (NO_CHANGE). Evidence: 6a0=ISOLATED 6a2=N/A edit-dist=N/A. Acceptance: EXECUTED PASS. routing: proceed.
 
 Algorithm recommendation: <decision table row based on Pass P findings>.
 ```
 
 Algorithm recommendation is still produced — Pass P findings can be actionable on clean prompts.
+
+### CLEAN evidence and example plan (check 4)
+
+For CLEAN or NO_CHANGE, include example_plan from Pass G and acceptance using
+[the shared evidence contract](references/shared/evidence-contract.md).
+The plan declares task_kind and examples with role, input_class, covers and summary;
+the examples helper checks coverage/count declarations, while the auditor checks
+their actual meaning. The acceptance object binds final artifacts, required executed
+checks, independent review, reproduced correctness regressions and installation
+applicability to current hashes. The existing eight-check format is unchanged:
+check 4 now checks these receipts as well as evidence grades. It rejects a simulated
+blind review, stale or missing proof, failed/unfinished checks and incorrect evidence
+roles. A selfcheck success confirms declared evidence consistency, not its truth.
+The abbreviated legacy manifest above illustrates field shapes only; CLEAN and NO_CHANGE also
+require these two objects. Historical non-clean manifests need neither object.
+
+Both clean statuses require explicit integer zero critical/high/medium final counts. Missing counts are not zero. NO_CHANGE cannot bypass acceptance or carry unresolved findings.

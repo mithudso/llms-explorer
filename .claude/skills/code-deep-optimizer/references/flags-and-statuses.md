@@ -49,7 +49,7 @@ Flags are not freely composable. Resolve these first, state every resolution in 
 ## Exit-status vocabulary
 
 The Summary line's `Status` field maps onto the seven canonical exit conditions in
-`~/.claude/skill-consolidation/convergence-and-severity.md` § Convergence loop. cdo keeps its
+`references/shared/convergence-and-severity.md` § Convergence loop. cdo keeps its
 own status names because hooks and orchestrators already read them; this table is the mapping,
 so no reader has to guess which exit fired.
 

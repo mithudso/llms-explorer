@@ -6,11 +6,11 @@ tags: [optimization, convergence-loop, router]
 ---
 
 The family router. Every deep optimizer shares one shape — run every analytical pass,
-collect all findings before writing anything, fix everything Medium-severity and above,
+inspect and fix findings using each member’s own workflow, fix confirmed Medium-severity and above,
 verify, and loop until an explicit exit condition — and this skill routes a target to
 the member that owns it.
 
-Eleven members: [code-deep-optimizer](/skills/code-deep-optimizer/) (`/cdo`, source
+The catalogue includes: [code-deep-optimizer](/skills/code-deep-optimizer/) (`/cdo`, source
 files and repos), [prompt-deep-optimizer](/skills/prompt-deep-optimizer/) (`/pdo`,
 production prompts), [prompt-helper-optimizer](/skills/prompt-helper-optimizer/)
 (`/ph`, one-off prompts), [skill-optimizer](/skills/skill-optimizer/) (`/sko`,
@@ -19,7 +19,7 @@ subagent definitions), [deep-eval-optimizer](/skills/deep-eval-optimizer/) (`/de
 skill eval suites), [deep-query-optimizer](/skills/deep-query-optimizer/) (`/dqo`,
 SQL), [deep-mongodb-mql-query-optimizer](/skills/deep-mongodb-mql-query-optimizer/)
 (`/dmqo`, MongoDB queries), [design-deep-optimizer](/skills/design-deep-optimizer/)
-(`/deso`, UI/UX and graphics), [deep-strategy-optimizer](/skills/deep-strategy-optimizer/)
+(`/deso`, visual and graphic design), [ui-deep-optimizer](/skills/ui-deep-optimizer/) (`/ui-deep-optimizer`, interface workflows), [deep-strategy-optimizer](/skills/deep-strategy-optimizer/)
 (`/dso`, trading strategies), and [llms-deep-optimizer](/skills/llms-deep-optimizer/)
 (`/ldo`, llms files).
 

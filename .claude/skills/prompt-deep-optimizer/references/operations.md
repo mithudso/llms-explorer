@@ -16,9 +16,10 @@ python3 ~/.claude/skills/prompt-deep-optimizer/scripts/pdo_tools.py <subcommand>
 | `editdist <prev> <curr>` | Step 5 cond. 4 | Estimating edit distance; the documented fallback when `convergence_check.py` is absent. |
 | `scan <path\|->` | Step 4 redaction | Spotting secrets and PII by reading. Reports type and line, never the value. |
 | `backup <path> [--run-id <id>] [--iter N --from <file>]` | `--write` runs; Step 5 per-iteration copies | An unbacked in-place write. Copies the file to `~/.claude/skill-consolidation/backups/prompt-deep-optimizer-<run-id>/<basename>` (the contract's `<skill>-<YYYYMMDD-HHMMSS>` central form; `--run-id` defaults to the current timestamp) and prints `backup_path` plus the restore command; `--iter N --from <scratch>` copies the iteration-N candidate (a scratch file, never the untouched target) into the same run dir as `<basename>.iterN`, for `convergence_check.py`. Refuses to clobber an existing copy. |
+| `examples --plan <file>` | Pass G preflight and every rewrite | Checks declared primary-task coverage, redundancy and example count; the auditor checks semantic truth. |
 | `selfcheck --manifest <file>` | Step 6f | Grading your own run. Returns `self_check: N/8` and names each failure. |
 
-All five print JSON and carry `"evidence": "EXECUTED"`, which is what lets Step 6's evidence table grade the gate honestly. `selfcheck` exits 2 on failure, so an outer loop can branch on it.
+All six print JSON and carry `"evidence": "EXECUTED"`, which is what lets Step 6's evidence table grade the gate honestly. `selfcheck` exits 2 on failure, so an outer loop can branch on it.
 
 **Degraded paths (helper missing or exiting non-zero).** Record `degraded: <subcommand> by hand` in the Summary line and:
 
@@ -30,7 +31,7 @@ All five print JSON and carry `"evidence": "EXECUTED"`, which is what lets Step 
 
 ## Budget and caps
 
-Canonical source for every count in this skill; it restates the shared contract `~/.claude/skill-consolidation/convergence-and-severity.md` (iteration caps, artifact-size profile, budget contract) for this skill. Prose elsewhere cites this table. On any disagreement the contract wins, then this table, and the citing prose is the bug.
+Canonical source for every count in this skill; it restates the shared contract `references/shared/convergence-and-severity.md` (iteration caps, artifact-size profile, budget contract) for this skill. Prose elsewhere cites this table. On any disagreement the contract wins, then this table, and the citing prose is the bug.
 
 | Name | Value | Meaning |
 |---|---|---|
@@ -79,3 +80,7 @@ Resolve conflicts by this table, never by guessing a precedence.
 - **Tiebreak.** `convergence_check.py` ranks its verdicts clean > stable-rewrite > no-progress; Step 5 defers to that order for conditions 1/2/4 and applies lowest-numbered-wins only across the model-judged and caller-side conditions.
 
 All deviations are pdo-local; the contract file is not edited.
+
+### Verified acceptance dependency
+
+A CLEAN or NO_CHANGE selfcheck needs the current example_plan and acceptance object defined in output-spec.md section 6f. It loads the shared stdlib skill-consolidation/evidence_gate.py from the sibling skill library. An unavailable helper or proof prevents certification. Keep a non-clean exit with the missing evidence disclosed. Non-clean historical manifests remain compatible.

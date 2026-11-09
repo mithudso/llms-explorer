@@ -3,7 +3,7 @@
 Extracted from SKILL.md on 2026-10-05 (v1.16.0). SKILL.md § Empirical mode keeps the default,
 the opt-outs, and the pointer here. The loop mechanics (persisted state, split discipline,
 one-change-per-round, margin-gated promotion with must-pass veto, stop conditions, output) are the
-shared contract `~/.claude/skill-consolidation/champion-challenger.md`. Cite it; do not restate it.
+shared contract `references/shared/champion-challenger.md`. Cite it; do not restate it.
 
 ## Engagement
 

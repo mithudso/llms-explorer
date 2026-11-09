@@ -82,7 +82,7 @@ Trigger with `/ado <agent-name | path | plugin:agent>` or by naming the agent in
 - `/ado research-contract-auditor`: resolve by name across project, user, plugin roots (precedence winner), full loop
 - `/ado ~/.claude/agents/box-sync.md --read-only`: every pass, report + proposed diffs, write nothing (single iteration; no rebuild, no peer seeds, no changelog line)
 - `/ado .claude/agents/llms-librarian.md --meta`: structural-only: schema, name/precedence, tool and reference resolvability, registry wiring; skip content passes
-- `/ado my-pipeline-agent --eval=measured --smoke`: measured delegation scoring plus the `claude -p --agent` load check
+- `/ado example-pipeline-runner --eval=measured --smoke`: measured delegation scoring plus the `claude -p --agent` load check
 - `/ado stele:stele-search`: plugin target → read-only by rule
 - `/ado box-sync --max-iter=2 --no-sync`: cap the loop, skip the rebuild (outer-loop shape below)
 - `/ado box-sync --budget-minutes=15`: wall-clock budget; finish the current iteration's writes on expiry, exit `BUDGET_EXHAUSTED`
@@ -93,7 +93,7 @@ Full flag catalog + exit-status vocabulary: `references/flags-and-statuses.md`. 
 
 ### When driven by an outer loop
 
-An orchestrator (convergence-loop-runner) owns iteration? Invoke with `--max-iter=1 --no-sync` per outer iteration; one registry rebuild after the outer loop converges, not per iteration. Orchestrators never re-derive exit conditions or caps (cite `~/.claude/skill-consolidation/convergence-and-severity.md`).
+An orchestrator (convergence-loop-runner) owns iteration? Invoke with `--max-iter=1 --no-sync` per outer iteration; one registry rebuild after the outer loop converges, not per iteration. Orchestrators never re-derive exit conditions or caps (cite `references/shared/convergence-and-severity.md`).
 
 ## Structural-only mode (`--meta`)
 
@@ -155,7 +155,7 @@ An orchestrator (convergence-loop-runner) owns iteration? Invoke with `--max-ite
 Two rules are load-bearing enough to state here:
 
 - **Collect all findings before writing any changes**, so one bundle's rewrite cannot invalidate another's findings.
-- **Steps 3, 4, 5 are the loop.** Exit conditions, severity ladder, guardrails (blind re-audit, demotion guard, evidence rule, pre-write snapshot, checkpoint) are imported by reference from `~/.claude/skill-consolidation/convergence-and-severity.md`. Cite it; never restate or diverge. Cap is 3 iterations, raised to 5 only if Medium+ findings dropped by at least 50% in the prior iteration; `--max-iter` is a hard ceiling that raise never exceeds. `profile: small` (body under ~120 lines, no `skills:` preload, frontmatter beyond `name`/`description` ≤ 3 keys) merges to three bundles {B1+B2}, {B3}, {B4+B5}; Pass N's length checks read `N/A (under budget)`; all 16 passes still emit rows; the Summary names the profile.
+- **Steps 3, 4, 5 are the loop.** Exit conditions, severity ladder, guardrails (blind re-audit, demotion guard, evidence rule, pre-write snapshot, checkpoint) are imported by reference from `references/shared/convergence-and-severity.md`. Cite it; never restate or diverge. Cap is 3 iterations, raised to 5 only if Medium+ findings dropped by at least 50% in the prior iteration; `--max-iter` is a hard ceiling that raise never exceeds. `profile: small` (body under ~120 lines, no `skills:` preload, frontmatter beyond `name`/`description` ≤ 3 keys) merges to three bundles {B1+B2}, {B3}, {B4+B5}; Pass N's length checks read `N/A (under budget)`; all 16 passes still emit rows; the Summary names the profile.
 
 Per-pass checks, dispatch rules, and severity specifics: `references/passes.md`. Read it before dispatching.
 
@@ -167,7 +167,7 @@ Per-pass checks, dispatch rules, and severity specifics: `references/passes.md`.
 | Medium | Reduces delegation accuracy, clarity, robustness, or cost efficiency with a nameable effect: a specific should-delegate query that misses, a tool the steps never use, a missing inputs section, an unknown frontmatter key, a body over the soft budget, missing evals | Always fix |
 | Low | Subjective polish, `color`, version markers on leaf agents, duplication with loaded CLAUDE.md | Skip |
 
-These tiers are this skill's calibration of the canonical model in `~/.claude/skill-consolidation/convergence-and-severity.md`; Critical folds into High as in skill-optimizer (a definition file misloads, it does not produce undefined runtime behavior on its own). **Evidence rule:** every Medium+ row quotes the definition, names the absent element and where it belongs, or cites a measured check (`ado_tools.py`, `trigger_runner.py`, `claude mcp list`, `hub_route`); a row with neither is recorded as Low. **Late-iteration corroboration (≥ 2):** a High drives a rewrite only when corroborated by a deterministic check or an isolated second read; otherwise it demotes one tier, marked `uncorroborated`.
+These tiers are this skill's calibration of the canonical model in `references/shared/convergence-and-severity.md`; Critical folds into High as in skill-optimizer (a definition file misloads, it does not produce undefined runtime behavior on its own). **Evidence rule:** every Medium+ row quotes the definition, names the absent element and where it belongs, or cites a measured check (`ado_tools.py`, `trigger_runner.py`, `claude mcp list`, `hub_route`); a row with neither is recorded as Low. **Late-iteration corroboration (≥ 2):** a High drives a rewrite only when corroborated by a deterministic check or an isolated second read; otherwise it demotes one tier, marked `uncorroborated`.
 
 **Conflict resolution** when two bundles want opposite edits to the same span: higher severity wins; tie ⇒ earlier-letter pass; still tied ⇒ the more concise rewrite; record the rejected alternative in Step 8. Named pairs: G (narrow the grant) vs K (keep a fallback tool) ⇒ G wins, K's fallback becomes a body rule ("report the gap"); A (shorter description) vs C (add a boundary clause) ⇒ C wins up to the 900-char soft cap, then the boundary moves to the body's route-elsewhere list; N (shorter body) vs D/E (add contracts) ⇒ D/E win, N extracts reference material instead.
 
@@ -200,7 +200,7 @@ Write every High + Medium finding into the definition:
 
 ### Step 6.5 — Cross-model exit gate (optional)
 
-Only under `--cross-model` (default off): the shared procedure in `~/.claude/skill-consolidation/cross-model-gate.md`. A High from the other model family holds Step 7 and is reported as a sync-blocking residual.
+Only under `--cross-model` (default off): the shared procedure in `references/shared/cross-model-gate.md`. A High from the other model family holds Step 7 and is reported as a sync-blocking residual.
 
 ### Step 7 — Rebuild hub registry index
 
@@ -224,7 +224,7 @@ Emit the sections in the exact order and shape in `references/report-format.md`:
 
 ## Empirical mode — champion–challenger over functional evals (opt-in)
 
-`--empirical` wraps the structural loop's shipped candidate in the shared champion–challenger procedure (`~/.claude/skill-consolidation/champion-challenger.md`): each `evals.json` case runs through `claude -p --agent <name> --output-format json` against the champion (baseline snapshot, loaded via `--agents` JSON) and the challenger (current file); assertions grade both; the challenger is promoted only when it beats the champion by the margin on the held-out split. Requires `evals.json` with objective assertions and a budget (`--max-budget-usd` is passed through). `--dry-run` evaluates without promoting; `--read-only` implies `--dry-run`. Side-effecting tools are disallowed for every eval dispatch unless the eval names a sandboxed cwd.
+`--empirical` wraps the structural loop's shipped candidate in the shared champion–challenger procedure (`references/shared/champion-challenger.md`): each `evals.json` case runs through `claude -p --agent <name> --output-format json` against the champion (baseline snapshot, loaded via `--agents` JSON) and the challenger (current file); assertions grade both; the challenger is promoted only when it beats the champion by the margin on the held-out split. Requires `evals.json` with objective assertions and a budget (`--max-budget-usd` is passed through). `--dry-run` evaluates without promoting; `--read-only` implies `--dry-run`. Side-effecting tools are disallowed for every eval dispatch unless the eval names a sandboxed cwd.
 
 ## Constraints
 

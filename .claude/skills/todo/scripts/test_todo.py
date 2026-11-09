@@ -116,6 +116,27 @@ class TodoTest(unittest.TestCase):
         self.t.add_item("two")
         self.assertFalse(self.t.import_doc({"items": doc["items"], "seen": doc["seen"]}, doc["hash"]))
 
+    def _fake_resolver(self, body):
+        path = os.path.join(self.tmp, "mitchlists-peer")
+        with open(path, "w") as f:
+            f.write("#!/bin/sh\n" + body + "\n")
+        os.chmod(path, 0o755)
+        os.environ["MITCHLISTS_PEER"] = path
+
+    def test_fleet_peer_line_resolves_from_registry(self):
+        self._fake_resolver('[ "$1" = laptop ] && echo "mitch.hudson@192.0.2.10"')
+        self.assertEqual(self.t.resolve_peer_line("fleet:laptop|mitch.hudson@old"), "mitch.hudson@192.0.2.10")
+
+    def test_fleet_peer_line_falls_back_when_unknown_or_resolver_missing(self):
+        self._fake_resolver("exit 1")
+        self.assertEqual(self.t.resolve_peer_line("fleet:laptop|u@last-known"), "u@last-known")
+        os.environ["MITCHLISTS_PEER"] = os.path.join(self.tmp, "absent")
+        self.assertEqual(self.t.resolve_peer_line("fleet:laptop|u@last-known"), "u@last-known")
+        self.assertIsNone(self.t.resolve_peer_line("fleet:laptop"))
+
+    def test_literal_peer_line_is_unchanged(self):
+        self.assertEqual(self.t.resolve_peer_line("u@host"), "u@host")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

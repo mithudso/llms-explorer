@@ -13,8 +13,8 @@ description: >-
   (references/document-critique.md); plan and run a whole task → p; eval suites, cost of running a
   prompt → misc-catch-all (deep-eval-optimizer /deo, prompt-cost-estimator).
 category: developer
-version: 2.10.2
-updated: "2026-10-15"
+version: 2.11.0
+updated: "2026-11-09"
 model: claude-opus-5-5
 effort: xhigh
 whenToUse:
@@ -121,7 +121,7 @@ If no prompt is provided, ask once: "Paste the prompt to optimize, or give me a 
 
 ### When driven by an outer loop
 
-An orchestrating agent (prompt-optimizer-loop, convergence-loop-runner) invokes once and trusts the reported Status; pdo owns the loop (Step 5) and orchestrators never re-derive exit conditions or caps (cite `~/.claude/skill-consolidation/convergence-and-severity.md`). `--max-iter=N` replaces the Step 5 ceiling (`--max-iter=1` = one diagnose + triage + rewrite round; **clamped 1–10**, reported as `max-iter clamped 25→10`); `--budget-minutes=N` overrides the default budget (Step 5 cond. 7). Variant registration belongs to the orchestrator's save stage (Step 6b item 10).
+An orchestrating agent (prompt-optimizer-loop, convergence-loop-runner) invokes once and trusts the reported Status; pdo owns the loop (Step 5) and orchestrators never re-derive exit conditions or caps (cite `references/shared/convergence-and-severity.md`). `--max-iter=N` replaces the Step 5 ceiling (`--max-iter=1` = one diagnose + triage + rewrite round; **clamped 1–10**, reported as `max-iter clamped 25→10`); `--budget-minutes=N` overrides the default budget (Step 5 cond. 7). Variant registration belongs to the orchestrator's save stage (Step 6b item 10).
 
 ---
 
@@ -144,12 +144,12 @@ Every iteration runs **all applicable passes (up to 16)** against the current pr
 Every mechanical step runs through one stdlib-only helper, so its result is a value you did not author:
 
 ```
-python3 ~/.claude/skills/prompt-deep-optimizer/scripts/pdo_tools.py <tokens|editdist|scan|backup|selfcheck>
+python3 ~/.claude/skills/prompt-deep-optimizer/scripts/pdo_tools.py <tokens|examples|editdist|scan|backup|selfcheck>
 ```
 
 `tokens` decides Step 1a.3 routing (pass `--one-off` and `--fragment` for the two conjuncts the text cannot show) · `editdist` is the Step 5 cond. 4 fallback · `scan` floors Step 4 redaction · `backup` guards `--write` · `selfcheck` grades Step 6f. All print JSON tagged `"evidence": "EXECUTED"`; `selfcheck` exits 2 when a check fails: that is a reported result to repair and re-run (Step 6f), not a helper failure. Helper missing or crashing (any other non-zero exit)? Follow the per-subcommand degraded path in `references/operations.md` § Tooling and record `degraded: <subcommand> by hand` in the Summary line; `backup` has no degraded path, so `--write` is refused. A step the helper owns is one you must not re-derive by eye, and its output overrides your reading.
 
-**Every count in this skill** (pass and group counts, iteration caps and the cap-raise rule, the default budget, the `--max-iter` clamp, the small-profile and inline-limit token thresholds) is owned by one table: `references/operations.md` § Budget and caps, which restates the shared contract `~/.claude/skill-consolidation/convergence-and-severity.md` for this skill. Numbers quoted in this body are citations of that table and must match it; on any disagreement the contract wins, then the table, and the body is the bug.
+**Every count in this skill** (pass and group counts, iteration caps and the cap-raise rule, the default budget, the `--max-iter` clamp, the small-profile and inline-limit token thresholds) is owned by one table: `references/operations.md` § Budget and caps, which restates the shared contract `references/shared/convergence-and-severity.md` for this skill. Numbers quoted in this body are citations of that table and must match it; on any disagreement the contract wins, then the table, and the body is the bug.
 
 ---
 
@@ -210,7 +210,7 @@ Record before analyzing:
 
 ### 1d. Semantic-index-first ingest
 
-Any prior-art lookup goes to the semantic index before raw `grep`, per § Semantic-index integration in `~/.claude/skill-consolidation/convergence-and-severity.md` (cite that section; do not restate its tool table). Today the only consumer is Step 6b item 10's duplicate check on library prompts; none of the 16 passes performs cross-artifact research. pdo only reads the index: it writes the target under `--write` alone, and the caller's separate embed refresh (that section) re-warms the corpus afterward.
+Any prior-art lookup goes to the semantic index before raw `grep`, per § Semantic-index integration in `references/shared/convergence-and-severity.md` (cite that section; do not restate its tool table). Today the only consumer is Step 6b item 10's duplicate check on library prompts; none of the 16 passes performs cross-artifact research. pdo only reads the index: it writes the target under `--write` alone, and the caller's separate embed refresh (that section) re-warms the corpus afterward.
 
 ---
 
@@ -220,7 +220,7 @@ Passes are grouped by semantic affinity (intent, context, process, safety, struc
 
 If the harness exposes an `Agent` tool, dispatch the 5 groups as 5 subagents **in a single tool-call batch** for concurrency. Otherwise run sequentially. Collect **all findings from all applicable passes** before any rewrite.
 
-**Small-artifact profile** (`profile: small`, when `tokens` reports it: under ~600 tokens AND fragment mode inactive): dispatch **3 merged groups** ({Group 1+2}, {Group 3}, {Group 4+5}), drop effort to `high`, cap iterations at 3 with the single cap-raise check of Step 5 cond. 5. All 16 passes still emit rows. Declare `profile: small` or `profile: standard` in the Summary line. Canonical profile table: `~/.claude/skill-consolidation/convergence-and-severity.md`.
+**Small-artifact profile** (`profile: small`, when `tokens` reports it: under ~600 tokens AND fragment mode inactive): dispatch **3 merged groups** ({Group 1+2}, {Group 3}, {Group 4+5}), drop effort to `high`, cap iterations at 3 with the single cap-raise check of Step 5 cond. 5. All 16 passes still emit rows. Declare `profile: small` or `profile: standard` in the Summary line. Canonical profile table: `references/shared/convergence-and-severity.md`.
 
 **Subagent budget rules:**
 - Each subagent receives ONLY its (merged) group's passes (no cross-group context) and only the **current candidate**, never prior iteration logs or findings tables; the cycling check (Step 5 condition 3) compares {Pass, Severity, location} tuples in the orchestrator after the pass returns.
@@ -260,7 +260,7 @@ Mark `N/A` or `partial` when a precondition is unmet, and **always emit the row*
 | Low | Minor polish, no execution impact | Skip |
 | Nit | Typos, whitespace, pure formatting | Skip (hygiene, outside the loop) |
 
-These tiers calibrate the canonical model in `~/.claude/skill-consolidation/convergence-and-severity.md` (shared with skill-optimizer, ddo, document-critique). **That file is an external dependency**: severity, checkpoint schema, budget contract, and telemetry schema cite it. Missing or unreadable → say so once in the Summary line as `contract: convergence-and-severity.md unavailable, using inline defaults` and continue with `references/operations.md` § Budget and caps plus the table above; never let an absent contract silently change behaviour.
+These tiers calibrate the canonical model in `references/shared/convergence-and-severity.md` (shared with skill-optimizer, ddo, document-critique). **That file is an external dependency**: severity, checkpoint schema, budget contract, and telemetry schema cite it. Missing or unreadable → say so once in the Summary line as `contract: convergence-and-severity.md unavailable, using inline defaults` and continue with `references/operations.md` § Budget and caps plus the table above; never let an absent contract silently change behaviour.
 
 **Evidence rule.** Every Medium+ finding carries a verbatim quote or line/section anchor from the candidate (for an absence finding: the missing element and where it belongs, or a measured check result) plus the severity criterion it meets; a finding with neither is recorded as Low. **Demotion guard.** A finding rated Medium+ in iteration N that reappears at Low in iteration N+1 without an Applied fix needs a one-line justification in the iteration log; unjustified demotions count as cycling findings under Step 5 cond. 3 and are excluded from the Medium+ count cond. 2 compares.
 
@@ -282,6 +282,8 @@ Four pairs of passes can demand opposite edits (J repetition vs dead weight, D v
 ---
 
 ## Step 4 — Apply fixes (one rewrite per iteration)
+
+Run Pass G's primary-task example preflight and its `examples` helper before the first rewrite; validate the revised plan after each rewrite. Repair coverage and example count together, using replacement or merging before addition.
 
 Apply **every** Critical/High/Medium finding in a single rewrite. Each iteration produces a new candidate prompt as input to the next audit. Rules, throughout the loop:
 
@@ -334,7 +336,7 @@ The edit-distance values above are illustrative; a real run's column carries the
 
 ### Do-nothing path
 
-If iteration 1 returns 0 Critical / 0 High / 0 Medium, the original is already clean: skip the rewrite and report `Status: NO_CHANGE`. Full output template (abbreviated iteration-log form, empty Changes-made table, Summary line shape): `references/output-spec.md` § 6e.
+If iteration 1 returns 0 Critical / 0 High / 0 Medium, the original is already clean: skip the rewrite and report `Status: NO_CHANGE` only after the same independent evidence acceptance gate used for CLEAN. NO_CHANGE cannot certify unresolved or unverified findings. Full output template (abbreviated iteration-log form, empty Changes-made table, Summary line shape): `references/output-spec.md` § 6e.
 
 ### Fragment-mode output
 
@@ -350,7 +352,7 @@ Fragment mode uses the same Step 6 structure with adjustments:
 
 **Evidence grading.** Every gate is graded `EXECUTED` (a program returned a value you did not author), `ISOLATED` (a fresh-context subagent judged it), or `SIMULATED` (you judged your own prior work). The grade is always printed with the result: a `SIMULATED` pass rendered as a bare PASS is indistinguishable from evidence. Per-gate assignments: `references/output-spec.md` § Evidence grading.
 
-Step 6 runs on every invocation that reached Step 2 (halted and short-circuited runs: § Success criteria). Gate mechanics live in `references/output-spec.md`: **6a0 blind re-audit gate** (CLEAN exits only), **6a intent-preservation** (5-field checklist + drift back-out), **6a2 behavioral smoke test**, optional **6a.5 cross-model gate**, **6c algorithm decision table**, **6d token-delta convention**. Read it when you reach Step 6.
+Step 6 runs on every invocation that reached Step 2 (halted and short-circuited runs: § Success criteria). Gate mechanics live in `references/output-spec.md`: **6a0 blind re-audit gate** (CLEAN and NO_CHANGE exits only), **6a intent-preservation** (5-field checklist + drift back-out), **6a2 behavioral smoke test**, optional **6a.5 cross-model gate**, **6c algorithm decision table**, **6d token-delta convention**. Read it when you reach Step 6.
 
 ### 6b. Final output order (full detail in `references/output-spec.md` § 6b)
 
@@ -371,13 +373,13 @@ Items 9–12 are conditional and keep this order when present. After output, app
 
 ### 6f. Run manifest and executed self-check
 
-Emit a JSON manifest of what the run produced (schema and the eight checks: `references/output-spec.md` § 6f), then run `python3 ~/.claude/skills/prompt-deep-optimizer/scripts/pdo_tools.py selfcheck --manifest <file>`. Report `self-check: N/8`, repair what it names, re-run once, and report the second result whatever it is. A self-check you graded yourself is not a self-check.
+Emit a JSON manifest of what the run produced (schema and the eight checks: `references/output-spec.md` § 6f), then run `python3 ~/.claude/skills/prompt-deep-optimizer/scripts/pdo_tools.py selfcheck --manifest <file>`. CLEAN and NO_CHANGE manifests include the checked example plan and shared acceptance evidence; selfcheck rejects missing or stale proof and a SIMULATED blind gate. Report `self-check: N/8`, repair what it names, re-run once, and report the second result whatever it is. A self-check you graded yourself is not a self-check.
 
 ---
 
 ## Empirical mode — champion–challenger held-out loop
 
-Runs **by default** whenever the call supplies **eval cases** and **must-pass checks** (§ Invocation flags); `--dry-run`/`--no-promote`/`--structural-only` opt out. Without eval data the run is structural only and says so (`cannot auto-improve`). The structural loop (Steps 2–5) runs first; the climb then starts from the shipped candidate: each round scores the champion on the working set, makes one targeted change, and promotes the challenger only if it beats the champion on the untouched holdout by `[margin]` (default `2/n_holdout`) with no must-pass regression (a regression always vetoes). Only the champion carries forward, so the climb is monotonic and every promotion attributable. Honest guarantee: monotonically non-decreasing on the holdout, not "better every run." Full mechanics: `references/champion-challenger.md` (the same file is linked at `~/.claude/skill-consolidation/champion-challenger.md` for sibling optimizers); read it before running this mode.
+Runs **by default** whenever the call supplies **eval cases** and **must-pass checks** (§ Invocation flags); `--dry-run`/`--no-promote`/`--structural-only` opt out. Without eval data the run is structural only and says so (`cannot auto-improve`). The structural loop (Steps 2–5) runs first; the climb then starts from the shipped candidate: each round scores the champion on the working set, makes one targeted change, and promotes the challenger only if it beats the champion on the untouched holdout by `[margin]` (default `2/n_holdout`) with no must-pass regression (a regression always vetoes). Only the champion carries forward, so the climb is monotonic and every promotion attributable. Honest guarantee: monotonically non-decreasing on the holdout, not "better every run." Full mechanics: `references/champion-challenger.md` (the same file is linked at `references/shared/champion-challenger.md` for sibling optimizers); read it before running this mode.
 
 ---
 

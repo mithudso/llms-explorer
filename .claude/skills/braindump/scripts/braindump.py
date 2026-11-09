@@ -12,10 +12,11 @@ parsed.json shape (the model writes it after reading the numbered raw dump):
    "items": [{"category": "career", "kind": "idea", "text": "...", "line": 3}],
    "tasks": [{"text": "...", "line": 5}]}
 
-Store: $BRAINDUMP_DIR (default ~/dev/personal/Areas/braindump)
+Store: $BRAINDUMP_DIR (default $HOME/dev/personal/Areas/braindump)
   raw/YYYY-MM-DD-HHMMSS.md         verbatim capture, never edited
   braindump_<category>_llms.md     | item | kind | date | source | rows, source = raw path:line
-  llms.txt                         index of category files with counts
+  llms.txt                         v3 single-file index: ## Facts (counts), ## Sitemap (every category
+                                   and raw file), ## Resources (to-do list, scripts, skills, tools)
 """
 import datetime as dt
 import json
@@ -25,6 +26,11 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "todo", "scripts"))
 import todo  # noqa: E402
+
+VERSION = "1.1.0"
+SINGLE_FILE_MAX_BYTES = 32000      # llms-family-format.md v3 section 2
+SINGLE_FILE_MAX_ENTRIES = 200
+SKILLS_DIR = os.environ.get("BRAINDUMP_SKILLS_DIR", os.path.expanduser("~/.claude/skills"))
 
 STORE = os.environ.get("BRAINDUMP_DIR", os.path.expanduser("~/dev/personal/Areas/braindump"))
 RAW_DIR = os.path.join(STORE, "raw")
@@ -93,23 +99,78 @@ def count_rows(path):
         return sum(1 for line in f if line.startswith("| ") and not line.startswith("| item "))
 
 
+def mark(path):
+    return "" if os.path.exists(path) else " (unverified)"
+
+
+def category_dates(path):
+    """Distinct `date` cells of a category file's rows (YYYY-MM-DD)."""
+    dates = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("| ") and not line.startswith("| item "):
+                m = re.search(r"\|\s*(\d{4}-\d{2}-\d{2})\s*\|", line)
+                if m:
+                    dates.append(m.group(1))
+    return dates
+
+
 def rebuild_index():
+    """Write llms.txt as a v3 single file: ## Facts / ## Sitemap / ## Resources, <= 32,000 bytes.
+    Counts only; no row text, so customer names never reach the index."""
     os.makedirs(STORE, exist_ok=True)
-    lines = ["# Braindump", "",
-             "> Personal braindumps parsed into one llms file per category. Every row cites the verbatim",
-             "> raw capture it came from (raw/<stamp>.md:line). Tasks found in dumps also land in",
-             f"> {todo.TODO_FILE}.", "",
-             f"<!-- generator: braindump.py · generated: {now().date().isoformat()} -->", "",
-             "## Categories"]
-    for path in sorted(p for p in os.listdir(STORE) if re.match(r"braindump_[a-z0-9-]+_llms\.md$", p)):
+    cats = sorted(p for p in os.listdir(STORE) if re.match(r"braindump_[a-z0-9-]+_llms\.md$", p))
+    raws = sorted(p for p in os.listdir(RAW_DIR) if p.endswith(".md")) if os.path.isdir(RAW_DIR) else []
+    facts, sitemap, all_dates = [], [], []
+    for path in cats:
         cat = path[len("braindump_"):-len("_llms.md")]
-        desc = CATEGORIES.get(cat, "custom category")
-        lines.append(f"- [{cat}]({path}): {count_rows(os.path.join(STORE, path))} items. {desc}")
-    raws = sorted(os.listdir(RAW_DIR)) if os.path.isdir(RAW_DIR) else []
-    lines += ["", "## Raw captures", f"- {len(raws)} dumps in raw/"
-              + (f", latest {raws[-1]}" if raws else "")]
+        full = os.path.join(STORE, path)
+        n = count_rows(full)
+        dates = category_dates(full)
+        all_dates += dates
+        span = f", {min(dates)} to {max(dates)}" if dates else ""
+        facts.append(f"- {cat}: {n} items{span}. {CATEGORIES.get(cat, 'custom category')}")
+        sitemap.append((f"- {full} — {cat}, {n} row{'s' if n != 1 else ''}"))
+    total = sum(count_rows(os.path.join(STORE, p)) for p in cats)
+    head_fact = (f"- {total} items in {len(cats)} categories, {len(raws)} raw dumps"
+                 + (f", dates {min(all_dates)} to {max(all_dates)}" if all_dates else "") + ".")
+    raw_lines = [f"- {os.path.join(RAW_DIR, r)} — verbatim capture" for r in raws]
+
+    def render(raw_listing, note=None):
+        entries = len(sitemap) + len(raw_listing)
+        res = ["### Related files", "",
+               f"- {todo.TODO_FILE} — the personal to-do list; tasks found in dumps also land here{mark(todo.TODO_FILE)}",
+               f"- {STORE} — the braindump store{mark(STORE)}", "",
+               "### Scripts", "",
+               f"- `python3 {os.path.abspath(__file__)} categories` — canonical categories and what belongs in each{mark(__file__)}",
+               f"- `python3 {os.path.abspath(__file__)} save-raw` — save a dump verbatim (stdin){mark(__file__)}",
+               f"- `python3 {os.path.abspath(__file__)} file` — append parsed rows, rebuild this index, send tasks to the to-do list{mark(__file__)}",
+               "", "### Skills", ""]
+        res += [f"- `{n}` — {why}{mark(os.path.join(SKILLS_DIR, n))}"
+                for n, why in (("todo", "read or change the to-do list"),
+                               ("note-organizer", "reorganize a pile of notes into a structure"))]
+        res += ["", "### Agents and tools", "", "- `hub_search_codebase` — semantic search of these rows through the hub index (unverified)"]
+        text = "\n".join(
+            ["# Braindump", "",
+             "> Personal braindumps parsed into one llms file per category. Every row cites the verbatim raw capture it came from (raw/<stamp>.md:line).",
+             f"> Source: {STORE} · Generated: {now().date().isoformat()} by braindump v{VERSION} · Mode: single-file · Entries: {entries}", "",
+             "## Facts", "", head_fact] + facts + ([note] if note else []) +
+            ["", "## Sitemap", ""] + sitemap + raw_listing + ["", "## Resources", ""] + res) + "\n"
+        return text, entries
+
+    text, entries = render(raw_lines)
+    if len(text.encode()) > SINGLE_FILE_MAX_BYTES or entries > SINGLE_FILE_MAX_ENTRIES:
+        # too many dumps for one file: keep the newest, summarize the rest per month (still one line each)
+        keep = max(0, min(100, SINGLE_FILE_MAX_ENTRIES - len(sitemap) - 40))
+        older, newer = raws[:len(raws) - keep] if keep else raws, raws[len(raws) - keep:] if keep else []
+        months = {}
+        for r in older:
+            months.setdefault(r[:7], []).append(r)
+        listing = [f"- {os.path.join(RAW_DIR, ms[0])} — first of {len(ms)} verbatim captures in {m}" for m, ms in sorted(months.items())]
+        listing += [f"- {os.path.join(RAW_DIR, r)} — verbatim capture" for r in newer]
+        text, entries = render(listing, f"- {len(older)} older raw dumps are summarized by month in the sitemap.")
     with open(os.path.join(STORE, "llms.txt"), "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
+        f.write(text)
 
 
 def file_parsed(doc):

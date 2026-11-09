@@ -9,9 +9,9 @@ Complete flag list and exit-status vocabulary for `/sko`. The `## Invocation` se
 | `--meta` (aliases `--structural`, `--meta-only`, `--structural-only`) | Structural-only mode: wiring/registry/validation, skip content-quality passes | `## Structural-only mode`, `references/structural-mode.md` |
 | `--read-only` | Run every pass, triage, and the report; write nothing anywhere (no target, wrapper, peer, changelog, rebuild, or index writes); single iteration (`--max-iter=1` implied); implies `--dry-run` in empirical mode; the read-only routing verify still runs. convergence-loop-runner's "dry run" input maps to this flag, not to `--dry-run` | Step 5, Step 6, Step 7 |
 | `--eval` | With `--meta`, add the Pass H trigger eval (opt-in) | Structural-only mode |
-| `--eval=measured` | Force the Pass H measured harness (skill-creator `run_eval`) instead of predicted | Pass H (`references/passes.md`) |
+| `--eval=measured` | Force the Pass H measured harness (skill-creator `run_eval`) instead of predicted, and add the `/deo <skill-path> --run --eval-type=functional` follow-up for measured behavior rates to the report. Evals themselves always run (cheapest level by default) | Pass H, `references/eval-gate.md` |
 | `--rewrite-desc` | With `--meta`, also run Pass M (description rewrite) | Structural-only mode |
-| `--no-sync` | Skip Step 7's registry rebuild (the read-only routing verify still runs) | Step 7 |
+| `--no-sync` | Skip Step 7's registry rebuild and every Step 6.7 write: backups, symlinks, copies and clone merges (discovery, hashing, the routing verify and the location table still run) | Step 6.7, Step 7 |
 | `--sync-anyway` | Override the rebuild-withhold when High findings remain | Step 7 |
 | `--max-iter=N` | Hard ceiling on convergence iterations (the conditional raise to 5 never exceeds it; 5 absolute max) | Step 3 |
 | `--budget-minutes=N` | Wall-clock budget; finish current iteration's writes on expiry, exit `BUDGET_EXHAUSTED` | Step 3, contract Budget section |
@@ -41,5 +41,7 @@ Orchestrators (e.g. convergence-loop-runner) read these terminal states:
 | `BUDGET_EXHAUSTED` | `--budget-minutes` expired; current iteration's writes finished, then exit | Step 3 budget exit |
 | `BLIND-AUDIT-DISSENT` | Step 6 blind re-audit still finds corroborated Medium+ after one extra iteration | Step 6 |
 | `rebuild withheld: N High findings remain` | Step 7's rebuild withheld because High findings remained at budget exhaustion (`--sync-anyway` overrides) | Step 7 gate |
+| `EVALS-MISSING` | `evals/evals.json` or `evals/trigger-eval.json` is missing after Step 5 (or missing under `--read-only` or `--meta`, which do not create it), or the trigger or behavior evals could not run at any level. A run with no eval results never reports `converged`. `EVALS-MISSING` replaces only `converged`; with another non-clean status, report that status plus `+EVALS-MISSING` (for example `BLIND-AUDIT-DISSENT+EVALS-MISSING`) | Step 6.3, `references/eval-gate.md` |
+| `SYNC-PARTIAL` | Step 6.7 left one or more locations `blocked` (dirty or diverged clone) or `FAILED`; canonical is correct, the named copies are not yet identical | Step 6.7, `references/location-sync.md` |
 | `DEGRADED` | Two or more post-sync outcomes did not land; content work stands but index/registration state is not known-good | Step 7.8 tally |
 | routing `indexed` / `stale` / `unroutable` | Per-skill routing verdict against `registry.db` | Step 7 routing verify |

@@ -11,9 +11,10 @@ It **orchestrates** the existing `~/.claude/skill-consolidation/` scripts and fi
 | **A′**, the resolvability sliver of Pass A (every reference resolves) | A (content contradictions), B (inconsistency), C (formatting) |
 | **G**, frontmatter and manifest validity | D (clarity), E (optimization), F (feature-gap) |
 | **I**, cross-skill collision (drives O) | J (length / trim), K (anti-AI-isms) |
-| **L**, whitespace and character hygiene | **H**, the 20-query trigger eval → opt-in `--meta --eval` |
+| **L**, whitespace and character hygiene | **H**, the measured trigger harness → opt-in `--meta --eval`. The eval gate (existence, predicted trigger, static behavior) still runs |
 | **N**, SKIP / `whenToUse` / `triggers` plus real-target resolution | **M**, description prose rewrite → opt-in `--meta --rewrite-desc` |
-| **O**, peer seeding (routing mesh) | |
+| **O**, peer seeding (routing mesh) | **P**, llms-first section (content) |
+| **Step 1.7** index discovery · **Step 6.3** eval gate (cheapest level) · **Step 6.7** location sync | |
 | **tool-search discoverability** (read-only, below) | |
 | **Step 6** verify · **Step 7** registry rebuild and routing verify | |
 | **Step 7.7** SKILLS-INDEX refresh (still runs; frontmatter and version changed) · **Step 7.8** degraded tally | |

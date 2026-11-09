@@ -18,6 +18,7 @@ SKILL body — they are logic, not part of the skeleton below.
 
 ## Researched this run
 <concept → skill ID (new/updated, hub or standalone) → sources → tree node → persisted (local-sources + SELECTED_SKILLS pin + hub) if repo-native>
+<then the output of `scripts/landing_receipts.py table <run-dir>`: concept · gate · kept · dropped · cost · landed-at (absolute path or `skipped: reason`)>
 
 ## Skipped and failed (saturation evidence)
 <deliberate skips: concept → CVS → reason below threshold>

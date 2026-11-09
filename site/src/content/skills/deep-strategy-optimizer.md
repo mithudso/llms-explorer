@@ -1,13 +1,13 @@
 ---
 title: "deep-strategy-optimizer"
-description: "Audit-and-fix convergence optimizer for trading strategies and their backtests: 19 passes over simulation integrity, statistical honesty, claim provenance, and economics — where 'no promotion' is the expected result."
+description: "Audit-and-fix convergence optimizer for trading strategies and their backtests: 273 method-based passes over simulation integrity, statistical honesty, claim provenance, and economics — where 'no promotion' is the expected result."
 order: 16
 tags: [trading, backtests, statistics, optimization]
 aliasCommand: "/dso"
 ---
 
 The strategy member of the family, built around one premise: most backtest edges are
-artifacts. Nineteen passes audit a strategy, its card, and the research behind it —
+artifacts. A catalogue of 273 method-based passes audits a strategy, indicator, its card, and the research behind it —
 simulation integrity (lookahead, cost path, accounting, data), statistical honesty
 (protocol grade, multiple-testing burden, evidence floor, degeneracy, attribution),
 claim provenance, economics, and tests.

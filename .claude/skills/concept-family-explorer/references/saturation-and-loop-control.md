@@ -98,7 +98,7 @@ not validated truth.
 
 **Blind saturation gate (runs AFTER the two consecutive empty rounds, before
 reporting).** Per the canonical blind re-audit guardrail in
-`~/.claude/skill-consolidation/convergence-and-severity.md` (fresh context,
+`references/shared/convergence-and-severity.md` (fresh context,
 demote-unless-corroborated, max two runs, explicit dissent status): dispatch
 ONE fresh-context subagent that receives ONLY the subject and the
 5-neighborhood candidate names — no scores, decisions, or run history — and
@@ -117,7 +117,7 @@ prior rationale set aside and label it "blind gate: in-context". Budget and
 coverage exits stay ungated, exactly as the contract leaves cap exits ungated.
 Optional `--cross-model` (default OFF): run the gate's second pass on a
 different model family per
-`~/.claude/skill-consolidation/cross-model-gate.md` — observe its
+`references/shared/cross-model-gate.md` — observe its
 egress-confidentiality precondition before sending family content off-host.
 
 ### 2. Coverage saturation
@@ -137,7 +137,7 @@ initial run-start frontier is processed in full unless the user sets an
 explicit count or time budget.
 When `budgetMinutes` is set, check elapsed time after each `/dr` return and
 each re-expansion round per the canonical Budget contract
-(`~/.claude/skill-consolidation/convergence-and-severity.md` §Budget
+(`references/shared/convergence-and-severity.md` §Budget
 contract); on expiry drain Step 6b persistence for **every in-flight `/dr` run**
 (all concepts in the current fan-out batch, not just one) — never stop
 mid-persist — then exit with status `BUDGET_EXHAUSTED` and wall time in

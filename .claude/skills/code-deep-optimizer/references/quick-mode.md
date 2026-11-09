@@ -2,7 +2,7 @@
 
 Extracted from SKILL.md 2026-09-09 to keep the always-loaded body under the family length
 budget. `--quick` is a **registered triage mode** under
-`~/.claude/skill-consolidation/convergence-and-severity.md` § Triage modes, which is the only
+`references/shared/convergence-and-severity.md` § Triage modes, which is the only
 construct in the family permitted to narrow the Medium+ severity bar, and only while satisfying
 that section's five conditions (registered, explicit opt-in, bar named in the Summary, unfixed
 findings reported, never a converged status).
@@ -39,7 +39,7 @@ exactly one iteration:
    `Unfixed: N High / M Medium` field, exiting `TRIAGE-CLEAN` only when every
    Critical was Applied (or none existed) and `Unfixed: 0 High / 0 Medium`; otherwise
    `TRIAGE-PARTIAL` (definition: `references/flags-and-statuses.md`). Per
-   `~/.claude/skill-consolidation/convergence-and-severity.md` § Triage modes,
+   `references/shared/convergence-and-severity.md` § Triage modes,
    a quick run may never report `CLEAN` or `CONVERGED`.
 
 **Composes with the small-profile auto-shrink** (SKILL.md § Convergence loop) but
