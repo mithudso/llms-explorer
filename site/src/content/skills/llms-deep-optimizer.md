@@ -14,6 +14,8 @@ anchors and truth, provenance, serving headers), collect every finding before wr
 anything, fix everything Medium-severity or above inside a convergence loop, then verify
 with live keyword, vector, and agent-usability probes.
 
+Version 1.2 adds checks for this project’s v3 single-file and sitemap convention. The bundled linter runs without a private library; source completeness, resource verification and optional hub-backed probes need their own evidence.
+
 It also builds a **topical llms file from scratch** given a pool of uncategorized facts —
 the same compile step [notes-to-llms-txt](/skills/notes-to-llms-txt/) hands its draft to
 once a first structure exists.
