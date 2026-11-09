@@ -1,7 +1,7 @@
 # Leveraged crypto day-trading full suite
 
-Version: 1.1.0
-Delta: Complete source-bound research, installed references, current-format compilation and integrated checks.
+Version: 1.1.1
+Delta: Preserve the final qualified artifacts and stable publication references.
 Status: Qualified source-anchored research and installed references. Publication state is recorded by the linked delivery PR.
 
 ## Scope
@@ -60,7 +60,7 @@ https://github.com/mithudso/skills/pull/105
 
 Local validation passed 344 research/export regression tests, 333 site tests and the expanded 487-case research/companion suite with 15 subtests. The full integrated website build, Astro check (zero errors and warnings), Ruff and privacy scan passed. The generated Codex research companion matches the source resolver. Incompatible authored pins retain the existing per-claim preflight diagnostic receipt.
 
-Eleven private current-format single-file packs retain all 295 bound records. The subject rollup is a 16,535-byte single file with eleven member entries, eleven exact qualified facts and 51 Resources entries (48 verified, three explicitly unverified). The current format checker reads all twelve entrypoints and reports zero findings. Eleven keyword collections contain 295 rows. New semantic embeddings remain paused.
+Eleven private current-format single-file packs retain all 295 bound records. The subject rollup is a single file with eleven member entries, eleven exact qualified facts and 51 Resources entries (48 verified, three explicitly unverified). The current format checker reads all twelve entrypoints and reports zero findings. Eleven keyword collections contain 295 rows. New semantic embeddings remain paused.
 
 A fresh native Codex session discovered the enabled permanent skill and read both intended test references. Exact hashes match all 32 installed destination files. The initial paraphrased quote and its one successful targeted correction remain in the private acceptance receipt. Claude automatic activation was not exercised.
 
