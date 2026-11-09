@@ -126,8 +126,56 @@ def select_claims(rows: list[dict], sample: str | int, seed: str, required_ids=(
     return [row for row in rows if row["claim_id"] in selected]
 
 
-def _source(shared, url: str, out: Path, fetch: bool) -> dict:
+def _archived_source(shared, url: str, metadata: dict | None, pin: tuple[str, str]) -> tuple[dict, str]:
+    """Read one authored version without changing the shared library's latest pointer."""
+    source_id, sha = pin
+    if not source_id or not re.fullmatch(r'[0-9a-f]{64}', sha):
+        raise ValueError(f"invalid authored source snapshot identity: {url}")
+    library = getattr(shared, 'RESEARCH_DIR', None)
+    if library is None:
+        raise ValueError(f"pinned source snapshot archive is unavailable: {url}")
+    library = (Path(library) / '.library').resolve()
+    root = library / 'provenance'
+    identity = 'snap:' + digest([source_id, sha])
+    receipt_path = root / 'versions' / (identity[5:] + '.json')
+    body_path = root / 'snapshots' / (sha + '.txt')
+    if (not root.resolve().is_relative_to(library)
+            or not (root / 'versions').resolve().is_relative_to(root.resolve())
+            or not (root / 'snapshots').resolve().is_relative_to(root.resolve())
+            or not receipt_path.resolve().is_relative_to((root / 'versions').resolve())
+            or not body_path.resolve().is_relative_to((root / 'snapshots').resolve())):
+        raise ValueError(f"pinned source snapshot escapes its archive: {url}")
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
+        if not isinstance(receipt, dict):
+            raise TypeError(f"pinned source version receipt mismatch: {url}")
+        associated = receipt.get('url') == url or (
+            metadata is not None and metadata.get('id') == source_id
+            and metadata.get('url') == receipt.get('url'))
+        if (receipt.get('schema') != 'research-source/v1' or receipt.get('snapshot_id') != identity
+                or receipt.get('source_id') != source_id or receipt.get('snapshot_sha256') != sha
+                or not associated or Path(receipt['snapshot_path']).resolve() != body_path.resolve()):
+            raise ValueError(f"pinned source version receipt mismatch: {url}")
+        body = body_path.read_bytes()
+        if digest(body) != sha:
+            raise ValueError(f"pinned source snapshot hash mismatch: {url}")
+        text = body.decode('utf-8')
+        if not text.strip() or receipt.get('chars') != len(text):
+            raise ValueError(f"pinned source snapshot content mismatch: {url}")
+    except (OSError, KeyError, TypeError, UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"pinned source snapshot archive is unavailable or invalid: {url}") from error
+    return receipt, text
+
+
+def _source(shared, url: str, out: Path, fetch: bool, pin: tuple[str, str] | None = None) -> dict:
     metadata = shared.lib_find(url)
+    if pin is not None and (not metadata or (metadata.get('id'), metadata.get('sha256')) != pin
+                            or not metadata.get('text_path') or not Path(metadata['text_path']).is_file()):
+        snapshot, text = _archived_source(shared, url, metadata, pin)
+        destination = out / 'evidence' / (pin[1] + '.txt')
+        shared.atomic_write(destination, text)
+        return {**snapshot, 'url': url, 'canonical_url': snapshot['url'], 'available': True,
+                'file': str(destination.relative_to(out)), 'chars': len(text)}
     if (not metadata or not metadata.get("text_path")) and fetch:
         result = shared.lib_snapshot(url, "docs", "Gate evidence", slug=out.parents[2].name)
         metadata = shared.lib_find(url) if result.get("ok") else None
@@ -145,6 +193,35 @@ def _source(shared, url: str, out: Path, fetch: bool) -> dict:
     return {**(snapshot or {}), "url": url, "canonical_url": metadata.get("url", url), "source_id": metadata["id"],
             "available": True, "snapshot_sha256": sha, "fetched_at": metadata.get("fetched_at"),
             "file": str(destination.relative_to(out)), "chars": len(text)}
+
+
+class AuthoredSnapshotConflict(ValueError):
+    def __init__(self, url: str, claim_id: str):
+        super().__init__(f"incompatible authored source snapshots for one URL: {url}")
+        self.claim_id = claim_id
+
+
+def authored_source_pins(rows: list[dict]) -> dict[str, tuple[str, str]]:
+    """A packet has one body per URL; incompatible authored versions cannot be merged."""
+    pins = {}
+    for row in rows:
+        spans = list(row['evidence']) if isinstance(row.get('evidence'), list) else []
+        conflict = row.get('conflict')
+        if isinstance(conflict, dict):
+            for position in conflict.get('positions') or []:
+                if isinstance(position, dict) and isinstance(position.get('evidence'), list):
+                    spans.extend(position['evidence'])
+        for span in spans:
+            if not isinstance(span, dict) or not all(isinstance(span.get(key), str)
+                    for key in ('url', 'source_id', 'snapshot_sha256')):
+                # The ordinary authored-span preflight reports malformed evidence.
+                continue
+            url = span['url']
+            pin = (span['source_id'], span['snapshot_sha256'])
+            if url in pins and pins[url] != pin:
+                raise AuthoredSnapshotConflict(url, row['claim_id'])
+            pins[url] = pin
+    return pins
 
 
 def _publisher_identity_literals(url: str, text: str) -> set[str]:
@@ -231,6 +308,11 @@ def check_spans(packet, claim, spans, root, *, authored=False):
 def preflight(packet, root):
     failures = []
     for row in packet['claims']:
+        source_errors = [packet['sources'].get(url, {}).get('snapshot_error') for url in row['sources']]
+        if any(source_errors):
+            failures.append({'claim_id': row['claim_id'],
+                             'error': '; '.join(error for error in source_errors if error)})
+            continue
         if row.get('assertion_kind') and not (
                 row['assertion_kind'] == 'disagreement' and row.get('conflict') is not None):
             continue
@@ -367,14 +449,27 @@ def prepare(shared, manifest: dict, out: Path, sample=10, refetch_cap: int = 15)
     rows = claim_rows(manifest, documents)
     inputs = {slug: digest(document) for slug, document in sorted(documents.items())}
     selected = select_claims(rows, "all" if manifest.get("gate_contract_version", 2) >= 4 else sample, digest(inputs), manifest.get("required_gate_claim_ids", []))
+    try:
+        pins = authored_source_pins(selected) if manifest.get('gate_contract_version', 2) >= 4 else {}
+    except AuthoredSnapshotConflict as error:
+        failures = [{'claim_id': error.claim_id, 'error': str(error)}]
+        shared.atomic_write(out / 'preflight.json', json.dumps({'failures': failures}, indent=2) + '\n')
+        raise ValueError("claim preflight failed; repair only listed claims: " + json.dumps(failures)) from error
     sources = {}
     remaining = refetch_cap
     for url in sorted({url for row in selected for url in row["sources"]}):
         cached = shared.lib_find(url)
-        fetch = (not cached or not cached.get("text_path")) and remaining > 0
+        fetch = url not in pins and (not cached or not cached.get("text_path")) and remaining > 0
         if fetch:
             remaining -= 1
-        sources[url] = _source(shared, url, out, fetch)
+        try:
+            sources[url] = _source(shared, url, out, fetch, pins.get(url))
+        except ValueError as error:
+            if url not in pins:
+                raise
+            source_id, sha = pins[url]
+            sources[url] = {'url': url, 'source_id': source_id, 'snapshot_sha256': sha,
+                            'available': False, 'snapshot_error': str(error)}
     schema = STRICT_SCHEMA if manifest.get("gate_contract_version", 2) >= 4 else SCHEMA if manifest.get('gate_contract_version', 2) >= 3 else LEGACY_SCHEMA
     packet = {"schema": schema, "run": manifest["slug"], "inputs": inputs,
               "manifest_binding": manifest_binding(manifest),

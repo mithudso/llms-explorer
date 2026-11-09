@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import re
 from collections import OrderedDict
+from datetime import date
 from os.path import relpath
 from pathlib import Path
 from urllib.parse import urlparse
@@ -565,7 +566,8 @@ def _concept_family_member(index: Path, man: dict) -> tuple[str, str, int]:
 
 def family(
     mirrors: list[Path], name: str, summary: str, out_path: Path, base_url: str | None = None,
-    *, include_facts: bool = True,
+    *, include_facts: bool = True, resources: dict[str, list[str]] | None = None,
+    qualified_facts: list[str] | None = None,
 ) -> dict:
     """Link legacy mirrors or explicit native LCA pack indexes into a family.
 
@@ -574,9 +576,62 @@ def family(
     rewrites local paths into the URL prefix the files will be served from;
     without it the links are file paths relative to `out_path`. Set
     `include_facts=False` to link only member indexes; their facts remain two
-    hops away through the member indexes."""
+    hops away through the member indexes.
+
+    Supplying `resources` opts into a v3 single-file rollup. Keys are standard
+    Resources categories and values are single-line `- target — why` entries.
+    The caller verifies targets or marks them unverified. This mode rejects
+    output above the single-file limits before replacing an existing file.
+    In this mode, `qualified_facts` can supply exact prevalidated assertions
+    as `- assertion [src: URL]` lines (ordered URLs may use `, ` separators).
+    The generator preserves those lines;
+    it validates their shape and URL, not their evidence or truth. These
+    assertions are independent of `include_facts`, which controls member links.
+    Omitting `resources` preserves the legacy format and return value."""
     out_path = Path(out_path)
-    products, concepts, facts = [], [], []
+    if qualified_facts is not None:
+        if resources is None:
+            raise ValueError("qualified_facts requires resources for the v3 rollup mode")
+        if not isinstance(qualified_facts, list) or not qualified_facts:
+            raise ValueError("qualified_facts must be a nonempty list of source-tagged assertions")
+        for row in qualified_facts:
+            match = (
+                re.fullmatch(r"- \S(?:.*\S)? \[src: ([^\[\]]+)\]", row)
+                if isinstance(row, str) and "\n" not in row and "\r" not in row else None
+            )
+            valid_urls = match is not None
+            if match:
+                for url in match[1].split(", "):
+                    try:
+                        valid_urls = valid_urls and bool(
+                            re.fullmatch(r"https?://[^\s]+", url) and urlparse(url).hostname
+                        )
+                    except ValueError:
+                        valid_urls = False
+            if not valid_urls or row != row.strip():
+                raise ValueError("Invalid qualified_facts row: expected '- assertion [src: URL]'")
+    resource_sections = []
+    if resources is not None:
+        categories = {
+            "Related files", "Scripts", "Websites", "Guides", "Skills", "Agents and tools", "Other",
+        }
+        if not isinstance(resources, dict):
+            raise ValueError("resources must map standard categories to entry lists")
+        for category, rows in resources.items():
+            if category not in categories or not isinstance(rows, list):
+                raise ValueError(f"Invalid Resources category or entry list: {category!r}")
+            for row in rows:
+                if (not isinstance(row, str) or "\n" in row or "\r" in row
+                        or row != row.strip() or not re.fullmatch(r"- \S.* — \S.*", row)):
+                    raise ValueError(
+                        f"Invalid Resources entry in {category!r}: expected '- target — why'"
+                    )
+            if rows:
+                resource_sections += [f"### {category}", "", *rows, ""]
+        if not resource_sections:
+            raise ValueError("resources must contain at least one resource entry")
+    products, concepts, facts = [], [], list(qualified_facts or [])
+    sitemap = OrderedDict()
     for m in mirrors:
         m = Path(m)
         explicit_pack = m.name == "llms.txt"
@@ -596,6 +651,13 @@ def family(
             entries = products
         idx = man["files"]["llms.txt"]
         full = man["files"].get("llms-full.txt")
+        if resources is not None:
+            sitemap[_family_link(d, "llms.txt", base_url, out_path)] = title
+            if "llms-sitemap.txt" in man["files"]:
+                if not (d / "llms-sitemap.txt").is_file():
+                    raise ValueError(f"Missing declared member sitemap: {d / 'llms-sitemap.txt'}")
+                target = _family_link(d, "llms-sitemap.txt", base_url, out_path)
+                sitemap[target] = f"{title} sitemap"
         entries.append(
             f"- [{title}]({_family_link(d, 'llms.txt', base_url, out_path)}): "
             f"{counts}, ~{idx['tokens']} tokens index"
@@ -613,6 +675,11 @@ def family(
         else "Each product below has its own llms.txt (the authoritative map of that product); "
         "this file links indexes, not pages, so a reader is at most two hops from any page."
     )
+    if qualified_facts:
+        introduction = (
+            "Each member below has its own llms.txt. The Facts section preserves "
+            "caller-supplied qualified assertions; complete references remain in the members."
+        )
     out = [
         f"# {name}",
         "",
@@ -621,17 +688,35 @@ def family(
         introduction,
         "",
     ]
+    if resources is not None:
+        out[3:3] = [
+            f"> Source: member indexes in Sitemap · Generated: {date.today().isoformat()} "
+            "by docset_refine family · Mode: single-file",
+        ]
     if products or not concepts:
         out += ["## Products", ""] + products + [""]
     if concepts:
         out += ["## Concepts", ""] + concepts + [""]
     if facts:
         out += ["## Facts", ""] + facts + [""]
+    elif resources is not None:
+        out += ["## Facts", ""]
+    if resources is not None:
+        out += ["## Sitemap", ""]
+        out += [f"- {target} — {title}" for target, title in sitemap.items()] + [""]
+        out += ["## Resources", ""] + resource_sections
     text = "\n".join(out).rstrip() + "\n"
+    if resources is not None and (len(sitemap) > 200 or len(text.encode("utf-8")) > 32_000):
+        raise ValueError(
+            "v3 single-file rollup exceeds 32,000 bytes or 200 sitemap entries; use a family"
+        )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text, encoding="utf-8")
-    return {
+    result = {
         "out": str(out_path),
         "products": len(products) + len(concepts),
         "tokens": _tokens(text),
     }
+    if resources is not None:
+        result.update(shape="single", entries=len(sitemap))
+    return result

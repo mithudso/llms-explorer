@@ -1,6 +1,6 @@
 # Prompts Log
 
-## Prompt v129 - 2026-11-09 Crypto bot monitoring
+## Prompt v130 - 2026-11-09 Crypto bot monitoring
 
 ```text
 Run the full-suite skill on crypto autotrading bot monitor
@@ -12,7 +12,17 @@ Scoped follow-up:
 Enable embeddings only for new bot-monitor packs
 ```
 
-Delta: v128 to v129. TASK-1087 full-suite research on monitoring automated crypto bots. Keep the previous user-stopped strategy-family study separate. Root owns publication in this isolated worktree.
+Delta: v129 to v130; renumber after the concurrent leveraged day-trading request. TASK-1087 full-suite research on monitoring automated crypto bots. Keep the previous user-stopped strategy-family study separate. Root owns publication in this isolated worktree.
+
+## Prompt v129 — 2026-11-09 Leveraged day-trading full suite
+
+```text
+RUn the full-suite skill on leveraged day trading signals indicators strategies
+```
+
+Confirmed scope: Crypto perpetuals, especially SOL/Jupiter. Destination: Use LLMS Explorer.
+
+Delta: v128 to v129. Inventory and reuse fresh coverage, research genuine gaps through the native evidence gates, compile reference packs and a subject rollup, and deliver qualified artifacts. Preserve concurrent work and the embedding pause.
 
 ## Prompt v128 — 2026-11-09 Portable LLMS optimizer
 
