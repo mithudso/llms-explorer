@@ -1,8 +1,8 @@
 # Memory
 
-## v0.22.157 - 2026-11-09 Crypto bot monitoring
+## v0.22.158 - 2026-11-09 Crypto bot monitoring
 
-Version: 0.22.157. Delta: v0.22.156 to v0.22.157; preserve native gated auxiliary summaries separately from Facts during prompt v129.
+Version: 0.22.158. Delta: v0.22.157 to v0.22.158; checkpoint thirteen source-qualified reader projections, preserve source receipts, and patch the locked Sharp dependency.
 
 The monitor full-suite is tracked in dev-y3seh TASK-1087. It covers bot state evidence, feed integrity, order reconciliation, risk/halt monitoring, alert recovery, failure drills, net accounting, dashboard security, chain finality and strategy divergence. New embedding permission is limited to these new packs. Do not resume other queues or services. Do not activate trading bots.
 
@@ -13,6 +13,10 @@ Remaining: complete native gate/render/finish, verify source and projection bind
 The first three monitor cohorts finalized COMPLETED with281assertions/210structured claims. Their13native concept/cohort projections are pending delivery. Private LCA source/hash integrity passed, but9of10firstpacks andtheACKpack fail unchanged practical answerability bars. Keepreconciliationpackunchanged; repair exactmissingpoints. Fourthcohort originallymixed sourcedpremiseswithoriginaldesign; independentgate rejected47assertions. Preserve dissent. Changedtypedpacket23factualatoms+4conditionalsummaries+10questions isundergate; do notassumeacceptance. NativeNFAclassifiesnonassertions, notdesigncorrectness; proposeddrillformulasrequireexplicitfixtureassumptions.
 
 Nativecompilerpreviouslydropped canonicalauxiliarySUMMARYafterartifactverification. Addedoptionalseparate narrative metadata with exacttext,auxiliaryID/hash,documentidentity,verdictandevidenceIDs. Manifest/full/publicartifact/conceptJSON/researchJSON/Markdown/readerretainit. NFAneverentersnativeunits/factfacets/fact-sourcecounts. ScrubbedtextorsourcelistsmarkREDACTED-PROJECTIONwithoriginverdict; canonicalbuild/hash/gateunchanged. Rootneighborregressions93pass+6subtests exit0; workercombined118pass+6subtests; Ruff/diffchecks exit0. ActualAstro markup/escaping tested. Noinstalled/deployedbehaviorclaimyet. Existingprojectionsneedscopedrefreshfromacceptedimmutableartifacts, withoutsourcebuild/gaterevieworbroadsync.
+
+Applied the verified projection-only refresh to13nativepacks/26copies usingexistingacceptedimmutableartifacts. All276sourceinputs,threeoriginalcompletionreceipts,nativefactualunits/Facts/sourcecountsand896privatebinding/QAhashesstayunchanged. Separateprojectionreceipt/transactioncommitted; no sourcebuild/gatecalls. CanonicalJSONkeyordercausedserialization-onlydifferencesintworollupcopies; decodedrowsequality+normalizeddigestsprovedidentitybeforepreservingoriginalrawunitsbytes. Publicsummarynarrativeisnowretained. These are source-qualified research views; privateLCAanswerabilityrepairsremainactiveandunqualifiedviewsstayprivate.
+
+Installeddeclaredsitepackagesfromthisworktree'slockfile. Astrocheckexited0with0errors/0warnings/19existinghints. npmfoundCVE-2026-96889/GHSA-wq5f-xc86-pv6winlockedSharp0.35.4. TargetednpmupdatesharpwithinexistingoverrideproducedSharp0.35.5/libvips1.3.4platformpackagesonly;27lockentrieschangedandnounrelatedpackages/package.jsonrangeschanged. NativeSharpmoduleloads0.35.5;npmauditexits0with0vulnerabilities. Fullfinalsitebuildandfinal-headCIremainowed. Runtimeinference/embeddingqueuesandtradingactivationunchanged.
 
 ## v0.22.155 — 2026-11-09 Portable LLMS optimizer
 
