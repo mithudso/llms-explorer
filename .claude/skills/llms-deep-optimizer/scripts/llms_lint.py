@@ -35,7 +35,7 @@ import json
 import sys
 from pathlib import Path
 
-VERSION = "3.0.0"
+VERSION = "3.0.1"
 CHARS_PER_TOKEN = 4  # house convention
 KINDS = ["index", "family", "full", "small", "facts", "vocabulary", "sitemap", "single"]
 PASS_OF = {"structure": "P1", "links": "P2", "descriptions": "P3", "size": "P5",

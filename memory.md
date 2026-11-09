@@ -1,5 +1,58 @@
 # Memory
 
+## v0.22.162 — 2026-11-09 Manual dissent backlog
+
+Version: 0.22.162. Delta: v0.22.161 to v0.22.162; persist three sanitized manual-only procedure gaps after final practical QA.
+
+Thirteen of fifteen packs qualify in both profiles. Market-data freshness and evidence/latency contracts retain two rejected full views and three distinct missing procedures: reconnect/resubscribe/rebootstrap; duplicate-event retention/presentation; incident grouping/deduplication/update/reopening. The default three-round exit is SATURATION-DISSENT. Exact questions, report/bank hashes and three4.45scores are in concept-tree/backlog/crypto-autotrading-bot-monitor-task1087.json and .md. They create no machine-readable queue job, child edge or ready score because actual automation lacks per-item hold semantics. Both parsers verify zero pending jobs. Existing queues/reservations/pauses remain unchanged. The 15 researched concepts remain registered; the three new gaps are manual-only backlog. Final delivery and installed/public receipts remain in the task continuation.
+
+## v0.22.161 — 2026-11-09 Monitor registration and CI corrections
+
+Version: 0.22.161. Delta: v0.22.160 to v0.22.161; apply selected installed ownership/scores, finish the site build and fix exact final-head CI failures.
+
+Guarded installation completed 31 selected paths. Both intentional trading variants are 1.7.5: Claude routes 72 to 76, Codex routes 64 to 68. Existing routes, model, effort, history and evals remain. LCA 1.6.4 and catalogue checker 3.0.1 are installed; the Claude refresh hook remains. Three actual installed checkers independently reproduce zero High/Medium over all 79 immutable monitor files, with 26 Low and 53 anchor-resolution N/A findings. Independent loaded-state and remote acceptance remain separate final gates.
+
+The CFE helper registered 18 leaf/aggregate owners and 32 scored rows on both independent file trees. A task-only hub repository projection adds exactly 19 native/structural nodes to its older baseline. Native identities, existing parents, unrelated nodes and every pre-existing score value remain exact. Score serialization preserves original order, indentation and escaping. Validation adds zero problems. The organizational subject domain and three aggregate views receive zero independent research credit.
+
+The actual npm prebuild/build/postbuild completed exit 0 with 2,991 pages and a passed publication policy. Repository-only generators produced the site projection. The general project context generator reported seven Medium findings and zero High; these are distinct from the monitor catalogue result. No source/gate or paid review was repeated. The first updated CI found eight E501 test lines plus three stale generated research-skill copies. The lines are wrapped without fixture changes. The canonical repository sync regenerated only codex_dr_artifacts.py, research_artifact.py and sync-manifest.json under .agents. Its 31-asset check now reports no drift. Exact CI Ruff scope passed; 62 portability/tree/context tests and 442 native research tests plus 15 subtests passed.
+
+Fixed-bank pack reading checks remain in progress. Source-qualified publication is separate from practical reference completeness. Market-data full remains rejected at 8/10 against the unchanged 9/10 bar for reconnect/resubscription and duplicate-event procedures. If these gaps persist at maxRounds 3, the full suite must report SATURATION-DISSENT and queue the explicit gaps; do not claim coverage or frontier saturation. Small-view repairs select only complete pre-existing accepted statements, preserve old rejected versions and retain all source identities. Continuation and final receipts: /Users/mitch/.global-ai-hub/research/crypto-autotrading-bot-monitor-task1087/delivery/memory.md.
+
+## v0.22.160 — 2026-11-09 Bot-monitor contracts and catalogue lint
+
+Version: 0.22.160. Delta: v0.22.159 to v0.22.160; finalize the fourth source cohort, preserve explicit proposed narratives, and integrate maintained/portable catalogue lint.
+
+TASK-1087 remains active. Four native cohorts finalized 320 assertions (257 SUPPORTED, 63 NFA), 235 structured claims, 15 researched concepts and 18 native leaf/aggregate views. The fourth cohort accepted 25 facts, four conditional design summaries and ten questions. Proposed drills and unobserved deployment evidence remain visibly distinct. A genuine zero-credit domain under existing Trading/Investing repaired unanchored parent ancestry. Accepted packets and all original completion receipts remain immutable. Current gates for all four runs verified through the integrated runtime. The Hummingbot inconsistent numerical example remains quarantined.
+
+Portable catalogue checker is 3.0.1 and bundle 1.2.1. Its core is byte-identical to the maintained hub source, SHA256 00a5ac13a6304632913c307d9a45da8acfcec47883cb05efb3560c590dc0bfed. It verifies adjacent immutable bindings and strict Facts placement before length exceptions, recognizes LDO editorial catalogue digests precisely, and preserves legacy guards. Twenty-one portability tests and 110 maintained checker tests passed; scoped Ruff/diff checks passed. Both checkers linted all 79 frozen new pack files: zero High/Medium, 26 Low, 53 anchor-resolution N/A. All 1,125 frozen files stayed unchanged.
+
+Private compilation froze 14 repaired/new packs while preserving passing reconciliation. Fixed-bank fresh QA has qualified alerting (8/10 compact, 9/10 full) and drills (9/10, 10/10). Market data remains rejected (7/10, 8/10) for reconnect and duplicate-event procedures. Other readers and independent grading continue. No source support, index probe or validator pass establishes practical answerability.
+
+A new task-only SQLite database contains 15 strict Facts collections (492 exact eligible units) and 15 raw/reference collections (568 chunks). Existing pack/index databases and all 1,175 pack files stayed unchanged. Raw qualification labels remain in text; typed metadata is not separately queryable. Keyword and vector probes passed for all 15 raw collections. All embeddings used localhost and only new monitor packs. No unrelated service, watcher, queue, wallet, signer or bot was activated.
+
+Canonical source trading hub 1.8.6 adds four guides with 82 unique routes, preserving all 78 prior routes. Final explicit-candidate observations passed 54/54 routing rows and 20/20 assertions across four new behavior cases. Guarded variant installation, selected tree registration, final build, final-head CI and merged delivery remain pending. The private 15-member rollup was generated by the pinned exporter in single-file shape: 18,756 bytes, 28 sitemap entries, nine verified resources, zero lint findings. Its per-member answerability remains separately qualified.
+
+Continuation: /Users/mitch/.global-ai-hub/research/crypto-autotrading-bot-monitor-task1087/delivery/memory.md. Preserve original stopped strategy research, failed attempts, frozen questions and actual thresholds. Do not claim frontier saturation or a deployed monitor.
+
+## v0.22.159 — 2026-11-09 Crypto bot monitor full suite
+
+Version: 0.22.159. Delta: v0.22.158 to v0.22.159; integrate PR316 without losing either research family, renumber this request to prompt v130, and preserve the current source and QA checkpoint.
+
+TASK-1087 covers monitoring automated crypto bots. The user permits embeddings only for the new bot-monitor packs. Other embedding queues, paused services, prior user-stopped strategy research and trading activation remain unchanged. Work stays in isolated worktrees.
+
+Three native v4 cohorts finalized COMPLETED with 281 reviewed assertions, including 210 structured claims across 11 concepts. Their 13 concept/cohort packs and reader projections are source-qualified. The private LCA views still need practical answerability repairs: nine of the first ten packs and the ACK pack failed the unchanged reading-test thresholds. Preserve the passing reconciliation pack, all frozen question banks and every historical failed result. Source integrity and retrieval scores do not establish answerability.
+
+The fourth cohort's original mixed designs failed source review. A corrected 39-assertion packet contains 25 factual atoms, four conditional summaries and ten genuine questions. Its latest native gate is running with 28 exact judgments reused and 11 new reviews. Unsupported numeric formulas were removed; a documented Bybit entry-level cash relation and an official Alertmanager distinction were added. Proposed guidance supplies no empirical evidence and establishes no executed drill, financial outcome or deployed recovery behavior. Actual acceptance, inherited authority bindings and fresh reading tests remain required.
+
+The native compiler previously dropped gated auxiliary summaries after canonical verification. Optional narrative metadata now preserves exact text, identity, hash, document provenance, verdict and evidence IDs in full text, public JSON, downloads and reader pages. NFA narrative stays outside factual units and counts. Changed public text or source lists receive REDACTED-PROJECTION status while retaining their origin verdict. Canonical build, hashing and gate rules remain unchanged. Root regression checks passed 93 tests and six subtests; Ruff and privacy checks passed.
+
+A projection-only transaction refreshed the 13 accepted packs in both roots. It preserved all 276 source inputs, original completion receipts, factual units, Facts and source counts. All 896 frozen private input and QA hashes still match. Separate refresh receipts record the new views. Two rollup copies had only JSON key-order differences; decoded equality and normalized digests justified restoring their original raw unit bytes.
+
+The isolated site needed its own declared dependencies. Astro check passed with zero errors, zero warnings and 19 existing hints. Setup exposed CVE-2026-96889 in locked Sharp 0.35.4. A targeted update within the existing override installed Sharp 0.35.5 and its platform/libvips packages. No unrelated dependency or declared range changed; npm audit now reports zero vulnerabilities. Full final build, final-head CI, guarded skill installation, scoped tree/index registration, independent loaded/public acceptance and merged delivery remain pending.
+
+Private continuation: /Users/mitch/.global-ai-hub/research/crypto-autotrading-bot-monitor-task1087/delivery/memory.md. Public checkpoints remain draft. Do not call the full suite complete or frontier-saturated.
+
+
 ## v0.22.157 — 2026-11-09 Leveraged day-trading qualified artifacts
 
 Version: 0.22.157. Delta: v0.22.156 to v0.22.157; preserve the concurrent portable-optimizer release and complete source, installation and pack checks for prompt v129, EPIC-1261.

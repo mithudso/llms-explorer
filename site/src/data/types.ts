@@ -78,12 +78,29 @@ export interface PackRelated {
   note?: string | null;
 }
 
+/** Canonical auxiliary prose. These rows never contribute to PackFacet facts. */
+export interface PackNarrative {
+  assertionId: string;
+  statementSha256: string;
+  assertionKind: "summary";
+  index: number;
+  documentSlug: string;
+  documentConcept: string;
+  canonicalConceptId: string | null;
+  text: string;
+  sources: string[];
+  validationStatus: "SUPPORTED" | "NO-FACTUAL-ASSERTION" | "REDACTED-PROJECTION";
+  evidenceIds: string[];
+  originValidationStatus?: "SUPPORTED" | "NO-FACTUAL-ASSERTION";
+}
+
 /** src/data/concepts/<slug>.json, one researched concept's content. */
 export interface ConceptPack {
   slug: string;
   concept: string;
   generated: string;
   summary: string;
+  narrative?: PackNarrative[];
   facets: PackFacet[];
   related: PackRelated[];
 }

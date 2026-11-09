@@ -168,5 +168,7 @@ def public_projection(files):
               'canonical_concept_id': manifest.get('canonical_concept_id'),
               'canonical_artifact_sha256': manifest.get('canonical_artifact_sha256'),
               'claims': [{key: row[key] for key in ('id', 'text', 'source_url', 'also', 'validation_status', 'origin_validation_status', 'evidence_ids', 'origin_evidence_ids', 'remediation', 'publication_redacted', 'temporal') if key in row} for row in rows]}
+    if manifest.get('narrative'):
+        result['narrative'] = copy.deepcopy(manifest['narrative'])
     result['projection_sha256'] = digest(result)
     return result

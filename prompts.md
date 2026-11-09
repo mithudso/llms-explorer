@@ -1,5 +1,19 @@
 # Prompts Log
 
+## Prompt v130 - 2026-11-09 Crypto bot monitoring
+
+```text
+Run the full-suite skill on crypto autotrading bot monitor
+```
+
+Scoped follow-up:
+
+```text
+Enable embeddings only for new bot-monitor packs
+```
+
+Delta: v129 to v130; renumber after the concurrent leveraged day-trading request. TASK-1087 full-suite research on monitoring automated crypto bots. Keep the previous user-stopped strategy-family study separate. Root owns publication in this isolated worktree.
+
 ## Prompt v129 — 2026-11-09 Leveraged day-trading full suite
 
 ```text

@@ -88,9 +88,33 @@ def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], statu
                    artifact_sha: str | None = None, concept_id: str | None = None) -> None:
     """Use the existing compiler with trusted rows; no lossy text re-harvest."""
     out.mkdir(parents=True, exist_ok=True)
-    rows = []
+    rows, narrative = [], []
     for doc in docs:
+        # Only the auxiliary assertions from the verified canonical artifact
+        # qualify prose. A summary or producer-supplied proposal flag alone does not.
+        if artifact_sha:
+            for assertion in doc.get("auxiliary_assertions", []):
+                if assertion["assertion_kind"] != "summary":
+                    continue
+                verdict = assertion["validation_status"]
+                evidence = assertion["evidence_ids"]
+                if (assertion["text"] != doc.get("summary")
+                        or verdict not in ("SUPPORTED", "NO-FACTUAL-ASSERTION")
+                        or (verdict == "SUPPORTED" and not evidence)
+                        or (verdict == "NO-FACTUAL-ASSERTION" and evidence)):
+                    raise ValueError("compiled narrative differs from its canonical auxiliary judgment")
+                narrative.append({
+                    "assertionId": assertion["claim_id"],
+                    "statementSha256": assertion["claim_sha256"],
+                    "assertionKind": assertion["assertion_kind"], "index": assertion["index"],
+                    "documentSlug": assertion["concept_slug"], "documentConcept": doc["concept"],
+                    "canonicalConceptId": doc.get("canonical_concept_id"),
+                    "text": assertion["text"], "sources": list(assertion["sources"]),
+                    "validationStatus": verdict, "evidenceIds": list(evidence),
+                })
         for claim in doc["claims"]:
+            if claim.get("validation_status") == "NO-FACTUAL-ASSERTION":
+                raise ValueError("nonfactual auxiliary prose cannot be compiled as a claim")
             urls = claim["sources"]
             if not urls or any(not url.startswith(("https://", "http://")) for url in urls):
                 raise ValueError(f"{doc['concept']}: llms claims require original HTTP source URLs")
@@ -108,6 +132,7 @@ def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], statu
             rows.append(row)
     compile_rows(lca, out, name, slug, rows,
                  {"summary": f"Source-anchored research for {name}. Run status: {status}.", "research_status": status,
+                  **({"narrative": narrative} if narrative else {}),
                   **({"canonical_artifact_sha256": artifact_sha,
                       "canonical_concept_id": concept_id or next((d["canonical_concept_id"] for d in docs if d["concept"] == name),
                                                    "concept:" + hashlib.sha256(slug.encode()).hexdigest())} if artifact_sha else {})})
@@ -174,6 +199,10 @@ def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadat
     for filename in ("llms-full.txt", "llms-small.txt"):
         path = out / filename
         catalogue = path.read_text()
+        if filename == "llms-full.txt" and metadata.get("narrative"):
+            # Keep complete authored prose outside units and the short index
+            # summary. Recompiling a scrubbed public pack follows this same path.
+            catalogue = catalogue.rstrip() + "\n\n" + site.render_narrative(metadata["narrative"])
         path.write_text(render_full([Document(name, reader_url, catalogue)],
                                     title=name, generated=generated))
     # Describe the emitted vocabulary and graph, without inventing definitions
@@ -220,7 +249,12 @@ def public_pack_files(repo: Path, hub: Path, files: dict, lca, withheld=()) -> d
     if cache.is_file():
         blocked.update(key for key, value in json.loads(cache.read_text()).items() if not value["public"])
     terms = [*scrub.gate.denylist(), *blocked]
-    metadata = website.publication_pack(json.loads(files["manifest.json"]), scrub, terms)
+    original_metadata = json.loads(files["manifest.json"])
+    metadata = website.publication_pack(original_metadata, scrub, terms)
+    for original, assertion in zip(original_metadata.get("narrative", []), metadata.get("narrative", [])):
+        if any(assertion.get(key) != original.get(key) for key in ("text", "sources")):
+            assertion.setdefault("originValidationStatus", original["validationStatus"])
+            assertion["validationStatus"] = "REDACTED-PROJECTION"
     rows = [website.publication_pack(json.loads(line), scrub, terms)
             for line in files["units.jsonl"].splitlines() if line.strip()]
     originals = {row["id"]: row for row in map(json.loads, files["units.jsonl"].splitlines()) if row}

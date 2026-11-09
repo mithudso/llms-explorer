@@ -222,6 +222,8 @@ def canonical_facets(units: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Project each structured claim directly, including equal-worded claims."""
     by_section: dict[str, list[dict[str, Any]]] = {}
     for unit in units:
+        if unit.get("validation_status") == "NO-FACTUAL-ASSERTION":
+            raise ValueError("nonfactual auxiliary prose cannot be projected as a fact")
         fact = {
             "text": scrub_home_path(unit["text"]),
             "source": scrub_home_path(unit["source_url"]),
@@ -284,6 +286,8 @@ def build_one(pack_dir: Path) -> dict[str, Any] | None:
         units_path = pack_dir / "units.jsonl"
         units = [json.loads(line) for line in units_path.read_text().splitlines() if line.strip()]
         pack["facets"] = canonical_facets(units)
+        if manifest.get("narrative"):
+            pack["narrative"] = manifest["narrative"]
     return pack
 
 

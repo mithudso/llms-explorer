@@ -97,6 +97,28 @@ def render_facts(facts: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def render_narrative(narrative: list[dict]) -> str:
+    """Complete gated summaries, separate from fact rows and evidence counts."""
+    lines = []
+    for assertion in narrative:
+        status = assertion["validationStatus"]
+        original_status = assertion.get("originValidationStatus", status)
+        label = ("Proposed guidance" if original_status == "NO-FACTUAL-ASSERTION"
+                 else "Research summary")
+        if status == "REDACTED-PROJECTION":
+            label += " (redacted projection)"
+        lines += [f"## {label} — {_md_text(assertion['documentConcept'])}", "",
+                  assertion["text"], "",
+                  f"Gate verdict: `{status}`. Auxiliary assertion: `{assertion['assertionId']}`. "
+                  f"Statement hash: `{assertion['statementSha256']}`.", ""]
+        if original_status == "NO-FACTUAL-ASSERTION":
+            lines += ["Original conditional design guidance; contributes no factual evidence.", ""]
+        elif assertion.get("evidenceIds"):
+            evidence = ", ".join(f"`{value}`" for value in assertion["evidenceIds"])
+            lines += ["Evidence IDs: " + evidence + ".", ""]
+    return "\n".join(lines)
+
+
 def render_pack(pack: dict, nodes: dict, site_url: str, sources_dir: Path) -> str:
     slug = str(pack["slug"])
     node = nodes.get(slug) or {}
@@ -116,7 +138,7 @@ def render_pack(pack: dict, nodes: dict, site_url: str, sources_dir: Path) -> st
     meta.append(f"page: {page}")
     head += [" · ".join(meta), ""]
 
-    body = []
+    body = [render_narrative(pack["narrative"])] if pack.get("narrative") else []
     for facet in facets:
         body += [f"## {_md_text(facet.get('title')) or 'Facts'}", "",
                  render_facts(facet.get("facts") or []), ""]
@@ -174,6 +196,8 @@ def research_download_texts(packs: dict) -> dict[str, str]:
                     "canonicalArtifactSha256": pack["canonicalArtifactSha256"],
                     "canonicalConceptId": pack.get("canonicalConceptId"),
                     "claims": [fact for facet in pack["facets"] for fact in facet["facts"]]}
+        if pack.get("narrative"):
+            artifact["narrative"] = pack["narrative"]
         result[slug] = json.dumps(artifact, ensure_ascii=False, indent=2) + "\n"
     return result
 

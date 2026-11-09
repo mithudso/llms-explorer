@@ -12,8 +12,9 @@ description: >-
   llms.txt yet → skill-to-llms-txt; prompts → prompt-deep-optimizer; prose
   docs → document-critique; SQL → deep-query-optimizer; crawling a site → web-text-mirror.
   SKIP+: building a NEW family by crawling a site/repo → crawl-to-llms-txt.
-version: 1.2.0
-updated: 2026-11-06
+version: 1.2.1
+updated: 2026-11-09
+delta: "1.2.0 to 1.2.1: validate LCA catalogue bindings and producer Facts placement in the portable v3 checker."
 model: claude-opus-4-8
 effort: high
 ---
