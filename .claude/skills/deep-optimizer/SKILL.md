@@ -5,7 +5,7 @@ description: >-
   llms files and trading strategies. Members fix Medium+ and verify. Routes to: code-deep-optimizer (source files & repos, /cdo);
   document-critique (prose docs, /ddo); prompt-deep-optimizer (production prompts in code, /pdo);
   skill-optimizer (SKILL.md files, /sko); agent-deep-optimizer (Claude Code subagent definitions,
-  /ado); deep-query-optimizer (SQL, EXPLAIN-verified, /dqo); design-deep-optimizer (graphic/UI/UX
+  /ado); deep-eval-optimizer (skill evaluation suites, /deo); deep-query-optimizer (SQL, EXPLAIN-verified, /dqo); design-deep-optimizer (graphic/UI/UX
   screens, /deso); ui-deep-optimizer (interface workflows, /ui-deep-optimizer); deep-strategy-optimizer (trading strategies, indicators, cards & backtests, /dso);
   llms-deep-optimizer (llms.txt / llms-full / llms-facts / family indexes, /ldo). `--sweep
   <folder|session>` routes every file in a folder, or every file created or modified this session,
@@ -21,9 +21,9 @@ updated: "2026-11-09"
 
 # deep-optimizer — convergence-loop optimizer family ROUTER
 
-Ten siblings. Each runs a domain-specific multi-pass audit, applies every Medium+ fix, verifies the result, and loops to convergence.
+The optimizer family uses domain-specific multi-pass audits, verifies changes, and loops to a supported exit.
 
-**In-place by default, with one exception.** Nine siblings write fixes into the target file and print a restore command. `prompt-deep-optimizer` reports the rewrite and writes the target only under its opt-in `--write` flag — a production prompt is usually a string embedded in source, so an unrequested write lands in the middle of a code file. Check the Writes column before assuming a run changed anything on disk.
+**Check the write mode.** Most members can fix editable targets in place. `prompt-deep-optimizer` reports the rewrite and writes the target only under its opt-in `--write` flag — a production prompt is usually a string embedded in source, so an unrequested write lands in the middle of a code file. Check the Writes column before assuming a run changed anything on disk.
 
 | Sub-hub | Domain | Alias | Writes | Key gates |
 |---|---|---|---|---|
