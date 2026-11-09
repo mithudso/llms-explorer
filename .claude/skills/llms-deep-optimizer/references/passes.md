@@ -3,7 +3,7 @@
 <!-- llms-deep-optimizer · references/passes.md · 2026-08-30 -->
 
 Each pass names the attributes it judges (ids from `attributes.md`), whether it is
-**deterministic** (`scripts/llms_lint.py`), **model** (an LLM reads and decides),
+**deterministic** (the bundled `scripts/llms_lint.py`), **model** (an LLM reads and decides),
 or **live** (an agent or an HTTP call is exercised), and for every pass: how it is used,
 how a finding is judged, how the file is updated, what tools it leans on, and which sibling
 skills it hands to. Passes are grouped into bundles that run concurrently; findings are
@@ -27,6 +27,10 @@ collected before any write (the family rule, `convergence-and-severity.md` § Co
 - P13 Serving and headers
 - P14 Hygiene
 - P15 Regeneration parity
+- P16 Shape rule (v3)
+- P17 Sitemap completeness (v3)
+- P18 Resources verification (v3)
+- P19 Legacy filemap and link lists (v3)
 - Severity resolution across passes
 - N/A rules
 
@@ -44,9 +48,10 @@ collected before any write (the family rule, `convergence-and-severity.md` § Co
 | B7 | P12 | live agent | one fresh-context subagent given ONLY the file; opt-in `--agent-test`, default on for new files |
 | B8 | P13 | live HTTP | only when a URL is given or `--serve-check` |
 | B9 | P15 | deterministic | only when the export directory has a source mirror |
+| B10 | P16 P17 P18 P19 | deterministic (+ live for URLs) | inline; runs for any export dir or `llms.txt` whose header declares `Mode:` or `Kind:`, or that a hub producer stamped; `N/A (pre-v3 file)` otherwise |
 
 Dispatch: B1 and B3 in one tool call; B2, B4, B7 as three concurrent subagents when the Agent
-tool exists (sequential otherwise); B5/B6/B8/B9 inline. Small profile (index < 4 KB, no full,
+tool exists (sequential otherwise); B5/B6/B8/B9/B10 inline. Small profile (index < 4 KB, no full,
 no facts): B3, B4, B6 are `N/A (no layer)`, B7 shrinks to 5 questions.
 
 ---
@@ -372,18 +377,60 @@ what will overwrite the file; this pass makes the overwrite safe.
 
 ---
 
+## P16 — Shape rule (v3, deterministic)
+
+**Judges** V1. Sums the bytes of every `llms*.txt` in the directory and counts sitemap entries. Rule: one document, or at most 32,000 bytes with at most 200 entries, means a single file; anything larger means a family (`llms-family-format.md` §1).
+
+**Judged:** a family at or under both limits → Medium (a thin family costs the reader an extra fetch). A single file over 32,000 bytes → High. A single file with sibling `llms-*.txt` → Medium. A single file missing `## Facts`, `## Sitemap` or `## Resources` → Medium each.
+
+**Updated:** collapse the family into one `llms.txt` (merge Facts, condensed sections, Sitemap, Resources; set `Mode: single-file`; delete the siblings and record the deletion in the report), or split an oversize single file by re-running the producer. Never collapse when the input is a family of packs the producer lists as children.
+
+**Tools:** bundled `scripts/llms_lint.py check` covers single-file size and required sections. Count total family bytes and entries independently; it does not decide every thin-family case. **Relations:** the producing skill in `llms-txt-tooling` for the re-run.
+
+## P17 — Sitemap completeness (v3, deterministic)
+
+**Judges** V2 V5. Re-enumerates the source and compares: `git ls-files` for a repo, `find` with the producer's exclusions for a store, the mirror page list or `sitemap.xml` for a website. Then checks `Entries:` against the listed lines and that the family `llms.txt` links `llms-sitemap.txt` and `llms-sitemap.txt#resources`.
+
+**Judged:** `Entries:` not equal to the listed lines → Medium. Missing paths up to 10% → Medium; over 10% → High. Phantom paths (listed but gone) → Medium. Missing links in `llms.txt` → Medium.
+
+**Updated:** regenerate the sitemap from the enumeration; do not hand-edit entry lists. Update `Entries:`.
+
+**Tools:** `git ls-files`, `find`, `hub_llms_full_list`. **Relations:** `crawl-repo-to-llms` and `crawl-to-llms-txt` own the enumeration rules.
+
+## P18 — Resources verification (v3, deterministic + live)
+
+**Judges** V3 V4 V7. For each `## Resources` entry: local path → `test -e`; URL → HEAD (GET on 405); skill id → present under the skills root; agent or MCP tool → named in the agent listing or the tool list. Secret scan over the section.
+
+**Judged:** unverifiable and unmarked → High when dead (404, missing path), Medium when merely unchecked. A `(unverified)` mark on an entry that now verifies → Low. Missing section → Medium. Secret value → High.
+
+**Updated:** drop or correct dead entries; add `(unverified)` to the ones you cannot reach (offline, auth-gated); remove the mark from entries that verify. Never invent a replacement URL.
+
+**Tools:** `curl -sI`, `test -e`, `hub_pm_get`. **Relations:** `--check-links` already covers HEAD for P2; reuse its results.
+
+## P19 — Legacy filemap and link lists (v3, deterministic)
+
+**Judges** V6. Looks for `llms-filemap.txt`, `llms-links.txt`, `llms-urls.txt` and similar lists beside the family.
+
+**Judged:** `llms-filemap.txt` alone → Low (rename). Both `llms-filemap.txt` and `llms-sitemap.txt` → Medium (two sources of truth). A link list whose URLs are not in the sitemap → Medium.
+
+**Updated:** rename `llms-filemap.txt` to `llms-sitemap.txt` and rewrite it to one line per file; move the per-file cards to `llms-full.txt` `## Files` (keep `filemap.json`); update links in `llms.txt` and `manifest.json`.
+
+**Tools:** `ls`, `llms_lint.py` (accepts the legacy name as an alias of `sitemap` and reports Low). **Relations:** `crawl-repo-to-llms`.
+
+---
+
 ## Severity resolution across passes
 
 Same span flagged by several passes: take the highest severity; tie → lower pass number wins
 (P0 > P1 > …); tie → the more conservative fix (report over rewrite). BLOCKED rows (dead links
 with no mirror page, secrets that must be fixed upstream, members not yet acquired) are
 reported but never count toward convergence, per the contract. The full ladder and the exits
-live in `~/.claude/skill-consolidation/convergence-and-severity.md`.
+live in `references/shared/convergence-and-severity.md`.
 
 ## N/A rules
 
 A pass reports `N/A (<reason>)` — never silently skips — when: the kind excludes it (P6 on an
 index), the layer is absent (P11 without an indexed docset), the input is missing (P13 without a
-URL, P15 without a mirror), or the flag is off (P12 without `--agent-test` on a refresh run).
+URL, P15 without a mirror, B10 on a file with no v3 header), or the flag is off (P12 without `--agent-test` on a refresh run).
 An N/A that is caused by something the run could create (no keyword index, no small variant)
 is also a Medium finding on the missing thing.

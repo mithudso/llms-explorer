@@ -25,7 +25,8 @@ def test_generates_rubric_and_spokes(tmp_path):
     assert source_rows == 60
     assert len(ROW_RE.findall(attrs)) == source_rows
     passes = (tmp_path / "passes.md").read_text()
-    assert passes.count("\n## P") == 16
+    headings = re.findall(r"^## P\d+\s+—", passes, re.MULTILINE)
+    assert headings == [f"## P{i} —" for i in range(20)]
     assert "sources:\n  - .claude/skills/llms-deep-optimizer/references/attributes.md" in attrs
 
 

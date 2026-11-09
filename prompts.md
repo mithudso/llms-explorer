@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v128 — 2026-11-09 Portable LLMS optimizer
+
+```text
+Yes, complete that task https://app.stele-ai.dev/p/llms-explorer-9d1wd/nodes/TASK-1257
+```
+
+Delta: v127 to v128. Complete the LLMS optimizer 1.2 release, preserving staged work and making its public bundle independently usable.
+
 ## Prompt v127 — 2026-11-09 Skill downloads refresh
 
 ```text

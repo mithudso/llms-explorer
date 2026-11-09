@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.155 — 2026-11-09 Portable LLMS optimizer
+
+Version: 0.22.155. Delta: v0.22.154 to v0.22.155; implement prompt v128 and TASK-1257.
+
+Derive 1.2 from four captured index blobs in an isolated worktree; do not mutate the shared staged checkout. Bundle the v3 convention, shared convergence reference, committed hub linter and its standalone full-file parser. Preserve the previous per-pass CLI and report optional mirror helpers as unavailable rather than passing. The v3 format is this project’s convention, not an official llmstxt.org revision. Source completeness, aggregate family shape and live resources still need explicit verification. Delivery and production status must be verified from the PR and live site.
+
 ## v0.22.154 — 2026-11-09 Skill downloads refresh
 
 Version: 0.22.154. Delta: v0.22.153 to v0.22.154; implement prompt v127 and TASK-1254.
