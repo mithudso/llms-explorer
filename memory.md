@@ -1,5 +1,17 @@
 # Memory
 
+## v0.22.161 — 2026-11-09 Monitor registration and CI corrections
+
+Version: 0.22.161. Delta: v0.22.160 to v0.22.161; apply selected installed ownership/scores, finish the site build and fix exact final-head CI failures.
+
+Guarded installation completed 31 selected paths. Both intentional trading variants are 1.7.5: Claude routes 72 to 76, Codex routes 64 to 68. Existing routes, model, effort, history and evals remain. LCA 1.6.4 and catalogue checker 3.0.1 are installed; the Claude refresh hook remains. Three actual installed checkers independently reproduce zero High/Medium over all 79 immutable monitor files, with 26 Low and 53 anchor-resolution N/A findings. Independent loaded-state and remote acceptance remain separate final gates.
+
+The CFE helper registered 18 leaf/aggregate owners and 32 scored rows on both independent file trees. A task-only hub repository projection adds exactly 19 native/structural nodes to its older baseline. Native identities, existing parents, unrelated nodes and every pre-existing score value remain exact. Score serialization preserves original order, indentation and escaping. Validation adds zero problems. The organizational subject domain and three aggregate views receive zero independent research credit.
+
+The actual npm prebuild/build/postbuild completed exit 0 with 2,991 pages and a passed publication policy. Repository-only generators produced the site projection. The general project context generator reported seven Medium findings and zero High; these are distinct from the monitor catalogue result. No source/gate or paid review was repeated. The first updated CI found eight E501 test lines plus three stale generated research-skill copies. The lines are wrapped without fixture changes. The canonical repository sync regenerated only codex_dr_artifacts.py, research_artifact.py and sync-manifest.json under .agents. Its 31-asset check now reports no drift. Exact CI Ruff scope passed; 62 portability/tree/context tests and 442 native research tests plus 15 subtests passed.
+
+Fixed-bank pack reading checks remain in progress. Source-qualified publication is separate from practical reference completeness. Market-data full remains rejected at 8/10 against the unchanged 9/10 bar for reconnect/resubscription and duplicate-event procedures. If these gaps persist at maxRounds 3, the full suite must report SATURATION-DISSENT and queue the explicit gaps; do not claim coverage or frontier saturation. Small-view repairs select only complete pre-existing accepted statements, preserve old rejected versions and retain all source identities. Continuation and final receipts: /Users/mitch/.global-ai-hub/research/crypto-autotrading-bot-monitor-task1087/delivery/memory.md.
+
 ## v0.22.160 — 2026-11-09 Bot-monitor contracts and catalogue lint
 
 Version: 0.22.160. Delta: v0.22.159 to v0.22.160; finalize the fourth source cohort, preserve explicit proposed narratives, and integrate maintained/portable catalogue lint.
