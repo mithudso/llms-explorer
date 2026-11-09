@@ -1,5 +1,15 @@
 # Prompts Log
 
+## Prompt v129 — 2026-11-09 Leveraged day-trading full suite
+
+```text
+RUn the full-suite skill on leveraged day trading signals indicators strategies
+```
+
+Confirmed scope: Crypto perpetuals, especially SOL/Jupiter. Destination: Use LLMS Explorer.
+
+Delta: v128 to v129. Inventory and reuse fresh coverage, research genuine gaps through the native evidence gates, compile reference packs and a subject rollup, and deliver qualified artifacts. Preserve concurrent work and the embedding pause.
+
 ## Prompt v128 — 2026-11-09 Portable LLMS optimizer
 
 ```text

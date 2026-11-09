@@ -1,5 +1,15 @@
 # Memory
 
+## v0.22.157 — 2026-11-09 Leveraged day-trading qualified artifacts
+
+Version: 0.22.157. Delta: v0.22.156 to v0.22.157; preserve the concurrent portable-optimizer release and complete source, installation and pack checks for prompt v129, EPIC-1261.
+
+Eleven newly commissioned concepts contain 213 structured claims and 295 independently reviewed assertions. Three frontier expansions found two, one and zero new concepts. The result is SATURATED-COVERAGE / MAP-BOUNDED-COVERAGE; SATURATED-FRONTIER is not established. No SOL profitability, calibrated leverage or survival guarantee was measured. Skills PR105 and hub tree PR155 are merged. Permanent host variants retain their own histories and match exact guide hashes; fresh native Codex discovery and two intended reference reads passed.
+
+All eleven private member packs and the subject rollup pass the current format checker with zero findings. Private FTS has eleven collections and 295 rows. Preserve private evidence and the semantic embedding pause. The source-resolver fix honors authored immutable snapshots without moving shared URL cache pointers. Regenerate the Codex companion after source changes. Incompatible pins must preserve per-claim preflight.json diagnostics, not only raise an error.
+
+Verification passed 344 research/export tests, 333 site tests, the expanded 487-case research/companion suite plus 15 subtests, integrated site build, Astro check, Ruff and privacy. Publication/production acceptance and exact merge state are recorded in PR316 and the full-suite tracker. Preserve the dirty original checkouts and paused UI/UX drafts. The private task checkpoint is the continuation authority for final CI, independent audit and live receipts.
+
 ## v0.22.155 — 2026-11-09 Portable LLMS optimizer
 
 Version: 0.22.155. Delta: v0.22.154 to v0.22.155; implement prompt v128 and TASK-1257.
