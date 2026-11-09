@@ -1,6 +1,6 @@
 # Prompts Log
 
-## Prompt v128 — 2026-11-09 Leveraged day-trading full suite
+## Prompt v129 — 2026-11-09 Leveraged day-trading full suite
 
 ```text
 RUn the full-suite skill on leveraged day trading signals indicators strategies
@@ -8,7 +8,15 @@ RUn the full-suite skill on leveraged day trading signals indicators strategies
 
 Confirmed scope: Crypto perpetuals, especially SOL/Jupiter. Destination: Use LLMS Explorer.
 
-Delta: v127 to v128. Inventory and reuse fresh coverage, research genuine gaps through the native evidence gates, compile reference packs and a subject rollup, and deliver qualified artifacts. Preserve concurrent work and the embedding pause.
+Delta: v128 to v129. Inventory and reuse fresh coverage, research genuine gaps through the native evidence gates, compile reference packs and a subject rollup, and deliver qualified artifacts. Preserve concurrent work and the embedding pause.
+
+## Prompt v128 — 2026-11-09 Portable LLMS optimizer
+
+```text
+Yes, complete that task https://app.stele-ai.dev/p/llms-explorer-9d1wd/nodes/TASK-1257
+```
+
+Delta: v127 to v128. Complete the LLMS optimizer 1.2 release, preserving staged work and making its public bundle independently usable.
 
 ## Prompt v127 — 2026-11-09 Skill downloads refresh
 

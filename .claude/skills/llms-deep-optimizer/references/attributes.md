@@ -19,6 +19,7 @@ that links other indexes.
 8. Family / nesting (F1–F6)
 9. Hygiene and serving (H1–H8)
 10. The three kinds side by side
+11. v3 shape, sitemap and resources (V1–V7)
 
 ## 1. Identity and shape
 
@@ -124,6 +125,20 @@ that links other indexes.
 | H6 | Validator-clean on the community validators' strict rules where they do not contradict the spec | index | deterministic | 0 High | Low |
 | H7 | Lighthouse agentic audit would not flag it (no 5xx on fetch) | served | deterministic | 200 | Medium |
 | H8 | `manifest.json` present and consistent with the files (bytes, tokens, pages, units) | export dir | deterministic | consistent | Medium |
+
+## 11. v3 shape, sitemap and resources (V1–V7)
+
+The authority is `references/llms-family-format.md`. These attributes apply to any output written by a producer in the hub, and to any `<stem>.llms/` directory or `llms.txt` file that declares `Mode:` or `Kind:` in its header. A file with no such header and no producer stamp is judged on the older attributes only.
+
+| Id | Attribute | Applies | Measure | Bar | Miss |
+|---|---|---|---|---|---|
+| V1 | Shape matches the rule: a single file when the input is one document, or the whole output is at most 32,000 bytes with at most 200 sitemap entries; a family otherwise | export dir, single `llms.txt` | deterministic (`wc -c` over all `llms*.txt`, count of entries) | rule satisfied; a single file has no sibling `llms-*.txt` | Medium (a thin family) or High (a single file over 32,000 bytes that readers cannot load) |
+| V2 | Sitemap complete: every page (website) or every file (repo, store) is listed; `Entries:` equals the listed lines; for a repo, equals `git ls-files` after the producer's exclusions | sitemap, single `## Sitemap` | deterministic + a re-enumeration | no missing path, no phantom path | Medium (High when more than 10% missing) |
+| V3 | Resources section present with the standard subsections that apply; empty subsections omitted | sitemap, single file | deterministic (headings) | `## Resources` exists | Medium |
+| V4 | Each resource verified: local path exists, URL resolved, skill or agent installed; otherwise marked `(unverified)` | sitemap, single file | deterministic (`test -e`, HEAD) + model (skill/agent names) | 0 dead and unmarked entries | High (dead and unmarked) |
+| V5 | `llms.txt` of a family links `llms-sitemap.txt` and `llms-sitemap.txt#resources` | family index | deterministic | both links present | Medium |
+| V6 | No legacy `llms-filemap.txt` and no separate URL or link-list file; per-file cards live in `llms-full.txt` `## Files` | export dir | deterministic | absent | Low (rename) / Medium (both exist) |
+| V7 | Sitemap and Resources hold no secret values | sitemap, single file | deterministic (secret scan) | 0 | High |
 
 ## 10. The three kinds side by side
 

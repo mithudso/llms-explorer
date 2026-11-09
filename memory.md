@@ -2,11 +2,17 @@
 
 ## v0.22.156 — 2026-11-09 Leveraged day-trading research accepted
 
-Version: 0.22.156. Delta: v0.22.155 to v0.22.156; all three native cohorts accepted and finalized for prompt v128, EPIC-1261.
+Version: 0.22.156. Delta: v0.22.155 to v0.22.156; all three native cohorts accepted and finalized for prompt v129, EPIC-1261.
 
 Eleven newly commissioned concepts contain 213 structured claims and 295 independently reviewed assertions. Three bounded frontier rounds discovered two, then one, then zero new concepts. Report SATURATED-COVERAGE / MAP-BOUNDED-COVERAGE after installation and audits; do not claim SATURATED-FRONTIER. No SOL profitability, calibrated leverage or live execution result was established. The snapshot resolver now honors authored immutable pins after shared cache changes. The optional current-format family exporter preserves exact caller-qualified Facts and Resources while retaining legacy defaults.
 
 Remaining: finish focused skill optimization and blind tests, permanent selective installation, private v3 packs and rollup, scoped tree registration, final local/CI/privacy checks and remote publication verification. Preserve private evidence, paused embeddings, the dirty original checkout and unrelated paused drafts.
+
+## v0.22.155 — 2026-11-09 Portable LLMS optimizer
+
+Version: 0.22.155. Delta: v0.22.154 to v0.22.155; implement prompt v128 and TASK-1257.
+
+Derive 1.2 from four captured index blobs in an isolated worktree; do not mutate the shared staged checkout. Bundle the v3 convention, shared convergence reference, committed hub linter and its standalone full-file parser. Preserve the previous per-pass CLI and report optional mirror helpers as unavailable rather than passing. The v3 format is this project’s convention, not an official llmstxt.org revision. Source completeness, aggregate family shape and live resources still need explicit verification. Delivery and production status must be verified from the PR and live site.
 
 ## v0.22.154 — 2026-11-09 Skill downloads refresh
 

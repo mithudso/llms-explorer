@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """llms_lint.py — deterministic lint passes for the llms.txt family (llms-deep-optimizer).
 
-A thin wrapper over the shared `llms-txt` library (`llms_txt.lint`), which holds the one
-implementation of these passes (its output is byte-identical to the hub linter). This file keeps
-the skill's per-pass command line, so `references/passes.md` still reads true:
+Uses the bundled v3 core and parser. No private library or hub install is required.
+Mirror-anchor resolution and live probes require optional external tools; unavailable
+checks must be reported as unavailable rather than treated as passing.
 
 Subcommands (each takes a FILE and prints one JSON object to stdout):
   detect       <file>                      P0  — kind + grammar detection
@@ -15,23 +15,18 @@ Subcommands (each takes a FILE and prints one JSON object to stdout):
   facts        <file> [--fix]              P7  — facts-file shape
   trust        <file> [--fix]              P9  — steering/secrets scan
   hygiene      <file> [--fix]              P14 — byte-level hygiene
-  check        <file>... [llms-lint flags] every pass at once (the library's `llms-lint check`)
+  check        <file>... [llms-lint flags] every pass at once (the bundled v3 checker)
 
-Every subcommand accepts `--kind {index,family,full,small,facts}`; without it the library detects
+Every subcommand accepts `--kind {index,family,full,small,facts,vocabulary,sitemap,single}`; without it the library detects
 the kind from the file's content (the pre-library script guessed it from the file name).
 
 Findings schema (shared across every subcommand):
   {"pass": "P1", "severity": "high|medium|low|hygiene", "code": "I1",
    "message": "...", "line": N|null, "fixable": bool}
 
-Differences from the pre-library copy: findings come from `llms_txt.lint`, so rule coverage is
-the hub linter's (R4, "units without keywords:", is kept by running with legacy rules); the
-per-command extras (`link_count`, `page_blocks`, `unit_count`, `manifest`, ...) are not
-reproduced; `--fix` applies the library's safe fixes for the whole file, then reports the ones in
-the requested pass. Never makes a network request unless `--check-links` is passed.
-
-Install the library: `pip install -e ~/dev/libraries/llms-txt`
-(or `pip install 'llms-txt @ git+https://github.com/mithudso/llms-txt'`).
+The per-pass commands emit JSON. The `check` command uses the bundled core's
+text output by default and JSON with `--json`. Live links are checked only when
+`--check-links` is passed. `--fix` applies safe fixes across the target file.
 """
 from __future__ import annotations
 
@@ -40,17 +35,13 @@ import json
 import sys
 from pathlib import Path
 
-VERSION = "2.0.0"
+VERSION = "3.0.0"
 CHARS_PER_TOKEN = 4  # house convention
-KINDS = ["index", "family", "full", "small", "facts"]
+KINDS = ["index", "family", "full", "small", "facts", "vocabulary", "sitemap", "single"]
 PASS_OF = {"structure": "P1", "links": "P2", "descriptions": "P3", "size": "P5",
            "full": "P6", "facts": "P7", "trust": "P9", "hygiene": "P14"}
 
-try:
-    import llms_txt.lint as lint
-except ImportError as exc:  # environment problem: answer in the script's own JSON dialect
-    lint = None
-    _IMPORT_ERROR = str(exc)
+import _ldo_v3 as lint
 
 
 def emit(payload) -> None:
@@ -105,7 +96,7 @@ def cmd_pass(args) -> None:
               "summary": _summary(findings)})
         return
     res = lint.check(path, kind=args.kind, check_links=getattr(args, "check_links", False),
-                     fix=args.fix, legacy_rules=True)
+                     fix=args.fix, mirror=Path(args.mirror) if getattr(args, "mirror", None) else None)
     mine = [f for f in res["findings"] if f["pass"] == pass_id]
     findings = [_finding(f) for f in mine]
     fixed = [f"{f['attr']}: {f['msg']}" for f in mine if f.get("fixed")]
@@ -137,6 +128,8 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("file", help="path to the llms.txt-family file to lint")
         p.add_argument("--kind", choices=KINDS, default=None, help="override kind detection")
         p.add_argument("--fix", action="store_true", help="apply the safe fixes in place")
+        if name == "facts":
+            p.add_argument("--mirror", help="optional mirror for anchor checks")
         if name == "links":
             p.add_argument("--check-links", action="store_true",
                            help="live HEAD requests on absolute URLs (default off)")
@@ -146,12 +139,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    if lint is None:
-        emit({"error": f"the llms-txt library is not installed ({_IMPORT_ERROR}); "
-                       "pip install 'llms-txt @ git+https://github.com/mithudso/llms-txt'",
-              "pass": argv[0] if argv else None})
-        return 2
-    if argv and argv[0] == "check":  # the library's own CLI, flags and all
+    if argv and argv[0] == "check":  # the bundled core's CLI, flags and all
         return lint.main(argv)
     args = build_parser().parse_args(argv)
     path = Path(args.file)
