@@ -16,7 +16,11 @@ def test_downloaded_skill_versions_and_guides_match_bundles():
         skill = (ROOT / ".claude/skills" / name / "SKILL.md").read_text()
         version = re.search(r'^\s*version:\s*[\'\"]?([^\s\'\"]+)', skill.split("---", 2)[1], re.M)
         assert version, name
-        row = re.search(rf'<tr\b[^>]*>\s*<td\b[^>]*>\s*<a href="/skills/{re.escape(name)}/".*?</tr>', page, re.S)
+        row = re.search(
+            rf'<tr\b[^>]*>\s*<td\b[^>]*>\s*<a href="/skills/{re.escape(name)}/".*?</tr>',
+            page,
+            re.S,
+        )
         assert row and f"v{version.group(1)}" in row.group(), name
         guide = (DIST / "skills" / name / "index.html").read_text()
         assert f"github.com/mithudso/llms-explorer/tree/main/.claude/skills/{name}" in guide
@@ -24,7 +28,13 @@ def test_downloaded_skill_versions_and_guides_match_bundles():
 
 def test_ui_optimizer_references_ship_in_selected_bundle():
     skill = ROOT / ".claude/skills/ui-deep-optimizer"
-    for path in ("references/methods.json", "references/standards.md", "references/report-format.md", "references/shared/convergence-and-severity.md", "scripts/uio_check.py"):
+    for path in (
+        "references/methods.json",
+        "references/standards.md",
+        "references/report-format.md",
+        "references/shared/convergence-and-severity.md",
+        "scripts/uio_check.py",
+    ):
         assert (skill / path).is_file()
 
 
