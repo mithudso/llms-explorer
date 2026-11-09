@@ -124,6 +124,194 @@ def test_family_default_facts_output_is_unchanged(tmp_path):
     assert "## Facts\n" in default.read_text()
 
 
+def test_family_default_mixed_output_matches_legacy_snapshot(tmp_path):
+    index = _concept_pack(tmp_path)
+    mirror = _legacy_mirror(tmp_path)
+    out = tmp_path / "family" / "llms.txt"
+
+    export_llms.family([mirror, index], "Manufacturing", "Production.", out)
+
+    assert out.read_bytes() == (
+        b"# Manufacturing\n\n> Production.\n\n"
+        b"Each member below has its own llms.txt; this file links member indexes, not content.\n\n"
+        b"## Products\n\n"
+        b"- [Press documentation](../press.example.llms/llms.txt): 3 pages, ~6 tokens index\n\n"
+        b"## Concepts\n\n"
+        b"- [Card printing](../card-printing.llms/llms.txt): 17 units, 2 source hosts, "
+        b"~26 tokens index, ~9 tokens full\n\n"
+        b"## Facts\n\n"
+        b"- [Card printing facts](../card-printing.llms/llms-facts.txt): 17 units, ~9 tokens\n"
+    )
+
+
+def test_family_v3_single_rollup_keeps_member_sitemaps_and_resources_on_regeneration(tmp_path):
+    single = _concept_pack(tmp_path, "single", "Single member")
+    manifest_path = single.with_name("manifest.json")
+    manifest = json.loads(manifest_path.read_text())
+    for filename in ("llms-full.txt", "llms-facts.txt"):
+        del manifest["files"][filename]
+        single.with_name(filename).unlink()
+    single.write_text("# Single member\n\n> Bounded reference.\n\n## Facts\n\nCited units.\n")
+    manifest["files"]["llms.txt"] = {"tokens": len(single.read_text()) // 4}
+    manifest_path.write_text(json.dumps(manifest))
+    # An undeclared leftover must not enter the member sitemap.
+    single.with_name("llms-sitemap.txt").write_text("Unrelated leftover.\n")
+    family_member = _concept_pack(tmp_path, "larger", "Family member")
+    family_manifest = family_member.with_name("manifest.json")
+    manifest = json.loads(family_manifest.read_text())
+    sitemap = family_member.with_name("llms-sitemap.txt")
+    sitemap.write_text("# Member sitemap\n")
+    manifest["files"][sitemap.name] = {"tokens": 4}
+    family_manifest.write_text(json.dumps(manifest))
+    before = {p: p.read_bytes() for p in (manifest_path, family_manifest, single, family_member)}
+    out = tmp_path / "rollup" / "llms.txt"
+    resources = {
+        "Related files": [f"- {tmp_path / 'tree.json'} — concept tree (unverified)"],
+        "Skills": ["- `trading-and-investing` — researched guide owner"],
+        "Agents and tools": ["- `/lca` and `/ldo` — compiler and rollup delegates"],
+        "Websites": ["- https://docs.example/llms.txt — scout discovery index (unverified)"],
+    }
+
+    first = export_llms.family(
+        [single, family_member, single], "Suite", "Qualified members.", out,
+        include_facts=False, resources=resources,
+    )
+    text = out.read_text()
+    export_llms.family(
+        [single, family_member, single], "Suite", "Qualified members.", out,
+        include_facts=False, resources=resources,
+    )
+
+    assert out.read_text() == text
+    assert first["shape"] == "single" and first["entries"] == 3
+    assert "Mode: single-file" in text and "## Facts\n\n## Sitemap" in text
+    sitemap_lines = text.split("## Sitemap\n\n", 1)[1].split("\n\n## Resources", 1)[0].splitlines()
+    assert sitemap_lines == [
+        "- ../single.llms/llms.txt — Single member",
+        "- ../larger.llms/llms.txt — Family member",
+        "- ../larger.llms/llms-sitemap.txt — Family member sitemap",
+    ]
+    assert "llms-facts.txt" not in text
+    assert "[Single member](../single.llms/llms.txt): 17 units, 2 source hosts" in text
+    assert "[Family member](../larger.llms/llms.txt): 17 units, 2 source hosts" in text
+    for category, rows in resources.items():
+        assert f"### {category}\n\n" in text
+        assert all(row in text for row in rows)
+    assert all(path.read_bytes() == raw for path, raw in before.items())
+
+
+@pytest.mark.parametrize("resources", [
+    [], {}, {"Skills": []}, {"Unknown": ["- target — reason"]}, {"Skills": "- target — reason"},
+    {"Skills": [3]}, {"Skills": ["- target - reason"]}, {"Skills": ["- target — reason\nnext"]},
+])
+def test_family_v3_rejects_malformed_resources_without_replacing_output(tmp_path, resources):
+    index = _concept_pack(tmp_path)
+    out = tmp_path / "llms.txt"
+    out.write_text("Existing rollup.\n")
+
+    with pytest.raises(ValueError, match="[Rr]esources"):
+        export_llms.family([index], "Suite", "Summary.", out, resources=resources)
+
+    assert out.read_text() == "Existing rollup.\n"
+
+
+@pytest.mark.parametrize("include_facts", [False, True])
+def test_family_v3_preserves_qualified_assertions_and_ordered_citations(tmp_path, include_facts):
+    index = _concept_pack(tmp_path)
+    out = tmp_path / "rollup" / "llms.txt"
+    rows = [
+        "- `alpha`  preserves punctuation — and Unicode. [src: https://one.example/paper#proof]",
+        "- Limits require stated assumptions. "
+        "[src: https://one.example/paper, http://two.example/details?x=1&y=2]",
+    ]
+    before = rows.copy()
+
+    export_llms.family(
+        [index], "Suite", "Qualified members.", out, include_facts=include_facts,
+        resources={"Other": ["- source — verified source record"]}, qualified_facts=rows,
+    )
+
+    text = out.read_text()
+    assert "## Facts\n\n" + "\n".join(rows) + "\n" in text
+    assert ("[Card printing facts]" in text) is include_facts
+    assert rows == before
+    assert "caller-supplied qualified assertions" in text
+
+
+@pytest.mark.parametrize("rows", [
+    [], "- assertion [src: https://one.example]", [None],
+    ["- assertion"], ["-  [src: https://one.example]"],
+    ["- assertion [src: relative]"], ["- assertion [src: https://]"],
+    ["- assertion [src: https://one.example, file:///private/source]"],
+    ["- assertion [src: https://one.example]\n- inserted assertion"],
+    ["- assertion [src: https://one.example] "], ["- assertion [src: https://[invalid]"],
+])
+def test_family_v3_rejects_malformed_qualified_facts_without_replacing_output(tmp_path, rows):
+    index = _concept_pack(tmp_path)
+    out = tmp_path / "llms.txt"
+    out.write_text("Existing rollup.\n")
+
+    with pytest.raises(ValueError, match="qualified_facts"):
+        export_llms.family(
+            [index], "Suite", "Summary.", out, qualified_facts=rows,
+            resources={"Other": ["- source — verified source record"]},
+        )
+
+    assert out.read_text() == "Existing rollup.\n"
+
+
+def test_family_qualified_facts_requires_explicit_v3_opt_in(tmp_path):
+    index = _concept_pack(tmp_path)
+    out = tmp_path / "llms.txt"
+    out.write_text("Existing rollup.\n")
+
+    with pytest.raises(ValueError, match="qualified_facts requires resources"):
+        export_llms.family([index], "Suite", "Summary.", out,
+                           qualified_facts=["- Exact assertion. [src: https://one.example]"])
+
+    assert out.read_text() == "Existing rollup.\n"
+
+
+def test_family_v3_rejects_missing_declared_sitemap_without_replacing_output(tmp_path):
+    index = _concept_pack(tmp_path)
+    path = index.with_name("manifest.json")
+    manifest = json.loads(path.read_text())
+    manifest["files"]["llms-sitemap.txt"] = {"tokens": 1}
+    path.write_text(json.dumps(manifest))
+    out = tmp_path / "llms.txt"
+    out.write_text("Existing rollup.\n")
+
+    with pytest.raises(ValueError, match="Missing declared member sitemap"):
+        export_llms.family([index], "Suite", "Summary.", out,
+                           resources={"Other": ["- source — reason"]})
+
+    assert out.read_text() == "Existing rollup.\n"
+
+
+def test_family_v3_rejects_oversize_utf8_output_without_replacing_output(tmp_path):
+    index = _concept_pack(tmp_path)
+    out = tmp_path / "llms.txt"
+    out.write_text("Existing rollup.\n")
+
+    with pytest.raises(ValueError, match="32,000 bytes"):
+        export_llms.family([index], "Suite", "Summary.", out,
+                           resources={"Other": ["- source — " + "é" * 16_000]})
+
+    assert out.read_text() == "Existing rollup.\n"
+
+
+def test_family_v3_rejects_more_than_200_sitemap_entries_without_replacing_output(tmp_path):
+    indexes = [_concept_pack(tmp_path, str(i), str(i)) for i in range(201)]
+    out = tmp_path / "llms.txt"
+    out.write_text("Existing rollup.\n")
+
+    with pytest.raises(ValueError, match="200 sitemap entries"):
+        export_llms.family(indexes, "Suite", "Summary.", out, include_facts=False,
+                           resources={"Other": ["- source — reason"]})
+
+    assert out.read_text() == "Existing rollup.\n"
+
+
 def test_family_index_only_api_preserves_mixed_member_links_and_manifests(tmp_path):
     from llms_txt.lint import parse_index
 

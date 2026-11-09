@@ -1,12 +1,12 @@
 # Memory
 
-## v0.22.155 — 2026-11-09 Leveraged day-trading full suite
+## v0.22.156 — 2026-11-09 Leveraged day-trading research accepted
 
-Version: 0.22.155. Delta: v0.22.154 to v0.22.155; execute prompt v128 and the leveraged crypto day-trading suite, EPIC-1261.
+Version: 0.22.156. Delta: v0.22.155 to v0.22.156; all three native cohorts accepted and finalized for prompt v128, EPIC-1261.
 
-Status: Inventory in progress. The user selected crypto perpetuals, especially SOL/Jupiter, and assigned the run to LLMS Explorer. Reuse fresh classical-indicator, short-window, five-minute SOL and nonlinear lead-lag coverage. Research only distinct new gaps. Exact readable source spans and independent judgments gate every new or changed factual assertion. Preserve private source bodies, paused embeddings and concurrent repository work. New keyword indexes are in scope; new semantic vectors remain withheld. Do not trade or change product behavior.
+Eleven newly commissioned concepts contain 213 structured claims and 295 independently reviewed assertions. Three bounded frontier rounds discovered two, then one, then zero new concepts. Report SATURATED-COVERAGE / MAP-BOUNDED-COVERAGE after installation and audits; do not claim SATURATED-FRONTIER. No SOL profitability, calibrated leverage or live execution result was established. The snapshot resolver now honors authored immutable pins after shared cache changes. The optional current-format family exporter preserves exact caller-qualified Facts and Resources while retaining legacy defaults.
 
-Remaining: complete scored inventory and competency questions; scout and research the full viable queue; gate and install qualified references; compile and audit packs and rollup; verify and merge task-owned public outputs. The existing paused UI/UX draft remains untouched.
+Remaining: finish focused skill optimization and blind tests, permanent selective installation, private v3 packs and rollup, scoped tree registration, final local/CI/privacy checks and remote publication verification. Preserve private evidence, paused embeddings, the dirty original checkout and unrelated paused drafts.
 
 ## v0.22.154 — 2026-11-09 Skill downloads refresh
 

@@ -84,6 +84,143 @@ def install_judge(history, verdict):
     return args, calls
 
 
+def archived_history(history):
+    """Use the real immutable archive writer with a hermetic shared library."""
+    shared, _manifest, doc, root = history
+    spec = importlib.util.spec_from_file_location(
+        'snapshot_history_provenance', Path(__file__).resolve().parents[1] / 'scripts/research_provenance.py')
+    provenance = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(provenance)
+    shared.RESEARCH_DIR = root / 'research'
+    shared.evidence_provenance = provenance
+    url = doc['claims'][0]['sources'][0]
+    record = provenance.archive(shared.RESEARCH_DIR / '.library', shared.lib_find(url))
+    return record
+
+
+def test_authored_snapshot_survives_latest_cache_replacement_without_another_model_call(history):
+    shared, manifest, doc, root = history
+    snapshot = archived_history(history)
+    args, calls = install_judge(history, 'SUPPORTED')
+    assert shared.cmd_gate(args) == 0
+    first = root / manifest['gate']['attempt']
+    original_packet = json.loads((first / 'packet.json').read_text())
+    original_body = Path(snapshot['snapshot_path']).read_bytes()
+    replacement = 'A later extract describes another version, with fieldA equal to 40.'
+    (root / 'source.txt').write_text(replacement)
+
+    assert shared.cmd_gate(args) == 0
+    assert len(calls) == 1
+    current = root / manifest['gate']['attempt']
+    packet = json.loads((current / 'packet.json').read_text())
+    url = doc['claims'][0]['sources'][0]
+    assert packet['sources'][url]['snapshot_sha256'] == snapshot['snapshot_sha256']
+    assert gate.evidence_text(packet, current, packet['sources'][url]).encode() == original_body
+    assert len(packet['reused_verdicts']) == 2
+    assert [gate.assertion_review_binding(packet, row) for row in packet['claims']] == [
+        gate.assertion_review_binding(original_packet, row) for row in original_packet['claims']]
+    assert (root / 'source.txt').read_text() == replacement
+    assert Path(snapshot['snapshot_path']).read_bytes() == original_body
+    assert (first / original_packet['sources'][url]['file']).read_bytes() == original_body
+
+
+def test_pinned_archive_remains_usable_when_latest_cache_entry_is_missing(history):
+    shared, manifest, doc, root = history
+    snapshot = archived_history(history)
+    shared.lib_find = lambda _url: None
+    shared.lib_snapshot = lambda *args, **kwargs: pytest.fail('explicit pins must not fetch latest')
+    packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 10)
+    assert packet['sources'][doc['claims'][0]['sources'][0]]['snapshot_id'] == snapshot['snapshot_id']
+    assert gate.validate(packet, response(packet), root / 'attempt')['all_supported']
+
+
+@pytest.mark.parametrize('contract', [2, 3])
+def test_legacy_packets_keep_their_existing_latest_source_resolution(history, contract):
+    shared, manifest, doc, root = history
+    snapshot = archived_history(history)
+    manifest['gate_contract_version'] = contract
+    (root / 'source.txt').write_text('The later fieldA value is 40.')
+    packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+    source = packet['sources'][doc['claims'][0]['sources'][0]]
+    assert source['snapshot_sha256'] != snapshot['snapshot_sha256']
+    assert gate.evidence_text(packet, root / 'attempt', source) == 'The later fieldA value is 40.'
+
+
+@pytest.mark.parametrize('corruption', [
+    'missing-receipt', 'missing-body', 'tampered-body', 'wrong-source', 'wrong-hash',
+    'wrong-snapshot-id', 'wrong-url', 'escaped-body-path', 'escaped-receipt', 'escaped-body',
+])
+def test_invalid_pinned_archive_cannot_fall_back_to_latest_or_trigger_a_model(history, corruption):
+    shared, manifest, _doc, root = history
+    snapshot = archived_history(history)
+    archive = shared.RESEARCH_DIR / '.library/provenance'
+    receipt = archive / 'versions' / (snapshot['snapshot_id'][5:] + '.json')
+    body = Path(snapshot['snapshot_path'])
+    if corruption == 'missing-receipt':
+        receipt.unlink()
+    elif corruption == 'missing-body':
+        body.unlink()
+    elif corruption == 'tampered-body':
+        body.write_text('A tampered archive is not evidence.')
+    elif corruption == 'escaped-receipt':
+        outside = root / 'outside.json'
+        outside.write_bytes(receipt.read_bytes())
+        receipt.unlink()
+        receipt.symlink_to(outside)
+    elif corruption == 'escaped-body':
+        outside = root / 'outside.txt'
+        outside.write_bytes(body.read_bytes())
+        body.unlink()
+        body.symlink_to(outside)
+    else:
+        record = json.loads(receipt.read_text())
+        if corruption == 'wrong-source':
+            record['source_id'] = 'src:another'
+        elif corruption == 'wrong-hash':
+            record['snapshot_sha256'] = '0' * 64
+        elif corruption == 'wrong-snapshot-id':
+            record['snapshot_id'] = 'snap:' + '0' * 64
+        elif corruption == 'wrong-url':
+            record['url'] = 'https://other.example/fields'
+        else:
+            outside = root / 'outside.txt'
+            outside.write_bytes(body.read_bytes())
+            record['snapshot_path'] = str(outside)
+        receipt.write_text(json.dumps(record))
+    (root / 'source.txt').write_text('A later available extract is not the authored snapshot.')
+    shared.lib_snapshot = lambda *args, **kwargs: pytest.fail('explicit pins must not fetch latest')
+    args, calls = install_judge(history, 'SUPPORTED')
+    assert shared.cmd_gate(args) == 1
+    assert calls == []
+    preflight = json.loads((root / manifest['gate']['attempt'] / 'preflight.json').read_text())
+    assert len(preflight['failures']) == 2
+    assert all('pinned source' in row['error'] for row in preflight['failures'])
+
+
+@pytest.mark.parametrize('location', ['claim', 'disagreement', 'conflict-position'])
+def test_one_url_cannot_merge_incompatible_authored_versions(history, location):
+    shared, manifest, doc, root = history
+    snapshot = archived_history(history)
+    old = copy.deepcopy(doc['claims'][0]['evidence'][0])
+    new = {**old, 'snapshot_sha256': '1' * 64}
+    if location == 'claim':
+        doc['claims'][1]['evidence'] = [new]
+    elif location == 'conflict-position':
+        doc['claims'][0]['conflict'] = {'status': 'attributed', 'positions': [
+            {'text': doc['claims'][0]['text'], 'evidence': [old]},
+            {'text': doc['claims'][1]['text'], 'evidence': [new]}]}
+    else:
+        doc['disagreements'] = [{'text': 'The attributed documents describe different field values.',
+            'sources': [old['url']], 'evidence': [new],
+            'conflict': {'status': 'attributed', 'positions': [
+                {'text': doc['claims'][0]['text'], 'evidence': [new]},
+                {'text': doc['claims'][1]['text'], 'evidence': [new]}]}}]
+    with pytest.raises(ValueError, match='incompatible authored source snapshots'):
+        gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
+    assert Path(snapshot['snapshot_path']).is_file()
+    assert not (root / 'attempt/evidence').exists()
+
+
 @pytest.mark.parametrize('contract', [2, 3, 4])
 def test_exact_same_contract_support_skips_all_repeat_model_calls(history, contract):
     shared, manifest, _doc, _root = history
