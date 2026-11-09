@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.154 — 2026-11-09 Skill downloads refresh
+
+Version: 0.22.154. Delta: v0.22.153 to v0.22.154; implement prompt v127 and TASK-1254.
+
+Compare published bundles with the clean current skills source. Refresh changed public-safe bundles, add ui-deep-optimizer and its guide, and display versions from each exact install bundle. Agent and eval optimizers already had guides; refresh their supporting files. Bundle shared optimizer contracts locally and adapt workspace-specific examples and sync behavior for a public install. Bundle evaluation templates and a validator; the existing evaluation runner replays expected output in live mode, so require a separately verified real executor and never claim its replay as measurement (KNOW-1258). The Codex research mirrors must be regenerated with their manifest. The full site build, Astro check, 16 site tests, 51 optimizer helper tests, local CLI install of the UI bundle, Codex mirror parity check and privacy scans passed. Public adaptation retains the current 1.1.0 llms-deep-optimizer: version 1.2.0 exists only in unrelated staged work and depends on hub-local components, tracked as KNOW-1256. Preserve that work and do not claim it was published. Delivery and production status must be read from the PR and live site; do not infer deployment from a local build.
+
 ## v0.22.153 — 2026-11-09 AdSense unit placement
 
 Version: 0.22.153. Delta: v0.22.152 to v0.22.153; implement prompt v126 and TASK-1250.

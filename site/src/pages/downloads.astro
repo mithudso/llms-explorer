@@ -18,6 +18,14 @@ const wheel = pkg?.files.find((f) => f.kind === "wheel")?.name ?? "";
 const title = "Downloads";
 const description = "Install Skills Explorer, GitHub Explorer and llmsx; download agent skills, context and facts files.";
 const skillGuides = await getCollection("skills");
+// The install URL points to this exact checked-in bundle. Read its version, not a mirror.
+function skillVersion(name: string): string | null {
+  const path = resolve(process.cwd(), "../.claude/skills", name, "SKILL.md");
+  if (!existsSync(path)) return null;
+  const frontmatter = readFileSync(path, "utf8").split("---", 3)[1] ?? "";
+  const match = frontmatter.match(/^\s*version:\s*["']?([^\s"']+)/m);
+  return match?.[1] ?? null;
+}
 
 // What each surface is TODAY, not at GA. Neither package is published to a
 // registry yet, and writing `pip install llmsx` here would be a lie the first
@@ -41,6 +49,7 @@ const SKILLS = [
   ["code-deep-optimizer", "/skills/code-deep-optimizer/", "audit and fix source files or a repo"],
   ["deep-query-optimizer", "/skills/deep-query-optimizer/", "tune a SQL query against its EXPLAIN plan"],
   ["deep-mongodb-mql-query-optimizer", "/skills/deep-mongodb-mql-query-optimizer/", "tune a MongoDB query or pipeline"],
+  ["ui-deep-optimizer", "/skills/ui-deep-optimizer/", "audit and improve interface workflows and accessibility"],
   ["design-deep-optimizer", "/skills/design-deep-optimizer/", "critique and fix a UI or graphic design"],
   ["deep-strategy-optimizer", "/skills/deep-strategy-optimizer/", "audit a trading strategy and its backtest"],
   ["artifact-to-procedure", "/skills/artifact-to-procedure/", "turn finished work into a reusable procedure"],
@@ -104,7 +113,7 @@ llmsx explorer        # clones the concept tree on first run`}</code></pre>
   <h2>More downloads</h2>
   <p>
     Alongside Skills Explorer and GitHub Explorer, four things are installable from this project: the <strong>agent skills</strong>, which
-    are prompts an agent loads and needs no runtime; <strong><code>llmsx</code></strong>, a
+    are instructions an agent loads, sometimes with supporting tools; <strong><code>llmsx</code></strong>, a
     Python library and CLI for the llms.txt standard; <strong><code>llmsx-skills</code></strong>,
     the same reading surface for JavaScript; and the <strong>terminal browser</strong> over the
     concept tree, which today ships inside <code>llmsx</code> rather than as its own binary.
@@ -114,8 +123,9 @@ llmsx explorer        # clones the concept tree on first run`}</code></pre>
   <p>
     Installed with the <a href="https://github.com/vercel-labs/skills"><code>skills</code></a>
     CLI, which reads them straight out of this repository — there is no tarball to download and
-    nothing to build. Each skill is a single <code>SKILL.md</code>; installing one copies that
-    file into your agent's skills directory.
+    nothing to build. Each bundle includes a <code>SKILL.md</code> and may include supporting
+    references, scripts and evaluation fixtures. The version shown comes from that bundle.
+    Public bundles adapt environment-specific paths; some workflows require additional tools or skills.
   </p>
   <pre><code>{`# one skill, into the current project
 npx skills add https://github.com/mithudso/llms-explorer/tree/main/.claude/skills/crawl-repo-to-llms --skill crawl-repo-to-llms
@@ -134,7 +144,7 @@ npx skills add mithudso/llms-explorer --list`}</code></pre>
     <tbody>
       {SKILLS.map(([name, href, note]) => (
         <tr>
-          <td><a href={href}><code>{name}</code></a></td>
+          <td><a href={href}><code>{name}</code></a><br /><span class="root-count">{skillVersion(name) ? `v${skillVersion(name)}` : "Version unavailable"}</span></td>
           <td>{note}</td>
         </tr>
       ))}

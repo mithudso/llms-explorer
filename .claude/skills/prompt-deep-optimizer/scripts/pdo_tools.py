@@ -13,10 +13,12 @@ Subcommands
   scan       flag apparent secrets/PII so Step 4 redaction is not eyeballed
   backup     copy a target aside before a --write run (--iter N: per-iteration copy)
   selfcheck  validate a run manifest (Step 6f)
+  examples   validate primary-task coverage and example-count plans
 """
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import pathlib
 import re
@@ -45,7 +47,7 @@ VALID_EVIDENCE = {"EXECUTED", "ISOLATED", "SIMULATED", "N/A"}  # N/A = gate did 
 REQUIRED_SECTIONS = list(range(1, 9))    # 1-8
 OPTIONAL_SECTIONS = [9, 10, 11, 12]
 # Central backup root shared with every optimizer in the family (canonical
-# contract: ~/.claude/skill-consolidation/convergence-and-severity.md,
+# contract: references/shared/convergence-and-severity.md,
 # "Pre-write snapshot & rollback"). Never a sibling <path>.bak file.
 BACKUP_ROOT = pathlib.Path.home() / ".claude" / "skill-consolidation" / "backups"
 
@@ -89,6 +91,60 @@ def _read(path: str) -> str:
 def est_tokens(text: str) -> int:
     """The skill's own estimator: ~1 token per 4 chars. Stated once, here."""
     return -(-len(text) // 4)  # ceil
+
+
+def example_plan_errors(plan):
+    """Check declared example roles; this cannot judge the example's actual meaning."""
+    if not isinstance(plan, dict) or plan.get('task_kind') not in {'authoring', 'other'}:
+        return ['declare task_kind as authoring or other']
+    rows = plan.get('examples')
+    if not isinstance(rows, list) or not rows:
+        return ['examples must be a nonempty list']
+    if any(not isinstance(row, dict) for row in rows):
+        return ['each example must be an object']
+    errors = []
+    classes = []
+    primary = []
+    for row in rows:
+        if row.get('role') not in {'primary', 'edge'}:
+            errors.append('each example needs primary or edge role')
+        if not isinstance(row.get('input_class'), str) or not row['input_class'].strip():
+            errors.append('each example needs an input_class')
+        else:
+            classes.append(row['input_class'].strip().casefold())
+        if row.get('role') == 'primary':
+            primary.append(row)
+        if not isinstance(row.get('summary'), str) or not row['summary'].strip():
+            errors.append('each example needs a coverage summary')
+    if len(primary) != 1:
+        errors.append('plan exactly one end-to-end primary-task example')
+    if plan['task_kind'] == 'authoring' and any(row.get('covers') != 'authoring' for row in primary):
+        errors.append('authoring primary example must cover authoring, not downstream runtime')
+    if len(classes) != len(set(classes)):
+        errors.append('duplicate input classes: replace or merge redundant examples')
+    if any(row.get('role') != 'edge' for row in rows[3:]):
+        errors.append('examples beyond three must cover distinct edge cases')
+    return errors
+
+
+def cmd_examples(a):
+    try:
+        errors = example_plan_errors(json.loads(_read(a.plan)))
+    except (OSError, ValueError) as exc:
+        errors = [str(exc)]
+    print(json.dumps({'valid': not errors, 'errors': errors, 'evidence': 'EXECUTED'}, indent=2))
+    return 0 if not errors else 2
+
+
+def acceptance_errors(value, base):
+    module_path = pathlib.Path(__file__).resolve().parent / 'evidence_gate.py'
+    try:
+        spec = importlib.util.spec_from_file_location('optimizer_evidence_gate', module_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.validate(value, pathlib.Path(base))
+    except (OSError, ImportError, AttributeError, TypeError) as exc:
+        return ['shared evidence gate unavailable: ' + str(exc)]
 
 
 # --------------------------------------------------------------------------- tokens
@@ -256,8 +312,8 @@ def cmd_selfcheck(a) -> int:
 
     # 3 — a CLEAN exit must actually be clean
     fin = m.get("final") or {}
-    if status == "CLEAN" and any(fin.get(k, 0) for k in ("critical", "high", "medium")):
-        failed.append(f"status CLEAN contradicts final counts {fin}")
+    if status in {'CLEAN', 'NO_CHANGE'} and any(type(fin.get(k)) is not int or fin[k] != 0 for k in ("critical", "high", "medium")):
+        failed.append(f"status {status} requires explicit integer zero final critical/high/medium counts; got {fin}")
 
     # 4 — every gate carries a valid evidence grade
     ev = m.get("evidence") or {}
@@ -266,6 +322,14 @@ def cmd_selfcheck(a) -> int:
     for gate, grade in ev.items():
         if grade not in VALID_EVIDENCE:
             failed.append(f"evidence[{gate}]: {grade!r} not in {sorted(VALID_EVIDENCE)}")
+    if status in {'CLEAN', 'NO_CHANGE'}:
+        verification_errors = []
+        if ev.get('6a0') != 'ISOLATED':
+            verification_errors.append('clean outcomes require an ISOLATED final review')
+        verification_errors.extend(example_plan_errors(m.get('example_plan')))
+        verification_errors.extend(acceptance_errors(m.get('acceptance'), pathlib.Path(a.manifest).parent))
+        if verification_errors:
+            failed.append('acceptance/example_plan: ' + '; '.join(verification_errors))
 
     # 5 — active pass count is within the catalogue, and when the manifest
     #     lists the N/A passes, active + skipped must account for all 16
@@ -280,8 +344,8 @@ def cmd_selfcheck(a) -> int:
         failed.append("wrote_target: true but no backup_path recorded")
 
     # 7 — a CLEAN exit cannot carry unresolved BLOCKED rows
-    if status == "CLEAN" and m.get("blocked_rows"):
-        failed.append(f"status CLEAN with {m['blocked_rows']} BLOCKED row(s)")
+    if status in {'CLEAN', 'NO_CHANGE'} and m.get("blocked_rows"):
+        failed.append(f"status {status} with {m['blocked_rows']} BLOCKED row(s)")
 
     # 8 — profile must be declared, per the Step 6b Summary-line contract
     if m.get("profile") not in ("small", "standard"):
@@ -330,6 +394,10 @@ def main() -> int:
     c = sub.add_parser("selfcheck", help="validate a run manifest")
     c.add_argument("--manifest", required=True)
     c.set_defaults(fn=cmd_selfcheck)
+
+    x = sub.add_parser('examples', help='validate a primary-task example coverage plan')
+    x.add_argument('--plan', required=True)
+    x.set_defaults(fn=cmd_examples)
 
     a = ap.parse_args()
     return a.fn(a)

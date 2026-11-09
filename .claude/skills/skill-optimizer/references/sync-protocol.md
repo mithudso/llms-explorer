@@ -25,7 +25,7 @@ Before Step 7's rebuild, confirm the copy you edited is the one that will be ind
 done
 ```
 
-Two lines with the **same real path** are one file, not a twin. Two hits with different real paths and different hashes ⇒ Step 1's duplicate guard should already have filed this **High**. Do not overwrite the twin. Hand reconciliation to `skill-tree-architect`, report the winning root, and withhold a clean routing verdict while that copy differs from the canonical target. Observed live 2026-09-09 on this skill: two rebuilds, exit 0 both times, description unchanged in the index, because a v2.16.1 twin in the hub root was shadowing the edited v2.17.0 file.
+Two lines with the **same real path** are one file, not a twin. Two hits with different real paths and different hashes ⇒ Step 1's duplicate guard should already have filed this **High**. Do not overwrite the twin by hand. Report the winning root and withhold a clean routing verdict until Step 6.7 (`references/location-sync.md`) makes that copy identical to the canonical target. Step 6.7 syncs content; deleting a twin stays with `skill-tree-architect`. Observed live 2026-09-09 on this skill: two rebuilds, exit 0 both times, description unchanged in the index, because a v2.16.1 twin in the hub root was shadowing the edited v2.17.0 file.
 | Rebuild | `cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router build --prune` |
 | Read | `hub_route(task, kinds="skill", top=N)` — returns `score`, `ref`, `description`, `origin` |
 | Read (CLI, MCP not connected) | `PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router route "<task>" --top 5 --kinds skill` |

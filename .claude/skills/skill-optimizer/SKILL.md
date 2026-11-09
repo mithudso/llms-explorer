@@ -1,9 +1,9 @@
 ---
 name: skill-optimizer
 description: >-
-  Audit and improve a Claude Code skill to production quality: runs a convergence-loop quality gate, writes Medium+ fixes, adds missing evals, seeds peer-deferral edges, verifies, and rebuilds the local hub registry index.
-  TRIGGER: "optimize skill", "audit skill", "run sko", "skill trigger accuracy", "skill too long", "fix skill", "skill collision check", "check my /command wrapper for drift", "add missing evals". `--meta` does wiring/registry/validation only: "register skill to the hub", "validate placement/folder/manifest", "fix skill naming", "wire up peer deferral edges", "run sko --meta". `--read-only` audits without writing.
-  SKIP: non-skill prompt files → prompt-deep-optimizer / phe; new skill from scratch → skill-creator; prose-only edits → writing-expert; deep eval suite optimization → deep-eval-optimizer / deo; deep MCP tool audits → ai-mcp-sdk-prompting (references/mcp-tool-search-optimizer.md); whole-TREE rebalance → skill-tree-architect; freshness/currency → skill-refresher.
+  Audit and improve a Claude Code skill to production quality: convergence-loop quality gate, Medium+ fixes, trigger and behavior evals on every run (missing ones created), peer-deferral edges, sync of every copy to the accessed one, hub registry rebuild.
+  TRIGGER: "optimize skill", "audit skill", "run sko", "skill trigger accuracy", "skill too long", "fix skill", "skill collision check", "check my /command wrapper for drift", "add missing evals", "sync skill copies". `--meta` does wiring/registry/validation only: "register skill to the hub", "validate placement/folder/manifest", "wire up peer deferral edges". `--read-only` audits without writing.
+  SKIP: non-skill prompt files → prompt-deep-optimizer / phe; new skill from scratch → skill-creator; prose-only edits → writing-expert; deep eval suite optimization → deep-eval-optimizer / deo; MCP tool audits → ai-mcp-sdk-prompting; whole-TREE rebalance → skill-tree-architect; freshness → skill-refresher.
 whenToUse:
   - "optimize the <skill-name> skill"
   - "audit skill quality"
@@ -21,9 +21,11 @@ whenToUse:
   - "audit this skill but don't change anything (sko --read-only)"
   - "check whether my /command wrapper drifted from its skill"
   - "add appropriate evals to a skill missing them"
-version: 2.23.1
+  - "make every copy of this skill identical to the one Claude loads"
+  - "add the look-for-llms-files-first section to this skill"
+version: 2.24.1
 category: meta
-updated: "2026-10-15"
+updated: "2026-11-06"
 model: claude-opus-5
 effort: xhigh
 triggers:
@@ -44,6 +46,9 @@ triggers:
   - command wrapper drift
   - add missing evals
   - generate skill evals
+  - sync skill copies
+  - find every copy of a skill
+  - llms-first section
 keywords:
   - skill-optimizer
   - skill audit
@@ -52,6 +57,8 @@ keywords:
   - trigger evals
   - eval generation
   - missing evals
+  - location sync
+  - llms-first
   - manifest audit
   - cross-skill collision
   - anti-AI-isms
@@ -70,9 +77,17 @@ metadata:
 ---
 # Skill Optimizer
 
-Audit + rewrite Claude Code skill til pass measurable quality bar. Reads `SKILL.md` (or legacy `context.md` + `manifest.yaml`), runs 15 analytical passes (A–O, defined in `references/passes.md`) inside convergence loop (≤3 iterations, extendable to 5 per canonical contract; configurable via `--max-iter`), fixes all Medium+ findings (`--read-only`: reports them, writes nothing), ensures appropriate evals exist by creating missing functional test cases (`evals/evals.json`) and trigger evals (`evals/trigger-eval.json`), recommends model + effort skill run under and writes to frontmatter (Step 4.6), seeds reciprocal deferral refs into peer skills (Pass O), verifies post-write state, rebuilds hub registry index over target + touched peers.
+Audit + rewrite Claude Code skill til pass measurable quality bar. Reads `SKILL.md` (or legacy `context.md` + `manifest.yaml`), runs 16 analytical passes (A–P, defined in `references/passes.md`) inside convergence loop (≤3 iterations, extendable to 5 per canonical contract; configurable via `--max-iter`), fixes all Medium+ findings (`--read-only`: reports them, writes nothing), ensures appropriate evals exist by creating missing functional test cases (`evals/evals.json`) and trigger evals (`evals/trigger-eval.json`) and runs both every time (no eval results, no clean exit), recommends model + effort skill run under and writes to frontmatter (Step 4.6), seeds reciprocal deferral refs into peer skills (Pass O), verifies post-write state, makes every on-disk copy of the skill identical to the accessed one (Step 6.7), rebuilds hub registry index over target + touched peers.
 
 **Registry model.** The hub registry is **derived, not authored**: `~/.global-ai-hub` indexes `~/.claude/skills/*/SKILL.md` (plus its own `skills/` and the plugin cache) into `registry.db` via `semantic_ops.router build`. There is no create/update API call — you write the file, then rebuild the index. Every registry read is `hub_route` (or its CLI form); Step 7 is a rebuild, not a push.
+
+## Look for llms files first
+
+`/sko` works on a skill tree, so it reads the target's llms files before the tree. Follow `references/llms-first-section.md` (the format spec's section 5 and `llms-usage-guidance`).
+1. Look for the target's llms files: `~/.global-ai-hub/skills.llms/<name>.repo/`, its hub's `llms.txt`, and memory-central rows (`python3 ~/.global-ai-hub/scripts/keyword_index.py query "<name>" --prefix ~/.llms --top 5 --mode any --json`).
+2. Run `wc -c` first. Read a file whole only when it fits; otherwise search it. Prefer `llms-facts.txt` and `llms-sitemap.txt`; `llms-small.txt` is a map.
+3. Then read the whole skill tree (Step 1.4). The files on disk are the authority: verify every llms fact against its `path:line` before you act on it.
+4. Index hits are leads. Confirm each with Read.
 
 ## When not to use
 
@@ -101,14 +116,14 @@ Full flag catalog + exit-status vocab live in `references/flags-and-statuses.md`
 
 ### When driven by outer loop
 
-Orchestrating agent (e.g., convergence-loop-runner) owns iteration? Invoke skill with `--max-iter=1 --no-sync` per outer iteration (outer loop owns convergence + remediation), one hub sync after outer loop's own convergence, not per iteration.
+Orchestrating agent (e.g., convergence-loop-runner) owns iteration? Invoke skill with `--max-iter=1 --no-sync` per outer iteration (outer loop owns convergence + remediation), one hub sync after outer loop's own convergence, not per iteration. These inner calls keep Pass H at `predicted`; pass `--eval=measured` on the last outer call to get measured trigger rates.
 
 ## Structural-only mode (`--meta`)
 
 `/sko <target> --meta` (aliases `--structural`, `--meta-only`, `--structural-only`) runs only wiring/registry/validation work, skips content-quality passes, for hub-consolidation cleanup, post-move/rename fixes, pre-sync checks, not prose review. **Orchestrates** `~/.claude/skill-consolidation/` scripts, fills gaps via `meta-validate.mjs`; doesn't reimplement them.
 
-- **Runs:** A′ (reference resolvability only), G, I, L, N, O, Step 4.6, the Step 2 offline pre-lint, the read-only tool-search discoverability check, Steps 6, 7, 7.7, 7.8, plus the deterministic gap-lints in `~/.claude/skill-consolidation/meta-validate.mjs`. The runs-vs-skips table and the lint list live in `references/structural-mode.md`. Step 7.6 is a no-op in every mode.
-- **Skips:** A (content contradictions), B, C, D, E, F, J, K. Pass H (trigger eval) opt-in via `--meta --eval`; Pass M (description rewrite) via `--meta --rewrite-desc`.
+- **Runs:** A′ (reference resolvability only), G, I, L, N, O, Step 1.7, Step 6.3 (cheapest level), Step 6.7, Step 4.6, the Step 2 offline pre-lint, the read-only tool-search discoverability check, Steps 6, 7, 7.7, 7.8, plus the deterministic gap-lints in `~/.claude/skill-consolidation/meta-validate.mjs`. The runs-vs-skips table and the lint list live in `references/structural-mode.md`. Step 7.6 is a no-op in every mode.
+- **Skips:** A (content contradictions), B, C, D, E, F, J, K, P. Pass H (trigger eval) opt-in via `--meta --eval`; Pass M (description rewrite) via `--meta --rewrite-desc`.
 - **Still registers.** Step 7 runs in `--meta` and is not a dry run; write suppressed only when `--no-sync` passed or run exited w/ High findings remaining (override: `--sync-anyway`).
 - **Resolvability not dropped.** A′ + N + O + dangling-row lint together guarantee every reference, `SKIP:` target, routing-table row, seeded `→ <id>` edge resolves to real skill or hub spoke.
 
@@ -116,7 +131,7 @@ Full orchestration sequence, `meta-validate.mjs` check list, tool-search check, 
 
 ## Process
 
-**Pipeline:** 1 locate + wrapper resolution + duplicate guard → 2 snapshot + eval corpus + missing evals audit + offline pre-lint → 3–5 convergence loop (passes → triage → 4.6 model/effort → writes + eval generation) → 6 verify + blind re-audit → 6.5 cross-model (opt-in) → 7 registry rebuild + routing verify → 7.5 compress (opt-in) → 7.6 prose index (no action) → 7.7 catalog-index refresh → 7.8 degraded-run tally → 8 report.
+**Pipeline:** 1 locate + wrapper resolution + duplicate guard + 1.7 index discovery → 2 snapshot + eval corpus + missing evals audit + offline pre-lint → 3–5 convergence loop (passes → triage → 4.6 model/effort → writes + eval generation) → 6 verify + blind re-audit → 6.3 eval gate → 6.5 cross-model (opt-in) → 6.7 location sync → 7 registry rebuild + routing verify → 7.5 compress (opt-in) → 7.6 prose index (no action) → 7.7 catalog-index refresh → 7.8 degraded-run tally → 8 report.
 
 ### Step 1 — Locate skill
 
@@ -124,9 +139,9 @@ Full orchestration sequence, `meta-validate.mjs` check list, tool-search check, 
 2. Claude Code skill path given (`~/.claude/skills/<name>/SKILL.md`)? Treat single file as both context + manifest (frontmatter is manifest).
 3. Legacy `context.md` / `manifest.yaml` path given? Derive its companion and optimize the pair. Note in Step 8 that this format is **not indexed**: the router globs `*/SKILL.md` only, so Step 7's rebuild will not surface it.
 4. Read all files in full before any analysis. Only one file readable (e.g., `manifest.yaml` absent)? Proceed w/ available file, note missing companion in Step 8 report.
-5. **Duplicate-copy guard (High).** Before any analysis, list every copy of the target on disk with the command in `references/sync-protocol.md` § Duplicate-copy guard: it deduplicates by real path (a symlinked root such as `~/.claude/skills → ~/.global-ai-hub/skills` yields two paths to one file, not a twin), prunes git worktrees, run backups, and the eval shadow dir, and covers the plugin cache. One real path ⇒ clean. More? Compare their `version` values and report a **High** finding naming every path and version. Optimize the canonical copy (`~/.claude/skills/<id>/SKILL.md`) only; never edit a twin, never merge them. Reconciling or deleting duplicate copies is `skill-tree-architect`'s job, not this skill's; this step exists so a run cannot silently optimize one of several copies and report clean. Extra copies differ in kind:
+5. **Duplicate-copy guard (High).** Before any analysis, list every copy of the target on disk with the command in `references/sync-protocol.md` § Duplicate-copy guard: it deduplicates by real path (a symlinked root such as `~/.claude/skills → ~/.global-ai-hub/skills` yields two paths to one file, not a twin), prunes git worktrees, run backups, and the eval shadow dir, and covers the plugin cache. One real path ⇒ clean. More? Compare their `version` values and report a **High** finding naming every path and version. Optimize the canonical copy (`~/.claude/skills/<id>/SKILL.md`) only; never edit a twin, never merge them. Step 6.7 makes the other copies identical to the canonical one (`references/location-sync.md`); deleting a copy stays with `skill-tree-architect`. This step exists so a run cannot silently optimize one of several copies and report clean. Extra copies differ in kind:
 
-   - **A top-level twin in another indexed root** (a real `~/.global-ai-hub/skills/<id>/` directory, or the plugin cache) competes in the registry: roots are searched hub → `~/.claude/skills` → plugin cache and the first `name` wins, so no amount of rebuilding registers an edit to the shadowed copy. Report the winning root and hand reconciliation to `skill-tree-architect`; do not overwrite the twin. Step 7 records the shadowing and withholds a clean routing verdict while the winning copy differs. See `references/sync-protocol.md` § The shadowing trap.
+   - **A top-level twin in another indexed root** (a real `~/.global-ai-hub/skills/<id>/` directory, or the plugin cache) competes in the registry: roots are searched hub → `~/.claude/skills` → plugin cache and the first `name` wins, so no amount of rebuilding registers an edit to the shadowed copy. Report the winning root; Step 6.7 syncs the twin from canonical with a backup. Do not hand-edit it. Step 7 records the shadowing and withholds a clean routing verdict while the winning copy differs. See `references/sync-protocol.md` § The shadowing trap.
    - **A nested `<bucket>/<id>/SKILL.md`** is invisible to both the router (one-level glob) and the Claude Code loader, so it is stale-staging risk rather than live competition. Report, do not panic.
 6. **Registry unavailable fallback.** `global_ai_hub` MCP not connected? Use the CLI for every registry read:
 
@@ -136,6 +151,8 @@ Full orchestration sequence, `meta-validate.mjs` check list, tool-search check, 
 
    `registry.db` absent entirely? Registry-dependent checks in Passes A/G/I/N/O fall back to `~/.claude/skill-consolidation/SKILLS-INDEX.json` plus the current available-skills listing; record the degradation per Step 8's degraded-run rule.
 
+7. **Index discovery (Step 1.7).** Query the semantic and the keyword index for related and colliding skills, every file that mentions the skill, and every copy, per `references/index-discovery.md`. Fall back to the `search.py` / `keyword_index.py` / `router route` CLIs when the MCP server is unreachable. Index hits are leads; confirm each with Read or `shasum`. The result feeds Pass I, Pass G/N/O and Step 6.7.
+
 ### Step 2 — Establish baseline snapshot
 
 **Read-only gate.** Under `--read-only`, keep baseline hashes, corpus selections, findings and proposed hunks in memory. Do not create snapshots, checkpoints, eval projections, telemetry, or command stubs; do not move the installed skill. Pass H uses predictions. Skip the offline pre-lint if it cannot run without writes. This gate takes precedence over the write-mode instructions below.
@@ -143,7 +160,7 @@ Full orchestration sequence, `meta-validate.mjs` check list, tool-search check, 
 Before any rewrite:
 
 1. Record `wc -l` for `SKILL.md` (or `context.md`) + `manifest.yaml`.
-2. Compute SHA-256 of each file, store as `baseline.sha256`; alongside, persist pre-write copy of every file run will modify to `~/.claude/skill-consolidation/backups/<skill>-<YYYYMMDD-HHMMSS>/<filename>` (contract's pre-write snapshot guardrail — central directory, never sibling `.bak` files). Persisted copy makes Step 8's `diff -u baseline current` preview computable, is rollback source. Same run directory holds streaming-checkpoint stub (§ Guardrails, "Streaming checkpoint" in `~/.claude/skill-consolidation/convergence-and-severity.md`) — appended after each pass bundle + each iteration's writes, so crash resumes from last completed step instead of re-running Step 3 from scratch; cite that section for write mechanics.
+2. Compute SHA-256 of each file, store as `baseline.sha256`; alongside, persist pre-write copy of every file run will modify to `~/.claude/skill-consolidation/backups/<skill>-<YYYYMMDD-HHMMSS>/<filename>` (contract's pre-write snapshot guardrail — central directory, never sibling `.bak` files). Persisted copy makes Step 8's `diff -u baseline current` preview computable, is rollback source. Same run directory holds streaming-checkpoint stub (§ Guardrails, "Streaming checkpoint" in `references/shared/convergence-and-severity.md`) — appended after each pass bundle + each iteration's writes, so crash resumes from last completed step instead of re-running Step 3 from scratch; cite that section for write mechanics.
 3. **Assemble eval suite & audit missing evals.**
    - **Functional execution evals (`evals/evals.json`):** Check if `<skill-dir>/evals/evals.json` exists. If absent or lacking test cases, flag a **Medium** finding (Pass F) to generate appropriate evals: author at least 2–3 realistic test cases with `id`, `name`, realistic user `prompt`, `expected_output`, `files` (if any), and objectively verifiable `assertions` conforming to standard skill eval schema.
    - **Trigger-accuracy evals (`evals/trigger-eval.json` / canonical corpus):** Assemble Pass H trigger-eval set per `references/passes.md` (Pass H, step 1). **Canonical corpus** is `~/.claude/skill-consolidation/evals/<skill-id>.eval.jsonl`, the single store of record, carrying every query, verdict, description hash, skill version, and `retired:` marker. Replay it when it exists, fill to the 20-query set w/ fresh queries, persist every query + verdict back to it. If missing, generate the full 20-query set (10 should-trigger, 10 should-not-trigger near-misses). The target's own `<skill-dir>/evals/trigger-eval.json` is a **derived, disposable projection** of that corpus, regenerated from it when missing evals are created or before Pass H runs the measured harness (`run_eval` requires that exact path + shape) — never hand-edited, never read as the source of truth. Disagreement between the two? Canonical wins; overwrite the projection.
@@ -153,14 +170,14 @@ Snapshot used in Step 5 to produce unified diff.
 
 ### Step 3 — Run analytical passes (convergence loop)
 
-15 passes run as four concurrent bundles in a single tool-call batch: **B1** {A–F} content, **B2** {G, M, N} routing surface, **B3** {H} trigger eval, **B4** {I, J, K, L}. **Pass O runs after B2 and B4 return.** No agent tool? Run sequentially.
+16 passes run as four concurrent bundles in a single tool-call batch: **B1** {A–F, P} content, **B2** {G, M, N} routing surface, **B3** {H} trigger eval, **B4** {I, J, K, L}. **Pass O runs after B2 and B4 return.** No agent tool? Run sequentially.
 
 Two rules are load-bearing enough to state here:
 
 - **Collect all findings before writing any changes**, so one pass's rewrite cannot invalidate another pass's findings.
-- **Steps 3, 4, 5 are the loop.** Exit conditions, severity ladder, and guardrails are imported by reference from `~/.claude/skill-consolidation/convergence-and-severity.md`. Cite that file; never restate or silently diverge from it. Cap is 3 iterations, raised to 5 only if Medium+ findings dropped by at least 50% in the prior iteration, and `--max-iter` is a hard ceiling that raise never exceeds.
+- **Steps 3, 4, 5 are the loop.** Exit conditions, severity ladder, and guardrails are imported by reference from `references/shared/convergence-and-severity.md`. Cite that file; never restate or silently diverge from it. Cap is 3 iterations, raised to 5 only if Medium+ findings dropped by at least 50% in the prior iteration, and `--max-iter` is a hard ceiling that raise never exceeds.
 
-Bundle map, the Pass index (A–O), artifact-size profiles, composed-artifact handling, the full loop boundary, and the guardrail set live in `references/convergence-loop.md`. Read it before dispatching. Per-pass checks live in `references/passes.md`.
+Bundle map, the Pass index (A–P), artifact-size profiles, composed-artifact handling, the full loop boundary, and the guardrail set live in `references/convergence-loop.md`. Read it before dispatching. Per-pass checks live in `references/passes.md`.
 
 ### Step 4 — Triage + conflict resolution
 
@@ -172,7 +189,7 @@ Score each finding by impact:
 | Medium | Reduces clarity, causes inconsistent output, missing or deficient evals (`evals/evals.json` functional test cases or Pass H trigger queries missing), or any finding w/ measurable impact, where measurable means the finding names specific trigger-eval query, routing edge, or output defect changes (calibrate against contract's "Anchored examples" appendix) | Always fix |
 | Low | Subjective polish, cosmetic, taste-level preference | Skip |
 
-These tiers = this skill's calibration of canonical model in `~/.claude/skill-consolidation/convergence-and-severity.md` (shared w/ prompt-deep-optimizer, ddo, document-critique); keep consistent w/ it. This skill folds Critical into High by design — see that file's mapping table. Pass-local severity rules take precedence where defined: Pass L's deterministic hygiene severities (+ YAML-tab High exception), Pass O's Medium/Low edge rule, Pass H's threshold-miss Medium stand as written.
+These tiers = this skill's calibration of canonical model in `references/shared/convergence-and-severity.md` (shared w/ prompt-deep-optimizer, ddo, document-critique); keep consistent w/ it. This skill folds Critical into High by design — see that file's mapping table. Pass-local severity rules take precedence where defined: Pass L's deterministic hygiene severities (+ YAML-tab High exception), Pass O's Medium/Low edge rule, Pass H's threshold-miss Medium stand as written.
 
 Voice preservation handled by Constraints section; not reason to skip Medium finding.
 
@@ -225,9 +242,17 @@ After Step 5's writes:
 5. Claude Code skill? Confirm frontmatter still parses under a strict YAML parser: js-yaml when `node -e "require('js-yaml')"` succeeds, else PyYAML `yaml.safe_load` (both reject an unquoted `X:` inside a single-line scalar; record which ran). Same check on every wrapper edited. Parse failure? Fix via item-3 loop-back first. The usual cause is an unquoted `: ` inside a value: quote the scalar or reword it to drop the colon. Then re-scan every touched key, especially the `TRIGGER:`/`SKIP:` clauses in `description`, and hold Step 7 until the frontmatter parses; auto-restore from Step 2 snapshot only if frontmatter still fails to parse once loop budget exhausted, report restore as run outcome — never silently.
 6. Every peer file Pass O edited: re-read it; confirm frontmatter still parses under the item-5 strict YAML parser (Pass M's Glean requirement); confirm `description` still ≤ 1000 chars — seed pushed it over? apply Pass M's relocation fallback on peer instead; confirm only additive deferral line + version/`updated` bump added (purpose/description lead clause unchanged); confirm seeded edge didn't introduce mutual-hard-SKIP cycle.
 
+### Step 6.3 — Eval gate (every run)
+
+Evals are part of every run, including `--meta` and `--read-only`. Ensure `evals/evals.json` and `evals/trigger-eval.json` exist (created in Step 5; `--meta` and `--read-only` report a missing file as proposed instead), run the trigger eval (Pass H) and the behavior evals at the cheapest level the skill supports, and put both pass rates in the report. A deeper `deep-eval-optimizer` run is a follow-up after `/sko` exits, never part of the run. No eval results means exit `EVALS-MISSING`, never `converged`. Mechanics and levels: `references/eval-gate.md`.
+
 ### Step 6.5 — Cross-model exit gate (optional)
 
-Only when caller passed `--cross-model` (default off): run shared gate procedure in `~/.claude/skill-consolidation/cross-model-gate.md`: availability check, confidentiality preconditions, one different-model-family review of final artifact, severity-ladder triage, at most one extra loop iteration. Cross-model finding triaged High holds Step 7 sync, reported as sync-blocking residual. Without flag, skip step.
+Only when caller passed `--cross-model` (default off): run shared gate procedure in `references/shared/cross-model-gate.md`: availability check, confidentiality preconditions, one different-model-family review of final artifact, severity-ladder triage, at most one extra loop iteration. Cross-model finding triaged High holds Step 7 sync, reported as sync-blocking residual. Without flag, skip step.
+
+### Step 6.7 — Location sync
+
+Discover and hash installed copies; treat the explicitly selected source as canonical only after checking the user's intent and repository instructions. Preserve divergent, newer, vendored, plugin-managed and remote copies. Sync only when authorized, after a preimage and ownership check; otherwise report the differences. See `references/location-sync.md`. Report SYNC-PARTIAL when a required sync is blocked.
 
 ### Step 7 — Rebuild hub registry index
 
@@ -254,7 +279,7 @@ Emit report sections in exact order + shape defined in `references/report-format
 
 ## Empirical mode — champion–challenger held-out loop
 
-Gated champion–challenger promotion around Pass H (on by default when eval corpus + must-pass invariants present; opt out w/ `--dry-run`/`--no-promote`/`--structural-only`; `--read-only` implies `--dry-run`) defined in `references/empirical-mode.md`, citing shared contract `~/.claude/skill-consolidation/champion-challenger.md`. Read when eval corpus exists for target.
+Gated champion–challenger promotion around Pass H (on by default when eval corpus + must-pass invariants present; opt out w/ `--dry-run`/`--no-promote`/`--structural-only`; `--read-only` implies `--dry-run`) defined in `references/empirical-mode.md`, citing shared contract `references/shared/champion-challenger.md`. Read when eval corpus exists for target.
 
 ## Constraints
 
@@ -263,7 +288,7 @@ Gated champion–challenger promotion around Pass H (on by default when eval cor
 - Preserve existing keywords in manifest unless factually wrong.
 - Don't embed user-specific absolute paths (`/Users/<username>/...`) in skill instructions; use repo-root-relative references.
 - Never hand-edit `registry.db` or any index artifact. The index is derived: write the skill file, then rebuild via `semantic_ops.router build`. An index edited directly is overwritten by the next rebuild and lies until then.
-- Only Pass O may edit skill other than target, only under peer-write rail (`references/passes.md`, Pass O); every other pass writes solely to target (its `SKILL.md`, `references/`, and any `~/.claude/commands/` wrapper resolved in Step 1).
+- Only Pass O may edit skill other than target, only under peer-write rail (`references/passes.md`, Pass O); every other pass writes solely to target (its `SKILL.md`, `references/`, and any `~/.claude/commands/` wrapper resolved in Step 1). Step 6.7 is the one other writer: it overwrites copies of the target with the verified canonical, only after a backup.
 
 ## Quality bar
 
@@ -289,8 +314,11 @@ Skill passes quality bar when:
 - Step 1's duplicate-copy guard found exactly one copy of the target on disk, or reported every extra copy as a High finding
 - Target skill has appropriate evals: `<skill-dir>/evals/evals.json` exists with at least 2–3 realistic test cases and verifiable assertions, and Pass H trigger evals (`<skill-dir>/evals/trigger-eval.json` / canonical corpus) are assembled and verified
 - Step 2's offline pre-lint reports no unresolved critical or high finding (a false positive is recorded with its reason, not ignored)
+- Step 6.3 reported trigger and behavior eval pass rates with their levels; the run did not exit `EVALS-MISSING`
+- Step 6.7 printed the location table and every non-blocked copy equals canonical (no `SYNC-PARTIAL`); newer losing copies were listed with their backup paths
+- Pass P found the llms-first section present, added it, or recorded `n/a (<reason>)`
 - Run did not exit `DEGRADED` (Step 7.8): fewer than two post-sync outcomes failed to land
 
 ## Meta-optimization note
 
-Target's skill-optimizer itself? Step 5 writes alter instructions subsequent loop iterations would read. Step 3's "collect all findings before writing" rule makes this safe within single iteration. Across iterations, loop intentionally re-reads rewritten skill; this = convergence behavior, not bug. **Frozen pass definitions:** run's own pass definitions live in file being rewritten (target = skill-optimizer itself, its `references/`, or shared `~/.claude/skill-consolidation/convergence-and-severity.md`)? Pass list, severity rubric, exit conditions frozen at Step 2 baseline snapshot for entire run; rewrite changing pass list takes effect only on NEXT run. Findings still recomputed each iteration against current file state; only evaluation procedure frozen. Freeze doesn't extend to sibling-optimizer targets generally; optimizing prompt-deep-optimizer never edits this skill's rubric mid-run, since Pass O peer writes additive-only.
+Target's skill-optimizer itself? Step 5 writes alter instructions subsequent loop iterations would read. Step 3's "collect all findings before writing" rule makes this safe within single iteration. Across iterations, loop intentionally re-reads rewritten skill; this = convergence behavior, not bug. **Frozen pass definitions:** run's own pass definitions live in file being rewritten (target = skill-optimizer itself, its `references/`, or shared `references/shared/convergence-and-severity.md`)? Pass list, severity rubric, exit conditions frozen at Step 2 baseline snapshot for entire run; rewrite changing pass list takes effect only on NEXT run. Findings still recomputed each iteration against current file state; only evaluation procedure frozen. Freeze doesn't extend to sibling-optimizer targets generally; optimizing prompt-deep-optimizer never edits this skill's rubric mid-run, since Pass O peer writes additive-only.

@@ -8,7 +8,7 @@ aliasCommand: "/deo"
 
 A skill is only as trustworthy as its evals. `deep-eval-optimizer` grades an existing eval suite across twelve passes (A–L): are the prompts realistic, do the assertions actually discriminate, do the negative cases sit close enough to the boundary to catch false triggers, and do the fixtures match what the skill reads.
 
-It fixes Medium-or-higher findings in place, generates evals for skills that have none, and can execute the suite with `--run` to report real pass rates instead of guesses.
+It fixes Medium-or-higher findings in place, generates evals for skills that have none, and can use `--run` with a separately configured real executor. If one is unavailable, it reports that limit instead of presenting simulated results as measured pass rates.
 
 **Use it for:** "audit this skill's evals", "create evals for this skill", "my trigger accuracy is suspiciously perfect".
 

@@ -1,17 +1,14 @@
 ---
 description: >-
-  Used-car and salvage-auction buying hub: Copart and IAAI auction mechanics, AutoBidMaster
-  and other bidding brokers for buyers without a dealer license, reading a listing's
-  title-status/damage/odometer fields, bidding strategy and fees, individual-buyer best
-  practices, salvage/clean-title vehicle valuation, repair-cost estimation from listing
-  photos, common newbie mistakes, picking a genuinely best-value used car, and low-cost
-  alternatives to salvage auctions (dealer wholesale auctions, private-party, CPO, credit-
-  union buying programs). TRIGGER: "how do I buy a car at Copart/IAAI", "is AutoBidMaster
-  worth it", "what does Run and Drive mean", "how much should I bid on this salvage title",
-  "how much will this car cost to repair", "what's a salvage brand going to cost me at
-  resale", "best value used car", "cheaper ways to buy a used car than an auction",
-  "mistakes to avoid buying a salvage car". SKIP: new-car financing/loans/leasing → belongs
-  to a personal-finance skill, not this one; general auto repair/maintenance procedures
+  Used-car and salvage-auction buying hub: Copart and IAAI auction mechanics, AutoBidMaster and
+  other bidding brokers for buyers without a dealer license, reading a listing's
+  title-status/damage/odometer fields, bidding strategy and fees, salvage-title valuation,
+  repair-cost estimation from listing photos, newbie mistakes, picking a best-value used car, and
+  alternatives to salvage auctions (dealer wholesale auctions, private-party, CPO). TRIGGER: "how
+  do I buy a car at Copart/IAAI", "is AutoBidMaster worth it", "what does Run and Drive mean",
+  "how much should I bid on this salvage title", "how much will this car cost to repair", "best
+  value used car", "mistakes to avoid buying a salvage car". SKIP: new-car financing/loans/leasing
+  → belongs to a personal-finance skill, not this one; general auto repair/maintenance procedures
   once a car is already owned → a repair-specific reference, not this hub.
 name: used-car-buying
 category: consumer
@@ -55,8 +52,8 @@ whenNotToUse:
   - "New-car financing, loans, or leasing — not covered here"
   - "General auto repair/maintenance procedures for a car you already own — use a repair-specific reference"
 related_skills: []
-version: "1.0.0"
-updated: "2026-09-19"
+version: "1.0.1"
+updated: "2026-11-07"
 ---
 
 # Used Car Buying

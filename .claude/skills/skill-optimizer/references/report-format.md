@@ -28,6 +28,26 @@ Label the table with the eval mode, either `eval: measured` or `eval: predicted 
 
 **Unified diff preview.** One fenced `diff` block per file modified, showing only the changed hunks (`diff -u baseline current` semantics; cap each file's diff at 80 lines and indicate truncation). Under `--read-only` the hunks are proposals: label each block `proposed (read-only, not applied)` and carry `mode: read-only (no writes)` in the one-line summary.
 
+**Eval results** (Step 6.3), required in every run, including `--meta` and `--read-only`:
+
+| Eval | Result | Level | Files present? |
+|---|---|---|---|
+| trigger (Pass H) | pos n/10, false-positive n/10 | measured / predicted | trigger-eval.json yes / no |
+| behavior (evals.json) | n/m assertions, c/k cases | static / predicted / measured | evals.json yes / no |
+
+Missing results (including a file missing under `--read-only` or `--meta`) mean exit `EVALS-MISSING`, never `converged`; with another non-clean status, append `+EVALS-MISSING`.
+
+**Index discovery** (Step 1.7), one line: `index-discovery: colliders n, referrers n, copies n (verified v, lead only l)` or `index-discovery: degraded (<reason>)`.
+
+**Location sync table** (Step 6.7), required in every run. Lead with a `NEWER COPY OVERWRITTEN: <path> v<x> updated <date>; backup <path>` line for each copy that was newer than canonical.
+
+| Location | Kind | Before-hash | Action | After-hash |
+|---|---|---|---|---|
+
+Kinds: canonical, clone, copy, symlink, stub, remote, vendored. Actions: none, symlinked, synced, synced (worktree), ff-merged, blocked (dirty), blocked (diverged), FAILED, would sync, skipped (--no-sync), unreachable, orphan (report), report only, lead only (definitions in `references/location-sync.md`). Remote boxes and vendored copies are reported, never written. Add the backup directory when anything was written: `$HOME/Archive/sko-sync-<ts>/` for overwritten copies, `$HOME/Archive/symlinkify-<ts>/` for roots replaced by a symlink.
+
+**llms-first** (Pass P), one line: `llms-first: present | added | n/a (<reason>)`.
+
 **Routing verification** (Step 7), one row per skill written:
 
 | Skill | Verdict | Indexed description matches file? | Surfaces for own intent? | Surplus stale rows |
@@ -50,7 +70,7 @@ When the gate withheld the rebuild, the table carries `rebuild withheld: N High 
 
 **Telemetry.** Under `--read-only`, emit telemetry fields in the report without writing a ledger. Otherwise append telemetry rows per the canonical telemetry schema (the contract's Telemetry section; fail-safe, so a write error never blocks the run), and flag any wasted iteration (iteration 3 or later that closed zero Medium+ findings) in the summary.
 
-**One-line summary.** "X high, Y medium, Z low findings across N iterations (profile: <small | standard>). M sections rewritten. Registry rebuild: <success | skipped | withheld: N High remain | failed>. Routing: <indexed | stale | unroutable>. Exit: <converged | DEGRADED | …>." Append wall time when `--budget-minutes` was passed.
+**One-line summary.** "X high, Y medium, Z low findings across N iterations (profile: <small | standard>). M sections rewritten. Registry rebuild: <success | skipped | withheld: N High remain | failed>. Routing: <indexed | stale | unroutable>. Exit: <converged | EVALS-MISSING | <other status>+EVALS-MISSING | SYNC-PARTIAL | DEGRADED | …>." Append wall time when `--budget-minutes` was passed.
 
 **Modified-sections list.** Every H2 in `SKILL.md` and every top-level key in `manifest.yaml` that was changed.
 

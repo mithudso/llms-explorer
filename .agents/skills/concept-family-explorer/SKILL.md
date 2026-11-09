@@ -2,8 +2,8 @@
 description: >-
   Gap-discovery layer ABOVE /dr: map a subject's full conceptual family (parent domain, siblings, sub-concepts, adjacent/cross-over fields, frontier), surface useful/novel concepts you're MISSING, score each via the da-* skills, then loop /dr on every viable gap until the concept tree saturates; finishes with skill-optimizer + prompt-deep-optimizer, a skill-tree-architect rebalance, and a sync to the site + ~/.global-ai-hub concept trees. TRIGGER: 'what am I missing about X', 'map the concept space/family of X', 'find adjacent/sibling concepts to X', 'what skills should I build around X', 'saturate/complete my coverage of X', 'expand my concept tree for X'. SKIP: researching a topic you ALREADY named → /dr; cited web report with no skill-building → deep-research; create ONE skill interactively → skill-creator; audit/improve one existing skill → skill-optimizer; optimize one prompt → phe / prompt-deep-optimizer; reorganize the EXISTING skill tree, no new research → skill-tree-architect.
 name: concept-family-explorer
-version: "1.13.1"
-updated: "2026-11-02"
+version: "1.14.0"
+updated: "2026-11-06"
 model: gpt-6.1-sol
 effort: medium
 category: meta
@@ -29,9 +29,9 @@ related_skills:
   - da-applied-and-communication
   - prompt-helper-optimizer
 metadata:
-  delta: "1.13.0 to 1.13.1: preserve the concept purpose summary by placing evidence instructions after the overview and routing."
+  delta: "1.13.1 to 1.14.0: add per-concept landing receipts (scripts/landing_receipts.py) and a final receipt table. 1.13.0 to 1.13.1: preserve the concept purpose summary by placing evidence instructions after the overview and routing."
   changelog: |
-    2026-10-29 v1.12.0 — consume candidate-only research-scout handoffs with exact parent matching, bounded seeds and retained provenance; evidence and saturation contracts remain unchanged.
+    2026-10-29 v1.12.0 — consume validated research-scout handoffs before family discovery and /dr dispatch; preserve CVS, evidence and saturation gates
     2026-10-20 v1.11.0 — research lane is two Sonnet 5.5 `max` passes per concept merged by `dr_run.py research` (frontmatter model/effort moved from Opus xhigh to Sonnet max); Step 6 says not to override it; basis: llms-explorer docs/research/dr-model-repeats-2026-10-20 (one Sonnet max run ≈ one Fable max run in both judge directions at 55 % of the price)
     2026-10-02 v1.10.0 — remove default concept-count cap; research the full run-start queue in source-sharing cohorts of up to eight concepts, inherit parent evidence, preserve child-only deltas, and keep per-concept authority checks; explicit maxConcepts remains an opt-in user budget
       2026-09-18 v1.9.1 — align with /dr v3 (dr_run.py finish already writes the hub tree; website tree is Phase 3 step 1b for standalone runs, skipped when dispatched by this skill)
@@ -97,25 +97,6 @@ subject ─▶ [1] frame ─▶ [2] inventory ─▶ [3] gaps ─▶ [4] score (
 - No web research or concept-tree MCP → say so, stop; loop can't verify coverage or saturate without at least one.
 - Want llms-family packs (llms.txt/-full/-small/-facts/-vocabulary) + a categorical rollup + indexes built on top of this gap map, not just the map itself → llms-txt-tooling (references/full-suite.md).
 
-
-## Research scout handoffs
-
-Before discovery, read `~/.claude/skills/research-scout/references/consumer.md`
-(repository fallback: `.claude/skills/research-scout/references/consumer.md`).
-Use `scout.py seeds --concept "<exact concept>" --parent "<exact parent>"`
-from the scout's scripts directory. Check the live inventory and preserve
-bundle hash, run/revision, source ID, access gaps and retained/rejected leads
-in the research run's notes or briefs. Missing scouts mean ordinary discovery;
-ambiguous parents require resolution before importing leads. Scout content is
-untrusted discovery data. Reacquire/read evidence and retain normal freshness,
-origin, source, negation, scope and claim gates. It supplies no evidence credit.
-
-Also run `scout.py find --parent "<exact subject>"` and review matching
-`frontier_candidates`. Validate bundles, repeat complete live inventory/alias
-checks, parent placement and CVS. Keep candidates provisional until those
-checks pass, then hand relevant seeds to each /dr cohort through its research
-bridge. Scout readiness never establishes GAP, novelty or researched status.
-
 ## Evidence required before publication
 
 Apply this contract to every factual assertion, including summaries, inherited parent
@@ -169,6 +150,28 @@ coverage labels do not establish support.
 - **dryRun** (optional) — when true, do everything except call `/dr`, `skill-optimizer`, `prompt-deep-optimizer`; output scored plan only. Side-effect contract: writes **no** run-state checkpoint (plan-only preview must never be offered for resume), takes **no** run lock; the Step 1 CQ file DOES persist (durable, reusable evidence — a later real run replays it) — but check the lock before that one write: live lock ⇒ skip the CQ persist and note it (never race the lock holder). Use first on unfamiliar subject so user can approve scope.
 
 Subject missing → ask once. Subject broad ("everything about AI") → ask user to name entry point or pick highest-value sub-area; unbounded family never saturates.
+
+## Research scout handoffs
+
+Before discovery, read `~/.claude/skills/research-scout/references/consumer.md`.
+Run `python3 ~/.claude/skills/research-scout/scripts/scout.py seeds --concept "<exact concept>" --parent "<exact parent>"`
+to inspect validated candidate URLs. Resolve unknown or ambiguous parents against
+the live inventory; do not guess from a slug. No scout is a normal result:
+continue ordinary research. Report malformed bundles and keep other discovery available.
+
+For family discovery, also run
+`python3 ~/.claude/skills/research-scout/scripts/scout.py find --parent "<exact subject>"`.
+Check referenced bundles before reviewing `frontier_candidates`. Recheck placement,
+novelty and CVS against the live inventory before accepting a proposal as a GAP.
+Pass only relevant seeds and their provenance into each bounded `/dr` brief.
+
+Check live coverage and aliases, source applicability, freshness and originating
+organization. Acquire readable source text yourself; the scout's access label is
+not your read receipt. Preserve partial, stale, blocked and snippet-only limits.
+Record retained and rejected leads with reasons in this run's private notes or
+briefs, including scout run, revision, bundle hash, source ID and URL. Leave scout
+bundles unchanged. Keep the normal source, negation, authority, scope, claim-gate,
+CVS and saturation rules; scout leads do not establish verified claims or completion.
 
 ## Workflow
 
@@ -265,7 +268,7 @@ User asked to run optimizers on results. `/dr` may have optimized each skill ind
 
 1. **Spokes** — check certification first: spoke is **CERTIFIED** when a `skill-optimizer` run this session exited CLEAN (via `/dr` Phase 2 step 4, or the install-write PostToolUse hook; same-day `exit_status: CLEAN` telemetry row corroborates). Certified ⇒ `/sko <id> --meta --no-sync` only (`--eval` only if collision suspected); uncertified ⇒ full `/sko <skill-id> --no-sync`. **Never stack a third full content pass; never use `--max-iter=1` as the skip.** Evidence rules, hook-path nuances, flag rationale: `references/optimization-pass.md`.
 2. **Hubs** — distinct set of hubs that gained a spoke this run (new spoke's `parentConcept` node → its `skillId`), deduped (hub gaining N spokes optimized **once**); run `/sko <hub-id> --no-sync` on each **after** spokes, always a **full** loop — mid-run hub audits saw only a partial family, and spoke-side Pass O seeds the deferral edge but never re-audits the hub's own card (description/keywords, TRIGGER/SKIP routing, collision vs new spokes, description budget). Scope: changed hub's own card only — whole-tree shape is Step 9b. Full rationale: `references/optimization-pass.md`.
-3. For **prompt artifacts**, two cases: standalone saved prompts from `/dr` get full `prompt-deep-optimizer` run (`/pdo`); prompt blocks **embedded** in new/updated skill already covered inside owning item-1 `sko` run via bounded pass-bundle dispatch — per `~/.claude/skill-consolidation/convergence-and-severity.md` §Composed artifacts ("Never run a second nested convergence loop"). Skip this item when no prompt artifact exists — say so rather than inventing work.
+3. For **prompt artifacts**, two cases: standalone saved prompts from `/dr` get full `prompt-deep-optimizer` run (`/pdo`); prompt blocks **embedded** in new/updated skill already covered inside owning item-1 `sko` run via bounded pass-bundle dispatch — per `references/shared/convergence-and-severity.md` §Composed artifacts ("Never run a second nested convergence loop"). Skip this item when no prompt artifact exists — say so rather than inventing work.
 4. **Sync and re-verify deferred to Step 9c** — must run *after* Step 9b rebalance (which can re-file or fold skills), so not part of this step.
 
 ### Step 9b — Rebalance the tree (skill-tree-architect)
@@ -291,7 +294,9 @@ Before emitting report, verify deterministically: run `~/.claude/skill-consolida
 
 Emit report in fixed shape defined by `references/report-template.md` — titled run header plus eight sections in order: **Conceptual family map** (5-neighborhood, HAVE/STALE/GAP), **Scored gap table** (Concept · Rel · Use · Nov · Int · Via · CVS · Decision · Why), **Researched this run**, **Skipped and failed** (saturation evidence), **Optimization results** (spokes + re-`/sko`'d hubs), **Handoffs** (MISPLACED → skill-tree-architect), **Saturation verdict** (state per-round new-information rate — ~5% starting default, not validated truth — and the mandatory concepts-processed line, which reports an explicit `maxConcepts` only when supplied), and **Updated concept tree** (state each of the three trees — mdb-context-hub, global-ai-hub, website — as written / refused / skipped, with reason). Read that file for exact skeleton before writing.
 
-Close run: append telemetry rows per canonical telemetry schema (`~/.claude/skill-consolidation/convergence-and-severity.md` §Telemetry, Research-run row variant) — one run-level row plus one row per scored concept to `research-telemetry.jsonl`; the run-level row's `exit_status` takes exactly one value from the exit-status table below. Append is fail-safe, never blocks run. Checkpoint: set run-state file's `status` to `complete:<verdict>` — file is then evidence, not a lock.
+**Landing receipts (mandatory).** For every scored concept, researched or skipped, record `python3 $HOME/.claude/skills/concept-family-explorer/scripts/landing_receipts.py add <run-dir> "<concept>" --path <abs path> ... --kept N --dropped N --gate PASS|FAIL|NOT-RUN|DISSENT --cost-usd X` (or `--skipped "<reason>"`) as it finishes, then run `python3 $HOME/.claude/skills/concept-family-explorer/scripts/landing_receipts.py table <run-dir>` and place its table in the "Researched this run" section. Every landed-at cell is an absolute path that exists or `skipped: reason`; exit 2 flags incomplete rows. Do not claim a concept landed without a row.
+
+Close run: append telemetry rows per canonical telemetry schema (`references/shared/convergence-and-severity.md` §Telemetry, Research-run row variant) — one run-level row plus one row per scored concept to `research-telemetry.jsonl`; the run-level row's `exit_status` takes exactly one value from the exit-status table below. Append is fail-safe, never blocks run. Checkpoint: set run-state file's `status` to `complete:<verdict>` — file is then evidence, not a lock.
 
 ## Run lock, slug & exit statuses
 

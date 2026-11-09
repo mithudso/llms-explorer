@@ -19,7 +19,7 @@ Compose the two loops: run the structural loop first to get a clean, well-formed
 | `working set` | cases used to surface failures and choose edits | the ONLY split you may inspect when deciding a change |
 | `holdout` | untouched cases | never read to choose an edit; only to gate promotion |
 | `must-pass checks` | hard binary invariants (safety refusals, output schema/format, required disclaimers) | any regression vetoes promotion regardless of score |
-| `[budget]` | round cap and/or wall-clock/cost | per the Budget contract in `~/.claude/skill-consolidation/convergence-and-severity.md` |
+| `[budget]` | round cap and/or wall-clock/cost | per the Budget contract in `references/shared/convergence-and-severity.md` |
 | `target` | score that ends the run early when reached | optional |
 | `experiment log` | per-round record | append-only |
 

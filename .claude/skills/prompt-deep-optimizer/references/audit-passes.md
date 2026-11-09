@@ -59,6 +59,13 @@ Group → passes: **Group 1 — Intent & Output** (A, D, M); **Group 2 — Conte
 - Stop conditions explicit
 
 **Pass G — Examples / few-shot** (flag conditions, not quality adjectives — every bullet states what fires a finding)
+
+**Example-selection preflight, before the first rewrite.** Identify the primary task of the prompt being optimized. Plan one end-to-end example of that task and up to two relevant negative or edge cases. For an authoring prompt, the primary example demonstrates authoring, validating and delivering the requested artifact; examples of the artifact's later runtime behavior do not cover authoring itself. Those runtime branches may serve as relevant edge cases.
+
+Record `task_kind` (`authoring` or `other`) and an `examples` list. Each row declares `role` (`primary` or `edge`), a distinct `input_class`, `covers` (`authoring` for the primary example of an authoring task), and a concrete `summary`. Run `pdo_tools.py examples --plan <file>` before rewriting and after each rewrite. The helper checks declared roles and counts; the auditor must check that the actual examples match those declarations.
+
+When repairing coverage, replace or merge an existing example before adding one. Recheck primary-task coverage, redundancy and the count ceiling together in the same rewrite. Do not repair a missing authoring example by appending a fourth common-path example. Additional distinct edge cases remain allowed by the existing count-ceiling rule. The regression fixture in `evals/example-plans.json` preserves the owner's UI optimizer authoring prompt and both repair paths.
+
 - **Common path uncovered** — flag Medium when the prompt states a primary task and no example demonstrates it end to end.
 - **Missing negative example** — flag Medium when the prompt names a failure mode ("don't", "never", "avoid") and no example shows the wrong output being declined or corrected.
 - **Missing edge case** — flag Medium when the prompt names a boundary (empty input, missing field, ambiguous request, over-length input) with no example covering it.

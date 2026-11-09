@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v127 — 2026-11-09 Skill downloads refresh
+
+```text
+update the downloads page with the newest versions of the skills, and also add the deep ui optimizer, deep agent optimizer, and deep-eval-optimizer.
+```
+
+Delta: v126 to v127. Refresh the published bundles and display their actual versions; preserve public privacy and exact install-directory provenance.
+
 ## Prompt v126 — 2026-11-09 AdSense units
 
 ```text

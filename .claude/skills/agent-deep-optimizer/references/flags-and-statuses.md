@@ -19,7 +19,7 @@ Complete flag list and exit-status vocabulary for `/ado`. `SKILL.md` § Invocati
 | `--effort=<level>` | Pin the run-under `effort` value (`low\|medium\|high\|xhigh\|max`) | Step 4.6 |
 | `--allow-rename` | Permit Pass B to apply a `name` change and update every file in the `ado_tools.py refs` impact set; without it a rename is a `BLOCKED` row | Pass B |
 | `--scope=user\|project` | When the name resolves in both roots, choose which copy to optimize (default: the precedence winner) | Step 1 |
-| `--cross-model` | Run the optional Step 6.5 cross-model exit gate (default off) | Step 6.5, `~/.claude/skill-consolidation/cross-model-gate.md` |
+| `--cross-model` | Run the optional Step 6.5 cross-model exit gate (default off) | Step 6.5, `references/shared/cross-model-gate.md` |
 | `--compress` | Opt in to the Step 7.5 caveman-compress pass on the body (default off; Pass N extraction first) | Step 7.5 |
 | `--empirical` | Champion–challenger loop over the functional evals, executed through `claude -p --agent` (default off; requires `evals.json` with assertions) | § Empirical mode |
 | `--dry-run` | Empirical mode: evaluate, never promote the challenger | § Empirical mode |
@@ -37,7 +37,7 @@ When driven by an outer loop, invoke with `--max-iter=1 --no-sync` per outer ite
 | Status | Meaning | Set by |
 |---|---|---|
 | `converged` | Zero Medium+ findings on the final pass | Step 3 clean exit (after the blind re-audit) |
-| `no-progress` / `stable` / `cycling` | A canonical non-clean convergence exit (`~/.claude/skill-consolidation/convergence-and-severity.md`) | Step 3 loop boundary |
+| `no-progress` / `stable` / `cycling` | A canonical non-clean convergence exit (`references/shared/convergence-and-severity.md`) | Step 3 loop boundary |
 | `BUDGET_EXHAUSTED` | `--budget-minutes` expired; current iteration's writes finished, then exit | Step 3 budget exit |
 | `BLIND-AUDIT-DISSENT` | Step 6 blind re-audit still finds corroborated Medium+ after one extra iteration | Step 6 |
 | `SHADOWED` | The target is not the precedence winner for its name; content work withheld | Step 1 / Pass B |

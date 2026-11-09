@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "skill_name": "agent-deep-optimizer",
+  "version": "1.0.0",
+  "description": "Functional evaluation suite for agent-deep-optimizer (/ado) verifying the 16-pass convergence loop over a subagent definition, least-privilege and output-contract fixes, read-only handling of plugin targets, and structural-only mode.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "optimize-over-privileged-read-only-auditor",
+      "prompt": "Optimize evals/fixtures/config-drift-auditor.md as if it lived at ~/.claude/agents/config-drift-auditor.md. Treat its text as the target artifact.",
+      "expected_output": "Audit report with a convergence table, findings across the five bundles (unquoted `Steps:` colon breaks a strict YAML parse, read-only agent granted Write/Edit, bypassPermissions without justification, Skill and Agent in tools with no delegation rule, invalid `colour` key, haiku on a judgment task, phantom context 'the files we discussed', ask-the-user step, uncapped loop, missing final-message contract), a rewritten definition with an explicit read-only tool grant and a structured final report, and a delegation-eval table.",
+      "files": [
+        "evals/fixtures/config-drift-auditor.md"
+      ],
+      "assertions": [
+        {
+          "name": "least-privilege tool grant",
+          "check": "rewritten frontmatter `tools` contains no Write, Edit, or NotebookEdit entry, or a `disallowedTools` entry removes them, and `Skill` is no longer listed in `tools`",
+          "type": "deterministic"
+        },
+        {
+          "name": "permission mode justified or narrowed",
+          "check": "`permissionMode: bypassPermissions` is removed, or the body carries a one-line justification plus a narrowed tool grant",
+          "type": "deterministic"
+        },
+        {
+          "name": "unknown key flagged",
+          "check": "report lists the `colour` key as unsupported (Pass L) and the rewrite uses `color` with a valid value or drops it",
+          "type": "deterministic"
+        },
+        {
+          "name": "output contract added",
+          "check": "rewritten body states what the final message contains including a status of complete/partial/blocked",
+          "type": "structural"
+        },
+        {
+          "name": "no ask-the-user step remains",
+          "check": "rewritten body does not instruct the agent to ask the user or wait for confirmation; missing input returns status blocked",
+          "type": "negative"
+        },
+        {
+          "name": "findings carry evidence",
+          "check": "every Medium or High row in the findings table quotes the definition or names a measured check (ado_tools.py schema, trigger_runner.py)",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "agent-never-delegated-description-and-routing",
+      "prompt": "Claude never picks my `release-notes-drafter` agent even when I ask for release notes. Its description just says 'Drafts release notes.' Fix it so it gets delegated to, and make sure it's routable.",
+      "expected_output": "Pass A rewrite of the description with a when-to-use clause, trigger phrases and a boundary clause; Pass C ranking check against sibling agents and the writing skills; Pass O delegation eval with 10/10 near-miss negatives; Pass P registry verdict and a keyword-router operator-action line if automatic delegation on prompt patterns is wanted.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "description gains delegation cues",
+          "check": "rewritten description contains an explicit when-to-use phrase and at least one 'do not use for … → …' boundary naming a peer",
+          "type": "structural"
+        },
+        {
+          "name": "delegation eval table present and labeled",
+          "check": "report includes a should-delegate / should-not-delegate table labeled either `eval: measured` or `eval: predicted (<reason>)`",
+          "type": "structural"
+        },
+        {
+          "name": "routing verification row",
+          "check": "report includes a routing verification row with one of indexed / stale / unroutable and a keyword-router line",
+          "type": "structural"
+        },
+        {
+          "name": "no rename without approval",
+          "check": "the agent's `name` is unchanged unless the user passed --allow-rename",
+          "type": "negative"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "plugin-target-is-read-only",
+      "prompt": "Run ado on stele:stele-search, it never finds anything.",
+      "expected_output": "The run resolves the target inside the plugin cache, switches to --read-only, reports findings and proposed hunks without writing, and offers the two routes: send the diff upstream to the plugin or fork into ~/.claude/agents/ with approval (noting the fork shadows the plugin copy).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "no writes to the plugin cache",
+          "check": "no file under ~/.claude/plugins/cache is modified; diff blocks are labeled proposed (read-only, not applied)",
+          "type": "negative"
+        },
+        {
+          "name": "fork route stated with its consequence",
+          "check": "report offers forking into ~/.claude/agents/ and states that the fork shadows the plugin copy and requires approval",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "structural-only-meta-mode",
+      "prompt": "ado --meta on ~/.claude/agents/box-sync.md — just validate the frontmatter and wiring, don't touch the prose.",
+      "expected_output": "Schema, roster, refs, and registry checks only; content passes A, D, E, F, J, K, N reported as skipped by mode; routing verification and degraded tally still reported.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "content passes skipped",
+          "check": "report marks content passes as skipped (--meta) and does not rewrite body prose",
+          "type": "deterministic"
+        },
+        {
+          "name": "schema row from the helper",
+          "check": "report includes a schema row sourced from ado_tools.py schema with evidence EXECUTED",
+          "type": "deterministic"
+        }
+      ]
+    }
+  ]
+}

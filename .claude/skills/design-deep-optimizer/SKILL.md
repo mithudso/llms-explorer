@@ -1,10 +1,9 @@
 ---
 name: design-deep-optimizer
-description: "Multi-stage design & image critique-and-fix optimizer for graphic/brand & UI/UX screens; sibling of code-deep-optimizer/document-critique. Ingests a screenshot, URL, code (HTML/CSS), or spec and runs an 11-pass critique (hierarchy, gestalt, typography, color, usability heuristics/Laws of UX, WCAG, affective/trust, metrics, brand-parity, hallucination guard) over the frontend-ui spokes; severity-rates Blocker\u2192Nit and, for code-backed designs, applies Medium+ fixes to convergence (re-render/contrast/axe verified). Image/URL/spec inputs get critique-only findings. TRIGGER: \"critique/optimize this design|mockup|UI|screen|landing page|brand asset\", \"/deso\", \"review this screenshot's design\", \"run a design critique\", \"improve this UI's visual design\". SKIP: evals -> deep-eval-optimizer; producing a NEW design (web-design / ui-ux-pro-max); one narrow question (the matching frontend-ui spoke); prose (document-critique); code logic (code-deep-optimizer); photographic\
-  \ or AI-generated-image critique."
+description: "Multi-stage design & image critique-and-fix optimizer for graphic/brand & UI/UX screens; sibling of code-deep-optimizer/document-critique. Ingests a screenshot, URL, code (HTML/CSS), or spec and runs an 11-pass critique (hierarchy, gestalt, typography, color, usability heuristics/Laws of UX, WCAG, trust, brand-parity, hallucination guard) over the frontend-ui spokes; severity-rates Blocker\u2192Nit and, for code-backed designs, applies Medium+ fixes to convergence (axe/contrast verified). Image/URL/spec inputs get critique-only findings. TRIGGER: \"critique/optimize this design|mockup|UI|screen|landing page|brand asset\", \"/deso\", \"review this screenshot's design\", \"run a design critique\", \"improve this UI's visual design\". SKIP: evals -> deep-eval-optimizer; producing a NEW design (web-design / ui-ux-pro-max); one narrow question (the matching frontend-ui spoke); prose (document-critique); code logic (code-deep-optimizer); photographic or AI-generated-image critique."
 origin: local
-version: 1.3.0
-updated: '2026-09-29'
+version: 1.3.2
+updated: '2026-11-09'
 category: developer
 tags:
 - design-critique
@@ -36,11 +35,13 @@ whenNotToUse:
 - code logic/security/perf review (use code-deep-optimizer)
 - aesthetic critique of a photograph or AI-generated image (out of scope)
 metadata:
-  changelog: "2026-06-23 v1.1.0->1.2.0 \u2014 Empirical mode now default-on (gated auto-promote + persist) per \xA7 Default policy in the shared contract \u2014 for code-backed designs with held-out metrics + must-pass checks the gate auto-runs and persists the champion across runs (prior archived for rollback); mandatory holdout rotation/budget/noise vs reusable-holdout overfitting; honest guarantee = monotonically non-decreasing on the held-out metric, not \"better every run\"; opt out --dry-run/--no-promote/--structural-only; image/URL/spec inputs stay critique-only. Per operator request.\n2026-06-23 v1.0.1->1.1.0 \u2014 added Empirical mode (champion\u2013challenger held-out loop) section citing the new shared contract ~/.claude/skill-consolidation/champion-challenger.md; calibration: score = held-out a11y/aesthetic metric (axe pass rate, contrast pass count, computational-aesthetic score), must-pass veto = WCAG AA contrast on all text + no axe criticals + brand-token parity. Per operator\
+  changelog: "2026-06-23 v1.1.0->1.2.0 \u2014 Empirical mode now default-on (gated auto-promote + persist) per \xA7 Default policy in the shared contract \u2014 for code-backed designs with held-out metrics + must-pass checks the gate auto-runs and persists the champion across runs (prior archived for rollback); mandatory holdout rotation/budget/noise vs reusable-holdout overfitting; honest guarantee = monotonically non-decreasing on the held-out metric, not \"better every run\"; opt out --dry-run/--no-promote/--structural-only; image/URL/spec inputs stay critique-only. Per operator request.\n2026-06-23 v1.0.1->1.1.0 \u2014 added Empirical mode (champion\u2013challenger held-out loop) section citing the new shared contract references/shared/champion-challenger.md; calibration: score = held-out a11y/aesthetic metric (axe pass rate, contrast pass count, computational-aesthetic score), must-pass veto = WCAG AA contrast on all text + no axe criticals + brand-token parity. Per operator\
     \ request.\n2026-06-16 v1.0.0 \u2014 created via concept-family-explorer Phase B + skill-creator. Orchestrates\nthe 6 visual-design knowledge spokes built in the same run. Input-adaptive: auto-fix\nconvergence loop for code-backed designs, critique-only for image/URL/spec. Pending\nskill-optimizer pass.\n"
 ---
 
 # Design Deep Optimizer
+
+For full UI/UX workflow and interaction audits with immediate per-method repairs, use `ui-deep-optimizer` (`/ui-deep-optimizer`); retain this skill for graphic/brand assets and visual-design-only critiques.
 
 The visual-design sibling of `document-critique` (prose), `prompt-deep-optimizer` (prompts),
 `code-deep-optimizer` (code), and `skill-optimizer` (skills). It runs an 11-pass design critique
@@ -61,7 +62,7 @@ re-render verify gate.
    not ground truth.**
 
 For loop mechanics, the 7 exit conditions, the canonical severity ladder, and shared guardrails it
-**cites** `~/.claude/skill-consolidation/convergence-and-severity.md` rather than restating them —
+**cites** `references/shared/convergence-and-severity.md` rather than restating them —
 this file keeps only the design-specific calibration.
 
 ## When not to use (read this first)
@@ -129,7 +130,7 @@ banner doesn't need WCAG focus-order. Scope activation to what the artifact actu
 ## Severity calibration
 
 This skill's calibration of the canonical ladder in
-`~/.claude/skill-consolidation/convergence-and-severity.md` (shared with the sibling optimizers);
+`references/shared/convergence-and-severity.md` (shared with the sibling optimizers);
 keep it consistent. Fix everything **Medium+**; the loop terminates at 0 Medium+ or a canonical exit.
 
 | Canonical | design-deep-optimizer | Example |
@@ -176,7 +177,7 @@ a crit that only lists faults is a worse crit).
 
 ## Convergence (input-adaptive)
 
-Cite `~/.claude/skill-consolidation/convergence-and-severity.md` for caps, the 7 exits, and
+Cite `references/shared/convergence-and-severity.md` for caps, the 7 exits, and
 guardrails. Two modes, chosen by the Stage 0 flag:
 
 - **EDITABLE (code-backed).** The true optimizer loop: passes → apply every Medium+ fix to the
@@ -226,7 +227,7 @@ Inherited from the contract, design-specialized:
 
 ## Empirical mode — champion–challenger held-out loop
 
-Data-driven companion to the structural convergence loop (§ Convergence). **On by default** for code-backed designs that ship with measurable design metrics on a **held-out** set of screens/states plus **must-pass checks**: the gated promotion auto-runs and persists the champion design across runs — no trigger; opt out with `--dry-run`/`--structural-only`. Image/URL/spec inputs are critique-only with no apply loop, so empirical mode stays off and says so (`cannot auto-improve`). Mechanics — persisted state, split discipline, one-change-per-round, margin-gated promotion + must-pass veto, stop conditions, output — are the shared contract `~/.claude/skill-consolidation/champion-challenger.md` (**cite, don't restate**). The § Verify gate (re-render + contrast + axe) already supplies the measurement; this names the promotion gate around it.
+Data-driven companion to the structural convergence loop (§ Convergence). **On by default** for code-backed designs that ship with measurable design metrics on a **held-out** set of screens/states plus **must-pass checks**: the gated promotion auto-runs and persists the champion design across runs — no trigger; opt out with `--dry-run`/`--structural-only`. Image/URL/spec inputs are critique-only with no apply loop, so empirical mode stays off and says so (`cannot auto-improve`). Mechanics — persisted state, split discipline, one-change-per-round, margin-gated promotion + must-pass veto, stop conditions, output — are the shared contract `references/shared/champion-challenger.md` (**cite, don't restate**). The § Verify gate (re-render + contrast + axe) already supplies the measurement; this names the promotion gate around it.
 
 Calibration:
 
@@ -257,7 +258,7 @@ Calibration:
 ## Telemetry
 
 Append telemetry rows per the canonical telemetry schema in
-`~/.claude/skill-consolidation/convergence-and-severity.md` with `artifact_type: "design"`
+`references/shared/convergence-and-severity.md` with `artifact_type: "design"`
 (fail-safe — a write error never blocks the run).
 
 ## Anti-patterns to avoid

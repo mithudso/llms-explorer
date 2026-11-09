@@ -10,7 +10,7 @@
 
 - **Date:** 2026-06-15
 - **Status:** Approved (design); pending spec review → implementation plan
-- **Author:** Claude (brainstorming session with mitch)
+- **Author:** Original design session
 - **Artifact under design:** a new skill `code-deep-optimizer` + `/cdo` command, the code-facing
   sibling of the existing iterative-optimizer family.
 
@@ -34,12 +34,12 @@ skills, and repeats until all medium and higher findings are resolved."
 
 **Shared infrastructure that already exists and must be reused (cite, never restate):**
 
-- `~/.claude/skill-consolidation/convergence-and-severity.md` — canonical severity ladder, the 7
+- `references/shared/convergence-and-severity.md` — canonical severity ladder, the 7
   exit conditions, and the guardrails (blocked findings, intent-drift guard, injection guard,
   evidence rule, demotion guard, blind re-audit gate, pre-write snapshot, cross-model gate).
 - `~/.claude/skill-consolidation/convergence_check.py` — computes no-progress / stable-rewrite /
   loop-instability verdicts from two artifact versions + model-counted severity totals.
-- `~/.claude/skill-consolidation/cross-model-gate.md` — optional `--cross-model` independence gate.
+- `references/shared/cross-model-gate.md` — optional `--cross-model` independence gate.
 - `~/.claude/skill-consolidation/backups/<target>-<ts>/` — central pre-write snapshot directory.
 - `~/.claude/skill-consolidation/optimizer-telemetry.jsonl` — per-pass telemetry sink.
 

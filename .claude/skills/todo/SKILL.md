@@ -21,7 +21,7 @@ Sections: **Manual** (added by hand), **From braindumps** (tasks `/braindump` fo
 ## Commands
 
 ```bash
-T=~/.claude/skills/todo/scripts/todo.py
+T=$HOME/.claude/skills/todo/scripts/todo.py
 python3 $T add "Call the dentist"        # manual add
 python3 $T list                           # open items with 8-char ids
 python3 $T done 3fa9c2e1                  # or a unique substring of the text
@@ -39,14 +39,14 @@ python3 $T sync --tiers 2,3 --since-days 120     # wider net (tier 3 = raw logs,
 
 - **SessionEnd hook** runs `todo.py hook-session-end`, which syncs:
   - unfinished TaskCreate items (`pending`/`in_progress`) from the session that just ended, and from any other session idle for 30+ minutes;
-  - open or blocked rows from `~/.llms/*_actions_llms.md`, tier 2 only (agent memory; tier 1 is standing rules from instruction files), first seen within 60 days (memory-central rebuilds these nightly).
+  - open or blocked rows from `$HOME/.llms/*_actions_llms.md`, tier 2 only (agent memory; tier 1 is standing rules from instruction files), first seen within 60 days (memory-central rebuilds these nightly).
 - **Braindumps** call `todo.add_item` for every task they find.
 
 ## StickySites and peer boxes
 
 - **StickySites** (`~/dev/stickysites`, v1.11.0+) syncs its global To-do list with TODO.md through the native-messaging host `com.mitch.todo_bridge`: on browser start, every 2 minutes, and 3 seconds after an edit. Session items show up in collapsed `Sessions · <project>` sections, braindump tasks in `From braindumps`. Encrypted lists are skipped (the file is plaintext).
   - Set up on a box: load StickySites unpacked from `~/dev/stickysites`, then run `python3 ~/.claude/skills/todo/scripts/todo.py install-native-host` and reload the extension.
-- **Peers**: `todo.py peer-sync` merges TODO.md with each SSH target listed in `~/dev/personal/Areas/todo/.peers` (needs this skill on the peer). One box running peer-sync is enough.
+- **Peers**: `todo.py peer-sync` merges TODO.md with each SSH target listed in `~/dev/personal/Areas/todo/.peers` (needs this skill on the peer). A line may be `fleet:<box>|<last-known user@host>`: the address then comes from the mitchlists registry (`mitchlists-peer <box> --field ssh`), so a network move needs no edit. One box running peer-sync is enough.
 - **Schedule**: `todo.py install-launchd` loads `com.mitch.todo-sync`, which runs `sync` then `peer-sync` every 5 minutes. Log: `~/dev/personal/Areas/todo/.todo-sync.log`.
 - **Merge**: three-way against the last snapshot per replica (`.todo-sync-state.json`). A deletion on one side wins unless the other side edited the item since; a tick on either side wins; on a text conflict the local file wins.
 

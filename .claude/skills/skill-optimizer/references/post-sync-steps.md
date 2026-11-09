@@ -37,7 +37,7 @@ The run changed the target's `description`, `triggers`, and `version`, and `--co
 
 Steps 7.5, 7.6, and 7.7 are each individually non-blocking, which on its own lets a run skip all of them and still report `converged`. Count them together instead:
 
-- Tally the post-sync outcomes that did not land: `compress: skipped` (only when `--compress` was actually passed), `prose-index: daemon down`, `index: skipped`, plus a Step 7 verdict of `stale` or `unroutable`.
+- Tally the post-sync outcomes that did not land: `compress: skipped` (only when `--compress` was actually passed), `prose-index: daemon down`, `index: skipped`, `index-discovery: degraded (<reason>)` from Step 1.7 (`references/index-discovery.md`), plus a Step 7 verdict of `stale` or `unroutable`.
 - **Two or more ⇒ exit status `DEGRADED`, not `converged`.** The content work still stands and the files are still written; `DEGRADED` says the surrounding index and registration state is not known-good, so an orchestrator knows to re-run Step 7 rather than trust the routing surface.
 - One or zero ⇒ normal exit status; the individual outcome line still appears in Step 8.
 - `DEGRADED` never withholds writes and never re-enters the convergence loop; it is a report-and-exit signal only.
