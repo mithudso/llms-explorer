@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.162 — 2026-11-09 Manual dissent backlog
+
+Version: 0.22.162. Delta: v0.22.161 to v0.22.162; persist three sanitized manual-only procedure gaps after final practical QA.
+
+Thirteen of fifteen packs qualify in both profiles. Market-data freshness and evidence/latency contracts retain two rejected full views and three distinct missing procedures: reconnect/resubscribe/rebootstrap; duplicate-event retention/presentation; incident grouping/deduplication/update/reopening. The default three-round exit is SATURATION-DISSENT. Exact questions, report/bank hashes and three4.45scores are in concept-tree/backlog/crypto-autotrading-bot-monitor-task1087.json and .md. They create no machine-readable queue job, child edge or ready score because actual automation lacks per-item hold semantics. Both parsers verify zero pending jobs. Existing queues/reservations/pauses remain unchanged. The 15 researched concepts remain registered; the three new gaps are manual-only backlog. Final delivery and installed/public receipts remain in the task continuation.
+
 ## v0.22.161 — 2026-11-09 Monitor registration and CI corrections
 
 Version: 0.22.161. Delta: v0.22.160 to v0.22.161; apply selected installed ownership/scores, finish the site build and fix exact final-head CI failures.
