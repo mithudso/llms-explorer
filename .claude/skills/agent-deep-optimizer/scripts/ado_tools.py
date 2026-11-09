@@ -92,14 +92,27 @@ def est_tokens(text: str) -> int:
     return max(0, round(len(text) / 4))
 
 
+def redact_diagnostics(value):
+    """Keep recognized credential-shaped values out of diagnostic output."""
+    if isinstance(value, str):
+        for _, pattern in SECRET_PATTERNS:
+            value = pattern.sub("[REDACTED]", value)
+        return value
+    if isinstance(value, list):
+        return [redact_diagnostics(item) for item in value]
+    if isinstance(value, dict):
+        return {key: redact_diagnostics(item) for key, item in value.items()}
+    return value
+
+
 def emit(obj: dict, code: int = 0) -> None:
     obj.setdefault("evidence", "EXECUTED")
-    print(json.dumps(obj, indent=1, sort_keys=False))
+    print(json.dumps(redact_diagnostics(obj), indent=1, sort_keys=False))
     sys.exit(code)
 
 
 def fail(msg: str) -> None:
-    print(json.dumps({"error": msg, "evidence": "EXECUTED"}))
+    print(json.dumps(redact_diagnostics({"error": msg, "evidence": "EXECUTED"})))
     sys.exit(1)
 
 
@@ -440,9 +453,9 @@ def schema(args) -> None:
                     add("H", "Medium", "mcp-server-unknown", f"`mcpServers` entry `{e}` is not configured in ~/.claude.json, .mcp.json or settings")
             elif isinstance(e, dict):
                 blob = json.dumps(e)
-                for label, rx in SECRET_PATTERNS:
+                for _, rx in SECRET_PATTERNS:
                     if rx.search(blob):
-                        add("J", "High", "mcp-inline-secret", f"inline MCP definition contains a {label}; reference an env var instead")
+                        add("J", "High", "mcp-inline-secret", "inline MCP definition contains a possible credential; reference an env var instead")
                         break
 
     # body heuristics
@@ -457,10 +470,10 @@ def schema(args) -> None:
         add("E", "High", "asks-user-in-background", "body asks the user for input but `background: true` means nobody can answer; return status blocked instead")
     elif ASK_USER_PATTERNS.search(body):
         add("E", "Medium", "asks-user", "body asks the user / waits for confirmation; a subagent should return `blocked` naming the question")
-    for label, rx in SECRET_PATTERNS:
+    for _, rx in SECRET_PATTERNS:
         for i, line in enumerate(body.splitlines(), 1):
             if rx.search(line):
-                add("J", "High", "secret-in-body", f"{label} at body line {i}; redact and move to the environment")
+                add("J", "High", "secret-in-body", f"possible credential at body line {i}; redact and move to the environment")
                 break
     if "Agent" in (tools or []) and not re.search(r"(?i)recurs|do not (re-)?delegate|never (spawn|delegate)|delegate only", body):
         add("F", "High", "agent-tool-without-rule", "`Agent` is granted but the body states no delegation rule (when to delegate, never to itself or its caller)")

@@ -60,3 +60,16 @@ def test_eval_optimizer_bundles_templates_and_does_not_claim_simulated_runs():
         in prompt
     )
     assert "~/dev/evals/runner/" not in prompt
+
+
+def test_agent_optimizer_redacts_recognized_credentials():
+    import importlib.util
+
+    path = ROOT / ".claude/skills/agent-deep-optimizer/scripts/ado_tools.py"
+    spec = importlib.util.spec_from_file_location("ado_tools", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    synthetic = "sk-" + "A" * 24
+    output = module.redact_diagnostics({"nested": [f"token={synthetic}"]})
+    assert synthetic not in str(output)
+    assert "[REDACTED]" in str(output)
