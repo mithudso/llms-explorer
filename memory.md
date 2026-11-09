@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.155 — 2026-11-09 Leveraged day-trading full suite
+
+Version: 0.22.155. Delta: v0.22.154 to v0.22.155; execute prompt v128 and the leveraged crypto day-trading suite, EPIC-1261.
+
+Status: Inventory in progress. The user selected crypto perpetuals, especially SOL/Jupiter, and assigned the run to LLMS Explorer. Reuse fresh classical-indicator, short-window, five-minute SOL and nonlinear lead-lag coverage. Research only distinct new gaps. Exact readable source spans and independent judgments gate every new or changed factual assertion. Preserve private source bodies, paused embeddings and concurrent repository work. New keyword indexes are in scope; new semantic vectors remain withheld. Do not trade or change product behavior.
+
+Remaining: complete scored inventory and competency questions; scout and research the full viable queue; gate and install qualified references; compile and audit packs and rollup; verify and merge task-owned public outputs. The existing paused UI/UX draft remains untouched.
+
 ## v0.22.154 — 2026-11-09 Skill downloads refresh
 
 Version: 0.22.154. Delta: v0.22.153 to v0.22.154; implement prompt v127 and TASK-1254.
