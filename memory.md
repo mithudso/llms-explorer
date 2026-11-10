@@ -1,5 +1,17 @@
 # Memory
 
+## v0.22.163 — 2026-11-10 AdSense live diagnosis
+
+Version: 0.22.163. Delta: v0.22.162 to v0.22.163; prompt v131; TASK-1272.
+
+- Scope: diagnose no visible ads and zero reported AdSense pageviews on https://llmsx.org using actual Google requests. Prior TASK-1250 checked placement with Google traffic stubbed. Preserve unrelated primary-checkout changes and existing reading-page eligibility.
+- Initial live evidence: canonical /ads.txt returns HTTP 200 text/plain with the supplied seller row once. A real article loads adsbygoogle.js and show_ads_impl with HTTP 200. Ad requests reach Google and return empty HTTP 200 responses; initialized slots report unfilled. This does not establish the account's current approval status.
+- The homepage deliberately carries no ad loader or slots. Authenticated account inspection confirms llmsx.org is Getting ready, with Review requested at 07 Nov 2026 13:14. Ads.txt still says Not found. Policy Center has No current issues. The current site review remains pending; no ads.txt recheck control appears in the current site detail.
+- Added repository-root ads.txt and made site/public/ads.txt identical to the exact supplied row. Publication now rejects a missing or incorrect record in the root source, public source or built website root. Regression cases cover absent files, an HTML fallback and the wrong publisher.
+- Validation: complete site build and exact root/public/dist seller-byte checks pass. Astro check reports zero errors and zero warnings. All 357 site tests pass in 89.02 seconds. Ruff and publication privacy checks pass. Each command completed with exit zero. Sanitized runtime evidence and official Google troubleshooting references are in docs/site/adsense-live-verification-2026-11-10.json.
+- Delivery receipt: TASK-1276 records final PR, checks, merge and deployed seller read-back. Current continuation worktree: /Users/mitch/dev/worktrees/llms-explorer-adsense-diagnose-20261110 on fix/adsense-delivery-20261110. The primary checkout retains unrelated work.
+- Remaining external steps: Google must complete the requested site review and refresh its ads.txt crawler status. Google documents a few days, sometimes 2–4 weeks, for review. No user input or account setting change is needed from this inspection. Crawler User-Agent probes get HTTP 200 for ads.txt and robots.txt; robots allows /. These probes do not prove access from actual Google crawler IPs. A generic Python robots request returned 403, while Google crawler User-Agent probes returned 200. No review restart or ad-account setting change occurred.
+
 ## v0.22.162 — 2026-11-09 Manual dissent backlog
 
 Version: 0.22.162. Delta: v0.22.161 to v0.22.162; persist three sanitized manual-only procedure gaps after final practical QA.
