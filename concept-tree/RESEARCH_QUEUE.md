@@ -4780,3 +4780,15 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [x] Concept: `Pinned replicated-metadata repair command and no-op ingestion boundaries` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `3.90`
 - [x] Concept: `Pinned streaming replicated-metadata scan progress and transaction-chain visibility` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `3.90`
 - [ ] Concept: `Value averaging as a target-value accumulation-policy comparator` | Parent: `Crypto coin selection for grid and DCA strategies` | Mode: `dr` | CVS: `3.20`
+
+
+## New family: Market Graph Shapes & Contextual Strategy Effectiveness (2026-11-10)
+
+Root `Market Graph Shapes & Contextual Strategy Effectiveness` registered in `tree.json` under `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)`.
+
+- [ ] Concept: `Optimal Transport & Wasserstein Barycenters on Volatility Surface Meshes` | Parent: `Market Graph Shapes & Contextual Strategy Effectiveness` | Queue-state: `ready` | CVS: `4.55`
+- [ ] Concept: `Persistent Homology Barcode Signatures of Market Microstructure Toxification` | Parent: `Market Graph Shapes & Contextual Strategy Effectiveness` | Queue-state: `ready` | CVS: `4.54`
+- [ ] Concept: `Simplicial Complexes on Cross-Asset Correlation Manifolds` | Parent: `Market Graph Shapes & Contextual Strategy Effectiveness` | Queue-state: `ready` | CVS: `4.48`
+- [ ] Concept: `Visibility Graph Relative Strength Index (VGRSI) & Multi-scale Visibility Filtration` | Parent: `Market Graph Shapes & Contextual Strategy Effectiveness` | Queue-state: `ready` | CVS: `4.38`
+- [ ] Concept: `Recurrence Quantification Analysis (RQA) of Non-Stationary Financial Attractors` | Parent: `Market Graph Shapes & Contextual Strategy Effectiveness` | Queue-state: `ready` | CVS: `4.29`
+- [ ] Concept: `Cusp Catastrophe Fold Traversal in High-Frequency Order Flow` | Parent: `Market Graph Shapes & Contextual Strategy Effectiveness` | Queue-state: `ready` | CVS: `3.99`
