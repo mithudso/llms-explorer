@@ -1,5 +1,21 @@
 # Prompts Log
 
+## Prompt v131 — 2026-11-10 AdSense live diagnosis
+
+```text
+It has now been almost a day since the Google Adsesnse  ad spaces were added to the site. and when I go to the site I never see one, and there isn'ta  single pageview.  Which tells me something is wrong, but there's nothing I know to check. Verify they weren't installed incorectly. Also for the 4th time please ads.txt file into the root directory
+
+  AdSense code snippet
+
+  Ads.txt snippet
+
+  Meta tag
+  To get your site ready to show ads, copy and paste the text below into each ads.txt file and upload to your site's root directory. If you have an existing ads.txt file, just paste the text into each file. Learn more about creating an ads.txt file.
+  google.com, pub-1706083044457708, DIRECT, f08c47fec0942fa0
+```
+
+Delta: v130 to v131. TASK-1272 checks real production requests, preserves reading-page eligibility, adds the requested repository-root seller file, and gates publication on exact root/public/build parity. Authenticated account inspection confirms the requested review is still Getting ready and ads.txt still says Not found; distinguish current account state from the working public file and ad requests.
+
 ## Prompt v130 - 2026-11-09 Crypto bot monitoring
 
 ```text

@@ -40,3 +40,14 @@ def test_publication_guard_requires_a_real_missing_page_response(tmp_path):
         (tmp_path / name).write_text("# Original site content")
     with pytest.raises(ValueError, match="Missing 404.html"):
         check_publication.check(tmp_path)
+
+
+@pytest.mark.parametrize("body", [None, "<html>Homepage fallback</html>",
+                                  "google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0\n"])
+def test_publication_guard_rejects_missing_or_wrong_root_ads_txt(tmp_path, body):
+    for name in ("llms.txt", "llms-facts.txt", "404.html"):
+        (tmp_path / name).write_text("Original site content")
+    if body is not None:
+        (tmp_path / "ads.txt").write_text(body)
+    with pytest.raises(ValueError, match="Missing or incorrect Google seller record"):
+        check_publication.check(tmp_path)

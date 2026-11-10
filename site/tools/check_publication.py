@@ -13,6 +13,13 @@ def check(dist: Path) -> None:
             raise ValueError(f"Archived repository corpus was merged into {name}")
     if not (dist / "404.html").is_file():
         raise ValueError("Missing 404.html would enable the Cloudflare homepage fallback")
+    # Keep the explicitly requested repository-root record identical to the
+    # Astro public asset and the actual website-root build output.
+    seller = b"google.com, pub-1706083044457708, DIRECT, f08c47fec0942fa0\n"
+    root = Path(__file__).resolve().parents[2]
+    for path in (root / "ads.txt", root / "site/public/ads.txt", dist / "ads.txt"):
+        if not path.is_file() or path.read_bytes() != seller:
+            raise ValueError(f"Missing or incorrect Google seller record: {path}")
 
 
 if __name__ == "__main__":
