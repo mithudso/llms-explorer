@@ -1,5 +1,71 @@
 # Memory
 
+## v0.22.168 — 2026-11-10 repository integration and hook repair
+
+Version: 0.22.168. Delta: v0.22.167 to v0.22.168; prompts v133 and v134; TASK-1279.
+
+The user requests conflict resolution, merge cleanup and a current repository. The follow-up reports “Hook failed” and “hook exited with code 1”. The current request resumes integration and verification of existing work. It does not restart research, embeddings or indexing.
+
+The integration worktree is /Users/mitch/dev/llms-explorer-wt-01a1c853. Preserve the primary checkout at /Users/mitch/dev/llms-explorer, its 921 changed paths and its concurrent Claude session. PR311 had eight conflicts in shared logs and generated tree/search data. The integration preserves both branches’ exact changed tree nodes and scores. Projections were regenerated to 2,881 nodes and 2,554 packs. Keyword coverage includes every pack. Frozen semantic rows remain at 1,018 and new embeddings remain zero. The four incoming UI/UX memory sections are renumbered from v0.22.153–v0.22.156 to v0.22.164–v0.22.167 to avoid main's existing versions. The incoming wrap-up prompt becomes v132. These historical checkpoint bodies retain their original dates and limitations.
+
+PR320's Dependabot run receives an empty LIBS_READ_TOKEN. Its logs show literal `LIBS_READ_TOKEN:` with no value, and the repository has no Dependabot secrets. The existing Actions secret works: main CI run42921044072 succeeded today. This is secret availability in Dependabot runs, not an invalid user credential. The initial request for a replacement token was incorrect. No replacement token is needed. Include the exact Ruff requirement update in the human-owned PR311 integration so the same required checks run with the existing Actions secret. Close PR320 only after the merged requirement is verified. The Stripe plugin declared command=node with a separate args array. Codex dropped args and bare Node parsed hook JSON as JavaScript, exiting 1. The targeted migration repair is installed and merged in https://github.com/mithudso/codex-local-ai-setup/pull/13 at 1c55576daa6e09f66c6fff94645127a14f56d048. All 71 setup tests pass. Four exact installed hook commands exit zero. Enablement and 97 unrelated hooks remain unchanged. Independent native hooks/list acceptance passed: both enabled hooks are trusted and their exact commands accept inert JSON with exit zero. The old bare-node command reproduces exit one. The current daemon’s next ordinary human-prompt dispatch remains unobserved.
+
+Local validation: Ruff 0.17.4 full CI lint scope and the complete CLI suite pass; full site build and publication gate pass; Astro reports zero errors/warnings; 357 post-build site tests pass; 84 script tests pass; 30 research-sync tests plus 6 subtests pass; tree/context generator parity passes. An earlier site test run started before the build and failed on absent dist files; the complete post-build run passes. Workflow credential guards fail explicitly on empty secrets before writing Git configuration. Stele transport closed; the durable corrected diagnosis is queued as outbox bb4ee150.
+
+Remaining: final-tip CI with the existing Actions secret; verify and merge PR311 with the exact Ruff update; verify the merged requirement and close superseded PR320; verify remote/deployed state; record the hook reproduction, repair and loaded check; update this continuation with final receipts. Parent TASK-1279 owns staging, commit, push and delivery. Preserve every unrelated worktree and dirty path.
+
+## v0.22.167 — 2026-11-09 user-requested wrap-up
+
+Version: 0.22.167. Delta: v0.22.166 to v0.22.167; save all current UI/UX results and pause delivery at the user’s request. Prompt v132.
+
+The user said: "Write to disk what you have and wrap up". Stop further inference, CI waiting and merges. Keep main PR311 and private hub PR154 as pushed drafts, with their worktrees preserved. Skills PR104 is already merged at9bccdfdbc2d9d3a0119f07984caf0f1ab0d6c411; the earlier publisher fix PR312 is merged at3a240ebd7d04e0d3f1c1fccd26abb08c5b6e733b.
+
+The corpus is complete for the26mapped questions:573structured claims plus103auxiliary rows,676v4gate records (607SUPPORTED,69pure questions),31native public concept/aggregate packs. The public1,146fact rows include aggregate duplication. Three frontier expansions yielded3,2,0gaps; this is one empty round and mapped coverage only. All15competency questions/51canonical mappings pass. Do not repeat authors or valid judgments.
+
+Private LCA/LDO work preserves676records and743citation lines. It produced24single-file packs,2families and a17,019-byte rollup.260keyword probes pass; all29isolated reader views meet their bars across290questions. Preserve raw scores, two timeouts/retries and resource-path rebinding. Local semantic indexing remains paused. Exact private reports, inventories, compiler snapshots and resume commands are under /Users/mitch/.global-ai-hub/research/.full-suite/ui-ux-design-20261108.
+
+The source card is frontend-ui1.7.5. Forty selected installed files and native discovery were verified; original dirty clone HEADs/index/staged compiler blobs and18legacy references remain intact. Two global indexes changed concurrently and were archived without rollback. Historical duplicate discovery remains. Native architecture aggregation is N/A after its pre-existing declaration-order error.
+
+The bounded skill audit is BLIND-AUDIT-DISSENT:0High,2Medium,1Low. Static checks53/53 pass;19cases/83assertions and50trigger queries are predicted. The two Medium repair proposals are saved and unapplied. The two-review guard forbids a third nested audit in this run. Claude-native trigger measurement hit its weekly429quota. Do not resume Ollama, embeddings or indexers.
+
+CFE merge-only tree updates are complete in the live hub and this site worktree. All26concepts were read back through the actual MCP. Parent ownership is frontend-ui and the parent’sMay25date is preserved. The separate hub source branch contains only31qualified nodes/packs, selected scores and skills Gitlink9bcc; it preserves unrelated runtime nodes and dirty work. Hub headf40c0200a565d0a29b2ebba726c01cbb92a0b1ab is pushed in draftPR154. Its CI was running at the stop; no merge/watch remains.
+
+Remaining on resume: inspect the current private continuation; run final site build/generator parity/tests for the updated tree; inspect final CI on exact main/hub tips; merge only after the user resumes; verify remote/deployed content; clean only this task’s clean merged worktrees/branches; complete delivery trackers. Source skill and compiler delivery are already done. Keep unresolved semantic/Claude/skill-audit limitations explicit.
+
+## v0.22.166 — 2026-11-09 citation integrity and measured invocation accounting
+
+Version: 0.22.166. Delta: v0.22.165 to v0.22.166; correct provisional agent accounting and repair complete canonical citation projection. Prompt v125.
+
+Correction: the prior9/9/6 figures count top-level transport summaries, not research-author invocations. Immutable validated-summary.json records show42initial research calls,21merge calls and4paid gate calls. Caller-supplied finish --agents values are not measured usage. Preserve source metadata and unknown costs; do not infer zero cost from aggregate defaults. The independent audit receipt lists exact attempt bindings.
+
+FrontierR1 finalized76claims and88gate rows after one source-bound timing repair. The total is now24researched questions,527structured claims and619gate rows. R2research completedexit0 with46claims over two questions; verification/rendering is active. Round3 remains due. No saturation is claimed.
+
+TASK-1246, linked lesson KNOW-1247, repairs LCA read_units_jsonl and visible source rendering. JSONL import dropped ordered secondary citations; full/facts/single/vocabulary renderers could truncate them. Existing-API note workarounds failed in Facts. The isolated maintained compiler will preserve all bound citations while retaining legacy behavior and exact statements/proof hashes. The dirty canonical installed compiler has an unrelated research_site_hook.refresh addition; selected deployment must preserve it. Never replace that source wholesale.
+
+The initial public projection audit passes451structured claims,531gate rows and24native public packs/readers/downloads. Private LCA citation verification remains pending the narrow fix. Initial website build passes2981pages;328site tests and62projection tests pass;Astro check has0errors. The public README contradiction was corrected. Full-suite continuation remains active in draftPR311.
+
+## v0.22.165 — 2026-11-09 UI/UX verified cohort checkpoint
+
+Version: 0.22.165. Delta: v0.22.164 to v0.22.165; finalize the initial21questions, retain exact gate receipts, and continue evidence-grounded frontier research. Prompt v125.
+
+All three initial native runs are finalized:451structuredclaims,531accepted gate rows,24concept/aggregate packs in each local publication target. The initial21private v3LCApacks preserve all531bound units and pass format/hash checks and210keyword probes. The separate rollup is generated by the existing family compiler. Raw snapshots, quotes and private provenance remain outside Git.
+
+FrontierR1 research exited0 with76claims over three genuine gaps; its semantic/conflict gate is active. FrontierR2 found two further bounded gaps after scoped alias/source checks. No saturation is claimed. Do not restart completed authors. The original emerging finish recorded10configured agents; exact worker metadata shows6. Final accounting uses6emerging,9methods and9systems, with unknown cost kept unknown.
+
+Publisher correction PR312 is confirmed merged and its remote gate bytes match the tested code. Its task-owned clean worktree and branch were removed. Research TASK-1236 is active. Current continuation, scopes, limitations and remaining delivery are in docs/research/ui-ux-design-full-suite-2026-11-08/memory.md.
+
+## v0.22.164 — 2026-11-09 UI/UX full-suite continuation
+
+Version: 0.22.164. Delta: v0.22.152 to v0.22.164; preserve the UI/UX commission and merge the delivered publisher correction. Prompt v125.
+
+TASK-1234 runs the current full-suite workflow on UI/UX design. Subtasks TASK-1235 through TASK-1238 track planning, research, compilation/audits and delivery. Public changes use an isolated origin/main worktree; preserve the 916 dirty paths observed in the primary checkout. Use threshold 3.2, three default frontier re-expansions and no user concept-count cap. Reuse existing coverage before research. Native adapter asset sync passes; its separate shared Claude command pair check reports pre-existing PAIR-DRIFT. Do not repair that unrelated drift here. Preserve the existing embedding pause and keep raw evidence private.
+
+Continuation and exact pending operations: docs/research/ui-ux-design-full-suite-2026-11-08/memory.md. No saturation or research completion is claimed at setup.
+
+Current checkpoint: all21initial questions have531accepted native gate rows (479SUPPORTED factual assertions and52purequestions), including451stored structured claims. Emerging/methods native exports cover13questions; systems is verified/rendered and ready for finalization. Frontier round1 scored17refinements and admitted3new questions (diary/experience sampling, search interaction, ResearchOps repositories), now researching in ui-ux-design-frontier-r1-20261109. No empty-round or saturation credit is claimed.
+
+Publisher correction PR312 merged at3a240ebd7d04e0d3f1c1fccd26abb08c5b6e733b with required checks passing. It reuses213original judgments without another semantic call. UI/UX PR311 remains an active draft. The skills source worktree preserves upstream PR101 and its ui-deep-optimizer handoff. Three initial references are verified; the final consolidated skill audit waits for the frontier cohort. Claude-native trigger evaluation is weekly-quota-blocked; paused embeddings remain untouched.
+
 ## v0.22.163 — 2026-11-10 AdSense live diagnosis
 
 Version: 0.22.163. Delta: v0.22.162 to v0.22.163; prompt v131; TASK-1272.
