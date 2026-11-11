@@ -567,8 +567,7 @@ def link_sitemap(index: str, pages: int) -> str:
         "## Sitemap",
         "",
         f"- [Sitemap]({SITEMAP_NAME}): every page ({pages}) with its title, one line each",
-        f"- [Resources]({SITEMAP_NAME}#resources): source site, related files and the exact "
-        "commands that query this docset",
+        f"- [Resources]({SITEMAP_NAME}#resources): source site and available docset resources",
         "",
     ]
     marker = "## Optional\n"

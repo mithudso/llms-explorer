@@ -1,5 +1,18 @@
 # Memory
 
+## v0.22.192 — 2026-11-11 public resource description
+
+Version:0.22.192. Delta:v0.22.191 to v0.22.192; TASK-1359; PR339.
+
+Final acceptance found that the generated index promised exact local query commands even
+when the public exporter deliberately omits them. The Resources link now describes source
+and available docset resources. Only that copy changed. Focused export/family/site tests
+passed100with exit0; regenerated site family remained High0; Ruff/diff checks passed.
+Independent source review is extending its binding to this final copy hunk. The initial
+integration commit61f8ceb1 is pushed; the updated tip must pass CI before merge.
+Remaining: final-tip CI, merge, remote/live acceptance and bot-PR equivalence closure.
+Private final-receipt.json will record the final merge and zero remaining delivery steps.
+
 ## v0.22.191 — 2026-11-11 verified all-change integration
 
 Version:0.22.191. Delta:v0.22.190 to v0.22.191; prompts145/146; TASK-1359.
