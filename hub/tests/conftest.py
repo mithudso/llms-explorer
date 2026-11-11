@@ -12,6 +12,13 @@ import pytest
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+# The MCP server adds the deployed hub scripts to sys.path during collection.
+# Bind these flat modules to this checkout before that happens.
+import docset_indexer  # noqa: E402, F401
+import hub_lib  # noqa: E402, F401
+import llms_ledger  # noqa: E402, F401
+import llms_routing  # noqa: E402, F401
+import semantic_ops  # noqa: E402, F401
 from hub_manager import core, settings  # noqa: E402
 
 

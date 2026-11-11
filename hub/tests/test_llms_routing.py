@@ -201,6 +201,26 @@ def test_reorder_index_pure_function():
     assert out == "# T\n\n> q\n\n## S\n\n- [c](c.md): three\n- [b](b.md): two\n- [a](a.md): one\n\nfooter\n"
 
 
+def test_reorder_sitemap_anchor_counts_reads_before_migration(tmp_path, ledger):
+    assert Path(lr.__file__).resolve() == Path(__file__).resolve().parents[1] / "scripts/llms_routing.py"
+    assert lr.llms_ledger is ll
+    d = make_family(tmp_path / "fam")
+    old = d / "llms-filemap.txt"
+    old.write_text("legacy")
+    ll.record(str(old), "claude-read")
+    old.rename(d / "llms-sitemap.txt")
+    index = d / "llms.txt"
+    index.write_text(
+        "# Family\n\n> Docs.\n\n## Files\n\n"
+        "- [facts](llms-facts.txt): claims\n"
+        "- [resources](llms-sitemap.txt#resources): tools\n"
+        "- [sitemap](llms-sitemap.txt): pages\n"
+    )
+    assert lr.reorder(index).startswith("ordering: reordered")
+    text = index.read_text()
+    assert text.index("[resources]") < text.index("[sitemap]") < text.index("[facts]")
+
+
 def test_block_is_data_not_instruction(tmp_path, ledger):
     d = make_family(tmp_path / "fam")
     body, dropped = lr.block(d, "2026-09-27")

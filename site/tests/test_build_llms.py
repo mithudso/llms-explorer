@@ -25,6 +25,15 @@ def test_mirror_and_family_from_twins(tmp_path):
     assert (dist / "llms-facts.txt").exists()
     assert "— https://ex.dev/reference/a/#" in (dist / "llms-facts.txt").read_text()
     assert res["high"] == 0
+    sitemap = (dist / "llms-sitemap.txt").read_text()
+    assert "Kind: website · Entries: 2" in sitemap
+    assert "- https://ex.dev/reference/a/ — A" in sitemap
+    assert "- https://ex.dev/examples/b/ — B" in sitemap
+    assert "## Resources" in sitemap and "### Websites" in sitemap
+    assert str(tmp_path) not in sitemap
+    assert "### Related files" not in sitemap and "### Scripts" not in sitemap
+    assert "hub_query_docset" not in sitemap and "docset_indexer.py" not in sitemap
+    assert "[Resources](llms-sitemap.txt#resources)" in idx
     h = (dist / "_headers").read_text()
     assert "/llms*.txt\n  Content-Type: text/markdown" in h
     # the token count is served by functions/_middleware.ts from edge-headers.json
@@ -32,6 +41,9 @@ def test_mirror_and_family_from_twins(tmp_path):
     import twins  # noqa: PLC0415
     edge = json.loads((dist / twins.EDGE_HEADERS_FILE).read_text())
     assert edge["tokens"]["/llms.txt"] > 0
+    assert edge["tokens"]["/llms-sitemap.txt"] > 0
+    manifest = json.loads((dist / "manifest.json").read_text())
+    assert manifest["files"]["llms-sitemap.txt"]["bytes"] == len(sitemap.encode())
 
 
 def test_mirror_strips_authoring_comments(tmp_path):

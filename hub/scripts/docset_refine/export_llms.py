@@ -16,6 +16,10 @@ Grammar choices (see document-formats/references/llms-txt*.md):
 - Every file's size is recorded in manifest.json with an approximate token
   count (chars / 4) so a consumer can budget before fetching.
 
+The exporter adds llms-sitemap.txt with every exported page, resources and
+manifest size metadata. The index links to the sitemap before Optional. It keeps
+the named full, small and facts files for readers that address them directly.
+
 Family: `family` links legacy products with page and token counts, or native
 concept packs with retained-unit, source-host, and token counts. It follows
 the spec-v2 nested-index shape, one hop above each member's llms.txt.
@@ -24,6 +28,8 @@ the spec-v2 nested-index shape, one hop above each member's llms.txt.
 from __future__ import annotations
 
 import re
+import shlex
+import sys
 from collections import OrderedDict
 from datetime import date
 from os.path import relpath
@@ -43,6 +49,9 @@ GRAMMAR_NOTE = (
 )
 _SENT_END_RE = re.compile(r"(?<=[.!?])\s+")
 OPTIONAL_CLASSES = ("changelog",)
+SITEMAP_GROUP_AT = 200
+SITEMAP_NAME = "llms-sitemap.txt"
+GENERATOR = "docset_refine export v3"
 
 
 def _tokens(text: str) -> int:
@@ -423,6 +432,152 @@ def build_facts(pages: list[dict], units: list[dict], title: str) -> str:
     return "\n".join(out).rstrip() + "\n"
 
 
+def _one_line(text: str) -> str:
+    return re.sub(r"\s+", " ", text or "").strip()
+
+
+def _docset_key(mirror: Path) -> str | None:
+    """The key `docset_indexer.py index <mirror>` stores this docset under, or None
+    when the indexer cannot be imported (never guessed)."""
+    scripts = str(Path(__file__).resolve().parents[1])
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    try:
+        import docset_indexer
+
+        return docset_indexer.docset_key(mirror_io.read_pages(mirror), str(mirror))
+    except Exception:  # noqa: BLE001 - indexer deps absent on a thin box: omit, do not invent
+        return None
+
+
+def _indexer_script() -> Path | None:
+    p = Path(__file__).resolve().parents[1] / "docset_indexer.py"
+    return p if p.exists() else None
+
+
+def _sitemap_resources(
+    mirror: Path, ref: Path, root_url: str, key: str | None, *, include_local_resources: bool = True
+) -> list[str]:
+    """List existing local paths and mark derived remote targets as unverified.
+
+    The docset key comes from docset_indexer. The exporter does not infer
+    concept packs, installed skills, live indexing state, or MCP availability.
+    """
+    out = ["## Resources", ""]
+    related = [
+        (mirror, "web-text-mirror source for this docset (one markdown file, URL banner per page)"),
+        (ref, "refined fact layer: pages.json, structured.jsonl, all_units.jsonl"),
+    ]
+    related = [(p, why) for p, why in related if include_local_resources and p.exists()]
+    if related:
+        out += ["### Related files", ""] + [f"- {p.resolve()} — {why}" for p, why in related]
+        out.append("")
+    indexer = _indexer_script()
+    if include_local_resources and key and indexer:
+        command = shlex.quote(str(indexer))
+        docset = shlex.quote(key)
+        source = shlex.quote(str(mirror.resolve()))
+        out += [
+            "### Scripts",
+            "",
+            f'- `python3 {command} query {docset} "<question>" --top 5` — semantic query over this '
+            "docset's source-anchored facts (needs the docset indexed first; "
+            "index state not checked)",
+            f"- `python3 {command} index {source}` — (re)index this docset "
+            "(embeds through the hub's Ollama pool)",
+            "",
+        ]
+    if root_url:
+        out += [
+            "### Websites",
+            "",
+            f"- {root_url} — site root the pages were mirrored from "
+            "(unverified: taken from crawled page URLs; not re-fetched)",
+            "",
+        ]
+    if include_local_resources and key:
+        out += [
+            "### Agents and tools",
+            "",
+            f'- `hub_query_docset(docset="{key}", question="<question>")` — MCP tool on the '
+            "global_ai_hub server (unverified: tool availability not checked); "
+            "answers from the facts layer, every hit carries its source URL",
+            "",
+        ]
+    if len(out) == 2:
+        out += ["### Other", "", "- (none) — no related file or tool could be verified", ""]
+    return out
+
+
+def build_sitemap(
+    pages: list[dict],
+    title: str,
+    mirror: Path,
+    ref: Path,
+    key: str | None = None,
+    generated: str | None = None,
+    *,
+    include_local_resources: bool = True,
+) -> str:
+    """llms-sitemap.txt: every exported page, then `## Resources` (llms file format v3).
+    Kind is `website` when every page has an http(s) URL, else `store` with `## Files`.
+    Public website builders can omit machine-specific resources with
+    `include_local_resources=False` while keeping source page URLs.
+    """
+    mirror = Path(mirror)
+    urls = [p["url"] for p in pages]
+    website = bool(urls) and all(u.startswith(("http://", "https://")) for u in urls)
+    kind, head = ("website", "Pages") if website else ("store", "Files")
+    root_url = ""
+    if website:
+        u = urlparse(urls[0])
+        root_url = f"{u.scheme}://{u.netloc}/"
+    source = root_url or (
+        str(mirror.resolve()) if include_local_resources else "unavailable (no exported source URL)"
+    )
+    day = generated or date.today().isoformat()
+    out = [
+        f"# {title} — sitemap",
+        "",
+        f"> Source: {source} · Generated: {day} by {GENERATOR}",
+        f"> Kind: {kind} · Entries: {len(pages)}",
+        "",
+        f"## {head}",
+        "",
+    ]
+
+    def line(p: dict) -> str:
+        label = _one_line(p.get("title")) or p["url"].rstrip("/").rsplit("/", 1)[-1] or p["url"]
+        return f"- {p['url']} — {label}"
+
+    if len(pages) > SITEMAP_GROUP_AT:
+        for name, group in _group(pages, _common_root(urls)).items():
+            out += [f"### {name}", ""] + [line(p) for p in group] + [""]
+    else:
+        out += [line(p) for p in pages] + [""]
+    out += _sitemap_resources(
+        mirror, ref, root_url, key, include_local_resources=include_local_resources
+    )
+    return "\n".join(out).rstrip() + "\n"
+
+
+def link_sitemap(index: str, pages: int) -> str:
+    """Add the `## Sitemap` link block to an index (or hub) text, before `## Optional`."""
+    block = [
+        "## Sitemap",
+        "",
+        f"- [Sitemap]({SITEMAP_NAME}): every page ({pages}) with its title, one line each",
+        f"- [Resources]({SITEMAP_NAME}#resources): source site, related files and the exact "
+        "commands that query this docset",
+        "",
+    ]
+    marker = "## Optional\n"
+    if marker in index:
+        head, tail = index.split(marker, 1)
+        return head + "\n".join(block) + "\n" + marker + tail
+    return index.rstrip("\n") + "\n\n" + "\n".join(block).rstrip("\n") + "\n"
+
+
 OVERRIDE_KEYS = ("title", "summary", "section_order", "note")
 
 
@@ -446,10 +601,14 @@ def run(
     title: str | None = None,
     summary: str | None = None,
     overrides: dict | None = None,
+    *,
+    include_local_resources: bool = True,
 ) -> dict:
     """Precedence: explicit args > `overrides` arg > <stem>.llms.overrides.json >
     manifest.json["overrides"] > defaults. The merged overrides are written back
-    into manifest.json so they survive the next regeneration."""
+    into manifest.json so they survive the next regeneration. Public website
+    builders set `include_local_resources=False` to omit build paths and local tools.
+    """
     mirror = Path(mirror)
     ref = reference_dir(mirror)
     pages = mirror_io.load_json(ref / "pages.json", default=None)
@@ -476,22 +635,30 @@ def run(
     note = ov.get("note") or (
         f"Generated from a mirror of {host} by docset_refine on the hub; "
         f"{len(pages)} pages. Companion files: llms-full.txt (all pages), "
-        "llms-small.txt (reference pages within ~50k tokens), llms-facts.txt (extracted units)."
+        "llms-small.txt (reference pages within ~50k tokens), llms-facts.txt (extracted units), "
+        f"{SITEMAP_NAME} (every page, plus resources)."
     )
     section_order = ov.get("section_order")
     index = build_index(
         pages, title, summary, defs, acquired=acquired, note=note, section_order=section_order
     )
+    index = link_sitemap(index, len(pages))
     spokes: dict[str, str] = {}
     if len(index.encode("utf-8")) > INDEX_SPLIT_BYTES:
         index, spokes = build_split_index(
             pages, title, summary, defs, acquired=acquired, note=note, section_order=section_order
         )
+        index = link_sitemap(index, len(pages))
+    key = _docset_key(mirror) if include_local_resources else None
     files = {
         "llms.txt": index,
         "llms-full.txt": build_full(pages),
         "llms-small.txt": build_small(pages),
+        SITEMAP_NAME: build_sitemap(
+            pages, title, mirror, ref, key, include_local_resources=include_local_resources
+        ),
     }
+    (out_dir / "llms-filemap.txt").unlink(missing_ok=True)
     # stale section dirs from an earlier split must not outlive the split
     for old_spoke in sorted(out_dir.rglob("*/llms.txt"), reverse=True):
         if old_spoke.relative_to(out_dir).as_posix() not in spokes:

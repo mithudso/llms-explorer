@@ -6,12 +6,15 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache, wraps
 
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server import MCPServer
+except ImportError:  # MCP SDK 1.x keeps the same decorator API under FastMCP.
+    from mcp.server.fastmcp import FastMCP as MCPServer
 
 from .capture import save_research
 from .store import Store
 
-mcp = FastMCP(
+mcp = MCPServer(
     "research-expertise",
     instructions=(
         "Retrieve existing research before doing new research. Search returns source passages, "

@@ -20,7 +20,7 @@ embedding pool.
 - **Static knowledge** (`concept-tree/`, `file-analysis/`,
   `libraries/`, `prompts/`, `roles/`): file-based context read directly by agents.
 - **Runtime** (`scripts/`, `mcp-server/`): file-corpus index (`hub.db`), the
-  per-docset ChromaDB vector index (`.chroma-docsets/`), and the 7-tool
+  per-docset ChromaDB vector index (`.chroma-docsets/`), and the 31-tool
   `global_ai_hub` MCP server. See [COMPONENTS.md](COMPONENTS.md) and
   [MCP.md](MCP.md) for the full tool inventory and env config.
 

@@ -29,6 +29,17 @@ locked in `uv.lock`. Store the connection object in the private user config:
 `database`; restrict its permissions to 600. Keep the authenticated database
 bound to loopback. The official Neo4j MCP can inspect it in read-only mode.
 
+The lock selects MCP SDK 2.3.0. The server imports `MCPServer` on SDK 2 and
+`FastMCP` on SDK 1. Native stdio tests cover initialization, tool annotations,
+retrieval dispatch and rejected inputs using a fixture store. SDK 1.20.0 also
+passes with Pydantic 2.11.10; its upstream `eval_type_backport` import fails with
+Pydantic 2.14.3. Use the frozen lock for current installs. The isolated legacy
+test environment does not change the project's minimum SDK or locked Pydantic.
+
+The Hugging Face Hub range permits versions below 3, but FastEmbed 0.9.1 requires
+Hub below 2, so the lock retains Hub 1.33.0. Hub 2.x compatibility is not qualified
+by this dependency-range change.
+
 From this directory:
 
 ```sh

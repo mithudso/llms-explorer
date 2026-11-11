@@ -47,7 +47,10 @@ from docset_refine import (
 )
 
 BANNER = "=" * 10
-FILES = ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "manifest.json")
+FILES = (
+    "llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt",
+    "llms-sitemap.txt", "manifest.json",
+)
 VOCAB = "llms-vocabulary.txt"
 FACTS = "llms-facts.txt"
 SUBJECT = "LLMSX"
@@ -384,7 +387,7 @@ def build(dist: Path, site_url: str, work: Path, today: str | None = None) -> di
     extract.run(mirror)
     render.run(mirror)
     filtered = filter_units(reference_dir(mirror) / "all_units.jsonl")
-    export_llms.run(mirror, overrides=overrides)
+    export_llms.run(mirror, overrides=overrides, include_local_resources=False)
     out_dir = work / "site.llms"
     if (out_dir / FACTS).exists():           # llms.txt carries the banner in its note
         stamp(out_dir / FACTS, banner)

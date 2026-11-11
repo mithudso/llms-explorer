@@ -26,27 +26,28 @@ def test_real_stdio_lookup_load_package_and_job_protocol(skill, roots, tmp_path)
         async with stdio_client(params) as (reader, writer):
             async with ClientSession(reader, writer) as session:
                 await session.initialize()
-                tools = {t.name: t for t in (await session.list_tools()).tools}
-                assert tools["skills_status"].annotations.readOnlyHint
-                assert not tools["skill_lookup"].annotations.readOnlyHint
-                assert not tools["skill_remote_publish"].annotations.readOnlyHint
+                tools = {t.name: t.model_dump(by_alias=True)
+                         for t in (await session.list_tools()).tools}
+                assert tools["skills_status"]["annotations"]["readOnlyHint"]
+                assert not tools["skill_lookup"]["annotations"]["readOnlyHint"]
+                assert not tools["skill_remote_publish"]["annotations"]["readOnlyHint"]
                 lookup = await session.call_tool("skill_lookup", {"query": "evidence"})
-                assert not lookup.isError
-                hit = lookup.structuredContent["hits"][0]
+                assert not lookup.model_dump(by_alias=True)["isError"]
+                hit = lookup.model_dump(by_alias=True)["structuredContent"]["hits"][0]
                 loaded = await session.call_tool("skill_load", {"skill_id": hit["id"], "max_chars": 20})
-                assert loaded.structuredContent["current"]
-                assert len(loaded.structuredContent["text"]) == 20
+                assert loaded.model_dump(by_alias=True)["structuredContent"]["current"]
+                assert len(loaded.model_dump(by_alias=True)["structuredContent"]["text"]) == 20
                 package = await session.call_tool("skill_package", {
                     "skill_id": hit["id"], "namespace": "local", "name": "example", "version": "1.0.0"})
-                assert not package.isError
-                assert not package.structuredContent["published"]
+                assert not package.model_dump(by_alias=True)["isError"]
+                assert not package.model_dump(by_alias=True)["structuredContent"]["published"]
                 submitted = await session.call_tool("optimizer_submit", {
                     "artifact_type": "document", "input_text": "Rewrite this vague statement."})
-                assert submitted.structuredContent["status"] == "queued"
-                cancelled = await session.call_tool("optimizer_cancel", {"job_id": submitted.structuredContent["id"]})
-                assert cancelled.structuredContent["status"] == "cancelled"
+                assert submitted.model_dump(by_alias=True)["structuredContent"]["status"] == "queued"
+                cancelled = await session.call_tool("optimizer_cancel", {"job_id": submitted.model_dump(by_alias=True)["structuredContent"]["id"]})
+                assert cancelled.model_dump(by_alias=True)["structuredContent"]["status"] == "cancelled"
                 rejected = await session.call_tool("skill_lookup", {"query": "x", "top": 100})
-                assert rejected.isError
+                assert rejected.model_dump(by_alias=True)["isError"]
     asyncio.run(scenario())
 
 

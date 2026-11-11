@@ -116,3 +116,19 @@ def test_cli_record_and_rank(tmp_path, ledger):
     assert r.returncode == 0 and json.loads(ledger.read_text())["kind"] == "small"
     r = subprocess.run([sys.executable, str(SCRIPT), "rank", str(tmp_path)], capture_output=True, text=True, env=env)
     assert r.returncode == 0 and r.stdout.startswith("1\t")
+
+
+def test_sitemap_migration_preserves_legacy_reads(tmp_path, ledger):
+    assert Path(ll.__file__).resolve() == Path(__file__).resolve().parents[1] / "scripts/llms_ledger.py"
+    old = tmp_path / "llms-filemap.txt"
+    old.write_text("legacy")
+    ll.record(str(old), "claude-read")
+    assert json.loads(ledger.read_text())["kind"] == "sitemap"
+    old.rename(tmp_path / "llms-sitemap.txt")
+    assert [(p.name, n) for p, n in ll.rank(tmp_path)] == [("llms-sitemap.txt", 1)]
+    old.write_text("legacy duplicate")
+    ll.record(str(tmp_path / "llms-sitemap.txt"), "claude-read")
+    assert {(p.name, n) for p, n in ll.rank(tmp_path)} == {
+        ("llms-filemap.txt", 2), ("llms-sitemap.txt", 2)
+    }
+    assert ll.role_key("llms-facts.txt") < ll.role_key(old.name) < ll.role_key("llms-small.txt")

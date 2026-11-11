@@ -141,29 +141,9 @@ def _invalidate_store():
             pass  # chroma absent (sqlite backend) or API moved — best effort
 
 
-# hub.db embeddings cache for hub_search_codebase: loading is ~2.4s and ~1GB
-# transient per call unmemoized (measured: 20k vectors, ~208MB of JSON text).
-# Cache parsed vectors + magnitudes, invalidated on hub.db mtime.
-_emb_cache: dict = {"mtime": None, "rows": None}
-_emb_lock = threading.Lock()
-
-
-def _load_codebase_embeddings():
-    import hub_lib
-    db_path = HUB_DIR / "hub.db"
-    mtime = db_path.stat().st_mtime if db_path.exists() else None
-    with _emb_lock:
-        if _emb_cache["rows"] is not None and _emb_cache["mtime"] == mtime:
-            return _emb_cache["rows"]
-        raw = hub_lib.load_embeddings()  # {path: {"hash":..., "embedding":[...]}}
-        import math
-        rows = []
-        for path, rec in raw.items():
-            vec = rec.get("embedding") or []
-            mag = math.sqrt(sum(x * x for x in vec)) or 1.0
-            rows.append((path, vec, mag))
-        _emb_cache.update(mtime=mtime, rows=rows)
-        return rows
+def _codebase_matrix():
+    from embedding_matrix import shared_matrix
+    return shared_matrix(HUB_DIR / "hub.db")
 
 
 # --------------------------------------------------------------------------- #
@@ -177,22 +157,12 @@ def hub_search_codebase(query: str, n_results: int = 5, rerank: bool = False) ->
     hub.db). Returns ranked file paths with similarity scores. rerank=True
     adds a snippet-level precision pass (semantic_ops.rerank)."""
     import hub_lib  # deferred: touches config + db only when called
-    import math
     try:
         qvec = hub_lib.fetch_embedding(query)  # hub_lib's own model — matches hub.db vectors
         if not qvec:
             return "ERROR: embedding backend returned no vector (is Ollama up?)"
-        rows = _load_codebase_embeddings()
-        qmag = math.sqrt(sum(x * x for x in qvec)) or 1.0
-        qlen = len(qvec)
-        scored = []
-        for path, vec, mag in rows:
-            if len(vec) != qlen:
-                continue  # older-model vector of different dimension
-            sim = sum(a * b for a, b in zip(qvec, vec)) / (qmag * mag)
-            scored.append((sim, path))
-        scored.sort(reverse=True)
         top = max(1, min(int(n_results), 25))
+        scored = _codebase_matrix().search(qvec, top_k=top * 4 if rerank else top)
         picked = scored[:top]
         if rerank:
             from semantic_ops import rerank as _rr

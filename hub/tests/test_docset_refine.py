@@ -530,9 +530,10 @@ def test_render_reids_the_merged_units(tmp_path):
 # ------------------------------------------------------------- export_llms --
 
 
-def test_export_writes_index_full_small_facts_and_manifest(tmp_path):
+def test_export_writes_index_full_small_facts_and_manifest(tmp_path, monkeypatch):
     from docset_refine import export_llms
 
+    monkeypatch.setattr(export_llms, "_docset_key", lambda _mirror: None)
     m = _mirror(tmp_path)
     (tmp_path / "code.claude.com_state.json").write_text(json.dumps({"acquire": "llms-full"}))
     clean.run(m)
@@ -553,15 +554,107 @@ def test_export_writes_index_full_small_facts_and_manifest(tmp_path):
     assert "- [snippet] Exit codes: claude --version" in facts
     assert "— https://code.claude.com/docs/en/hooks#exit-codes" in facts
     man = json.loads((d / "manifest.json").read_text())
-    assert set(man["files"]) == {"llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt"}
+    assert set(man["files"]) == {
+        "llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "llms-sitemap.txt"
+    }
     assert man["files"]["llms-full.txt"]["tokens"] >= 1 and man["acquired"] == "llms-full"
     assert r["pages"] == 3
+    sitemap = (d / "llms-sitemap.txt").read_text()
+    exported = mirror_io.load_json(export_llms.reference_dir(m) / "pages.json")
+    entries = sitemap.split("## Pages\n", 1)[1].split("## Resources", 1)[0]
+    assert entries.count("\n- ") == 3
+    for page in exported:
+        assert entries.count(f"- {page['url']} — ") == 1
+    assert "Kind: website · Entries: 3" in sitemap
+    assert f"- {m.resolve()} — " in sitemap
+    assert "(unverified:" in sitemap and "hub_query_docset" not in sitemap
+    assert man["files"]["llms-sitemap.txt"]["bytes"] == len(sitemap.encode())
+    assert idx.index("## Sitemap") < idx.index("## Optional")
+    assert "[Resources](llms-sitemap.txt#resources)" in idx
+    (d / "llms-filemap.txt").write_text("legacy")
+    export_llms.run(m)
+    assert not (d / "llms-filemap.txt").exists()
     # the exported llms-full round-trips through the acquisition splitter
     import llms_acquire as la
 
     assert [p["url"] for p in la.split_llms_full(full)][
         0
     ] == "https://code.claude.com/docs/en/hooks"
+
+
+def test_export_sitemap_groups_all_pages_and_quotes_resource_commands(tmp_path, monkeypatch):
+    import shlex
+
+    from docset_refine import export_llms
+
+    mirror = tmp_path / "source docs.md"
+    mirror.write_text("source")
+    indexer = tmp_path / "hub scripts" / "docset_indexer.py"
+    indexer.parent.mkdir()
+    indexer.write_text("# indexer")
+    monkeypatch.setattr(export_llms, "_indexer_script", lambda: indexer)
+    pages = [
+        {"url": f"https://docs.test/reference/{n}", "title": f"Page\n{n}"}
+        for n in range(201)
+    ]
+    text = export_llms.build_sitemap(
+        pages, "Docs", mirror, tmp_path / "missing.ref", key="docs__source", generated="2026-11-11"
+    )
+    entries = text.split("## Pages\n", 1)[1].split("## Resources", 1)[0]
+    assert "### " in entries and entries.count("\n- ") == 201
+    assert "Kind: website · Entries: 201" in text
+    assert "- https://docs.test/reference/0 — Page 0\n" in entries
+    assert "missing.ref" not in text
+    command = next(line for line in text.splitlines() if "(re)index" in line).split("`", 2)[1]
+    assert shlex.split(command) == ["python3", str(indexer), "index", str(mirror.resolve())]
+    assert "unverified: tool availability not checked" in text
+
+
+def test_export_sitemap_store_fallback_and_missing_indexer(tmp_path, monkeypatch):
+    import sys
+
+    from docset_refine import export_llms
+
+    monkeypatch.setitem(sys.modules, "docset_indexer", None)
+    mirror = tmp_path / "missing.md"
+    assert export_llms._docset_key(mirror) is None
+    text = export_llms.build_sitemap(
+        [{"url": "local/source.md", "title": ""}], "Store", mirror, tmp_path / "missing.ref"
+    )
+    assert "Kind: store · Entries: 1" in text and "## Files\n" in text
+    assert "- local/source.md — source.md" in text
+    assert "### Other\n\n- (none) — no related file or tool could be verified" in text
+    assert "### Scripts" not in text and "### Websites" not in text
+
+
+def test_export_public_sitemap_omits_machine_specific_resources(tmp_path):
+    from docset_refine import export_llms
+
+    mirror = tmp_path / "source.md"
+    mirror.write_text("source")
+    ref = tmp_path / "source.reference"
+    ref.mkdir()
+    text = export_llms.build_sitemap(
+        [{"url": "https://docs.test/start", "title": "Start"}],
+        "Docs", mirror, ref, key="docs__source", include_local_resources=False,
+    )
+    assert "- https://docs.test/start — Start" in text
+    assert "## Resources\n\n### Websites" in text
+    assert str(tmp_path) not in text and "docset_indexer.py" not in text
+    assert "hub_query_docset" not in text and "### Related files" not in text
+
+
+def test_export_empty_public_sitemap_never_uses_build_path(tmp_path):
+    from docset_refine import export_llms
+
+    mirror = tmp_path / "private-build" / "site.md"
+    text = export_llms.build_sitemap(
+        [], "Empty site", mirror, tmp_path / "site.reference", include_local_resources=False
+    )
+    assert "> Source: unavailable (no exported source URL) · Generated:" in text
+    assert "Kind: store · Entries: 0" in text and "## Files\n" in text
+    assert str(tmp_path) not in text and str(mirror) not in text
+    assert "### Other\n\n- (none) — no related file or tool could be verified" in text
 
 
 def test_family_index_links_product_indexes_with_counts(tmp_path):
@@ -675,6 +768,9 @@ def test_oversize_index_splits_hub_and_spoke(tmp_path, monkeypatch):
     monkeypatch.setattr(export_llms, "INDEX_SPLIT_BYTES", 10_000_000)
     export_llms.run(m)
     assert not list(d.glob("*/llms.txt")) and "## Sections" not in (d / "llms.txt").read_text()
+    # The sitemap link block counts toward the index's byte budget.
+    monkeypatch.setattr(export_llms, "INDEX_SPLIT_BYTES", (d / "llms.txt").stat().st_size - 1)
+    assert export_llms.run(m)["sections"] >= 1
 
 
 def test_split_recurses_by_path_and_falls_back_to_parts():
