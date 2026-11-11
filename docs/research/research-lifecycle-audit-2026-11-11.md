@@ -3,7 +3,7 @@ title: Research lifecycle audit and improvement plan
 type: history
 created: 2026-11-11
 updated: 2026-11-11
-verified_at: 3dd863b0
+verified_at: 2655b289
 sources:
   - code: scripts/research_gate.py
   - code: scripts/research_artifact.py

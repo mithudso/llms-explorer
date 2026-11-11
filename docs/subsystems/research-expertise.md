@@ -7,7 +7,7 @@ sources:
   - code: hub/research-expertise/src/research_expertise/store.py
   - code: hub/research-expertise/src/research_expertise/capture.py
   - code: hub/research-expertise/src/research_expertise/mcp_server.py
-verified_at: 3dd863b0
+verified_at: 2655b289
 ---
 
 # Local research expertise
