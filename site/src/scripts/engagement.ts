@@ -50,6 +50,16 @@ export function installEngagement(): void {
   };
   window.addEventListener("hashchange", openPrompt); openPrompt();
   document.querySelectorAll<HTMLDetailsElement>("details.menu").forEach(menu => {
+    const fitMenu = () => {
+      const panel = menu.querySelector<HTMLElement>(".menu-items");
+      if (!menu.open || !panel) return;
+      const viewport = window.visualViewport;
+      const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+      panel.style.maxHeight = `${Math.max(0, Math.min(bottom * .75, bottom - panel.getBoundingClientRect().top - 16))}px`;
+    };
+    menu.addEventListener("toggle", fitMenu);
+    window.addEventListener("resize", fitMenu);
+    window.visualViewport?.addEventListener("resize", fitMenu);
     menu.addEventListener("keydown", event => {
       if (event.key === "Escape") { menu.open = false; menu.querySelector("summary")?.focus(); }
     });

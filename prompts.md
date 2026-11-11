@@ -1,5 +1,14 @@
 # Prompts Log
 
+## Prompt v138 — 2026-11-11 deep UI optimizer
+
+```text
+Run the deep ui optimizer on this site.
+```
+
+Delta: v137 to v138. TASK-1318. Run ui-deep-optimizer against the public LLMSX site in an isolated current-main worktree; repair verified Medium+ issues, preserve branding and behavior, record all method selections and evidence, verify browser behavior and deliver.
+
+
 ## Prompt v137 — 2026-11-11 live expertise research and MCP capture
 
 ```text

@@ -14,6 +14,8 @@ const redirects = Object.fromEntries(
 export default defineConfig({
   site: canonicalSite,
   trailingSlash: "always",
+  // Keep instructional comments readable at ordinary code sizes (WCAG 1.4.3).
+  markdown: { shikiConfig: { theme: "github-dark-high-contrast" } },
   build: { format: "directory" },
   redirects,
 });
