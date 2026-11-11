@@ -61,7 +61,7 @@ Three more things went wrong in the same stretch, all ours:
 
 [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) is a dense 27B model under Apache-2.0. Unsloth's [GGUF repository](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF) lists the UD-Q3_K_XL file at 13.1 GB and UD-IQ4_XS at 14.3 GB. Its multi-token-prediction (MTP) layer is inside the main GGUF: llama.cpp ran `--spec-type draft-mtp` with no second file. The repository also lists a separate MTP file; loading it as an external draft model failed to start with all layers on the GPU, and under automatic fit it ran at 4 to 5 tokens per second.
 
-The launch command, with llama.cpp build `77757a3`:
+The launch command used llama.cpp build `77757a3`. Install a compatible CUDA build, obtain the named GGUF, and substitute its local path. Flags and defaults can change between builds; inspect the matching server documentation before reusing this historical configuration:
 
 ```
 llama-server --jinja -fa on \
@@ -74,7 +74,7 @@ llama-server --jinja -fa on \
 
 Each flag has a reason. `-np 1` gives the model one request slot so the whole context budget goes to one agent. `-ngl 99` puts every layer on the GPU and makes a configuration that does not fit fail at start instead of quietly spilling to the CPU. The q8 key and value cache types make 32k of context fit. Draft length 2 is the setting that worked: draft length 3 started but the server died on its first request, and we did not look into why. The last line turns thinking off by default, and a request can still turn it back on.
 
-It fits tightly. The card has 16,303 MiB, the desktop and the system Ollama process that serves our embedder hold about 1,330 MiB, and the model brings the card to 15,739 MiB at its soak peak, so about 560 MiB is free. A 64k context did not fit. If the desktop grows, the server will refuse to start rather than slow down.
+It fits tightly. The card has 16,303 MiB, the desktop and the system Ollama process that serves our embedder hold about 1,330 MiB, and the model brings the card to 15,739 MiB at its soak peak, so about 560 MiB is free. A 64k context did not fit. Extra desktop VRAM use can prevent this configuration from starting or leave too little runtime headroom. Recheck memory availability before using it.
 
 ### Serving it with llama-swap
 
@@ -126,8 +126,8 @@ Part 1 judged two models. For Part 2 we ran a new blind round on four configurat
 | Questions answered from the sources (7) | **9.00** | 8.33 | 4.00 | 6.67 |
 
 - **Questions answered from sources.** Qwen3.8 invented about 0.3 details per set of answers, gpt-oss-20b 0.7 and Qwen3.6-35B 3.0. This is the property we care about most for a research agent, and it is where Qwen3.6, the Part 1 leader for claims and maps, was worst.
-- **Claims files.** The two Qwen3.8 builds and Qwen3.6-35B are close, with gpt-oss-20b clearly behind. Each item had one judge, so the 1.3-point gap between the two Qwen3.8 builds on the Medusa and EAGLE item is within what we would expect from judge noise.
-- **Concept maps.** The MTP build produced a valid map in all three full runs, with 1.7 fabricated entries per map against 6.7 for Qwen3.6-35B. The IQ4_XS build's low score comes from two of three maps failing to parse as JSON, so the judges saw empty objects. In map-only repeats it failed one of 18 times. We could not catch a failing sample with the error logging on, so the cause is unknown. Constrained JSON output from the server should remove the risk, but we did not test it.
+- **Claims files.** The two Qwen3.8 builds and Qwen3.6-35B are close, with gpt-oss-20b clearly behind. Each item had one judge, so we cannot tell whether the 1.3-point gap between the two Qwen3.8 builds on the Medusa and EAGLE item reflects quality or judge variation.
+- **Concept maps.** The MTP build produced a valid map in all three full runs, with 1.7 fabricated entries per map against 6.7 for Qwen3.6-35B. The IQ4_XS build's low score comes from two of three maps failing to parse as JSON, so the judges saw empty objects. In map-only repeats it failed one of 18 times. We could not catch a failing sample with the error logging on, so the cause is unknown. Constrained JSON output is a candidate mitigation for parse failures, but we did not test it or establish that it removes this risk.
 - **Reproducibility.** An earlier judging round that included Qwen3.8 IQ4_XS gave it 8.0, 8.0 and 8.0 on the three claims items and 8.33 on questions. This round gave 7.67, 7.67, 8.67 and 8.33.
 - **The caveats from Part 1 still hold:** the judge is a Claude model judging open models, and stored concept maps were cut at 6,000 characters, which we told the judges not to penalise.
 
@@ -169,7 +169,7 @@ This is the gpt-oss-20b comparison from Part 1, with the pending rows filled in.
 | [Ollama](https://github.com/ollama/ollama) 0.40.3 | 137 / 135 / 129 | 110 / 125 / 124 | 14,923 MiB | 18 | 3 of 4, 441 s |
 | [ik_llama.cpp](https://github.com/ikawrakow/ik_llama.cpp) with `--fit` | 123 / 122 / 116 | 97 / 114 / 114 | 15,017 MiB | 18 | 3 of 4, 992 s |
 
-Plain llama.cpp is the fastest at every context length and every client count, which is why we serve with it. It scaled to 411 tokens per second across four clients, while LM Studio and Ollama plateaued near 184 and 124. ik_llama.cpp was about half as fast on this model, even though it won on the offloaded Qwen3.6-35B-A3B in Part 1. The code subset is four tasks and the smoke set is nineteen checks, so one test either way is noise; do not rank engines on those two columns. vLLM and SGLang did not fit on 16 GB, as we reported in Part 1.
+Plain llama.cpp is the fastest at every context length and every client count, which is why we serve with it. It scaled to 411 tokens per second across four clients, while LM Studio and Ollama plateaued near 184 and 124. ik_llama.cpp was about half as fast on this model, even though it won on the offloaded Qwen3.6-35B-A3B in Part 1. The code subset is four tasks and the smoke set is nineteen checks. With this small sample, a one-test difference does not support a reliable engine ranking. vLLM and SGLang did not fit on 16 GB, as we reported in Part 1.
 
 ## Tuning
 
@@ -190,7 +190,7 @@ Part 1 set the bar: a candidate has to beat `mxbai-embed-large` clearly to justi
 | EmbeddingGemma-300M (Q8_0) | 768 | .261 | .634 | .735 | .416 | 132.8 |
 | Qwen3-Embedding-0.6B (Q8_0) | 1,024 | .220 | .545 | .642 | .351 | 44.4 |
 
-Only nomic-embed-code beats the current embedder on all four quality numbers: 0.029 more Recall@1 and 0.097 more Recall@10. It also embeds about eight times slower and stores vectors 3.5 times larger. That is a real gain at a real cost, and it is not enough on its own to justify re-embedding everything, so we have not switched. The test set comes from one codebase and is not published. Qwen3-Embedding-0.6B scored the same with and without our 480-token cut, so context length did not explain its low result.
+Both nomic-embed-code and Qwen3-Embedding-4B beat the current embedder on all four listed quality metrics. Nomic has the highest value on each, including 0.029 more Recall@1 and 0.097 more Recall@10 than mxbai. It also embeds about eight times slower and stores vectors 3.5 times larger. That is a real gain at a real cost, and it is not enough on its own to justify re-embedding everything, so we have not switched. The test set comes from one codebase and is not published. Qwen3-Embedding-0.6B scored the same with and without our 480-token cut, so context length did not explain its low result.
 
 ## What this setup cannot tell you
 

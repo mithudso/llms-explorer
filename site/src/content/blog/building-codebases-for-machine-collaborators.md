@@ -7,7 +7,9 @@ order: 22
 
 ### How automated documentation, documentation-as-architecture, retrieval indexes, structured logging, testing, and dual-moded CLI / API / application surfaces make a codebase legible to — and verifiable by — an LLM agent
 
-**A technical review · June 2026**
+**A historical technical review · June 2026**
+
+The implementation counts and test results below are the original author’s June 2026 observations of a separate dashboard repository. This page does not link a frozen source revision or test receipt, so those historical results are not independently reproducible from this article alone. They are not current measurements of LLMS-Explorer.
 
 ---
 
@@ -23,9 +25,9 @@ These two facts define two families of engineering practice, and the six topics 
 - **Legibility** — so the agent can find the right thing without scanning everything and without guessing: **automated documentation**, **documentation as architecture**, and **retrieval indexes**.  
 - **Verifiability** — so the agent's work can be checked and its capabilities exercised without a human in the loop: **structured automated logging**, **testing**, and **test-centric design via dual-moded CLI / API / application surfaces**.
 
-The connective claim of this review is that the sixth practice is the hinge between the two families. A capability reachable only through a graphical interface is neither testable (except by brittle UI automation) nor usable by an agent. The *same* capability placed behind a CLI and an HTTP API becomes scriptable — and a scriptable surface is simultaneously a test surface and an agent surface. You build the headless seam once, for testability, and the agent drives the product through the same door your tests do.
+The connective claim of this review is that the sixth practice is the hinge between the two families. A capability reachable only through a graphical interface requires UI automation for an agent or end-to-end test to use it. A callable interface gives both a more direct path. The *same* capability placed behind a CLI and an HTTP API becomes scriptable — and a scriptable surface is simultaneously a test surface and an agent surface. You build the headless seam once, for testability, and the agent drives the product through the same door your tests do.
 
-None of this is novel for human teams; it is ordinary good engineering. What is new is that the agent makes the cost of *skipping* these practices legible and immediate. A human tolerates a stale doc and a GUI-only feature. An agent acts on the stale doc and cannot reach the GUI-only feature at all.
+None of this is novel for human teams; it is ordinary good engineering. What is new is that the agent makes the cost of *skipping* these practices legible and immediate. A human tolerates a stale doc and a GUI-only feature. An agent can act on a stale doc; reaching a GUI-only feature also depends on whether its harness provides UI automation.
 
 **Scope and honesty note.** This review argues the *practices* and grounds each one in mechanisms of a single dashboard codebase that are *implemented and verified file-by-file*. It does **not** present a measured effect size: there is no A/B comparison of agent throughput or quality with versus without these practices, no recorded retrieval hit-rate for the indexes, and no measured defect-escape rate attributable to the test suite. Where a claim is demonstrated by the running system, the review says so; where a claim is an engineering argument, it says that too. The effect size is named future work, not a result reported here.
 
@@ -33,7 +35,7 @@ None of this is novel for human teams; it is ordinary good engineering. What is 
 
 ## 1. The collaborator changed; the codebase must answer for it
 
-A human engineer onboards once and accrues a mental model that survives across months. An LLM agent onboards every session and retains nothing between calls. This review takes that statelessness as given and asks a different question: given a collaborator that starts each session amnesiac, reads only a slice of the repo, and produces output that must be checked rather than trusted — **what should the codebase itself look like?**
+A human engineer onboards once and accrues a mental model that survives across months. A model call does not by itself preserve a working memory for the next call. An agent harness can carry context and reload persistent records across calls and sessions. This review takes that statelessness as given and asks a different question: given a collaborator whose available context depends on its harness, that reads only a slice of the repo, and whose output must be checked rather than trusted — **what should the codebase itself look like?**
 
 The answer has two halves, and they are not interchangeable.
 
@@ -79,7 +81,7 @@ Alongside these, the per-directory `README.md` files (service worker, common hel
 
 ## 4. Retrieval indexes: turn "scan everything" into "look up the few"
 
-**The principle.** The agent's context window cannot hold the repository — the generated index alone spans 758 files. Without an index, locating the right one is a choice between two bad options: a full scan (impossible within the window) or a guess from partial knowledge (a hallucination). An index changes the complexity class of "find the relevant code" from *read-everything* to *look-up-then-read-a-few*. It is the single highest-return investment in expanding an agent's effective reach beyond its window, because it lets a small context do the work of a large one.
+**The principle.** The agent's context window cannot hold the repository — the generated index alone spans 758 files. Without an index, locating the right one is a choice between two bad options: a full scan (impossible within the window) or a guess from partial knowledge (a hallucination). An index changes the complexity class of "find the relevant code" from *read-everything* to *look-up-then-read-a-few*. It can expand an agent’s effective reach beyond its context window by directing limited reads toward relevant files. This review does not measure its return relative to other practices.
 
 **In the dashboard.** The repo runs two indexes, on purpose, because they carry different things:
 
@@ -129,7 +131,7 @@ What makes the harness notable is that it is **designed for the substrate it tes
 
 This is the hinge, and it is where verifiability and legibility meet.
 
-**The principle.** A capability reachable *only* through the graphical interface is doubly stranded. It can be tested only through brittle end-to-end UI automation, and it is invisible to an agent, which cannot click. Place the *same* capability behind a **CLI** and an **HTTP API**, and it becomes scriptable — and a scriptable surface is, in the same stroke, a test surface *and* an agent surface. "Test-centric" means designing the headless seam *first*: the capability's primary, first-class entry point is a callable function behind an API or a command, and the GUI is a thin presentation layer over it. The test suite and the agent are then simply two more callers of the same seam, neither of which needs a browser.
+**The principle.** A capability reachable *only* through the graphical interface is doubly stranded. It can be tested only through brittle end-to-end UI automation, and an agent needs browser or desktop automation to use it. Place the *same* capability behind a **CLI** and an **HTTP API**, and it becomes scriptable — and a scriptable surface is, in the same stroke, a test surface *and* an agent surface. "Test-centric" means designing the headless seam *first*: the capability's primary, first-class entry point is a callable function behind an API or a command, and the GUI is a thin presentation layer over it. The test suite and the agent are then simply two more callers of the same seam, neither of which needs a browser.
 
 **In the dashboard — one worked example: one tested core, two clients.** The Node backend exposes its capabilities as an HTTP API on localhost. The Chrome extension (the application) consumes that API. The 346 server tests hit that core directly, over HTTP, with no browser in the loop — so the seam the tests exercise is the same seam the application uses.
 
@@ -195,7 +197,7 @@ Four things this codebase does not currently do, and why:
 
 ## 10. Conclusion
 
-The collaborator changed. It is stateless, it reads the codebase a slice at a time, and its output is probabilistic — frequently right, occasionally confidently wrong, with no tonal tell between the two. A codebase earns its keep with such a collaborator by being **legible** — so the agent can find the right thing without scanning everything or guessing — and **verifiable** — so its work can be checked and its capabilities exercised without a human in the loop.
+The collaborator changed. Its model calls rely on context supplied by a harness, it reads the codebase a slice at a time, and its output is probabilistic — frequently right, occasionally confidently wrong, with no tonal tell between the two. A codebase earns its keep with such a collaborator by being **legible** — so the agent can find the right thing without scanning everything or guessing — and **verifiable** — so its work can be checked and its capabilities exercised without a human in the loop.
 
 The six practices are the two halves of that contract. Automated documentation, documentation-as-architecture, and retrieval indexes make the system legible: the doc is generated from the truth and gated against drift, the agent-facing doc is treated as the control surface it actually is, and a curated-plus-generated index turns an un-scannable repository into a lookup. Structured logging, testing, and test-centric dual-moding make the system verifiable: the runtime narrates itself in greppable structure, the suite converts plausible into passing, and the capability is built behind a headless seam first.
 

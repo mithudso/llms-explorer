@@ -18,10 +18,10 @@ the machine-readable form of this page is the site's own `llms-vocabulary.txt`.
 
 ## The files
 
-- **index** (`llms.txt`): the spec-defined map — H1, blockquote, H2 link lists — small enough to sit in context; orientation and navigation, never content.
+- **index** (`llms.txt`): the proposal's navigation map — H1, optional blockquote and H2 link lists — intended to orient a reader before fetching detail.
 - **full** (`llms-full.txt`): every page of a docset inlined into one markdown file — not in the spec; three grammars exist.
 - **small** (`llms-small.txt`): a full file cut to a budget (≤ 200,000 characters, ~50k tokens), reference pages first — pages dropped whole, never truncated.
-- **facts** (`llms-facts.txt`): a hub extension — one typed, anchored claim per line, the trusted layer a retriever answers from.
+- **facts** (`llms-facts.txt`): a hub extension — one typed, anchored claim per line; a retriever can check the cited source, but the format alone does not verify the claim.
 - **vocabulary** (`llms-vocabulary.txt`): the lexical layer — terms, senses, synonyms and contrasts of a family, each definition anchored to a unit.
 - **manifest** (`manifest.json`): the counts (bytes, tokens, pages, units, sections) and the overrides, beside the files and never linked from them.
 - **twin** (`.md` twin): the clean-markdown version of an HTML page at the same route with `.md` appended — the thing an index link should point at.
@@ -56,8 +56,8 @@ the machine-readable form of this page is the site's own `llms-vocabulary.txt`.
 
 ## The judging
 
-- **attribute**: one thing an llms file is judged on — an id (I1…H8), the kinds it applies to, a measure, a bar, a severity — 59 of them on the [rubric](/reference/attributes/).
-- **pass**: one step of the optimizer (P0–P15), naming the attributes it judges and whether it is deterministic, model, or live — on the [passes page](/reference/passes/).
+- **attribute**: one thing an llms file is judged on — an id (such as I1, C8 or V7), the kinds it applies to, a measure, a bar, a severity — 67 of them on the [rubric](/reference/attributes/).
+- **pass**: one step of the optimizer (P0–P19), naming the attributes it judges and whether it is deterministic, model, or live — on the [passes page](/reference/passes/).
 - **deterministic / model / live**: how a pass measures — a script with no model call; an LLM reading and deciding; an HTTP call or an agent exercised.
 - **severity**: High (fails the CI gate), Medium (counted toward convergence), Low, Hygiene — a miss on an attribute has one.
 - **convergence**: the loop state where every Medium-or-higher finding is fixed and a re-run finds none — the optimizer's stopping rule.

@@ -127,9 +127,10 @@ loop stopped on a dissenting blind audit rather than on a green report:
 ## Reproduce
 
 The saved files are under `outputs/llms-topical/llms-txt.llms/`. The figures above describe
-the August pilot recorded in `logs/memory-hub.md` (§v1.1.55), not the later snapshot now in
-that directory: its manifest is dated 2026-09-20 and records 170 units from 79 sources.
-That later file cannot independently reproduce all of the August counts. The how-to that explains each
+the August pilot recorded in `logs/memory-hub.md` (§v1.1.55). The previous review cited a
+September 20 snapshot; the checked-in manifest inspected on November 11 is dated 2026-11-01
+and records 170 units from 79 sources. Neither later snapshot independently reproduces
+all of the August counts. The how-to that explains each
 stage of the assignment (and where to intervene) is
 `.claude/skills/llms-deep-optimizer/references/facts-to-llms-howto.md`. Recipe 12 in the examples
 cookbook is the copy-only version of the commands block.

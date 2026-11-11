@@ -121,5 +121,3 @@ Measured from `manifest.json`: root 280 tokens, `agent-sdk/llms.txt` 1,615 token
 `overview/llms.txt` 167 tokens (it is itself split into `part-N` files of 3,311 / 2,950 /
 1,032 tokens). Three tool calls, zero embeddings, zero model tokens spent on retrieval; the
 model spends only what it reads.
-
-> Runnable in step 4 (playground).

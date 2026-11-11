@@ -7,7 +7,7 @@ order: 27
 
 ### How `concept-family-explorer`, the context hub concept tree, and the `/dr` skill compose into a self-expanding expertise pipeline
 
-**Status:** Technical report · **As of:** 2026-06-17 · **Audience:** skill/prompt engineers, agent-infrastructure maintainers **Provenance:** Every count and timestamp in this paper traces to a live concept-tree query run while drafting, or to the session run-history. The mapping is in Appendix A. Figures that come from run-history rather than a live query are flagged inline with *(run-history)*.
+**Status:** Historical technical report · **As of:** 2026-06-17 · **Audience:** skill/prompt engineers, agent-infrastructure maintainers. **Provenance:** Appendix A records the original author’s claimed query and run-history sources. “Live” below means a query made while drafting on 2026-06-17, not a current measurement. The underlying query outputs and run-history receipts are not linked here, so readers cannot independently reproduce the historical counts from this article alone. Figures attributed to run-history remain flagged inline with *(run-history)*.
 
 ---
 
@@ -76,7 +76,7 @@ The three components form a loop. CFE runs the outer cycle (breadth), `/dr` runs
 
 **Control flow** (the numbered steps): CFE maps the family (1), diffs it against the tree to find gaps (2), scores each gap (3), and for every viable gap invokes `/dr` (4). `/dr` does the research, authors and installs a skill, and writes a node back into the tree (5). CFE re-reads coverage and tests for saturation (6); if not saturated it loops, otherwise it runs the terminal optimization passes (7).
 
-**Data flow:** the only durable state is in the concept tree. CFE holds the family map in working memory for one run; `/dr` holds research findings for one topic. Neither is the source of truth — the tree is. This is what lets a run crash, a session end, or a scheduled job and a manual run interleave, and still have the system know what exists.
+**Data flow:** the concept tree stores durable coverage and relationship metadata. Installed skills and their reference files store the durable knowledge produced by `/dr`. CFE holds the current family map in working memory; `/dr` holds the current research findings until it writes its outputs. The tree records which outputs exist; it does not replace those outputs. This is what lets a run crash, a session end, or a scheduled job and a manual run interleave, and still have the system know what exists.
 
 **Division of labor** in one line each:
 
@@ -129,7 +129,7 @@ This is deliberate, and it is the system's answer to a hard constraint: the mode
 
 The ledger plays two roles that the breadth loop depends on completely:
 
-1. **The saturation oracle.** "Is this family done?" is answerable only against a record of what is already covered. CFE computes saturation by diffing the family map it just produced against the nodes the tree already holds for that family. No tree, no stop condition — the loop would either run forever or stop arbitrarily.  
+1. **The saturation oracle.** "Is this family done?" is answerable only against a record of what is already covered. CFE computes saturation by diffing the family map it just produced against the nodes the tree already holds for that family. Without a coverage record, this loop cannot use its coverage-based stop condition; it would need another limit, such as a fixed scope or budget.
 2. **The dedup guard.** Before `/dr` researches a concept, CFE checks whether a node already exists. This is what prevents the system from spending a research budget rebuilding `mongodb-transactions` because a slightly different phrasing of the request came in. (When this guard is bypassed — see §8.1 — the system produces duplicate skills, which is the most common real-world failure.)
 
 ---
@@ -258,12 +258,12 @@ A last nuance the tree exposes: a concept's *conceptual* parent and its *owning*
 
 The headline figures, read live while drafting: **431 concept nodes** in the tree and **477 skills** in the registry. But raw counts are the least interesting measure. "Meaningful" for this system means four specific properties that the worked examples demonstrate:
 
-1. **Coverage you can prove.** Saturation is a diff against a ledger, not a vibe. The TypeScript and Node.js families were declared done because the family map stopped surfacing high-scoring gaps — and the tree shows exactly which concepts cleared the bar (§6.1, §6.2).  
+1. **Coverage within the proposed map.** Saturation compares a generated family map with a ledger; it does not prove that the map includes every useful concept. The TypeScript and Node.js families were declared done because the family map stopped surfacing high-scoring gaps — and the tree shows exactly which concepts cleared the bar (§6.1, §6.2).
 2. **No wasted research.** The dedup guard meant run 2 of TypeScript never re-bought run 1's five concepts. Across a 431-node tree, that compounding saving is the difference between a system that finishes and one that thrashes.  
 3. **Knowledge growth decoupled from catalog bloat.** Eight markdown concepts cost zero new top-level skills; the 413→187 index reduction *(run-history)* shows the scan surface *shrinking* while node count climbed. This is the property that keeps the system usable as it scales.  
 4. **Freshness as a first-class signal.** `researchedAt`/`refreshedAt` plus the 90-day `staleOnly` filter turn "is this knowledge current?" into a query. A node researched on 2026-05-25 and refreshed on 2026-06-04 is auditable; a flat skill folder is not.
 
-The deeper result is *resumability*. Because all state lives in the tree, a saturation run is a sequence of small, committed steps rather than one long fragile transaction. The deferred tail of the first TypeScript run became the input to the second a day later — same machinery, no re-derivation, no lost context.
+The deeper result is *resumability*. Because the tree records completed outputs, a saturation run can resume from small, recorded steps rather than repeating one long transaction. The installed skills and references must also remain available. The deferred tail of the first TypeScript run became the input to the second a day later — same machinery, no re-derivation, no lost context.
 
 ---
 
@@ -273,7 +273,7 @@ This system is not magic, and its sharp edges are worth stating plainly.
 
 ### 8.1 Concurrency: the scheduled builder vs. the manual run
 
-The most consequential failure mode: an **active scheduled CFE/auto-hub run and a manual run on the same subject collide** *(run-history)*. Two writers race against the same shared state, and because skill-building is deterministic, both produce the *same* concept — yielding **duplicate skills with different IDs**. Worse, the scheduler periodically syncs the hub and **prunes unpinned skill builds**: a manually-built skill that was never pinned in the selection manifest can be silently garbage-collected by the next scheduled sync. The mitigation is operational, not architectural — before manual hub-building, check the registry's modification time and recent manifest pins for a concurrent writer, and always pin new builds.
+The most consequential failure mode: an **active scheduled CFE/auto-hub run and a manual run on the same subject collide** *(run-history)*. Two writers race against the same shared state and can independently select the *same* concept — yielding **duplicate skills with different IDs**. Worse, the scheduler periodically syncs the hub and **prunes unpinned skill builds**: a manually-built skill that was never pinned in the selection manifest can be silently garbage-collected by the next scheduled sync. The mitigation is operational, not architectural — before manual hub-building, check the registry's modification time and recent manifest pins for a concurrent writer, and always pin new builds.
 
 ### 8.2 The write-back is an unlocked read-modify-write
 
@@ -295,11 +295,11 @@ Several figures in this paper (the 1→10 and 10→20 spoke counts, the 413→18
 
 ## 9. Conclusion
 
-The design idea worth taking away is the **three-way separation of breadth, depth, and memory**, and the insistence that only memory is durable.
+The design idea worth taking away is the **three-way separation of breadth, depth, and memory**, with durable coverage metadata in the tree and durable knowledge in installed skills.
 
 - Give the breadth loop (`concept-family-explorer`) the power to enumerate a whole conceptual family and to *stop*, and you cure depth-first blindness — the system now surfaces what you didn't know to ask.  
 - Give the depth worker (`/dr`) one job — research a topic, ship a skill, link it, record it — and it becomes reusable, parallelizable, and easy to reason about.  
-- Put all the state in one ledger (the concept tree), and the loop becomes measurable (saturation is a diff), efficient (dedup is a lookup), and resumable (every step is committed).
+- Record coverage and output references in one ledger (the concept tree), and the loop can compare mapped coverage, look up duplicates, and resume from recorded outputs. Keep the installed skill files with that ledger.
 
 The live tree is the evidence that the composition works at scale: a 431-node graph in which you can replay a Saturday-afternoon MongoDB cascade by its timestamps, watch a TypeScript family close its tail over two days, and see eight markdown concepts fold into one hub without bloating the catalog. The open problems are real — concurrency and an unlocked write path chief among them — but they are *operational* problems on top of a sound architecture, not flaws in the idea. Breadth proposes, depth produces, the ledger remembers.
 

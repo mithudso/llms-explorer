@@ -90,7 +90,7 @@ One more persistence surface and one cost mechanism sit alongside the agent-memo
 
 **The versioned project journal.** `memory.md` and `prompts.md` at the repo root are an append-only, version-stamped record (`## v1.0.NNN` headings) maintained on every session that changes the repo: the user request goes into `prompts.md`, completed work and next steps into `memory.md`, and the patch version is bumped with each change. This is the durable audit trail and a coarse-grained resume of record; because it is append-forever, `scripts/rotate-workflow-logs.mjs` rotates older sections into `docs/archive/` once a log crosses \~200 KB, so the per-session read path stays bounded.
 
-**The cache layer.** On-disk memory decides *what persists*; prompt caching decides *what of the re-sent context is cheap*. The two are complementary, and the caching half places `cache_control` breakpoints in volatility order, with a TTL matched to call rate. The relevant rule it shares with this design: the stable prefix (system prompt, loaded memory) must come first and never carry volatile tokens, or the cache is invalidated on every call.
+**The cache layer.** On-disk memory decides *what persists*; prompt caching decides *what of the re-sent context is cheap*. The two are complementary, and the caching half places `cache_control` breakpoints in volatility order, with a TTL matched to call rate. The relevant rule it shares with this design: place stable context before volatile content. A change prevents reuse from the changed portion onward; an earlier unchanged prefix may remain reusable. Keep frequently changing state after the prefix intended for reuse.
 
 ### 3.4 The ordering principle
 

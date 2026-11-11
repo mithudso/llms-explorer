@@ -113,5 +113,3 @@ cap of 100 rules per `_headers` file. This site crossed it at 103 twins, so its 
 keeps only the wildcard rules and a Pages Function sets the per-file `X-Markdown-Tokens`
 from a generated JSON map (`site/functions/_middleware.ts`); a Transform Rule is the other
 way past the cap.
-
-> Runnable in step 4 (playground).

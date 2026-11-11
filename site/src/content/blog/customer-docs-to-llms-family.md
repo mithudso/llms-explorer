@@ -97,7 +97,7 @@ honest size of a <!-- fig:developers.cloudflare.com.pages --> 1,943-page table o
 a description per page.
 
 Every unit in the facts file is one line, `- [type] text — url#anchor`, and every anchor
-resolves to a heading in the mirror (see the anchors post for why that was not true a day
+resolves to a heading in the mirror (see [the anchors post](/blog/anchors-that-point-nowhere/) for why that was not true a day
 earlier).
 
 ## What the lint found

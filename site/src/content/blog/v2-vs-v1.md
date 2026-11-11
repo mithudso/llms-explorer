@@ -142,6 +142,4 @@ On the **pipeline** side:
   HTML; `llms_serve.py` returns `text/markdown; charset=utf-8` with `X-Markdown-Tokens` and
   `Link: rel="describedby"`. A client that scraped the HTML view has to read markdown.
 
-What does *not* break, and is worth saying plainly: every v1 `llms.txt` still parses, still
-lints, and still answers questions for an agent handed its URL. The migration guide above is
-a list of recommendations for one, not repairs.
+A structurally valid v1 `llms.txt` remains compatible with the proposal described here. Compatibility does not mean zero lint findings or a correct answer from every consumer; content quality and the consumer's fetch behavior still matter. Use the migration guide to inspect the actual file and its intended consumers.

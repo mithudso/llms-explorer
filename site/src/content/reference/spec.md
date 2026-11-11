@@ -20,7 +20,7 @@ verified-as-of: 2026-08-30
 7. Related files: robots.txt, sitemap.xml, ai.txt, Content Signals
 8. References
 
-> **Honesty note (carry into every recommendation).** `llms.txt` is a *proposal*, not a ratified standard, now at **v2 (modified 2026-08-10)**.[^1] Google says it neither reads nor plans to read it;[^12][^13] server-log studies find 97% of files get zero AI requests.[^14] The one consumer class that demonstrably fetches it is **agents that are pointed at it** — coding agents, MCP doc tools, RAG pipelines: in Ahrefs' 137k-domain log study the `Claude-Code` user agent out-fetched every AI retrieval bot bar two (statespace-indexer, GPTBot).[^14] Design for that use, not for search visibility.
+> **Honesty note (carry into every recommendation).** `llms.txt` is a *proposal*, not a ratified standard, at **v2 (modified 2026-08-10) as of the verification date above**.[^1] Google says it neither reads nor plans to read it;[^12][^13] server-log studies find 97% of files get zero AI requests.[^14] The one consumer class that demonstrably fetches it is **agents that are pointed at it** — coding agents, MCP doc tools, RAG pipelines: in Ahrefs' 137k-domain log study the `Claude-Code` user agent out-fetched every AI retrieval bot bar two (statespace-indexer, GPTBot).[^14] Design for that use, not for search visibility.
 
 ## 1. What it is, in one paragraph
 
@@ -125,7 +125,7 @@ Budgeting in practice is **producer-side splitting**, not consumer-side truncati
 
 | File | Job | Do AI bots fetch it? |
 |---|---|---|
-| `robots.txt` | access control; now also carries Cloudflare **Content Signals** (`Content-Signal: search=yes, ai-input=…, ai-train=no`, 2025-09-24) | **full treatment: `references/robots-txt.md` (RFC 9309) and `references/robots-txt-content-signals.md`** — yes, thousands of times per site; Content Signals: Google says "no effects whatsoever"[^36][^37] |
+| `robots.txt` | crawler access preferences; can also carry Cloudflare **Content Signals** (`Content-Signal: search=yes, ai-input=…, ai-train=no`, 2025-09-24) | **full treatment: `references/robots-txt.md` (RFC 9309) and `references/robots-txt-content-signals.md`** — yes, thousands of times per site; Content Signals: Google says "no effects whatsoever"[^36][^37] |
 | `sitemap.xml` | exhaustive inventory; no `.md` versions, no external links | yes (ClaudeBot, GPTBot, Bingbot)[^38] |
 | `llms.txt` | curated navigation for agents pointed at it — **not an access-control or TDM opt-out mechanism**; see `eu-ai-act-tdm-opt-out` for why it does not count as an EU rights reservation | ~0 speculative fetches; agents when directed[^14] |
 | `ai.txt` | opt-out preferences (IETF draft) — see `references/ai-txt.md` for the full disambiguation (5-way name collision, adoption evidence, authoring) | 397 instances found May 2026[^39] |

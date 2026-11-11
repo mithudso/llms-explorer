@@ -63,8 +63,13 @@ source-axis families and listed under `## Topics` on the root index.
    /ldo llms-topical/prompt-caching.llms/llms.txt --agent-test
    ```
 
-5. **Serve.** `llms_serve.py` picks the directory up at `/t/prompt-caching/…` and lists it
-   under `## Topics` on the root.
+5. **Serve.** From the same hub working directory, point the server at the output parent explicitly:
+
+   ```sh
+   HUB_LLMS_TOPICAL_DIR="$PWD/llms-topical" .venv/bin/python scripts/llms_serve.py --host 127.0.0.1 --port 8788
+   ```
+
+   This exposes `llms-topical/prompt-caching.llms/` at `/t/prompt-caching/…` and lists it under `## Topics`. Without the override, the server reads its configured `llms-concepts/` directory.
 
 ## Expected output
 
@@ -88,5 +93,3 @@ embedding per unassigned unit without it (the centroid step embeds only what key
 file-affinity did not place). The agent test is the only model spend — a bank of ten
 questions, each a short model call — estimated at a few tens of thousands of model tokens
 per run, to be replaced by the CI-measured figure when the runnable examples land.
-
-> Runnable in step 4 (playground).

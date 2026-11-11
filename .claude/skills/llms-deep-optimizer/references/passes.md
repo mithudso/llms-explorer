@@ -155,7 +155,7 @@ docset's concept.
 
 **Tools:** subagent (model per SKILL.md frontmatter), `hub_concept_lookup` for topic names,
 `hub_docset_index` to read the current index. **Relations:** `concept-family-explorer` for a
-topical file's section skeleton; `dfo` (document-deep-optimizer) for prose quality of the
+topical file's section skeleton; `ddo` (Document Deep Optimizer) for prose quality of the
 blockquote when it exceeds two sentences.
 
 ## P5 — Size ladder and budgets (deterministic)

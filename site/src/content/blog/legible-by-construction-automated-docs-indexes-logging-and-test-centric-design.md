@@ -19,7 +19,7 @@ That assumption no longer holds. A large language model now reads, writes, and o
 
 This review argues one position across six topics:
 
-**Documentation, indexes, logs, and tests are load-bearing architecture.** Their job is to make a system **legible** (understandable without reading all of the source) and **verifiable by construction** (correct because of how it is built, not because someone remembered to check). **Dual-moding a single core across CLI, API, and application surfaces is the structural keystone** that makes legibility and verifiability cheap instead of aspirational.
+**Documentation, indexes, logs, and tests are load-bearing architecture.** Their job is to make a system **legible** (understandable without reading all of the source) and **verifiable by construction** (designed to expose checkable contracts, without claiming that structure alone proves correctness). **Dual-moding a single core across CLI, API, and application surfaces is the structural keystone** that makes legibility and verifiability cheap instead of aspirational.
 
 The six core sections build on each other: automated docs, then docs as the contract, then the index (the agent's view of the docs), then logs (the runtime feedback signal), then tests, then the design pattern that ties testing to dual-moding. Section 7 is the honest bill of costs; Section 8 ties the six together.
 
@@ -31,13 +31,13 @@ The six core sections build on each other: automated docs, then docs as the cont
 
 Treat documentation as a **build artifact**, not a hand-maintained sibling of the code. Anything derivable from a source of truth — an API surface, a CLI's `--help`, a config schema, a dependency table, an inventory of capabilities — should be *generated* from that source on every change, never transcribed by hand. Hand-transcription has a half-life: the moment a human copies a fact from code into prose, the two begin to diverge, and the divergence is invisible until a reader is burned by it.
 
-The discipline that makes this work is a **hard generated-vs-handwritten boundary**. Every file is unambiguously one or the other. Generated files carry a banner that forbids hand-editing and name the generator. Handwritten files never contain a fact that a generated file could own. The two never mix in the same file, because a file that is "mostly generated but with a few manual tweaks" is a file that will be silently clobbered or silently stale, and you won't know which.
+The discipline that makes this work is a **hard generated-vs-handwritten boundary**. Every file is unambiguously one or the other. Generated files carry a banner that forbids hand-editing and name the generator. Handwritten files never contain a fact that a generated file could own. If one file combines generated and handwritten content, give the generator explicit region boundaries and preserve the handwritten regions. Manual tweaks inside a generated region can otherwise be overwritten.
 
 The industry has converged here over two decades: OpenAPI/Swagger generating client SDKs and reference docs from a spec, TypeDoc/JSDoc/Sphinx autodoc lifting docs out of type signatures, the "docs as code" movement (treat docs like source: version them, review them, build them in CI). Diátaxis (Daniele Procida) adds the orthogonal insight that *type* matters — tutorials, how-tos, reference, and explanation have different jobs and should not be blended — which tells you *what* to generate versus *what* to write by hand: reference is generable, explanation rarely is.
 
 ### The failure mode that matters: staleness
 
-Automated docs do not fail by being wrong on day one. They fail by drifting. The single most valuable thing you can build is not the generator — it is the **staleness gate**: a CI check that fails the build when a generated doc no longer matches its source. Without that gate, "generated" is a comforting label on a file that quietly rots.
+Automated docs can be wrong on day one if the generator or its inputs are wrong. They can also drift when the generated output stops matching its source. The single most valuable thing you can build is not the generator — it is the **staleness gate**: a CI check that fails the build when a generated doc no longer matches its source. Without that gate, "generated" is a comforting label on a file that quietly rots.
 
 A gate is also only as good as its coverage: it guards exactly the facts it checks, and a prose document that no gate watches can drift while the gated artifact stays correct.
 
@@ -112,7 +112,7 @@ The payoff is usually sold as flexibility. The deeper payoff is **testability an
 
 - **The core is unit-testable with zero I/O.** No server to boot, no UI to drive. Tests call functions and assert returns. This is why §5's "test the core not the transport" is a *consequence* of this design, not a separate rule.  
 - **Each adapter is thin enough to contract-test.** An adapter that only translates (parse args → call core → format output) has almost no logic to get wrong, and what little it has is testable in isolation.  
-- **The surfaces cannot drift, because there is only one implementation.** When the CLI, the API, and the app are three façades over one core, a behavior change lands in all three at once. When they are three codebases, they diverge — and the divergence is where the bugs and the "works in the API but not the CLI" tickets live.
+- **One shared core reduces duplication, but adapters can still drift.** When the CLI, the API, and the app are three façades over one core, a behavior change lands in all three at once. When they are three codebases, they diverge — and the divergence is where the bugs and the "works in the API but not the CLI" tickets live.
 
 Then comes the move that makes this *test-centric*: **the CLI is the most honest test harness you have.** A core that is fully exercisable from the command line is a core you can script, diff, fuzz, and drive in CI without any test-framework ceremony. `kubectl` is a thin CLI over the same API the Kubernetes dashboard uses; the Stripe CLI drives the same API as the SDKs. The Unix tradition of composable programs over text streams was test-centric design before the term existed, because a program you can pipe is a program you can assert against. If a capability is awkward to invoke from a CLI, that awkwardness is a design smell in the *core*, surfaced early and cheaply.
 
@@ -125,7 +125,7 @@ The ordering inverts the usual one. Instead of "build the app, bolt on an API, m
    MCP/RPC ────► │   no I/O, no transport  │      no transport to boot
    App/UI  ────► │                         │
                  └─────────────────────────┘
-   each adapter: parse → call core → format.  thin, contract-tested, can't drift.
+   each adapter: parse → call core → format.  thin, with contracts to test.
 ```
 
 For a system that agents operate, an MCP server over the same core is, in effect, the agent's CLI: the same honest, scriptable surface that makes the core testable also makes it agent-operable.
@@ -150,6 +150,6 @@ The six topics are not six best practices. They are one architecture seen from s
 
 A system built this way **generates** its reference docs and **gates** their freshness (1); treats its key docs as **enforced contracts** rather than commentary (2); maintains explicit, fresh **indexes** so a bounded-context agent can find what it needs (3); **instruments every operation at the boundary** and emits structured, classified, redacted events that humans and agents both act on (4); **tests its core through stable contracts** and promotes structural claims to executable CI invariants (5); and achieves all of the above cheaply because it is **one pure core behind thin, dual-moded adapters** (6).
 
-The unifying property is the one in the title. Such a system is **legible**: a human or an agent can understand it without reading all of it, because the docs, the index, and the logs are designed to be read. And it is **verifiable by construction**: its correctness comes from structure (the boundary, the gate, the contract, the single core) rather than from anyone's vigilance.
+The unifying property is the one in the title. Such a system is **legible**: a human or an agent can understand it without reading all of it, because the docs, the index, and the logs are designed to be read. And it is **verifiable by construction**: its structure exposes properties that can be checked through boundaries, gates, contracts, and a shared core. Correctness still depends on the adequacy of those checks and the implementation.
 
 That distinction is the whole argument. Vigilance does not scale, does not survive turnover, and emphatically does not survive an agent that has never met your team's unwritten rules. Structure does. As more of our code is read and written by systems that cannot hold the whole repository in their heads, the artifacts that make a system legible and self-verifying stop being good hygiene and become the architecture itself.

@@ -19,15 +19,15 @@ decision the tooling made, the evidence it rests on, and what would change the d
 
 An index description exists so that a routing model can decide, without fetching, whether the
 page answers its question. That decision is made on tokens: the flag name, the error string, the
-endpoint path. A description written by a model reads better and drops exactly those tokens; a
-description cut from the page's own first sentences keeps them. The hub's `_description` takes
+endpoint path. A model-written description can omit those exact tokens. An extractive description
+keeps the source wording, though it still needs a check that the selected sentence is useful. The hub's `_description` takes
 the page's lead sentences, trims to `MAX_DESC_CHARS = 180`, and prefers a sentence that contains
 a backticked token. The generator survey on the [tooling page](/reference/tooling/) shows the
 alternative: crawl-based generators that hand every page to a small model produce fluent,
 interchangeable descriptions that no keyword search distinguishes.
 
-*What would change it:* a consumer that embeds descriptions rather than matching tokens. None of
-the measured consumers does; see §5.
+*What would change it:* a measured comparison showing that generated descriptions improve
+routing without losing identifiers. The consumer examples in §5 do not establish such a comparison.
 
 ## 2. Size is a producer-side problem
 
@@ -57,7 +57,9 @@ Raw page text is untrusted input — the spec repository's own issue #152 found 
 where the hub applies its filters: steering phrases are rejected by pattern (`STEER_RES`,
 attribute P4), secrets and private keys by pattern (attribute P5 — both checked in pass P9),
 residue from page chrome by pattern.
-What remains is typed (`UNIT_TYPES`), anchored, and bounded in size. The query layer prefers it:
+These checks reduce recognizable defects; they do not prove each claim true or reject every
+prompt injection. The remaining units are typed (`UNIT_TYPES`), anchored, and bounded in size.
+The query layer prefers this layer:
 `hub_query_docset(layer=auto)` answers from `<key>__facts` when one exists and falls back to raw
 chunks only when it does not.
 
@@ -74,7 +76,7 @@ has already spent more context than the index saved.
 
 ## 6. Publish for agents, not for search
 
-The evidence page holds the numbers: adoption at roughly 5–10% of the general web by mid-2026 and
+The evidence page holds the numbers: adoption at roughly 5–10% in selected ranked-domain samples by mid-2026 and
 rising 8.8× year on year, yet 97% of valid files received zero AI requests in a month of logs,
 Google says it does not read the file, and a 300k-domain model found no relationship between
 having one and being cited. The rules on this site therefore optimise for the reader that exists —

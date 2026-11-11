@@ -68,7 +68,7 @@ def expand(query: str, table: dict[str, set[str]]) -> str:
     for tok in re.findall(r"[\w./:-]+", query):
         forms = table.get(tok.lower())
         out.append("(" + " OR ".join(f'"{f}"' for f in sorted(forms)) + ")" if forms else tok)
-    return " ".join(out)
+    return " AND ".join(out)
 
 vocab = requests.get("http://127.0.0.1:8788/t/llms-txt/llms-vocabulary.txt", timeout=10).text
 table = surfaces(vocab)
@@ -78,12 +78,12 @@ print(expand("llms.txt discovery", table))
 Doing it in the client is the whole recipe today. Server-side expansion is **designed, not
 shipped**: `hub_query_docset` currently takes `(docset, question, top, layer, mode)` and has no
 `expand` flag, so steps 2–3 belong to the caller. The keyword CLI takes the expanded string
-as-is with `--mode raw`, and `hub_query_docset(..., mode="keyword")` takes it as the question.
+as-is with `--mode raw`. The MCP call `hub_query_docset(..., mode="keyword")` uses token-any matching; it quotes whitespace tokens and does not preserve this raw OR/AND expression. Use the CLI raw mode for this example.
 
 ## Expected output
 
 ```
-("/llms.txt" OR "/llmstxt" OR "llms.txt") discovery
+("/llms.txt" OR "/llmstxt" OR "llms.txt") AND discovery
 ```
 
 Fed to the FTS5 layer in `raw` mode, that query returns the units that spell the term one way
@@ -108,5 +108,3 @@ Measured: zero model tokens, zero embeddings. The vocabulary read is one small f
 llms.txt family's pilot is at least 40 lines); the expansion is string matching; the FTS5
 query is sub-millisecond. This is the only recipe whose cost class is *free* without
 qualification.
-
-> Runnable in step 4 (playground).

@@ -1,6 +1,6 @@
 ---
 title: "The API: what it is, and how to call it"
-description: "LLMS-Explorer as a service, not a website: what a key buys you, the REST surface, the hosted MCP gateway, the llmsx CLI, and where the free tier ends."
+description: "Accounts, scoped API keys, the hosted MCP gateway, local tools, and the limits of the donation-supported free plan."
 section: reference
 order: 8
 sources:
@@ -16,36 +16,39 @@ Everything else in this section describes the llms.txt standard. This page descr
 other half of the site: the hub's own tooling — lint, index, abstract, search — reached
 through an account instead of a terminal.
 
-## What you're actually buying
+## Accounts and donations
 
-LLMS-Explorer is the concept-family-tree explorer with the hub's llms tooling hung off its
-nodes: lint or optimize an llms file, turn notes into one, abstract a concept out of a
-corpus, deepen it with a research wave, map its family. Reading is free everywhere on this
-site, with no account and no key — the reference, the blog, the directory, the public
-concept tree, and every served llms file (`/d/ /m/ /t/`). What a key buys is the tooling
-that spends model tokens or GPU time on your behalf: linting with the model passes, semantic
-search, indexing your own docset, publishing to the shared catalogue. One ledger records
-every token that gets spent. See [Donate](/donate/) to support the project — one-time or
-monthly, via Stripe.
+LLMS-Explorer publishes reference pages, articles and a concept tree that you can read
+without an account. Concept facts are available through the [context index](/context/)
+and its downloads. Archived source reports and third-party full-text mirrors are not
+public site content.
+
+The current implementation has one **free**, donation-supported plan. An account adds
+scoped API keys and the operations that plan permits; a key does not unlock a paid tier
+or every tool in the local hub. [Donate](/donate/) supports the project through one-time
+or monthly donations via Stripe. Donations do not change the plan's permissions.
+
+Implementation checked on 2026-11-11. The limits below describe the repository's plan
+and gateway policy; a running deployment may also be unavailable or rate-limited.
 
 ## Three ways in
 
 **Web.** Sign in with a passkey, GitHub, or Google at [/login/](/login/), then
 [/keys/](/keys/) to mint an API key and [/usage/](/usage/) to watch what it's spent.
 
-**REST API**, at `api.llms-explorer.com`. A key is `lx_<prefix>_<secret>` — shown once at
+**REST API**, at `api.llms-explorer.com`. A key is `llmsx_<prefix>_<secret>` — shown once at
 creation, sent as a bearer token, scoped to what it's allowed to do:
 
 | Scope | Grants |
 |---|---|
 | `read` | Queries within your quota; read your own artifacts |
 | `run` | Create metered jobs — lint model passes, indexing, concept packs |
-| `publish` | Contribute to the shared catalogue |
+| `publish` | A contribution scope; the current free plan does not enable direct publication |
 
-Routes worth knowing: `GET /api/usage` (ledger aggregates by component, model, day),
-`GET /api/billing/plans` (the price table, no sign-in needed), `GET/POST/DELETE /api/keys`
-(list, create with scopes, revoke). A metered call past your quota answers with a structured
-error naming the plan that would lift the limit, not a bare 402.
+Routes worth knowing: `GET /api/usage` for your usage, `GET /api/keys` to list your
+keys, `POST /api/keys` to create one with scopes, and `DELETE /api/keys/<id>` to revoke
+one. These account routes require a signed-in session. The gateway separately accepts
+an API key as a bearer token. Quota failures do not imply that a paid upgrade is available.
 
 **MCP**, hosted or local. The hub runs its own MCP server for tools you point at your own
 machine — semantic search, docset indexing, concept-tree queries — and it's unauthenticated
@@ -60,33 +63,35 @@ over loopback. Five things it enforces that a bare tunnel wouldn't:
    trying things.
 2. **Your docsets are walled.** A docset key beginning `u_` belongs to exactly one account;
    arguments are checked going in and results are filtered coming back.
-3. **A path is never just an argument.** Anything that names a file on the hub's own
-   filesystem is resolved inside your own store — an unconfined path is a local-file-read
-   primitive, so escaping your store is refused.
-4. **One limit, one place.** Every quota comes from the same plan table `/billing/`
-   describes; nothing is hardcoded in the gateway.
+3. **File arguments are confined.** Hosted tools that accept a file path must resolve it
+   inside your own store; paths that escape it are refused.
+4. **Plan quotas have one table.** Feature quotas come from the plan table. The gateway
+   also applies its own request-rate and resource limits.
 5. **A ledger row is written once**, after the hub confirms the work happened — not before
    (billing a failure) and not twice.
 
 Third-party full text is never served hosted, at any tier — a mirrored `llms-full.txt` you
 don't own stays on the hub, and the concept surface links out to the source instead.
 
-**CLI**, `llmsx`: `llmsx login`, `llmsx keys create --scopes read,run`, `llmsx usage
-[--month]`, `llmsx jobs <id>`. See [Downloads](/downloads/) for install.
+**Local CLI**, `llmsx`: browse the tree with `llmsx tree`, open the terminal workbench
+with `llmsx explorer`, or download public packs with `llmsx context`. It is a separate
+local interface; it does not implement `login`, `keys`, `usage` or `jobs` subcommands.
+See [Downloads](/downloads/) for installation and the [user guide](/explorer/guide/) for
+the workbench.
 
 ## The free tier's semantic search
 
-The free tier's semantic and hybrid search is a fixed 16-document demo, rate-limited and not
-billed — it's there to show what the retrieval looks like, not to serve your own corpus.
-Indexing your own docset, and querying it, both need a paid plan. The recorded three-leg
-run (keyword, vector, the fusion of both) is at [/demo/](/demo/) if you want to see the
-retrieval quality before paying for it.
+Semantic and hybrid search on the free plan is limited to the fixed 16-document demo,
+rate-limited and not billed. It does not provide semantic querying of your own corpus.
+The plan allows one index of up to 20,000 units and 0.2 GB of storage; hosted indexing
+also requires a `run` key and inputs confined to your own store. Keyword queries have a
+200-per-day allowance. The [recorded demo](/demo/) shows keyword, vector and fused retrieval;
+it is an example, not a guarantee for a different corpus.
 
 ## What's deterministic and free even with a key
 
-Not every tool call spends a token. Lint's deterministic passes — the ones that don't run a
-model — are free and unlimited-frequency-within-quota on every plan; only the *model* passes
-(P4/P8/P12) are metered. Keyword search (FTS5, no embedding call) is free up to a daily
-count that scales with your plan. The pattern throughout: cheap path first, deterministic
-before model, local Ollama before Claude — every metered step has a free deterministic
-shadow, and the lint that gates this site's own published files is exactly that free path.
+Deterministic linting and keyword search require no generation model. The hosted model-pass
+showcase requires your own Anthropic API key and limits input to 65,536 bytes and 20 model
+passes per day. These checks differ from local deterministic scripts and from the gateway's
+semantic-operation policy. The site's build uses deterministic linting; passing it does not
+establish that model, retrieval or live-agent checks ran.

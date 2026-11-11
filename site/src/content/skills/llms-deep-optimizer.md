@@ -31,6 +31,6 @@ file", "build an llms file for X", "make this docset navigable" — any file nam
 or a `<stem>.llms/` directory.
 
 **Not for:** a skill file or hub spoke (`skill-optimizer`) · a prompt
-(`prompt-deep-optimizer`) · ordinary prose (`document-deep-optimizer`) · crawling a site
+(`prompt-deep-optimizer`) · ordinary prose (`ddo`, Document Deep Optimizer) · crawling a site
 (`web-text-mirror`) · drafting a first structure out of disorganized notes — that's this
 skill's own upstream step ([notes-to-llms-txt](/skills/notes-to-llms-txt/)).

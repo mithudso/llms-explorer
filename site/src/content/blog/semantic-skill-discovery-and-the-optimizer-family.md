@@ -151,7 +151,7 @@ Keyword discovery is a **runtime guess**: at selection time, score the query aga
 
 ### 6.1 Why a skill costs tokens before it ever runs
 
-Every installed skill contributes its **description** to the always-loaded routing context — that is the text the model and the discovery layer read to decide whether the skill is relevant. With hundreds of skills, the sum of descriptions is a real, recurring budget line. The system defends that budget at four levels.
+Every installed skill contributes its **description** to the always-loaded routing context — that is the text the model and the discovery layer read to decide whether the skill is relevant. With hundreds of skills, the sum of descriptions is a real, recurring budget line. The following sections describe five levels of budget control and a separate usage-based tiering mechanism.
 
 ### 6.2 Level 1 — the two-tier description cap
 
@@ -308,7 +308,7 @@ The differences are not cosmetic — they follow from the artifact each one oper
 
 ### 10.3 The unifying idea, stated plainly
 
-The four optimizers are **the same convergence machine pointed at four artifact types**, and the single most informative way to tell them apart is *how each defines "verified."* Prose can only be re-read (`/ddo`); a prompt can be behaviorally smoke-tested (`/pdo`); a skill can be trigger-eval'd against 20 queries (`/sko`); code can be *executed* and regression-checked (`/cdo`) — which is why only `/cdo` carries a build/lint/test verify gate, and why `/sko` is the only one that reaches out and edits its neighbors. The pass catalogs differ because the failure modes differ; the loop, the severity ladder, and the guardrails are shared because the *discipline* of "audit → fix Medium+ → re-audit → converge → verify → publish" is artifact-independent.
+The four optimizers are **the same convergence machine pointed at four artifact types**, and the single most informative way to tell them apart is *how each defines "verified."* Prose requires source verification, fact-preservation checks and independent review (`/ddo`); a prompt can be behaviorally smoke-tested (`/pdo`); a skill can be trigger-eval'd against 20 queries (`/sko`); code can be *executed* and regression-checked (`/cdo`) — which is why only `/cdo` carries a build/lint/test verify gate, and why `/sko` is the only one that reaches out and edits its neighbors. The pass catalogs differ because the failure modes differ; the loop, the severity ladder, and the guardrails are shared because the *discipline* of "audit → fix Medium+ → re-audit → converge → verify → publish" is artifact-independent.
 
 *(Note: a legacy `codebase-optimizer` (12 passes, no verify gate) predates `/cdo`; `/cdo` is the maintained 16-pass-plus-verify-gate successor and the canonical "deep code optimizer" referenced here.)*
 

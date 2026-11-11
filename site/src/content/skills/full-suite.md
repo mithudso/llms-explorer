@@ -1,6 +1,6 @@
 ---
 title: "full-suite"
-description: "Exhaustively covers a subject end to end — maps the full concept family, researches every worthwhile gap to saturation, and compiles per-concept plus rollup llms-family files with keyword and semantic indexes."
+description: "Maps a concept family, researches selected gaps and compiles per-concept and rollup llms-family files, reporting source, index and coverage limits separately."
 order: 5
 tags: [orchestration, llms-txt, saturation]
 aliasCommand: "/full-suite"
@@ -8,11 +8,12 @@ aliasCommand: "/full-suite"
 
 `full-suite` is the top of the stack: it runs
 [concept-family-explorer](/skills/concept-family-explorer/) to map a subject's family,
-researches every worthwhile gap to saturation, and then — where the family-explorer alone
+researches the selected gaps under its source and budget rules, and then — where the family-explorer alone
 would stop at a mapped tree — compiles the result into the full llms-family set (llms.txt,
 llms-full, llms-small, llms-facts, llms-vocabulary) at both the per-concept and rollup
 level, with keyword (FTS5) and semantic (embedding) indexes, and registers everything in
-every reachable concept tree.
+every reachable concept tree. The report distinguishes saturation from a capped or blocked
+run and records unavailable indexes or registrations.
 
 A cheap, low-effort frontrunner scout pre-checks candidate domains for an existing
 llms.txt/llms-full.txt before the expensive passes run, seeding both `/dr` and

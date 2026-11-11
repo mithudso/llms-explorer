@@ -1,6 +1,6 @@
 ---
 title: "concept-family-explorer"
-description: "Gap-discovery layer above /dr — maps a subject's full conceptual family (parent, siblings, children, adjacent fields, frontier), scores what's missing, and researches every worthwhile gap to saturation."
+description: "Gap-discovery layer above /dr — maps a proposed concept family, scores missing topics and researches selected gaps, reporting saturation separately from capped or incomplete work."
 order: 1
 tags: [orchestration, concept-mapping, gap-analysis]
 aliasCommand: "concept-family-explorer"
@@ -8,8 +8,8 @@ aliasCommand: "concept-family-explorer"
 
 Given a subject, `concept-family-explorer` finds the concepts in its conceptual family that
 are **currently missing** from an existing skill library or concept tree, fills the
-worthwhile ones to saturation by running `/dr` on each, and finishes by optimizing every
-skill it touched.
+worthwhile ones by running `/dr` on each, and optimizes the skills it touched. A run
+can end at a budget or coverage limit before it establishes saturation.
 
 It is a **gap-discovery orchestrator**, not a researcher — per-concept research, skill
 authoring, and installation are `/dr`'s job. This skill decides *which* concepts are worth
@@ -31,7 +31,9 @@ Each candidate concept gets tagged **HAVE**, **STALE**, or **GAP** against exist
 coverage, then scored on five axes — Relevance, Usefulness, Novelty, Interest, Viability —
 before anything gets researched. Only gaps that clear the viability threshold get sent to
 `/dr`. The loop stops when two consecutive rounds of re-expansion turn up nothing new above
-threshold — evidence of saturation, not just a list running out.
+threshold, after a productive research round and an evidence-grounded initial map.
+A fresh reviewer checks for missing concepts before the run can claim saturation;
+a capped list or unresolved dissent remains incomplete.
 
 ## Where it sits
 

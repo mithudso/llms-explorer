@@ -97,9 +97,9 @@ map is now `lru_cache`d per mirror path; the gate runs in seconds instead of min
 
 ## Lessons
 
-- An anchor is a claim about the *rendered* page, so it must be derived from the source page,
-  not from the cleaned text; any transformation that adds headings must be excluded from anchor
-  derivation.
+- An anchor is a claim about the *rendered* page. Raw-source headings are a better starting
+  point than headings added during cleaning, but they still need a rendered-page check before
+  promising that every published link works.
 - Fix generator defects in the generator: hand-editing 1,124 lines would have lasted until the
   next export.
 - A unit's anchor is stored, not computed at render time, so an anchoring bug costs a full

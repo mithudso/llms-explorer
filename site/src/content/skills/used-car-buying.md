@@ -23,4 +23,5 @@ independent industry reporting, with every claim carrying its own citation.
 
 A handful of source citations in the underlying research were truncated mid-URL by the
 compile pipeline; those specific broken links were filtered out rather than published as if
-valid, and every remaining citation resolves.
+valid. The remaining citations were retained from that review; check them again before
+relying on a current auction rule, fee or legal requirement.

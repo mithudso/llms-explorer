@@ -1,6 +1,21 @@
 # Prompts Log
 
-Version:143. Delta:v142 to v143; internal parallel-history reconciliation for TASK-1330 and TASK-1328. Preserve both actual Prompt v142 entries. This adds no user request.
+## Prompt v144 — 2026-11-11 full-site prose optimizer fan-out
+
+Version:144. Delta:v143 to v144; TASK-1351.
+
+```text
+Run the deep document optimizer on each blog post and research article  on this site, as well as on every page with prose on it. Do this as a fan out of agents. Use the agent orchestrator skill to manage them.
+```
+
+User follow-up confirmations: "Use /p (Recommended)" and "Review templates; preserve cited fact text (Recommended)".
+
+Use full DDO with file-level findings and coverage records. Preserve source evidence,
+archival qualifiers, code behavior and other active sessions. Review current published
+source in the isolated agent-01a1cbf9 worktree and deliver verified owned changes.
+
+
+Version:144. Delta:v143 to v144; full-site DDO fan-out and confirmed /p/template scope. Earlier parallel Prompt v142 entries remain preserved.
 
 ## Prompt v142 — 2026-11-11 repository bootstrapper and deep code optimizer
 

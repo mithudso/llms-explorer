@@ -14,8 +14,9 @@ Every llms family has a ladder of layers — index, split root, small, full, fac
 vocabulary — and beside them two retrieval modes over the facts, keyword and vector. The
 cheapest layer that answers your question is the right one. This table matches the shape of
 a question to that layer and to the recipe that shows it. Recipes are copy-only in this step:
-the code illustrates, the cost line states what was measured or estimated, and each recipe
-closes with the note that it becomes runnable in the playground step.
+the code illustrates and the cost line states what was measured or estimated for the
+2026-08-31 examples. A future playground step is a plan, not evidence that every recipe
+is implemented or verified today.
 
 ## The table
 
@@ -42,8 +43,8 @@ closes with the note that it becomes runnable in the playground step.
   embedding.
 - **Cost class is honest, not precise.** Token counts are chars/4, the same estimator the
   hub writes into `manifest.json`. Where a recipe has a measured figure it says *measured*;
-  where it does not, it says *estimated*. The CI in a later step replaces every estimate with
-  a run.
+  where it does not, it says *estimated*. A later executed check would be needed to replace an estimate with a
+  measurement; no such run is implied by this table.
 - **Two shapes have no recipe of their own.** *Whole-corpus reasoning* against a hosted
   family is `hub_docset_index(docset, file="llms-small.txt")` (recipe-05 shows the call);
   a *full-file read* is `hub_llms_full_read(key, page=…)` for one page at a time (recipe-03

@@ -16,8 +16,9 @@ sources:
 
 Run everything the hosted hub does for one family on a laptop: acquire a site into a
 mirror, export its llms family, build the vector and keyword layers, and serve the files
-with the right headers. Nothing leaves the machine; the only model is a local embedding
-model. This is the same code the hub runs, in the order the pipeline runs it.
+with the right headers. Acquisition and model installation use the network. After the
+inputs and model are available locally, indexing and querying can stay on this machine;
+the only model used in this example is a local embedding model. This is the same code the hub runs, in the order the pipeline runs it.
 
 ## When not to use it
 
@@ -41,11 +42,10 @@ model. This is the same code the hub runs, in the order the pipeline runs it.
    ```
 
 2. **Acquire.** Prefer the site's own llms files; fall back to a crawl. Both write one
-   banner mirror. `llms_acquire.py` is the llms-first half and ships with the hub (stdlib
-   only, no venv needed):
+   banner mirror. `llms_acquire.py` is the llms-first half and ships with the hub. Run it from a prepared hub checkout with the hub virtual environment; splitting an upstream full file requires the `llms-txt` dependency installed by the hub setup:
 
    ```
-   python3 scripts/llms_acquire.py https://code.claude.com/docs mirrors/code.claude.com.md
+   .venv/bin/python scripts/llms_acquire.py https://code.claude.com/docs mirrors/code.claude.com.md
    ```
 
    It prints `{"method": "llms-full"|"llms"|null, "pages": n, "failed": n}`; `method: null`
@@ -76,13 +76,13 @@ model. This is the same code the hub runs, in the order the pipeline runs it.
    `<host-slug>__<stem-slug>`, which is why the hosted family in
    [recipe-03](/examples/recipe-03/) answers to `codeclaudecom__codeclaudecom`.
 
-5. **Serve.** Markdown headers on every response, the family under `/d/<stem>/`.
+5. **Serve.** Point the server at this example’s local `mirrors/` output directory. The default server configuration reads the hub’s configured mirror directory instead. The family is served under `/d/<stem>/`:
 
    ```
-   .venv/bin/python scripts/llms_serve.py --host 127.0.0.1 --port 8788
+   PYTHONPATH=scripts .venv/bin/python -c 'from pathlib import Path; from llms_serve import serve; serve(host="127.0.0.1", port=8788, mirror_dir=Path("mirrors")).serve_forever()'
    ```
 
-6. **Query.** All three modes, no network.
+6. **Query.** Keyword and semantic queries, plus a local serving check.
 
    ```
    .venv/bin/python scripts/docset_indexer.py keyword code.claude.com "CLAUDE_CODE_SYNC_SKILLS" --layer facts --mode phrase
@@ -118,5 +118,3 @@ embedding per chunk and per unit — for this family ~14k units plus ~2k raw chu
 order of 10–20 minutes on Apple silicon, a couple of minutes on a GPU host. Serving and
 keyword queries are free. Disk: the mirror and family total ~12 MB; the Chroma collections a
 few hundred MB.
-
-> Runnable in step 4 (playground).

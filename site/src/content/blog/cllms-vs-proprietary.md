@@ -11,8 +11,7 @@ sources:
 
 A **proprietary** llms file is a promise a publisher makes about its own pages. A
 **conceptual** llms file (a CLLMS) is a promise a *concept* makes about itself, assembled
-from many publishers who never agreed to anything. The first kind is easy to trust and easy to
-check: does the link pay off? The second kind needs a written rule for what happens when two
+from many publishers who never agreed to anything. The first kind is easier to check for source fidelity: does the link contain what the index promises? That check alone does not establish that the publisher’s claim is true. The second kind needs a written rule for what happens when two
 sources disagree, and it needs to show its work. This essay proposes that rule. The resolver, conflict log, moderation queue, and contributor permissions below are a design dated 2026-08-31; they are not a report of an operating public service.
 
 ## Two axes
@@ -157,7 +156,7 @@ Contributor identity appears as a handle on the record, nothing more.
 
 Three things the reader should know before trusting any of the above.
 
-First, llms.txt is a **proposal**, not a standard. The current text is v2 (modified
+First, llms.txt is a **proposal**, not a standard. At this design’s 2026-08-31 cutoff, the text was v2 (modified
 2026-08-10). Its author states the syntax may still change. This site's files follow it
 because it provides a shared grammar; it has not been ratified as a standard.
 

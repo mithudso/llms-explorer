@@ -1,6 +1,6 @@
 ---
 title: "How many cheap research runs equal one expensive one?"
-description: "Three experiments, one concept, 47 Claude research runs: repeats buy breadth that keeps growing and precision that stops after the first run or two; Sonnet max and Fable max turn out to be peers per run at half the price. Why 100 shallow concepts are not worth one deep one."
+description: "Three experiments and 42 single-model Claude research runs on SQLite WAL checkpointing compare repeated cheap runs with a Fable reference. Coverage depends on claim granularity; costs, judging limits and source drift constrain the buying rule."
 date: "2026-10-20"
 tags: [research, evaluation, models, cost]
 sources:
@@ -23,13 +23,12 @@ concept. Haiku 5.5 at `medium` costs nine cents.
 
 The obvious question is whether the cheap dial, turned several times, adds up to the
 expensive one. If five Haiku runs on the same concept, merged, equal one Fable run, the
-frontier queue of several hundred unresearched concepts gets forty times cheaper. If they do
+frontier queue of several hundred unresearched concepts gets about eight times cheaper in research cost under those prices. If they do
 not, it matters *what* is missing, because "more claims" and "better claims" are not the
 same thing, and a queue manager that pays for the wrong one is wasting money either way.
 
-This post reports three experiments on one concept, 47 Claude research runs in all, and ends
-with the buying rule they imply. Everything is reproducible from the two scripts in the
-sources list; the raw per-run data is committed.
+This post reports three experiments on one concept, 42 single-model Claude research runs in all (12 matrix cells, 10 Haiku repeats, and 20 Sonnet/Opus repeats), and ends
+with the buying rule they imply. The scripts and committed per-run data let readers inspect the recorded calculations. A fresh run uses paid model calls and changing web sources, so it will not reproduce the original inputs or necessarily the same scores.
 
 ## The setup
 
@@ -76,7 +75,7 @@ lanes; this post keeps to Claude).
 | Fable 5.1 | high | 257 | 21 | 10 | 9 | 10/10 | 2.04 |
 | Fable 5.1 | max | 534 | 26 | 15 | 17 | 10/10 | 3.73 |
 
-Two things stood out. Effort buys breadth, not accuracy: low to `max` raised claims two to
+Two things stood out. In this matrix, higher effort increased recorded breadth while the sampled support rates stayed similar: low to `max` raised claims two to
 five times and sources two to three times, and the gate rate stayed at 90–100 % throughout.
 No Claude cell produced a CONTRADICTED claim at any effort (the contradictions in the full
 matrix came from the Gemini and local lanes). And at `max`, Sonnet found the most claims,
@@ -139,7 +138,7 @@ Android's `db_wal_autocheckpoint`.
 `walformat.html`, the wal2 design doc, Rails' `sqlite3_adapter.rb`, Litestream issue #547,
 SQLite forum posts — and wrote 120 unique claims with 47 facts Fable never had. And the judge
 scored it 5 of 26 covered. A second, independent judge pass said 5 again (Haiku 6, Sonnet 15,
-so the judge is stable to ±1). The number is real. It is also misleading.
+so these two strict passes differed by at most one claim on these unions). The number is real. It is also misleading.
 
 ### Why Opus scores low: claim granularity
 
@@ -161,8 +160,7 @@ were missing the specifics, not splitting them.
 | Sonnet 5.5 | 16 | 15 | 14 |
 | Opus 5.5 | 5 | 5 | 12 |
 
-Judge self-preference (Opus judging Opus) would have pushed the other way, so bias is not the
-explanation. The lesson for anyone building a coverage judge is that the strict rule measures
+Simple self-preference alone would predict an Opus advantage, but these observations do not rule out other judge biases or interactions. The lesson for anyone building a coverage judge is that the strict rule measures
 "did the candidate write the reference's claim", not "did it find the reference's facts", and
 the two diverge as soon as models granulate differently. Report both.
 
@@ -185,15 +183,12 @@ claims as the candidate, each model's output as the reference, same strict rule.
 Fable dominates Haiku in both directions: it states 22 of Haiku's 32 claims exactly, Haiku
 states 7 of Fable's 26. Fable and Sonnet are **peers**: each states about half of the other's
 claims with the other's specifics and nearly all of them at least partially, and Sonnet's run
-cost $2.05 to Fable's $3.73. Against Opus, Fable misses 5 of 29 claims outright — more than
-Opus misses of Fable's under the joint rule — and against the five-run unions Fable states most
+cost $2.05 to Fable's $3.73. Against Opus, Fable misses 5 of 29 first-run claims outright; the joint Opus score uses a five-run union, so it is a different comparison. Against the five-run unions Fable states most
 Sonnet and Opus claims only partially, which means those unions carry specifics Fable's run
 does not. Fable's real edge is that it is the fastest `max` run (534 s against 900–1,000) and
 the most compact: 26 compound claims that say what 30–40 of the others' say.
 
-That changes the buying rule below. Fable is not "the precise one"; Sonnet at `max` is as
-precise per run at 55 % of the price, and two Sonnet runs beat one Fable run on every axis
-measured here.
+That changes the buying rule below. On this fixture, Sonnet at `max` showed overlap with Fable in both directions at 55 % of its price, and two Sonnet runs add sources and unique claims, while Fable remains faster and supplies specifics that the Sonnet union still misses under the strict rule.
 
 ### `medium` at every model
 
@@ -209,17 +204,13 @@ Across all three models at `max`, the sources and unique-claim curves climb almo
 with k. Repeats are near-disjoint: Sonnet's 172 raw claims dedupe to 84, Opus's 161 to 120,
 Haiku's 149 to 106. That is useful breadth.
 
-Every "covered" curve flattens by k = 2 or 3. Haiku's is flat from k = 1. The thing that
-answers a precise question — the conjunction of condition, API and number — is set by the
-model on its first pass through the sources and does not accumulate. A model that drops the
-`synchronous=NORMAL` condition once drops it every time.
+Haiku’s strict covered count stays at 7 from k = 1 through 5. Sonnet’s gains slow, from 13.2 to 16; Opus’s count continues from 1 to 5 over those subset sizes. On this fixture, repeats added relatively few fully matched reference claims. That does not show that a model will always omit the same condition, or that useful precision can never accumulate on another task.
 
-Accuracy is not where the tiers differ at `max`. 150 per-run gate verdicts across the three
+The sampled `max` claims had similar support outcomes: 150 per-run gate verdicts across the three
 models' `max` cells: 150 SUPPORTED. The full gates on the merged unions found 0 flaws in
 Sonnet's 51 sampled claims, 1 CONTRADICTED in Opus's 41 (a "rollback journal is faster above
 ~100 MB transactions" claim whose wording is close enough to `wal.html`'s own that it may be a
-gate false positive), 0 in Haiku's 24. The accuracy gap is between `medium` and `max`, not
-between models.
+gate false positive), 0 in Haiku's 24. This sample found contradictions in some `medium` runs and few in the checked `max` claims. It does not establish equal accuracy across models or a general effort-tier effect.
 
 ## Are 100 cheap concepts worth one deep one?
 
@@ -248,11 +239,9 @@ Score gate (`--min-cvs 3.2`) already encodes — relevance, usefulness, novelty,
 viability — and why the frontier manager holds sub-gate names back instead of researching
 them cheaply.
 
-So no: one `max`-grade pack on a concept that passes the gate is worth more than a hundred
-`medium` packs on concepts that do not. Value per concept behaves like *max()* over the packs
-that answer a given question, not like a sum.
+These experiments favor retaining useful, specific claims rather than maximizing pack counts. They did not compare a hundred concepts, measure user value, or establish that value follows a *max()* function. The queue policy is a judgment informed by this one-concept study.
 
-Breadth is worth paying for in exactly one place: discovery. Opus reading 42 sources and
+For this queue policy, the strongest case for additional breadth is discovery. Opus reading 42 sources and
 surfacing `wal2`, `SQLITE_DBCONFIG_DEFENSIVE`, `setlk_timeout` and Litestream's v0.5
 checkpoint takeover is how the next gate-passing concept gets *found*. That output should feed
 CVS scoring, not the concept tree.
@@ -261,23 +250,21 @@ CVS scoring, not the concept tree.
 
 | Need | Buy |
 |---|---|
-| Any gated concept: breadth and per-claim precision at least equal to one Fable run | **2 × Sonnet `max`** per concept, merged — about $4, the same as one Fable run, and ahead of it in both directions of the judge |
+| More source and claim coverage on this SQLite fixture, accepting incomplete strict-reference matching | **2 × Sonnet `max`**, merged — about $4; inspect the remaining unmatched specifics rather than assuming equivalence to Fable |
 | The same at lowest latency, or a compact pack | 1 × Fable `max`, ~$3.7, 534 s — fastest `max` run, fewest and densest claims |
 | Frontier discovery and source hunting across a family | 1 × Opus `max` per family, ~$3, fed into CVS scoring |
 | Full-page extraction with every claim validated | the staged pipeline: Sonnet discovers, Haiku extracts per source, Opus validates every claim — 135 claims, 10/10, $4.15 |
-| Never | repeats of any model at `medium` to "add up" to `max` |
+| Not supported by this fixture | assuming repeats at `medium` reproduce the reference’s compound claims |
 
 Per dollar at one run: Haiku returns 38 unique claims and 11 sources, Sonnet 17 and 9, Opus 11
 and 6, Fable 7 and 5. Per claim the other model also states exactly, Sonnet and Fable cost
-about the same (16 and 14 cents) — and the mirror test says the two runs are peers — so two
-Sonnet `max` runs is the new default for the research queue, Fable the pick when wall-clock
-matters, and Opus the pick when the job is finding what to research next. That is also what
-`/dr`, `/rabbithole` and `concept-family-explorer` now do by default.
+about the same (16 and 14 cents) — and the mirror test says the two runs are peers — the author selected two
+Sonnet `max` runs as the research-queue default at the study cutoff, Fable when wall-clock
+matters, and Opus for discovering further topics. This is a policy choice based on the fixture, not a measured optimum across the queue; current skill defaults can differ by depth.
 
 ## Limits
 
-One concept and one Fable reference run; the matrix shows ±1 gate verdict is noise, so treat
-coverage counts as directional. The judge reads claim text only; three forward passes and two
+One concept and one Fable reference run; the observed variation between judge passes does not estimate a general error bound. Treat coverage counts as directional. The judge reads claim text only; three forward passes and two
 reverse passes are reported, and the strict rule is biased against atomic claim styles. The
 reverse passes compare Fable's single run against single runs and against five-run unions; a
 Sonnet-vs-Opus or Sonnet-vs-Sonnet pairing was not run. Pages drifted between the reference run

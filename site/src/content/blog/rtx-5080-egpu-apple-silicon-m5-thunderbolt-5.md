@@ -8,7 +8,7 @@ tags: ["egpu", "rtx-5080", "apple-silicon", "thunderbolt-5", "tinygrad", "ollama
 
 Apple's supported native eGPU graphics path requires an Intel Mac. Experimental compute through tinygrad's DriverKit transport is a different path; it does not supply NVIDIA display or Metal integration. [Apple eGPU requirements](https://support.apple.com/en-us/102363), [tinygrad eGPU setup](https://docs.tinygrad.org/tinygpu/)
 
-In the recorded setup, an **NVIDIA GeForce RTX 5080 (GB203 Blackwell, 16 GB GDDR7)** is connected via **Thunderbolt 5** to an **Apple M5 Max MacBook Pro (64 GB unified memory)** serving local LLM inference through standard `ollama run` commands.
+The setup notes describe an **NVIDIA GeForce RTX 5080 (GB203 Blackwell, 16 GB GDDR7)** connected via **Thunderbolt 5** to an **Apple M5 Max MacBook Pro (64 GB unified memory)**, with local LLM inference requested through standard `ollama run` commands. The following text response does not by itself establish GPU execution or model residency.
 
 ```console
 $ OLLAMA_HOST=http://127.0.0.1:11440 ollama run Qwen2-beta-14B-Chat "Provide a 2-sentence summary of quantum computing and confirm you are running on RTX 5080."
@@ -103,7 +103,7 @@ Kernel Extensions in backtrace:
 The panic excerpt names the PCI/Thunderbolt path. It does not establish the asserted configuration-read race or identify a specific Apple driver defect. Avoiding the command was the session's workaround; proving the mechanism needs the complete panic report and a controlled reproduction.
 
 **Solution:**  
-Never probe an active eGPU using `system_profiler SPPCIDataType`. Instead, read the IOKit registry directly through `ioreg`, which inspects cached in-memory registry property tables without triggering concurrent PCI config bus cycles:
+Avoid `system_profiler SPPCIDataType` on this experimental setup because the recorded invocation preceded a panic. The helper used the following IOKit registry query instead. The retained excerpt does not establish that every registry query avoids device access or that `ioreg` is safe for every driver state:
 
 ```bash
 # Registry-based link check used by the helper:
@@ -233,7 +233,7 @@ checkpoint; removing a `KeyError` does not prove inference correctness.
 To make the RTX 5080 eGPU a bridge for selected Ollama operations, we developed [`ollama-egpu-proxy.py`](/downloads/egpu/ollama-egpu-proxy.py), running on port `11440` (avoiding default 11434 and any conflicting local Ollama services).
 
 Key features of the proxy:
-- **Streaming & Non-Streaming support**: Seamlessly converts OpenAI Server-Sent Events (SSE) into Ollama newline-delimited JSON chunks (`{"response": "...", "done": false}`).
+- **Streaming & Non-Streaming support**: Converts supported OpenAI Server-Sent Events (SSE) into Ollama newline-delimited JSON chunks (`{"response": "...", "done": false}`). Protocol and tool-call limits are described below.
 - **Model Metadata**: Handles `POST /api/show`; inspect whether returned metadata describes the loaded checkpoint. The inspected version included fixed values, so these responses are not independent measurements.
 - **Health Checks**: Implements `HEAD /` and `GET /` returning `Ollama is running` for CLI probes.
 - **Model Catalog**: Supplies `/api/tags` and `/api/ps` responses for the served model. The inspected values include placeholders; they do not prove active VRAM residency.

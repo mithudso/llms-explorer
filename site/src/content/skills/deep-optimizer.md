@@ -1,6 +1,6 @@
 ---
 title: "deep-optimizer"
-description: "The convergence-loop optimizer family router: multi-pass audit-and-fix loops for code, prose, prompts, skills, SQL, designs, strategies, and llms files — each looping to zero Medium+ findings."
+description: "The convergence-loop optimizer family router: multi-pass audit-and-fix loops for code, prose, prompts, skills, SQL, designs, strategies, and llms files — each with its own checks, limits and explicit exit conditions."
 order: 10
 tags: [optimization, convergence-loop, router]
 ---
