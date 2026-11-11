@@ -13,8 +13,9 @@ what the section twin's inventory carries and enter llms-full.txt), and
 build_llms.py already keeps `downloads/` out of that family. The token
 estimate a twin's header would carry goes in the banner comment instead.
 
-Deterministic: the only date is the pack's own `generated`; the output
-directory is rebuilt from scratch so a removed pack cannot linger.
+Deterministic: the only date is the pack's own `generated`; generated concept
+files are rebuilt so a removed pack cannot linger. Authored paper evidence and
+released figures live in research subdirectories and survive regeneration.
 
 Usage: gen_concept_facts.py [--out public/downloads/concepts] [--site-url URL]
 """
@@ -218,9 +219,12 @@ def build(concepts_dir: Path, tree_path: Path, out: Path, site_url: str,
     for slug, text in texts.items():
         (out / f"{slug}.md").write_text(text, encoding="utf-8")
     research_out = out.parent / "research"
-    if research_out.exists():
-        shutil.rmtree(research_out)
-    research_out.mkdir(parents=True)
+    research_out.mkdir(parents=True, exist_ok=True)
+    # This generator owns only flat <concept>.json proofs. Article bundles
+    # under research/<paper>/ are reviewed source assets, not generated output.
+    for generated in research_out.glob("*.json"):
+        if generated.is_file() or generated.is_symlink():
+            generated.unlink()
     for slug, text in research_download_texts(packs).items():
         (research_out / f"{slug}.json").write_text(text, encoding="utf-8")
     return len(texts)

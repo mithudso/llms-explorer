@@ -101,6 +101,23 @@ def test_site_url_comes_from_the_environment(monkeypatch):
     assert gen_concept_facts.default_site_url() == gen_concept_facts.DEFAULT_SITE_URL
 
 
+def test_regeneration_preserves_authored_paper_evidence_and_released_figures(tmp_path):
+    concepts, tree, out, sources = _fixture(tmp_path)
+    research = out.parent / "research"
+    paper = research / "authored-paper"
+    paper.mkdir(parents=True)
+    evidence = b'{"scope":"author-recorded receipts"}\n'
+    figure = b'\x89PNG\r\n\x1a\nreviewed-figure-bytes'
+    (paper / "evidence.json").write_bytes(evidence)
+    (paper / "figure.png").write_bytes(figure)
+    (research / "retired-concept.json").write_text("stale generated proof")
+    for _ in range(2):
+        gen_concept_facts.build(concepts, tree, out, "https://ex.dev", sources)
+        assert (paper / "evidence.json").read_bytes() == evidence
+        assert (paper / "figure.png").read_bytes() == figure
+        assert not (research / "retired-concept.json").exists()
+
+
 def test_alias_downloads_survive_regeneration_with_canonical_current_facts(tmp_path):
     concepts, tree, out, sources = _fixture(tmp_path)
     tree.write_text(json.dumps({**TREE, "redirects": {"old-kid": "kid", "older-kid": "old-kid"}}))

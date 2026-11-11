@@ -1,6 +1,17 @@
 # Prompts Log
 
-Version:141. Delta: parallel log reconciliation after prompt140. Preserve both TASK-1315 research and TASK-1318 UI requests labelled v138 by concurrent sessions. No new user request is invented by this reconciliation.
+Version:142. Delta: v141 to v142; blog, research paper and daily publication request; TASK-1328.
+
+## Prompt v142 — 2026-11-11 research papers and blog publication
+
+```text
+Write a detailed paper on exactly what you did and why you did it. What do the tools do, how do you use them, why you would use them, what it saves, what problem it solves, how to implement itm and publish it to the site. Update the concept family tree, Going to need to have a blog section, and the research section is going to be a subset of it. Look through the stele memories and find all of the research papers and copy them to here and then do the /ddo skill on them before scheduling them to  be 0added to the site one per day.
+```
+
+Preserve current research and blog URLs. Publish the new implementation paper now;
+schedule only eligible, fully reviewed source-bound papers one per day. Preserve
+private evidence, archival qualifications and the distinction between editorial
+review and native research acceptance.
 
 ## Prompt v140 — 2026-11-11 access decision
 

@@ -18,11 +18,15 @@ const skill = page.extend({
   liveDemo: z.string().optional(),
   aliasCommand: z.string().optional(),
 });
+const article = page.extend({
+  category: z.enum(["article", "research"]).default("article"),
+  draft: z.boolean().default(false),
+});
 const loader = (dir: string) => glob({ pattern: "**/*.md", base: `./src/content/${dir}` });
 export const collections = {
   reference: defineCollection({ loader: loader("reference"), schema: page }),
   examples: defineCollection({ loader: loader("examples"), schema: page }),
-  blog: defineCollection({ loader: loader("blog"), schema: page }),
+  blog: defineCollection({ loader: loader("blog"), schema: article }),
   skills: defineCollection({ loader: loader("skills"), schema: skill }),
   // Archived source documents are private build inputs and have no public collection.
 };
