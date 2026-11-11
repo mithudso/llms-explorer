@@ -104,3 +104,27 @@ Unit checks cover canonical inventory, exact spans, freshness, caching, rank
 fusion, private export integrity and MCP input bounds. Live acceptance separately
 checks actual Neo4j indexes, corpus counts, semantic queries and the stdio
 protocol. Retrieval smoke queries are not a broad quality benchmark.
+
+## Natural research capture and data demonstration
+
+The MCP interface also exposes `expertise_save_research`. After an agent reads
+sources, this operation checks exact quotations, saves a canonical research pack
+with source snapshots/checksums, then incrementally indexes it. Its returned
+`indexed` flag is confirmed against the specific saved document and all passage
+vectors. A pending refresh preserves the canonical save for an identical retry.
+Updating an owned capture uses a manifest checksum; prior revisions remain in
+private history. Captures stay unreviewed. Quote matching does not replace
+semantic research review. Source/capture member hashes also participate in
+retrieval freshness and portable exports. See [MCP.md](MCP.md) for the schema.
+
+```sh
+research-expertise save-research --file /absolute/private/research-payload.json
+research-expertise show-data --out /absolute/private/expertise.html
+research-expertise show-data --out /absolute/private/demo.html --concept example-topic --trace /absolute/private/mcp-trace.json
+```
+
+The HTML is a self-contained private snapshot of actual graph data, with counts,
+searchable documents, selectable provenance and a directed graph. A supplied
+trace can show the actual research/save/retrieve calls; the renderer never
+invents those events. It works offline and contains no database credentials.
+New captures can be exported with their source snapshots and original hashes.

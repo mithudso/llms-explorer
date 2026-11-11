@@ -39,7 +39,19 @@ def current(row):
     if digest(row["path"]) != row["doc_sha256"]:
         return False
     manifest = Path(row["path"]).parent / "manifest.json"
-    return digest(manifest) == row.get("manifest_sha256")
+    expected = row.get("manifest_sha256")
+    if not expected or digest(manifest) != expected:
+        return False
+    try:
+        metadata = json.loads(manifest.read_bytes())
+        if metadata.get("creator") == "research-expertise-capture/1":
+            from .capture import validate_capture_pack
+
+            _, checksum = validate_capture_pack(manifest.parent)
+            return checksum == expected
+        return True
+    except (OSError, ValueError, AttributeError):
+        return False
 
 
 def fuse(rankings, top):
@@ -508,18 +520,44 @@ class Store:
                     if not current(dict(d, doc_sha256=d["sha256"])):
                         raise ValueError("Refusing to export stale document: " + d["concept"])
                     path = Path(d["path"])
-                    for source in [
-                        path,
-                        path.parent / "manifest.json",
-                        path.parent / "concept-graph.json",
-                    ]:
-                        if source.is_file() and not source.is_symlink():
-                            name = f"packs/{d['concept']}.llms/{source.name}"
-                            data = source.read_bytes()
-                            archive.writestr(name, data)
-                            entries.append(
-                                {"path": name, "sha256": hashlib.sha256(data).hexdigest()}
-                            )
+                    manifest_path = path.parent / "manifest.json"
+                    manifest = json.loads(manifest_path.read_text())
+                    members = {}
+                    if manifest.get("creator") == "research-expertise-capture/1":
+                        members = manifest.get("members", {})
+                        if not isinstance(members, dict):
+                            raise ValueError("Captured pack members must be a checksum map")
+                    selected = {path.name, "manifest.json"}
+                    if (path.parent / "concept-graph.json").is_file():
+                        selected.add("concept-graph.json")
+                    selected.update(members)
+                    for relative in sorted(selected):
+                        if not isinstance(relative, str):
+                            raise ValueError("Invalid captured member path")
+                        from pathlib import PurePosixPath
+
+                        member_path = PurePosixPath(relative)
+                        if (
+                            member_path.is_absolute()
+                            or ".." in member_path.parts
+                            or "\\" in relative
+                            or member_path.as_posix() != relative
+                        ):
+                            raise ValueError("Captured member escapes pack")
+                        source = path.parent / relative
+                        if (
+                            source.is_symlink()
+                            or not source.is_file()
+                            or not source.resolve().is_relative_to(path.parent.resolve())
+                        ):
+                            raise ValueError("Captured member missing or escapes pack")
+                        data = source.read_bytes()
+                        sha = hashlib.sha256(data).hexdigest()
+                        if relative in members and sha != members[relative]:
+                            raise ValueError("Captured source checksum changed: " + relative)
+                        name = f"packs/{d['concept']}.llms/{relative}"
+                        archive.writestr(name, data)
+                        entries.append({"path": name, "sha256": sha})
                 tree_rows = self.read(
                     "MATCH ()-[r:RX_RELATED {corpus:$corpus}]->() "
                     "WHERE r.kind='TOPIC_CHILD' RETURN DISTINCT "

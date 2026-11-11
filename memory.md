@@ -1,5 +1,29 @@
 # Memory
 
+## v0.22.173 — 2026-11-11 sourced MCP capture demonstrated
+
+Version: 0.22.173. Delta: v0.22.172 to v0.22.173; prompt v137; TASK-1313.
+
+The actual installed stdio MCP now exposes five tools including expertise_save_research. Four fetched primary documentation pages and five explicitly qualified findings are saved through that tool to /Users/mitch/.global-ai-hub/llms-concepts/neo4j-vector-retrieval-source-freshness.llms. Every quotation matches its supplied source snapshot; qualification stays unreviewed. Independent source review found no semantic misrepresentation but does not constitute v4 acceptance.
+
+The first save updates exactly1document, preserves2317unchanged documents, and writes5newpassages/vectors. Replaying the same capture updates0documents and writes0passages. A paraphrased global query retrieves the saved report at rank3; passage text, source span and hash match the canonical file. Current counts are2318documents and45786passages/vectors. Full trace: /Users/mitch/.config/neo4j-expertise/research-demo/mcp-trace.json. New capture exports preserve report, capture payload, exact source snapshots and checksums; the selected demo bundle is /Users/mitch/.local/share/research-expertise/exports/source-freshness-research-20261111.zip.
+
+The package is0.2.0. It adds source-member freshness, private retained revisions, checksum-protected updates, exact indexed-document readback, a save-research CLI and a private HTML data explorer. Reviewer-found publication-race and reserved-slug false-success defects are repaired and regression-tested. All109unit checks and Ruff pass. The existing MCP client paths remain stable; new sessions discover the fifth tool. Updated retrieval/capture skill1.1.0 source delivery is separate.
+
+The real-data explorer is /Users/mitch/.config/neo4j-expertise/research-demo/explorer.html. Renderer tests and JavaScript syntax checks pass. The browser policy rejected file-URL navigation, so browser visual/interaction verification is unavailable. Do not bypass that policy with alternate browser surfaces or protocol shims; present actual MCP results directly and offer the local artifact. No screenshot or browser verification is claimed.
+
+Remaining: final installed capture/portable-source checks, final-tip CI, main and skill PR merge/source-identity verification, and task-only cleanup. Keep original dirty/divergent work and paused legacy pipelines intact. The untracked .opencode/opencode.json in this isolated worktree was created by harness/tool setup; preserve its two-key configuration separately if needed before cleanup, never stage unrelated configuration.
+
+## v0.22.172 — 2026-11-11 live expertise demonstration in progress
+
+Version: 0.22.172. Delta: v0.22.171 to v0.22.172; prompt v137; TASK-1313.
+
+User requests a visible data demonstration, new sourced research saved naturally, retrieval/use of the saved result and an MCP interface. The existing four-tool read interface is live; extend it with constrained source-backed canonical capture. Keep canonical files authoritative and qualification unreviewed; a quotation check is mechanical binding, not semantic acceptance. Preserve paused legacy pipelines and original dirty/divergent checkouts.
+
+Current live baseline is2317documents and45781passages/vectors. The before-MCP trace is /Users/mitch/.config/neo4j-expertise/demo-before.json. Research example question: Does a vector index guarantee retrieved research still matches an edited source file? Fetch current primary documentation, retain exact quotations/hashes, save via the new MCP tool, and retrieve via a paraphrase. Worker boundaries: capture.py/MCP/tests and explorer.py/tests; root owns source study, data collection, CLI/version/docs and delivery.
+
+Remaining: complete constrained capture and explorer, execute sourced save/query via actual stdio MCP, render/open/verify real-data snapshot, tests, installed identity and complete PR delivery. No full old corpus re-embedding is required.
+
 ## v0.22.171 — 2026-11-11 Neo4j expertise acceptance checkpoint
 
 Version: 0.22.171. Delta: v0.22.170 to v0.22.171; prompt v136; TASK-1306.
