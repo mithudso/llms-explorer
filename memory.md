@@ -1,5 +1,15 @@
 # Memory
 
+## v0.22.170 — 2026-11-11 Neo4j expertise implementation
+
+Version: 0.22.170. Delta: v0.22.169 to v0.22.170; prompt v136; TASK-1306.
+
+Canonical research packs remain authoritative. Neo4j is a rebuildable private graph and semantic passage projection. Initial inventory has 2317 prose documents and 39431 exact-span chunks. Imported prose remains unreviewed regardless of authored completion/support metadata. Document and manifest hashes suppress stale retrieval. CPU BGE-small embeddings are isolated from legacy paused Ollama/indexing pipelines.
+
+Implementation lives in hub/research-expertise with a locked Python package, CLI, bounded read-only MCP, canonical corpus adapter, semantic/fulltext fusion, portable private ZIP exports and opt-in hourly refresh installer. Six upstream Neo4j skills plus the expertise skill are installed for both clients. Official MCP 2.1.0 and local Neo4j 2026.10.2 pass schema/read/write-rejection checks. Secrets remain outside Git. Original dirty and divergent checkout is preserved in place.
+
+In progress: first full ingestion, installed application/MCP acceptance, tests, final diff review and PR delivery. Stable runtime is /Users/mitch/.local/share/research-expertise/app; private config and receipts are /Users/mitch/.config/neo4j-expertise. Resume by checking process and ingest.log before starting another writer; the ingestion lock rejects overlap and exact unchanged documents are skipped. No raw research or secrets belong in Git.
+
 ## v0.22.169 — 2026-11-10 credential diagnosis correction
 
 Version: 0.22.169. Delta: v0.22.168 to v0.22.169; prompt v135; TASK-1279.

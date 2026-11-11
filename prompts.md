@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v136 — 2026-11-11 local Neo4j research expertise
+
+```text
+install the neo4j local server, mcp server, and agent skills. Take a look at the llms files and reearch done in .global-ai-hub and I want to create a queryable expertise using the research ingested into neo4j as a graphdb and the prose vectorized and semantically searcheable, and optimized for llm interaction. I want the reesarch to be available, useful, shareable, and not have to repeat myself, and have a single source of truth.
+```
+
+Delta: prompt v135 to v136. TASK-1306. Install and verify local Neo4j and MCP; preserve canonical research authority and evidence labels; add graph, semantic retrieval, portable exports and reusable skills. This request authorizes expertise-specific CPU embeddings; legacy indexing remains paused.
+
 ## Prompt v135 — 2026-11-10 Dependabot credential correction
 
 ```text
