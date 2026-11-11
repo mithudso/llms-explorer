@@ -7,6 +7,7 @@ Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway,
 - `api/`: FastAPI backend with PostgreSQL ledger, WebAuthn/OAuth auth, API keys (Argon2id), Stripe subscriptions, and quota enforcement.
 - `site/`: Astro + TypeScript static & SSR website styled with plain CSS (`site/src/styles/`, no CSS framework), 3D concept graph, and account pages.
 - `hub/`: Global AI Hub semantic ops, ChromaDB/SQLite docsets, Ollama embedding pools, MCP server (`global_ai_hub`).
+- `hub/research-expertise/`: Standalone Neo4j graph/CPU semantic projection and source-grounded research capture; see its `README.md` and `MCP.md`. Canonical packs remain authoritative.
 - `llmsx/`: Python library and CLI for the llms.txt standard v2.
 - `.claude/commands/` & `.claude/skills/`: Agent commands and workflows (`/ldo`, `/lca`). Both live under `.claude/` so Claude Code (local and cloud sessions) loads them as project commands and skills.
 - `concept-tree/`: Holds semantic hierarchy (`tree.json`).
@@ -18,20 +19,27 @@ Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway,
 - Run tests: `uv run --directory api --extra test pytest`
 - Run dev server: `cd api && uvicorn explorer_api.main:app --reload`
 - Migrations: `cd api && alembic upgrade head`
-- Lint: `uv run --directory api ruff check .`
+- Lint: `uvx ruff check api`
 
 ### Hub (`hub/`)
-- Run tests: `uv run --directory hub pytest`
-- Run MCP server (stdio): `uv run --directory hub python mcp-server/hub_mcp_server.py`
+- Run tests: `HUB_DOCSET_BACKEND=sqlite hub/.venv/bin/python -m pytest hub/tests`
+- Run MCP server (stdio): `hub/.venv/bin/python hub/mcp-server/hub_mcp_server.py`
 - Run TUI manager: `hub/scripts/hub-manager`
-- Lint: `uv run --directory hub ruff check .`
+- Lint: `uvx ruff check hub`
+
+### Research expertise (`hub/research-expertise/`)
+- Install its locked isolated environment: `uv sync --directory hub/research-expertise --frozen`
+- Tests: `uv run --directory hub/research-expertise --frozen pytest -q`
+- Lint: `uv run --directory hub/research-expertise --frozen ruff check src tests install.py`
+- Commands and the five MCP tools: `hub/research-expertise/README.md` and `hub/research-expertise/MCP.md`.
+- Existing legacy indexing/embedding/Ollama pauses are separate from this standalone CPU projection.
 
 ### Site (`site/`)
 - Install deps: `cd site && npm install`
 - Dev server: `cd site && npm run dev`
 - Build: `cd site && npm run build`
 - Typecheck: `cd site && npm run check` (astro check; `public/` is excluded in tsconfig so it fits in the default heap)
-- Site tests: `uv run --directory hub pytest ../site/tests`
+- Site tests: `hub/.venv/bin/python -m pytest site/tests`
 - Passkey e2e (manual, local only, not CI — needs Homebrew postgresql, Chrome, `npm ci`): `cd site && npm run e2e:passkey`
 
 ## Architecture Constraints
@@ -69,7 +77,7 @@ Maintain `memory.md` and `prompts.md` with active tasks, versions, and prompt hi
 - Since Chrome 132 (January 2025), the Performance panel defaults to showing live Core Web Vitals metrics: [src: javascript-node-html-css-debugging-expert] — ~/dev/llms-explorer/llms-facts.txt:2817
 - Three structural categories: off-the-shelf embedded (Luzmo, Explo — fast multi-tenant, limited customization); repurposed embedded BI (Tableau, Power BI, Looker, Metabase, Sisense — strong governance, iframe-dependent, enterprise pricing); headless/hybrid (Cube + your frontend, Embeddable — full UI control + sub-second, more engineering). Looker/Tableau/Power BI carry six-figure pricing and weren't built for customer-facing use; ThoughtSpot Everywhere leads on NL/AI search but is weaker on UI control; GoodData repositioned to API-first web-component embedding; Superset/Preset is the open-source route (Embedded SDK + guest tokens + RLS). 2026 newcomers (Upsolve AI, Knowi, Toucan) lead with GenBI + semantic-layer automation. [src: customer-facing-embedded-analytics] — ~/dev/llms-explorer/llms-facts.txt:28680
 - The primary home CTA is "Get the skills and CLI" → `/downloads/`; it was chosen because it is the only zero-friction apply click (`npx skills add …`, no account), whereas `/playground/optimizer/` requires an API key with `run` scope [src: docs/site/redesign-spec-2026-09-07.md] — ~/dev/llms-explorer/llms-facts.txt:13
-- After the redesign `cd site && npm run build` produces 266 pages and `uv run --directory hub pytest ../site/tests` reports 160 passed, 1 skipped, 1 failed (the pre-existing directory staleness test) [src: agent:6] — ~/dev/llms-explorer/llms-facts.txt:32
+- After the redesign `cd site && npm run build` produces 266 pages and `hub/.venv/bin/python -m pytest site/tests` reports 160 passed, 1 skipped, 1 failed (the pre-existing directory staleness test) [src: agent:6] — ~/dev/llms-explorer/llms-facts.txt:32
 - `npm run dev:extension` [src: case-mcp-server-guide] — ~/dev/llms-explorer/llms-facts.txt:766
 - Helper offline: start with `mdb_case_get_server_status`; if the helper is down, start `npm run dev:extension`. [src: case-mcp-server-guide] — ~/dev/llms-explorer/llms-facts.txt:787
 - Generate .docx files with JavaScript, then validate. Install: `npm install -g docx` [src: docx] — ~/dev/llms-explorer/llms-facts.txt:2254

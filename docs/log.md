@@ -20,3 +20,11 @@ Append-only. Newest entries at the bottom.
 ## [2026-11-07] update | logo and contrast fixes on the site
 
 - [[site-design-tokens]] rewritten: header lockup, `site/tools/gen_brand_icons.mjs`, `--control-border`, darker `--ink-faint`. Removed traps that the change fixed (`#264c66` literal, undefined `--fg-muted`, contrast misses).
+
+
+## [2026-11-11] update | research expertise and lifecycle audit
+
+- Added [[research-expertise]] with canonical capture, validation and projection boundaries.
+- Refreshed actual package setup/test commands, component navigation and curated index paths.
+- Added CI path validation and native provenance/library regression suites.
+- Bootstrap and code-review reports record their audited scope and remaining coverage.

@@ -14,3 +14,12 @@
 
 1. **PostgreSQL**: Postgres extensions and triggers (`plpgsql`) must be supported.
 2. **Loopback Hub**: `HUB_MCP_URL` must reside on loopback (127.0.0.1 / localhost) to prevent unauthorized network exposure.
+
+## Local research expertise
+
+The standalone `hub/research-expertise/` package connects to loopback Neo4j Bolt.
+Its first model setup downloads a pinned public ONNX snapshot; later embedding
+and retrieval use CPU locally. Canonical prose does not go to a remote embedding
+provider. Connection values stay in private user configuration. Its dedicated
+projection is separate from legacy Ollama/indexing jobs. The [package guide](../hub/research-expertise/README.md)
+owns exact prerequisites, model identity and migration behavior.

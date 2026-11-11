@@ -1,5 +1,47 @@
 # Memory
 
+## v0.22.177 — 2026-11-11 parallel history reconciliation
+
+Version:0.22.177. Delta:v0.22.176 to v0.22.177. Retain both lifecycle/skill-service continuation and the independently delivered UI/Stele work from main559bf21f. Concurrent historical version labels remain under their original task IDs; no accepted result is discarded. PR329 lacked ordinary CI because these two append-only logs conflicted; source/runtimeacceptance remainsunchanged. The merged candidate now needs final-tipCI before delivery. TASK-1320private/teamskillservice continuesseparately.
+
+## v0.22.176 — 2026-11-11 lifecycle repairs verified; skill service continues
+
+Version: 0.22.176. Delta: v0.22.175 to v0.22.176; prompts138–140; TASK-1315 and TASK-1320.
+
+The bootstrapper and code optimizer completed their scoped run. FourHigh and tenMedium defects were repaired across17fullyread productionfiles. The current sourceinventory636files leaves619unreviewed. CDOretains BLIND-AUDIT-DISSENT because its secondblindgate found ANNstarvation fromretiredvectors. That finaldefect was repaired and proven withactualisolatedNeo4j red1/green0; no thirdblindgate/CLEANclaim. Reports: docs/repo-bootstrap-audit-2026-11-11.md, docs/reports/code-deep-optimizer-2026-11-11.md, docs/reports/research-lifecycle-source-coverage-2026-11-11.json and docs/research/research-lifecycle-audit-2026-11-11.md. Broaderbootstrap/operationsinventory/security/logrotation/crawlcoverage remainpartial.
+
+Owningpackage130tests pass, one opt-inNeo4jintegration skipsnormally and passeswhenexplicitlyconfigured. Native445tests and15subtests pass. ScopedRuff,31fileadaptersync,22pathdocindex,privacy andwhitespacechecks pass. Initialdependencyandinstallerfailures remaininreceipts. Realinstallerfailure restoredall4139oldapp/venvfiles. Sourceinstalled0.2.1 at /Users/mitch/.local/share/research-expertise/app onPython3.14.7. DedicatedCPUrefresh97893exited0:2318updated45786vectors3218relations. Finalrepeat97040exited0:2318unchanged,0passagewrites. FinalactualMCPacceptance22996exited0; independentreview confirmsall8modulehashes,current-spacebindings,dimensions384,canonicalinventory/sourcecaptureunchanged,andfiveactualMCPtools. Savedresearchstillretrievesrank3. Allimportsremainunreviewed; noqualitybenchmarkorsaturationclaim.
+
+Privateevidence isunder /Users/mitch/.config/neo4j-expertise/lifecycle-audit/. files.json istheretainedartifactinventory; modified-repo-files.json tracks64ownedrepositorypaths. Sourceisreadyforcommit/PR/CI/merge; actualdeliveryreceiptwillbeupdatedprivatelyaftermerge. Preserveoriginaldirtycheckoutandallunrelatedworktrees. Legacyindexing/Ollamaremains paused.
+
+The userconfirmedprivate/teamfirst fornewskillserver. Newfeatureworktree /Users/mitch/dev/worktrees/llms-explorer-skill-registry-20261111 has standalone hub/skill-registry domainpackage+localCLI/MCP, immutablecompletebundles, sourcealiases, lexicalindex andboundedoptimizerjobs. Worker skill_registry_core ownsnewpackage andhostedoptimizeradapter; rootownsprivatereleaseAPI/models/migration/tests/docs. Existinghostedaccounts/scopedkeysare reused; explicitreleasegrants giveotheraccountsreadaccess. NoHTTPuploadedcodeexec/publicuploadmoderationbypass. The first9newrealPGtests andfull290APItests passedbeforegenericjobadapterwiring; core43tests+Ruffpassed. RootinstalledpreviewnoneditableUVtoolwithMCPextra, butfinalsource/installedidentitystillneedsverificationafterremainingchanges. Jobbrokerandactualindexedrouting/optimizer/remoteacceptanceanddeliveryremainactiveunderTASK-1320.
+
+Steleconnectionisintermittent. TASK-1320created/claimed; TASK-1321auditstagecreated. Onlyoutbox118a6f1b replayed/done; otheroutboxoperationsremaintodrain. AdditionalTASK-1321link/claimqueued b/ctransportclosed. Capturecontinuationmustpreservebothactivegoalsandprivate/teamdecision, thenreplayexactqueuedtrackerwriteswhenavailable.
+
+## v0.22.175 — 2026-11-11 skill service scope added
+
+Version: 0.22.175. Delta: v0.22.174 to v0.22.175; prompt139; TASK-1320.
+
+The user adds local/remote skill sharing and distribution, live indexed lookup/router and automatic optional optimization for skills/code/documents/queries. Keep the lifecycle audit TASK-1315 active through delivery. Reuse existing live-source routers and safe bundles; preserve canonical skills, retired legacy sync, paused legacy indexing/Ollama and all unrelated dirty work. Existing design KNOW-828 favors pointers over copied skill families. A scoped explorer maps existing catalog/router/API/auth/job code. An asynchronous question asks private/team-first versus public multi-user-first; private/team-first is the default while independent work proceeds. Public remote publication and paid/unbounded optimization are not implied by local indexing.
+
+Audit so far: source package0.2.1 passed117tests+Ruff and is installed under /Users/mitch/.local/share/research-expertise/app. Dedicated identity refresh is running (execsession97893; started12:45UTC), with progress logs /Users/mitch/.config/neo4j-expertise/lifecycle-audit/identity-refresh.stdout.log and .stderr.log. Do not infer success until finalexitcode0. At12:55UTC925docs15647passages were rebuilt. Strict identity migration does not relabel oldvectors. Native425tests+15subtests passed after an initial31dependencyfailures; six defects repaired plus numeric-literal and MCP responsiveness/CLI preflight findings being resolved. Scope expands beyond initial9criticalfiles toward default50activefiles. Preserve package store/capture recipe during refresh.
+
+Independent contractreview accepted report distinctions after correcting authored-span preflight scope and requiring trustednativegate/sourcebindings in proposedadapter. Registryactivation was corrected in /Users/mitch/.global-ai-hub/project_registry.db with driftcheckexit0. Liveverifier prepared /Users/mitch/.config/neo4j-expertise/lifecycle-audit/verify-lifecycle-installed.py; eight installedmodule hashes matchedsource, but finalacceptance waits for refresh completion and finalpackagechanges. Reuse agent lifecycle_live_verify with followup_task.
+
+Stele brieflyrecovered: newtaskTASK-1320created/claimed and bootstrapperstageTASK-1321created. Outbox118a6f1b replayed/done. Further writes disconnected again; other prioroutboxops remain pending. Queue missingTASK-1321link/claim rather than assume they succeeded. Next: finish sourceaudit/requiredchecks and draftcheckpoint; verifyrefresh/installedMCP; deliveraudit; design and implementskillservice in separateownedcomponent using discoveredreuse and user's accessanswer; testactualrouting/distribution/optimizer flow and deliver.
+
+## v0.22.174 — 2026-11-11 research lifecycle audit in progress
+
+Version: 0.22.174. Delta: v0.22.173 to v0.22.174; prompt v138; TASK-1315.
+
+The user requested end-to-end improvements and execution of repo-bootstrapper and code-deep-optimizer. Work uses /Users/mitch/dev/worktrees/llms-explorer-research-lifecycle-20261111 from origin/main 3dd863b0. Preserve the divergent dirty original checkout, held research, frozen vectors and paused legacy indexing/Ollama. The dedicated CPU expertise projection remains the installed system from PR326; audit its compatibility without requalifying unreviewed imports.
+
+Repo-health agent owns bootstrap docs, optimizer ledger/report and source/test repairs. Root owns this prompt/memory log and docs/research/research-lifecycle-audit-2026-11-11.md. No blanket staging or private evidence publication. Run source-backed audit, implement reproducible in-scope defects, record broader feature priorities, verify final exit codes, deliver and confirm remote default branch plus changed installed surfaces. Existing prior architecture/evidence audits must be checked before proposing replacements.
+
+Hub semantic MCP fails with missing numpy. Its CLI defaults to Ollama even when an unsupported --help is present; the accidental inspection process was terminated with exit143 before producing results. Use file/keyword inspection and do not repeat that fallback. Stele disconnected with Transport closed after parent TASK-1315 and first stage TASK-1317 were created/claimed. Exact remaining tracker writes queued as outbox118a6f1b,13bbbc2a,de45ec67. Private live progress: /Users/mitch/.config/neo4j-expertise/lifecycle-audit/progress.json.
+
+Remaining: finish lifecycle audit and bootstrap/optimizer passes, test repairs, write report/receipt, merge passing PR, independently verify changed installed code and close tracker through MCP or exact outbox operations. No completion or saturation claim yet.
+
 ## v0.22.174 — 2026-11-11 deep UI optimizer verified locally
 
 Version: 0.22.174. Delta: v0.22.173 to v0.22.174; prompt v138; TASK-1318.

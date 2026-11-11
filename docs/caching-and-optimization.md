@@ -10,3 +10,11 @@
    - Pre-computed embeddings stored on local SSDs; queried with cosine similarity.
 4. **Astro Static HTML**:
    - Pre-rendered static pages for directory sites and concept documentation.
+
+## Research expertise cache
+
+The standalone projection uses exact source/manifest hashes for freshness and
+text plus the explicit encoder-recipe identity for vector cache keys. Dense
+retrieval requires the current identity; sparse source reads remain available
+during an explicit migration. Unknown legacy vectors are never relabeled as
+proven. See [the package migration contract](../hub/research-expertise/README.md).

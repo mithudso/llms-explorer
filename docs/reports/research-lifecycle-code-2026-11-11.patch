@@ -1,0 +1,529 @@
+diff --git a/hub/research-expertise/install.py b/hub/research-expertise/install.py
+index 1a95fb1b..1ac450dd 100644
+--- a/hub/research-expertise/install.py
++++ b/hub/research-expertise/install.py
+@@ -2 +2 @@
+-"""Install the checked-in expertise application into a stable user-local directory."""
++"""Install a stable user-local application with recoverable upgrades."""
+@@ -6,0 +7 @@ import argparse
++import fcntl
+@@ -11,0 +13,4 @@ import subprocess
++import sys
++import tempfile
++import tomllib
++from uuid import uuid4
+@@ -14,17 +19,14 @@ import subprocess
+-def main():
+-    parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument("--schedule", action="store_true", help="Refresh only this corpus hourly")
+-    args = parser.parse_args()
+-    source = Path(__file__).resolve().parent
+-    home = Path.home()
+-    target = home / ".local/share/research-expertise/app"
+-    target.mkdir(parents=True, exist_ok=True)
+-    for name in ("pyproject.toml", "uv.lock", "README.md", "MCP.md"):
+-        shutil.copy2(source / name, target / name)
+-    shutil.copytree(
+-        source / "src",
+-        target / "src",
+-        dirs_exist_ok=True,
+-        ignore=shutil.ignore_patterns("__pycache__"),
+-    )
+-    subprocess.run(["uv", "sync", "--directory", str(target), "--frozen", "--no-dev"], check=True)
++ENTRIES = ("research-expertise", "research-expertise-mcp")
++
++
++def _check_link(link, destination):
++    if link.is_symlink():
++        if link.resolve() != destination.resolve():
++            raise FileExistsError(f"Refusing to replace another executable link: {link}")
++    elif link.exists():
++        raise FileExistsError(f"Refusing to replace existing executable: {link}")
++
++
++def _install(source, home, *, schedule):
++    state = home / ".local/share/research-expertise"
++    target = state / "app"
+@@ -32,25 +34,90 @@ def main():
+-    binary.mkdir(parents=True, exist_ok=True)
+-    for name in ("research-expertise", "research-expertise-mcp"):
+-        link = binary / name
+-        dest = target / ".venv/bin" / name
+-        if link.exists() and not link.is_symlink():
+-            raise FileExistsError(f"Refusing to replace existing executable: {link}")
+-        link.unlink(missing_ok=True)
+-        link.symlink_to(dest)
+-    if args.schedule:
+-        state = target.parent
+-        label = "com.global-ai-hub.research-expertise"
+-        plist = home / "Library/LaunchAgents" / f"{label}.plist"
+-        plist.parent.mkdir(parents=True, exist_ok=True)
+-        content = {
+-            "Label": label,
+-            "ProgramArguments": [str(target / ".venv/bin/research-expertise"), "ingest"],
+-            "StartInterval": 3600,
+-            "RunAtLoad": False,
+-            "LowPriorityIO": True,
+-            "ProcessType": "Background",
+-            "StandardOutPath": str(state / "refresh.log"),
+-            "StandardErrorPath": str(state / "refresh-error.log"),
+-        }
+-        if plist.exists():
+-            shutil.copy2(plist, plist.with_suffix(".plist.backup"))
++    if target.is_symlink() or (target.exists() and not target.is_dir()):
++        raise FileExistsError(f"Refusing to replace an unowned application path: {target}")
++    if target.exists() and any(target.iterdir()):
++        try:
++            owned = tomllib.loads((target / "pyproject.toml").read_text())["project"]["name"]
++        except (OSError, ValueError, KeyError, TypeError):
++            owned = None
++        if owned != "research-expertise":
++            raise FileExistsError(
++                f"Existing application has no expertise ownership marker: {target}"
++            )
++    if schedule and shutil.which("launchctl") is None:
++        raise FileNotFoundError("--schedule requires macOS launchctl; omit it on other hosts")
++    if shutil.which("uv") is None:
++        raise FileNotFoundError("uv is required; install it from https://docs.astral.sh/uv/")
++    links = {binary / name: target / ".venv/bin" / name for name in ENTRIES}
++    for link, destination in links.items():
++        _check_link(link, destination)
++    old_links = {link: os.readlink(link) if link.is_symlink() else None for link in links}
++    label = "com.global-ai-hub.research-expertise"
++    plist = home / "Library/LaunchAgents" / f"{label}.plist"
++    if schedule and plist.is_symlink():
++        raise FileExistsError(f"Refusing to overwrite a symlinked launch agent: {plist}")
++    old_plist = plist.read_bytes() if schedule and plist.exists() else None
++    if old_plist is not None and plistlib.loads(old_plist).get("Label") != label:
++        raise FileExistsError(f"Refusing to replace another launch agent: {plist}")
++    history = state / "install-history" / uuid4().hex
++    previous = history / "previous-app"
++    stage = Path(tempfile.mkdtemp(prefix=".app-stage-", dir=state))
++    activated, changed_links, schedule_changed = False, [], False
++    try:
++        for name in ("pyproject.toml", "uv.lock", "README.md", "MCP.md"):
++            shutil.copy2(source / name, stage / name)
++        shutil.copytree(source / "src", stage / "src", ignore=shutil.ignore_patterns("__pycache__"))
++        history.mkdir(parents=True, mode=0o700)
++        if target.exists():
++            target.rename(previous)
++        stage.rename(target)
++        activated = True
++        # Build at the final path: uv entrypoint shebangs and editable metadata
++        # must not point at a staging directory that will disappear.
++        subprocess.run(
++            ["uv", "sync", "--directory", str(target), "--python", "3.14", "--frozen", "--no-dev"],
++            check=True,
++        )
++        binary.mkdir(parents=True, exist_ok=True)
++        for link, destination in links.items():
++            _check_link(link, destination)
++            pending = binary / ("." + link.name + "." + uuid4().hex)
++            try:
++                pending.symlink_to(destination)
++                pending.replace(link)
++                changed_links.append(link)
++            finally:
++                pending.unlink(missing_ok=True)
++        if schedule:
++            plist.parent.mkdir(parents=True, exist_ok=True)
++            if old_plist is not None:
++                (history / "previous-launch-agent.plist").write_bytes(old_plist)
++                subprocess.run(
++                    ["launchctl", "bootout", f"gui/{os.getuid()}", str(plist)],
++                    check=False,
++                    capture_output=True,
++                )
++            content = {
++                "Label": label,
++                "ProgramArguments": [str(target / ".venv/bin/research-expertise"), "ingest"],
++                "StartInterval": 3600,
++                "RunAtLoad": False,
++                "LowPriorityIO": True,
++                "ProcessType": "Background",
++                "StandardOutPath": str(state / "refresh.log"),
++                "StandardErrorPath": str(state / "refresh-error.log"),
++            }
++            schedule_changed = True
++            plist.write_bytes(plistlib.dumps(content))
++            subprocess.run(["launchctl", "bootstrap", f"gui/{os.getuid()}", str(plist)], check=True)
++    except BaseException:
++        # Keep both versions for inspection; restoring the prior app also
++        # restores its complete venv at the absolute path its scripts expect.
++        if activated:
++            target.rename(history / "failed-app")
++        if previous.exists():
++            previous.rename(target)
++        for link in reversed(changed_links):
++            _check_link(link, links[link])
++            link.unlink(missing_ok=True)
++            if old_links[link] is not None:
++                link.symlink_to(old_links[link])
++        if schedule_changed:
+@@ -62,2 +129,41 @@ def main():
+-        plist.write_bytes(plistlib.dumps(content))
+-        subprocess.run(["launchctl", "bootstrap", f"gui/{os.getuid()}", str(plist)], check=True)
++            if old_plist is None:
++                plist.unlink(missing_ok=True)
++            else:
++                plist.write_bytes(old_plist)
++                restored = subprocess.run(
++                    ["launchctl", "bootstrap", f"gui/{os.getuid()}", str(plist)],
++                    check=False,
++                    capture_output=True,
++                )
++                if restored.returncode:
++                    print(
++                        f"Prior app restored; launch agent reload failed. Inspect {plist}",
++                        file=sys.stderr,
++                    )
++        raise
++    finally:
++        if stage.exists():
++            history.mkdir(parents=True, exist_ok=True, mode=0o700)
++            stage.rename(history / "unpublished-stage")
++    if previous.exists():
++        print(f"Previous installation retained at {previous}", file=sys.stderr)
++    return target
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--schedule", action="store_true", help="Refresh only this corpus hourly")
++    args = parser.parse_args()
++    home = Path.home()
++    state = home / ".local/share/research-expertise"
++    state.mkdir(parents=True, exist_ok=True)
++    with (state / "ingest.lock").open("a") as lock:
++        try:
++            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
++        except BlockingIOError:
++            parser.exit(
++                3,
++                f"Expertise ingestion or installation owns {state / 'ingest.lock'}; "
++                "retry after it finishes.\n",
++            )
++        target = _install(Path(__file__).resolve().parent, home, schedule=args.schedule)
+diff --git a/hub/research-expertise/src/research_expertise/capture.py b/hub/research-expertise/src/research_expertise/capture.py
+index 2e2f49f9..584355ed 100644
+--- a/hub/research-expertise/src/research_expertise/capture.py
++++ b/hub/research-expertise/src/research_expertise/capture.py
+@@ -14,0 +15 @@ import json
++import logging
+@@ -28,0 +30 @@ _SOURCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,49}\Z")
++_LOG = logging.getLogger(__name__)
+@@ -63 +65 @@ def _normalize(slug, title, question, summary, findings, sources):
+-    clean_sources, source_map = [], {}
++    clean_sources, source_map, source_filenames = [], {}, set()
+@@ -70,0 +73,3 @@ def _normalize(slug, title, question, summary, findings, sources):
++        if sid.casefold() in source_filenames:
++            raise ValueError("source.id must be unique on case-insensitive filesystems")
++        source_filenames.add(sid.casefold())
+@@ -446,0 +452,6 @@ def save_research(
++            _LOG.warning(
++                "research_capture_index_pending slug=%s error_type=%s",
++                payload["slug"],
++                type(exc).__name__,
++                extra={"capture_slug": payload["slug"], "error_type": type(exc).__name__},
++            )
+diff --git a/hub/research-expertise/src/research_expertise/cli.py b/hub/research-expertise/src/research_expertise/cli.py
+index a64513bb..377ba302 100644
+--- a/hub/research-expertise/src/research_expertise/cli.py
++++ b/hub/research-expertise/src/research_expertise/cli.py
+@@ -9 +9 @@ from pathlib import Path
+-from .store import Store
++from .store import CONFIG, Store
+@@ -36 +36,11 @@ def main():
+-    store = Store()
++    guidance = (
++        f"Neo4j connection configuration is missing or invalid: {CONFIG}. "
++        "Create a private JSON object with uri, username, password and optional database; "
++        "restrict permissions to 600. See the installed application README.md.\n"
++    )
++    try:
++        if not CONFIG.is_file():
++            parser.exit(3, guidance)
++        store = Store()
++    except (OSError, ValueError, KeyError, TypeError):
++        parser.exit(3, guidance)
+diff --git a/hub/research-expertise/src/research_expertise/inspection.py b/hub/research-expertise/src/research_expertise/inspection.py
+index 7b4a0334..e4e05d52 100644
+--- a/hub/research-expertise/src/research_expertise/inspection.py
++++ b/hub/research-expertise/src/research_expertise/inspection.py
+@@ -19 +19 @@ def snapshot(store, concept="", demo=None):
+-    docs = []
++    docs, verified = [], {}
+@@ -22,0 +23 @@ def snapshot(store, concept="", demo=None):
++            verified[d["id"]] = dict(d)
+@@ -29,0 +31 @@ def snapshot(store, concept="", demo=None):
++        binding = verified[d["id"]]
+@@ -33 +35,3 @@ def snapshot(store, concept="", demo=None):
+-            "WHERE type(r) IN ['RX_ABOUT','RX_CITES','RX_HAS_PASSAGE'] "
++            "WHERE d.sha256=$sha256 AND d.manifest_sha256=$manifest_sha256 "
++            "AND d.corpus=$corpus AND d.active=true "
++            "AND type(r) IN ['RX_ABOUT','RX_CITES','RX_HAS_PASSAGE'] "
+@@ -38,0 +43,3 @@ def snapshot(store, concept="", demo=None):
++            sha256=binding["sha256"],
++            manifest_sha256=binding["manifest_sha256"],
++            corpus=CORPUS,
+@@ -39,0 +47,4 @@ def snapshot(store, concept="", demo=None):
++        if not current(dict(binding, doc_sha256=binding["sha256"])):
++            docs = [row for row in docs if row["id"] != d["id"]]
++            nodes.clear()
++            relations = []
+diff --git a/hub/research-expertise/src/research_expertise/mcp_server.py b/hub/research-expertise/src/research_expertise/mcp_server.py
+index eb558fb5..3b5c0449 100644
+--- a/hub/research-expertise/src/research_expertise/mcp_server.py
++++ b/hub/research-expertise/src/research_expertise/mcp_server.py
+@@ -5,2 +5,3 @@ from __future__ import annotations
+-import atexit
+-from functools import lru_cache
++import asyncio
++from concurrent.futures import ThreadPoolExecutor
++from functools import lru_cache, wraps
+@@ -40 +41,23 @@ def _close_store() -> None:
+-atexit.register(_close_store)
++# One owner thread preserves the cached Embedder's SQLite connection affinity.
++_worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="research-expertise")
++
++
++def _worker_tool(**options):
++    """Register asynchronous MCP dispatch while retaining the local sync API."""
++    def register(function):
++        @wraps(function)
++        async def invoke(*args, **kwargs):
++            loop = asyncio.get_running_loop()
++            return await loop.run_in_executor(_worker, lambda: function(*args, **kwargs))
++
++        mcp.tool(**options)(invoke)
++        return function
++
++    return register
++
++
++def _shutdown():
++    try:
++        _worker.submit(_close_store).result()
++    finally:
++        _worker.shutdown(wait=True)
+@@ -58 +81 @@ def _text(value: str, name: str, maximum: int, *, empty: bool = False) -> str:
+-@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False})
++@_worker_tool(annotations={"readOnlyHint": True, "destructiveHint": False})
+@@ -64 +87 @@ def expertise_status() -> dict:
+-@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False})
++@_worker_tool(annotations={"readOnlyHint": True, "destructiveHint": False})
+@@ -74 +97 @@ def expertise_search(query: str, top: int = 5, concept: str = "") -> dict:
+-@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False})
++@_worker_tool(annotations={"readOnlyHint": True, "destructiveHint": False})
+@@ -80 +103 @@ def expertise_passage(passage_id: str) -> dict:
+-@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False})
++@_worker_tool(annotations={"readOnlyHint": True, "destructiveHint": False})
+@@ -89 +112 @@ def expertise_neighbors(concept: str, top: int = 20) -> dict:
+-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": True})
++@_worker_tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": True})
+@@ -113 +136,4 @@ def main() -> None:
+-    mcp.run(transport="stdio")
++    try:
++        mcp.run(transport="stdio")
++    finally:
++        _shutdown()
+diff --git a/hub/research-expertise/src/research_expertise/store.py b/hub/research-expertise/src/research_expertise/store.py
+index 2d8a3d37..b46a9d3b 100644
+--- a/hub/research-expertise/src/research_expertise/store.py
++++ b/hub/research-expertise/src/research_expertise/store.py
+@@ -7,0 +8 @@ import hashlib
++from importlib.metadata import version
+@@ -24,0 +26 @@ CHUNKING_VERSION = "bge-480tokens-v1"
++EMBEDDING_RECIPE = "fastembed-passage-query-v1"
+@@ -29,0 +32,17 @@ CORPUS = "hub-concepts"
++def embedding_recipe():
++    """Describe the exact vector space; changes require a deliberate refresh."""
++    return {
++        "model": MODEL,
++        "repository": MODEL_REPO,
++        "revision": MODEL_REVISION,
++        "dimensions": DIMENSIONS,
++        "fastembed_version": version("fastembed"),
++        "recipe": EMBEDDING_RECIPE,
++    }
++
++
++def embedding_space_id():
++    payload = json.dumps(embedding_recipe(), sort_keys=True, separators=(",", ":"))
++    return hashlib.sha256(payload.encode()).hexdigest()
++
++
+@@ -79,0 +99 @@ class Embedder:
++        self.embedding_space_id = embedding_space_id()
+@@ -89 +109 @@ class Embedder:
+-                cache / "models--Qdrant--bge-small-en-v1.5-onnx-Q" / "snapshots" / MODEL_REVISION
++                cache / ("models--" + MODEL_REPO.replace("/", "--")) / "snapshots" / MODEL_REVISION
+@@ -128 +148,4 @@ class Embedder:
+-        keys = [hashlib.sha256((MODEL + "\0" + t).encode()).hexdigest() for t in texts]
++        keys = [
++            hashlib.sha256((self.embedding_space_id + "\0" + t).encode()).hexdigest()
++            for t in texts
++        ]
+@@ -133,0 +157,2 @@ class Embedder:
++                if not isinstance(found[key], list) or len(found[key]) != DIMENSIONS:
++                    raise ValueError("Cached embedding dimensions do not match schema")
+@@ -214 +239,2 @@ class Store:
+-            "d.path AS path, d.chunking_version AS chunking_version",
++            "d.path AS path, d.chunking_version AS chunking_version, "
++            "d.embedding_space_id AS embedding_space_id",
+@@ -221 +247 @@ class Store:
+-            "c.model=$model, c.dimensions=$dimensions",
++            "c.model=$model, c.dimensions=$dimensions, c.embedding_space_id=$embedding_space_id",
+@@ -225,0 +252 @@ class Store:
++            embedding_space_id=embedding_space_id(),
+@@ -236,0 +264 @@ class Store:
++                    and previous.get("embedding_space_id") == embedding_space_id()
+@@ -247 +275,4 @@ class Store:
+-                    props = dict(chunk, embedding=vector, corpus=CORPUS)
++                    props = dict(
++                        chunk, embedding=vector, corpus=CORPUS,
++                        embedding_space_id=embedding_space_id(),
++                    )
+@@ -253,0 +285 @@ class Store:
++                    embedding_space_id=embedding_space_id(),
+@@ -272 +304,2 @@ class Store:
+-                "MATCH (d:RXDocument {corpus:$corpus}) WHERE NOT d.id IN $seen SET d.active=false",
++                "MATCH (d:RXDocument {corpus:$corpus}) WHERE NOT d.id IN $seen SET d.active=false "
++                "WITH d MATCH (d)-[:RX_HAS_PASSAGE]->(p:RXPassage) REMOVE p.embedding",
+@@ -356 +389,5 @@ class Store:
+-            "count(p.embedding) AS vectors",
++            "count(p.embedding) AS vectors, "
++            "count(DISTINCT CASE WHEN d.embedding_space_id=$embedding_space_id THEN d END) "
++            "AS current_space_documents, "
++            "count(CASE WHEN d.embedding_space_id=$embedding_space_id THEN p.embedding END) "
++            "AS current_space_vectors",
+@@ -357,0 +395 @@ class Store:
++            embedding_space_id=embedding_space_id(),
+@@ -364,0 +403,6 @@ class Store:
++            "embedding_space_id": embedding_space_id(),
++            "embedding_recipe": embedding_recipe(),
++            "embedding_migration_required": (
++                counts[0].get("current_space_documents", 0) != counts[0]["documents"]
++                or counts[0].get("current_space_vectors", 0) != counts[0]["vectors"]
++            ),
+@@ -389,0 +434 @@ class Store:
++            "AND ($require_embedding_space=false OR d.embedding_space_id=$embedding_space_id) "
+@@ -399,0 +445,2 @@ class Store:
++            require_embedding_space=False,
++            embedding_space_id=embedding_space_id(),
+@@ -407,0 +455,2 @@ class Store:
++            require_embedding_space=True,
++            embedding_space_id=embedding_space_id(),
+@@ -427,0 +477 @@ class Store:
++            "embedding_space_id": embedding_space_id(),
+diff --git a/scripts/research_gate.py b/scripts/research_gate.py
+index 23540f43..7d09d5ed 100644
+--- a/scripts/research_gate.py
++++ b/scripts/research_gate.py
+@@ -292 +292,3 @@ def check_spans(packet, claim, spans, root, *, authored=False):
+-    numbers = re.findall(r'(?<![\w])\d+(?:[.,]\d+)*(?:%|[a-zA-Z]+)?', numeric_text)
++    numbers = re.findall(
++        r'(?<!\w)\d(?:_?\d)*(?:[.,]\d(?:_?\d)*)*'
++        r'(?:[eE][+-]?\d(?:_?\d)*)?(?:%|[a-zA-Z]+)?', numeric_text)
+diff --git a/scripts/research_library.py b/scripts/research_library.py
+index 9d8eca82..85734d70 100755
+--- a/scripts/research_library.py
++++ b/scripts/research_library.py
+@@ -10,0 +11,2 @@ import argparse
++import fcntl
++import hashlib
+@@ -14,0 +17 @@ import sys
++from contextlib import contextmanager
+@@ -24,0 +28,18 @@ def load(name, path):
++@contextmanager
++def source_guard(root, source_id):
++    """Serialize cooperating wrapper ingests of one upstream source identity.
++
++    Take this guard before the provenance and upstream library locks. Neither
++    inner lock calls back into the wrapper. Direct upstream writers that bypass
++    this wrapper must adopt the same protocol to share this protection.
++    """
++    directory = Path(root) / 'provenance/ingest-locks'
++    directory.mkdir(parents=True, exist_ok=True)
++    key = hashlib.sha256(source_id.encode()).hexdigest()
++    path = directory / (key + '.lock')
++    fd = os.open(path, os.O_CREAT | os.O_RDWR | getattr(os, 'O_NOFOLLOW', 0), 0o600)
++    with os.fdopen(fd, 'a+b') as stream:
++        fcntl.flock(stream, fcntl.LOCK_EX)
++        yield
++
++
+@@ -33,5 +54,6 @@ def main(argv=None):
+-        provenance.archive(root, provenance.origin_metadata(root, library.dr.lib_find(url)))
+-        result = original(url, *args, **kwargs)
+-        if result.get('ok'):
+-            result['provenance'] = provenance.archive(root, provenance.origin_metadata(root, library.dr.lib_find(url)))
+-        return result
++        with source_guard(root, library.dr.source_id(url)):
++            provenance.archive(root, provenance.origin_metadata(root, library.dr.lib_find(url)))
++            result = original(url, *args, **kwargs)
++            if result.get('ok'):
++                result['provenance'] = provenance.archive(root, provenance.origin_metadata(root, library.dr.lib_find(url)))
++            return result
+diff --git a/scripts/research_provenance.py b/scripts/research_provenance.py
+index fbc1e594..ab467e69 100644
+--- a/scripts/research_provenance.py
++++ b/scripts/research_provenance.py
+@@ -78 +78,5 @@ def archive(library, metadata):
+-            if saved['snapshot_sha256'] != sha:
++            expected = {'schema': 'research-source/v1', 'snapshot_id': identity,
++                        'source_id': metadata['id'], 'url': metadata['url'],
++                        'snapshot_sha256': sha, 'snapshot_path': str(path),
++                        'chars': len(body.decode('utf-8'))}
++            if not isinstance(saved, dict) or any(saved.get(key) != value for key, value in expected.items()):
+diff --git a/scripts/research_transaction.py b/scripts/research_transaction.py
+index 8fd83576..2b659e44 100644
+--- a/scripts/research_transaction.py
++++ b/scripts/research_transaction.py
+@@ -5,0 +6 @@ import json
++import os
+@@ -6,0 +8,2 @@ import shutil
++import stat
++import tempfile
+@@ -9,0 +13,8 @@ from pathlib import Path
++def destination(path):
++    """Resolve aliases before coverage checks while refusing final symlinks."""
++    path = Path(path).absolute()
++    if path.is_symlink():
++        raise ValueError('projection destination cannot be a symlink: ' + str(path))
++    return path.resolve()
++
++
+@@ -12,2 +23,2 @@ class Transaction:
+-        self.root = Path(root).absolute()
+-        self.registry = Path(registry).absolute() if registry is not None else None
++        self.root = Path(root).resolve()
++        self.registry = Path(registry).resolve() if registry is not None else None
+@@ -64 +75 @@ class Transaction:
+-        path = Path(path).absolute()
++        path = destination(path)
+@@ -76 +87 @@ class Transaction:
+-                shutil.copytree(path, saved)
++                shutil.copytree(path, saved, symlinks=True)
+@@ -84 +95 @@ class Transaction:
+-        path = Path(path)
++        path = destination(path)
+@@ -93 +104,2 @@ class Transaction:
+-        temporary = path.with_name(path.name + '.projection-tmp')
++        descriptor, name = tempfile.mkstemp(prefix='.' + path.name + '.projection-', dir=path.parent)
++        temporary = Path(name)
+@@ -95,4 +107,5 @@ class Transaction:
+-            if isinstance(value, bytes):
+-                temporary.write_bytes(value)
+-            else:
+-                temporary.write_text(value, encoding='utf-8')
++            mode = 'wb' if isinstance(value, bytes) else 'w'
++            with os.fdopen(descriptor, mode, **({} if mode == 'wb' else {'encoding': 'utf-8'})) as stream:
++                if path.is_file():
++                    os.fchmod(stream.fileno(), stat.S_IMODE(path.stat().st_mode))
++                stream.write(value)
+@@ -108 +120,0 @@ class Transaction:
+-            path.with_name(path.name + '.projection-tmp').unlink(missing_ok=True)
+@@ -116 +128 @@ class Transaction:
+-                    shutil.copytree(saved, path)
++                    shutil.copytree(saved, path, symlinks=True)

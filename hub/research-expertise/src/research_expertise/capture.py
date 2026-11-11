@@ -12,6 +12,7 @@ from datetime import datetime, UTC
 import fcntl
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -26,6 +27,7 @@ CREATOR = "research-expertise-capture/1"
 _RESERVED = {"draft", "drafts", "staging", "tmp", "temp", "backup", "backups"}
 _SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 _SOURCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,49}\Z")
+_LOG = logging.getLogger(__name__)
 
 
 def _bytes(value):
@@ -60,7 +62,7 @@ def _normalize(slug, title, question, summary, findings, sources):
         raise ValueError("sources must contain 1..8 source objects")
     if not isinstance(findings, list) or not 1 <= len(findings) <= 20:
         raise ValueError("findings must contain 1..20 finding objects")
-    clean_sources, source_map = [], {}
+    clean_sources, source_map, source_filenames = [], {}, set()
     for source in sources:
         _object(source, ("id", "url", "title", "content"), "source")
         sid = _text(source["id"], "source.id", 50)
@@ -68,6 +70,9 @@ def _normalize(slug, title, question, summary, findings, sources):
             raise ValueError(
                 "source.id must be unique and use letters, digits, underscore or hyphen"
             )
+        if sid.casefold() in source_filenames:
+            raise ValueError("source.id must be unique on case-insensitive filesystems")
+        source_filenames.add(sid.casefold())
         url = _text(source["url"], "source.url", 2048)
         try:
             parsed = urlsplit(url)
@@ -444,6 +449,12 @@ def save_research(
             result["indexed_document"] = _confirm_indexed(store, pack, checksum)
             result["indexed"] = True
         except Exception as exc:
+            _LOG.warning(
+                "research_capture_index_pending slug=%s error_type=%s",
+                payload["slug"],
+                type(exc).__name__,
+                extra={"capture_slug": payload["slug"], "error_type": type(exc).__name__},
+            )
             result.update(
                 indexed=False,
                 index_state="pending",

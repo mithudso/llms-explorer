@@ -3,14 +3,25 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
+import stat
+import tempfile
 from pathlib import Path
+
+
+def destination(path):
+    """Resolve aliases before coverage checks while refusing final symlinks."""
+    path = Path(path).absolute()
+    if path.is_symlink():
+        raise ValueError('projection destination cannot be a symlink: ' + str(path))
+    return path.resolve()
 
 
 class Transaction:
     def __init__(self, root, registry=None):
-        self.root = Path(root).absolute()
-        self.registry = Path(registry).absolute() if registry is not None else None
+        self.root = Path(root).resolve()
+        self.registry = Path(registry).resolve() if registry is not None else None
         self.entries = []
         self.seen = set()
         self.status = 'running'
@@ -61,7 +72,7 @@ class Transaction:
                 marker.unlink(missing_ok=True)
 
     def remember(self, path):
-        path = Path(path).absolute()
+        path = destination(path)
         self.assert_paths_available([path])
         if str(path) in self.seen or any(path.is_relative_to(Path(item)) for item in self.seen):
             return
@@ -73,7 +84,7 @@ class Transaction:
             saved.parent.mkdir(parents=True, exist_ok=True)
             kind = 'directory' if path.is_dir() else 'file'
             if path.is_dir():
-                shutil.copytree(path, saved)
+                shutil.copytree(path, saved, symlinks=True)
             else:
                 shutil.copy2(path, saved)
         self.entries.append({'path': str(path), 'kind': kind, 'preimage': str(saved)})
@@ -81,7 +92,7 @@ class Transaction:
         self.save()  # Journal the preimage before the first mutation.
 
     def write(self, path, value):
-        path = Path(path)
+        path = destination(path)
         self.remember(path)
         if value is None:
             if path.is_dir():
@@ -90,12 +101,14 @@ class Transaction:
                 path.unlink(missing_ok=True)
             return
         path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_name(path.name + '.projection-tmp')
+        descriptor, name = tempfile.mkstemp(prefix='.' + path.name + '.projection-', dir=path.parent)
+        temporary = Path(name)
         try:
-            if isinstance(value, bytes):
-                temporary.write_bytes(value)
-            else:
-                temporary.write_text(value, encoding='utf-8')
+            mode = 'wb' if isinstance(value, bytes) else 'w'
+            with os.fdopen(descriptor, mode, **({} if mode == 'wb' else {'encoding': 'utf-8'})) as stream:
+                if path.is_file():
+                    os.fchmod(stream.fileno(), stat.S_IMODE(path.stat().st_mode))
+                stream.write(value)
             temporary.replace(path)
         finally:
             temporary.unlink(missing_ok=True)
@@ -105,7 +118,6 @@ class Transaction:
             self.assert_paths_available(entry['path'] for entry in self.entries)
         for entry in reversed(self.entries):
             path, saved = Path(entry['path']), Path(entry['preimage'])
-            path.with_name(path.name + '.projection-tmp').unlink(missing_ok=True)
             if path.is_dir():
                 shutil.rmtree(path)
             else:
@@ -113,7 +125,7 @@ class Transaction:
             if entry['kind'] != 'absent':
                 path.parent.mkdir(parents=True, exist_ok=True)
                 if entry['kind'] == 'directory':
-                    shutil.copytree(saved, path)
+                    shutil.copytree(saved, path, symlinks=True)
                 else:
                     shutil.copy2(saved, path)
         self.status = 'rolled-back'

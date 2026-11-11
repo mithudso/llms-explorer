@@ -18,3 +18,11 @@
 
 - `api/`: Uvicorn stderr / stdout.
 - `hub/`: `logs/pipeline_manager.log`, launchd agent stdout/stderr.
+
+## Research expertise
+
+The standalone MCP uses stdout only for JSON-RPC. Ingestion progress and safe
+operation diagnostics go to stderr. Captures retain canonical data when indexing
+fails and return explicit pending status; diagnostics must identify the operation
+and exception class without source bodies, credentials or raw provider errors.
+Offline tests assert important failure logging and capture state.

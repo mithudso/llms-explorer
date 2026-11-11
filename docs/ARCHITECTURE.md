@@ -12,6 +12,10 @@ graph TD
     API -->|HTTP JSON-RPC| HubMCP[Global AI Hub MCP Server]
     HubMCP -->|Embeddings| OllamaPool[Ollama GPU / Mac Pool]
     HubMCP -->|Storage| Chroma[(ChromaDB / SQLite Docsets)]
+    Client -->|Bounded stdio MCP| Expertise[Research Expertise]
+    Expertise -->|Canonical capture / exact hashes| Packs[Canonical .llms packs]
+    Packs -->|Rebuildable projection| Neo4j[(Neo4j graph + vectors)]
+    Expertise -->|Hybrid retrieval| Neo4j
     Pipeline[Pipeline Manager / Refiner] -->|Extract / Polish| OllamaPool
     Pipeline -->|Rsync| HubNodes[Remote Hub Nodes]
 ```
@@ -52,3 +56,13 @@ graph TD
 
 7. **Utilities (`scripts/`)**:
    - Helper scripts for tasks like concept pack building, tree merging, and snapshot refreshing.
+
+## Local research expertise decision
+
+Canonical `.llms` files remain authoritative. The standalone
+`hub/research-expertise/` package projects them into Neo4j and computes pinned
+CPU embeddings without starting the hub's legacy Ollama pool. Capture preserves
+source snapshots and exact quotations before indexing. Save-time mechanical
+checks grant no native evidence qualification. Search rechecks canonical hashes
+and returns unreviewed status explicitly. See [the package guide](../hub/research-expertise/README.md)
+and [the native concept contracts](architecture/concept-knowledge-contracts.md).

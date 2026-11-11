@@ -113,3 +113,100 @@ def test_capture_dispatches_explicit_evidence_and_checksum(monkeypatch):
         sources,
         "a" * 64,
     )
+
+
+def test_mcp_tool_work_does_not_block_the_protocol_event_loop(monkeypatch):
+    import threading
+
+    started, release = threading.Event(), threading.Event()
+
+    class BlockingStore:
+        def status(self):
+            started.set()
+            assert release.wait(timeout=2)
+            return {"state": "ready"}
+
+    monkeypatch.setattr(mcp_server, "_store", BlockingStore)
+
+    async def exercise():
+        task = asyncio.create_task(mcp_server.mcp.call_tool("expertise_status", {}))
+        try:
+            assert await asyncio.to_thread(started.wait, 3)
+            # The loop must run while the database worker is still blocked.
+            assert not task.done()
+        finally:
+            release.set()
+            await task
+
+    asyncio.run(exercise())
+
+
+def test_mcp_store_work_and_close_share_one_owner_thread(monkeypatch):
+    from functools import lru_cache
+    import threading
+
+    calls = []
+
+    class ThreadStore:
+        def __init__(self): calls.append(("init", threading.get_ident()))
+        def status(self):
+            calls.append(("status", threading.get_ident()))
+            return {"state": "ready"}
+        def close(self): calls.append(("close", threading.get_ident()))
+
+    factory = lru_cache(maxsize=1)(ThreadStore)
+    monkeypatch.setattr(mcp_server, "_store", factory)
+    asyncio.run(mcp_server.mcp.call_tool("expertise_status", {}))
+    asyncio.run(mcp_server.mcp.call_tool("expertise_status", {}))
+    mcp_server._worker.submit(mcp_server._close_store).result(timeout=3)
+    assert [name for name, _ in calls] == ["init", "status", "status", "close"]
+    assert len({thread for _, thread in calls}) == 1
+    assert calls[0][1] != threading.get_ident()
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_main_always_shuts_down_the_owner_worker(monkeypatch, failure):
+    calls = []
+
+    def run(**kwargs):
+        calls.append(kwargs)
+        if failure:
+            raise RuntimeError("transport closed")
+
+    monkeypatch.setattr(mcp_server.mcp, "run", run)
+    monkeypatch.setattr(mcp_server, "_shutdown", lambda: calls.append("shutdown"))
+    if failure:
+        with pytest.raises(RuntimeError, match="transport closed"):
+            mcp_server.main()
+    else:
+        mcp_server.main()
+    assert calls == [{"transport": "stdio"}, "shutdown"]
+
+
+def test_cancelled_tool_leaves_running_work_owned_until_completion(monkeypatch):
+    import threading
+
+    started, release, finished = threading.Event(), threading.Event(), threading.Event()
+
+    class BlockingStore:
+        def status(self):
+            started.set()
+            assert release.wait(timeout=3)
+            finished.set()
+            return {"state": "ready"}
+
+    monkeypatch.setattr(mcp_server, "_store", BlockingStore)
+
+    async def exercise():
+        task = asyncio.create_task(mcp_server.mcp.call_tool("expertise_status", {}))
+        try:
+            assert await asyncio.to_thread(started.wait, 3)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert not finished.is_set()
+        finally:
+            release.set()
+            assert await asyncio.to_thread(finished.wait, 3)
+
+    asyncio.run(exercise())

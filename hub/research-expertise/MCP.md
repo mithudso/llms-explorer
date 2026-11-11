@@ -43,7 +43,8 @@ Each finding has exactly these fields:
 ```
 
 Every cited source needs an exact matching quotation for each finding that cites
-it. Every supplied source must be used. Source content is limited to 150,000
+it. Every supplied source must be used. Source IDs must also be unique after case
+folding so their snapshot filenames stay distinct on macOS. Source content is limited to 150,000
 characters each, at most eight sources; at most 20 findings; total capture input
 is bounded at 1,500,000 bytes and rendered research at 80,000 characters. Slugs
 use lowercase letters/digits with single hyphens, at most 100 characters. Slugs
@@ -106,3 +107,17 @@ The upstream skills are available on the next turn after client discovery.
 The generic official Neo4j MCP and this bounded expertise MCP serve separate
 purposes. The official server supports schema inspection and read-only Cypher.
 The expertise server prepares cited semantic research context for an LLM.
+
+`expertise_status` reports the full embedding recipe, its identity and whether
+unbound/older stored vectors require the explicit migration described in the
+[package guide](README.md). Sparse source reads remain available during refresh.
+
+## Blocking work and shutdown
+
+Tool dispatch awaits one dedicated worker thread. Neo4j, model and capture work
+keep the protocol event loop responsive while the cached Store and SQLite
+embedding connection stay on one owner thread. Tool operations serialize; a
+status tool can queue behind a capture. Cancelling a client wait does not undo
+already-running canonical writes or stop inference in the worker. Retry an
+identical capture or inspect status after it finishes. Server shutdown waits for
+owned work, closes the Store on its owner thread and shuts down the worker.

@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .store import Store
+from .store import CONFIG, Store
 
 
 def main():
@@ -33,7 +33,17 @@ def main():
     view.add_argument("--concept", default="")
     view.add_argument("--trace", type=Path)
     args = parser.parse_args()
-    store = Store()
+    guidance = (
+        f"Neo4j connection configuration is missing or invalid: {CONFIG}. "
+        "Create a private JSON object with uri, username, password and optional database; "
+        "restrict permissions to 600. See the installed application README.md.\n"
+    )
+    try:
+        if not CONFIG.is_file():
+            parser.exit(3, guidance)
+        store = Store()
+    except (OSError, ValueError, KeyError, TypeError):
+        parser.exit(3, guidance)
     try:
         if args.command == "save-research":
             from .capture import save_research

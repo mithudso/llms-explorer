@@ -7,6 +7,7 @@ repository. The rules are in [`CLAUDE.md`](CLAUDE.md).
 
 ## Start here
 
+- Research capture, evidence boundaries and local Neo4j retrieval: [[research-expertise]]
 - Site styling, the logo or the concept tree page: [[site-design-tokens]]
 - Everything else: the older flat documents in this folder (`ARCHITECTURE.md`, `COMPONENTS.md`, `DEVELOPMENT.md`) until pages cover it.
 
@@ -20,6 +21,8 @@ repository. The rules are in [`CLAUDE.md`](CLAUDE.md).
 
 ## subsystems
 
+- [[research-expertise]] -- canonical capture, projection, retrieval and validation boundaries
+
 - [[site-design-tokens]] -- CSS tokens, the llmsx logo and icons, the /tree/ page, facts panel and search box, with their traps
 
 ## decisions
@@ -32,6 +35,8 @@ repository. The rules are in [`CLAUDE.md`](CLAUDE.md).
 
 
 ## history
+
+- [[repo-bootstrap-audit-2026-11-11]] -- scoped repository maintenance and actual coverage
 
 
 ---

@@ -1,6 +1,6 @@
 # MCP Tools & Integration
 
-LLMS-Explorer exposes two Model Context Protocol (MCP) surfaces:
+LLMS-Explorer exposes the following Model Context Protocol (MCP) surfaces:
 
 ## 1. Global AI Hub (`global_ai_hub`)
 
@@ -28,3 +28,17 @@ Located in `api/explorer_api/routes/mcp.py`.
 - Authenticates external agents via API keys (`Authorization: Bearer <key>`).
 - Enforces user quotas and rate limits before routing to internal services.
 - Logs unit spend (input/output tokens, storage, embeddings) to the append-only ledger.
+
+## 3. Local research expertise (`research_expertise`)
+
+`hub/research-expertise/src/research_expertise/mcp_server.py` provides
+`expertise_status`, `expertise_search`, `expertise_passage`, `expertise_neighbors`
+and `expertise_save_research`. The first four tools are read-only. Capture is
+explicitly mutating and requires source snapshots plus exact quotations. It
+saves canonically before projection and reports pending indexing honestly.
+
+The [dedicated MCP contract](../hub/research-expertise/MCP.md) is authoritative
+for schemas, bounds, compare-and-swap and qualification. Client configurations
+point at the stable installed entrypoint; reload the client to discover new
+tools. Keep credentials in the private connection file. Arbitrary reads through
+the separate official Neo4j MCP bypass application freshness checks.

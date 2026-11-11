@@ -39,11 +39,35 @@ The test suite enforces the following principles:
 uv run --directory api --extra test pytest
 
 # Run Hub suite
-uv run --directory hub pytest
+HUB_DOCSET_BACKEND=sqlite hub/.venv/bin/python -m pytest hub/tests
 
 # Run llmsx suite
 uv run --directory llmsx pytest
 
 # Run Site suite
-uv run --directory hub pytest ../site/tests
+hub/.venv/bin/python -m pytest site/tests
 ```
+
+## Research lifecycle and expertise
+
+- Native research contract tests live in root `tests/test_research_gate*.py`,
+  `tests/test_research_artifact.py`, `tests/test_research_transaction.py` and
+  `tests/test_research_site_sync.py`. CI runs them with the hub dependencies.
+- `hub/research-expertise/tests/` covers exact spans, canonical freshness, capture
+  compare-and-swap, immutable source members, embedding cache identity, MCP
+  annotations and private exports. Its separate CI uses the frozen lockfile:
+
+```sh
+uv run --directory hub/research-expertise --frozen pytest -q
+uv run --directory hub/research-expertise --frozen ruff check src tests install.py
+```
+
+The root CI gates privacy, lint, API, hub/research contracts and site builds;
+`.github/workflows/research-expertise.yml` gates changed expertise code. Site
+builds and rendered site tests share `site/dist`; run them sequentially.
+
+No repository-wide numeric coverage threshold is currently configured. The
+target is meaningful assertions for changed and risky behavior, including
+errors and logs. Passing unit tests does not measure research answer quality,
+retrieval recall or semantic entailment. Those require separate datasets and
+independent evidence review.
