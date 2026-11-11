@@ -1,5 +1,27 @@
 # Memory
 
+## v0.22.171 — 2026-11-11 Neo4j expertise acceptance checkpoint
+
+Version: 0.22.171. Delta: v0.22.170 to v0.22.171; prompt v136; TASK-1306.
+
+The standalone application and installed source match. All54 unit checks, Ruff, privacy checks and complete PR325 CI pass, including API, hub, site builds/tests and security analysis. Independent review found and repaired silent BGE tokenizer truncation, relocated source paths, non-atomic graph refresh and missing topic-tree export. A tokenizer-only whole-corpus audit produces45781 exact passages across2317 documents; every passage fits480 content tokens. The ONNX model is pinned at aa8f8b060edb00e03bfdd08813a2949946c8ba55 and runs locally on CPU. Imported prose remains unreviewed; no authored support status becomes independent proof.
+
+The official Neo4j MCP schema/read/write-rejection checks pass. Installed custom MCP protocol, citations, exact spans, bounds and identity checks pass against the partial corpus. Live synthetic acceptance proves cache-only unchanged/relocated reingestion, stale-source rejection, rollback-safe graph refresh, ZIP checksums and exact topic-tree reconstruction. Synthetic graph records were removed. The main corpus continues importing through its dedicated lock and checkpointed cache. Legacy paused pipelines remain untouched. The loaded hourly launch agent refreshes only this projection.
+
+Skills source delivery is complete in https://github.com/mithudso/skills/pull/108 at d626be556f29b525b882e0bda6fa08d07cbe2b8f. All43 delivered skill files match both clients; original skills HEAD, index, dirty work and source bytes remain intact. No global indexes were rebuilt.
+
+Remaining at this checkpoint: finish full ingestion; run the prepared all-passage inventory verifier and final installed stdio check; create the private full export; merge PR325 after its final-tip checks; remove only this task's clean merged worktree/branch. The current local lifecycle receipt is /Users/mitch/.config/neo4j-expertise/memory.md and the final delivery receipt is /Users/mitch/.config/neo4j-expertise/delivery.json. Consult those records and TASK-1306 before repeating work. Do not restart an ingest while its lock is held.
+
+## v0.22.170 — 2026-11-11 Neo4j expertise implementation
+
+Version: 0.22.170. Delta: v0.22.169 to v0.22.170; prompt v136; TASK-1306.
+
+Canonical research packs remain authoritative. Neo4j is a rebuildable private graph and semantic passage projection. Initial inventory has 2317 prose documents and 39431 exact-span chunks. Imported prose remains unreviewed regardless of authored completion/support metadata. Document and manifest hashes suppress stale retrieval. CPU BGE-small embeddings are isolated from legacy paused Ollama/indexing pipelines.
+
+Implementation lives in hub/research-expertise with a locked Python package, CLI, bounded read-only MCP, canonical corpus adapter, semantic/fulltext fusion, portable private ZIP exports and opt-in hourly refresh installer. Six upstream Neo4j skills plus the expertise skill are installed for both clients. Official MCP 2.1.0 and local Neo4j 2026.10.2 pass schema/read/write-rejection checks. Secrets remain outside Git. Original dirty and divergent checkout is preserved in place.
+
+In progress: first full ingestion, installed application/MCP acceptance, tests, final diff review and PR delivery. Stable runtime is /Users/mitch/.local/share/research-expertise/app; private config and receipts are /Users/mitch/.config/neo4j-expertise. Resume by checking process and ingest.log before starting another writer; the ingestion lock rejects overlap and exact unchanged documents are skipped. No raw research or secrets belong in Git.
+
 ## v0.22.169 — 2026-11-10 credential diagnosis correction
 
 Version: 0.22.169. Delta: v0.22.168 to v0.22.169; prompt v135; TASK-1279.
