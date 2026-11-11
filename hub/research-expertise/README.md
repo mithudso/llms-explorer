@@ -68,8 +68,8 @@ the question; the model never silently truncates them. The local SQLite embeddin
 a new vector index and a complete reingest; do not mix vector spaces.
 
 Search and passage reads recheck document and manifest hashes, excluding changed
-or deleted sources until refresh. Neighborhoods check the hashes of the files
-that declared each relation. `status` reports stored coverage and last successful
+or deleted sources until refresh. Neighborhoods preserve explicit source/target direction and check the hashes
+of the files that declared each relation. `status` reports stored coverage and last successful
 refresh; it does not independently certify every source is current. The official
 MCP's arbitrary read queries inspect the projection directly and bypass these
 application freshness checks. Approximate vector retrieval and top-candidate

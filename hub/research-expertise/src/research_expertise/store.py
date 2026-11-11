@@ -451,6 +451,7 @@ class Store:
         rows = self.read(
             "MATCH (a:RXConcept {id:$concept})-[r:RX_RELATED]-(b) "
             "WHERE r.corpus=$corpus RETURN b.id AS concept,r.kind AS relation, "
+            "startNode(r).id AS source,endNode(r).id AS target, "
             "r.source_path AS source_path,r.source_sha256 AS source_sha256 "
             "LIMIT $top",
             concept=concept,
