@@ -49,6 +49,13 @@ retain the old role metadata. Verify activation in a fresh Codex process: delega
 a read-only graph lookup to `stele-search`, then use the installed context-loading
 skill for a bounded briefing. A file diff alone does not establish activation.
 
+Use a normal fresh session for the delegation check. In the observed Codex CLI,
+`codex exec --ephemeral` failed to spawn the worker with
+`invalid thread-store request: no rollout found`. A fresh session without
+`--ephemeral` completed the native delegation and actual Stele reads. The
+skill's direct read-only fallback still produced a briefing in the ephemeral run;
+that fallback did not establish successful delegation.
+
 A Stele reinstall or update can regenerate the marketplace and role. Preview the
 repair again after reinstalling 0.61.0. A newer version or changed upstream asset
 requires review before extending the signatures; this script refuses to guess.
