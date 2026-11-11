@@ -27,3 +27,37 @@ Mode: incremental   Status: BLIND-AUDIT-DISSENT
 Files reviewed this run: 57
 Source files covered by the ledger now: 68 of 682
 Still unreviewed or changed since review: 614
+
+## Post-audit focused CI delivery refresh
+
+This is one artifact-file metadata refresh after the completed optimizer. The original audit receipt above remains unchanged. The first refresh receipt omitted four N/A rows and exited2; its correction explicitly records those dispositions and exits0. No additional blind gate ran.
+
+## Passes that ran (receipt)
+
+| Pass | State | Files | Note |
+|---|---|---|---|
+| C1 | ran | 1 |  |
+| C2 | ran | 1 |  |
+| C3 | ran | 1 |  |
+| S1 | ran | 1 |  |
+| S2 | ran | 1 |  |
+| S3 | ran | 1 |  |
+| S4 | ran | 1 |  |
+| S5 | ran | 1 |  |
+| P1 | ran | 1 |  |
+| P2 | ran | 1 |  |
+| M1 | ran | 1 |  |
+| M2 | ran | 1 |  |
+| M3 | na | 0 | Focused artifact CI delivery refresh; repo-scope checks and conditional entrypoint checks remain in the completed parent audit |
+| M4 | ran | 1 |  |
+| T1 | ran | 1 |  |
+| T2 | na | 0 | Focused artifact CI delivery refresh; repo-scope checks and conditional entrypoint checks remain in the completed parent audit |
+| T3 | na | 0 | Focused artifact CI delivery refresh; repo-scope checks and conditional entrypoint checks remain in the completed parent audit |
+| T4 | na | 0 | Focused artifact CI delivery refresh; repo-scope checks and conditional entrypoint checks remain in the completed parent audit |
+| M5 | na | 0 | Focused artifact CI delivery refresh; repo-scope checks and conditional entrypoint checks remain in the completed parent audit |
+
+Fix-track passes that ran: 14 of 18 (+0 conditional)
+Mode: incremental   Status: BLIND-AUDIT-DISSENT
+Files reviewed this run: 1
+Source files covered by the ledger now: 68 of 682
+Still unreviewed or changed since review: 614

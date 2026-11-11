@@ -142,3 +142,29 @@ def test_fdopen_failure_closes_raw_descriptor(tmp_path, monkeypatch, operation):
         artifacts.os.fstat(opened[0])
     assert leaf.read_bytes() == b"original"
     assert list(leaf.parent.iterdir()) == [leaf]
+
+
+@pytest.mark.parametrize("operation", ["read", "write"])
+@pytest.mark.parametrize("field", ["user_id", "slug", "section"])
+def test_final_newline_components_refuse_before_private_file_access(tmp_path, operation, field):
+    user_id = "usr_owner\n" if field == "user_id" else "usr_owner"
+    slug = "notes\n" if field == "slug" else "notes"
+    relative = "section\n/llms.txt" if field == "section" else "llms.txt"
+    path = tmp_path / user_id / "artifacts" / f"{slug}.llms" / relative
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"private original")
+    with pytest.raises(artifacts.NotFound):
+        if operation == "read":
+            artifacts.read(tmp_path, user_id, slug, relative)
+        else:
+            artifacts.write(tmp_path, user_id, slug, relative, b"replacement")
+    assert path.read_bytes() == b"private original"
+
+
+@pytest.mark.parametrize("relative", ["llms.txt", "/llms.txt/", "section.v1_2-3//llms.txt/"])
+def test_long_valid_slug_and_normalized_sections_keep_round_trip_contract(tmp_path, relative):
+    slug = "n" * 201
+    artifacts.write(tmp_path, "usr_owner", slug, relative, b"bounded content")
+    served = artifacts.read(tmp_path, "usr_owner", slug, relative)
+    assert served.data == b"bounded content"
+    assert served.path.is_relative_to(tmp_path / "usr_owner" / "artifacts")

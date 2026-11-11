@@ -136,6 +136,27 @@ No genuine held-out optimizer benchmark/eval set exists for this selection. Empi
 mode was not engaged; regression tests are not an optimization benchmark, and no
 champion, efficacy or performance improvement is claimed.
 
+### Delivery checks after the capped audit
+
+The first PR head `622040f4` received three CodeQL path-expression alerts at the
+new descriptor-relative artifact operations. Delivery stopped for this required
+check. The follow-up separates the trusted configured root from relative child
+names, passes explicit validated basenames to file operations, and uses fullmatch
+to reject final-newline components. It retains no-follow descriptor traversal,
+201-character slugs, safe punctuation and existing slash normalization.
+
+Nine added regressions produced six failures and three positive passes before
+the guard change (exit1). All41 artifact tests and the full451-test API suite
+then passed with exit0; Ruff passed. Independent focused inspection and20 pure
+validation probes passed. The precise delivery file hashes/read ranges are in
+the coverage JSON. CodeQL must pass the final pushed head before merge.
+
+This is required CI delivery remediation after the completed two-gate audit,
+not a third blind gate or a new convergence claim. The three residuals and the
+49-finding audit accounting remain unchanged. A separate one-file ledger refresh
+records14 file passes and explicit N/A for repo-only/entrypoint passes; it does
+not inflate the parent audit's57 record events or51 distinct reviewed files.
+
 ## Activated skills and method
 
 - Migrated CDO1.17.1 supplied the pass/ledger contract; canonical body differs only

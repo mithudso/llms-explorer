@@ -1,5 +1,14 @@
 # Memory
 
+## v0.22.182 — 2026-11-11 PR334 path-validation delivery checks
+
+Version: 0.22.182. Delta: v0.22.181 to v0.22.182; prompt142; TASK-1334. The completed optimizer remains BLIND-AUDIT-DISSENT with49 applied findings and the same three open residuals under TASK-1346.
+
+Source commit622040f4 was pushed in https://github.com/mithudso/llms-explorer/pull/334 . CodeQL blocked that head on three new artifact path-expression alerts. Root made relative-name validation explicit at every descriptor-relative operation, separated the trusted root open, and tightened regex checks to fullmatch. The existing201-character slug and slash-normalization contracts remain intact. Six newline refusal cases failed before the patch; three positive compatibility cases already passed. All41 affected artifact tests and the full451-test API suite then passed with exit0 and the same three baseline warnings. Scoped Ruff and independent focused inspection passed; the reviewer independently ran20 pure validation probes. This required CI repair is separate from the capped optimizer's two blind gates. No third gate or CLEAN claim ran. Source hashes and exact review limits are in the public coverage JSON and private artifact-ci-author-review.json/artifact-ci-review.json.
+
+The artifact ledger row was refreshed after a full340-line parent read. A separate focused one-file helper receipt records14 file passes and explicitly marks repo-only/entrypoint passes N/A; it does not turn the parent audit's57 record events into more than51 distinct files. Its first incomplete receipt exited2, and the corrected receipt exited0. Delivery must still pass final-head CI, merge, deploy the exact merged release and verify loaded behavior. Read /Users/mitch/.local/state/llms-explorer-bootstrap-cdo-20261111/delivery.json and progress.json for the actual final state before resuming.
+
+
 ## v0.22.181 — 2026-11-11 bootstrap/CDO source audit finalized
 
 Version: 0.22.181. Delta: v0.22.180 to v0.22.181; prompt142; TASK-1330. The code audit finished with BLIND-AUDIT-DISSENT. Source verification passed. Delivery and deployed acceptance have separate receipts; do not infer them from this checkpoint.
