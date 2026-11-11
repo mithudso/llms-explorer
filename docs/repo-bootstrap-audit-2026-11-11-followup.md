@@ -101,3 +101,15 @@ Local receipts, skill source pins, manifest inventory and read coverage live at
 versioned root prompt/memory records, final tracker closure and verified Git
 publication. Preserve unrelated checkout changes, private evidence and paused
 services. Delivery status is recorded separately after acceptance.
+
+## Delivery integration
+
+Main7ea7cd17 delivered a parallel reviewed publication feature while PR334 checks
+ran. The merged curated index now has34 live paths; both prompt/memory histories
+are preserved. The reviewed log-rotation helper saved the complete207,823-byte
+merged memory preimage before retaining complete newest sections. Integrated hub
+bootstrap89 tests, site389 tests, full site build/publication policy, Astro check
+(0errors/0warnings/21hints), and34-path index checks all exited0. All51 reviewed
+production source hashes remained unchanged. The audit-time source inventory and
+standards qualifications above remain dated; the refreshed delivery remainder is
+618 sources outside ledger coverage. No scheduled publisher or model/index job ran.

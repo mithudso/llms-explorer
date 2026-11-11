@@ -12,6 +12,7 @@ import json
 import os
 import re
 from pathlib import Path
+from publication import is_published, metadata
 
 FM_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 from site_origin import DEFAULT_SITE_URL as DEFAULT_SITE_URL
@@ -73,7 +74,10 @@ def _research_rows(data: dict, *, content_dir: Path, data_dir: Path) -> list[tup
 
     def entry_title(collection: str, entry_id: str) -> str | None:
         path = content_dir / collection / f"{entry_id}.md"
-        m = FM_RE.match(path.read_text(encoding="utf-8")) if path.is_file() else None
+        text = path.read_text(encoding="utf-8") if path.is_file() else ""
+        if collection == "blog" and not is_published(metadata(text)):
+            return None
+        m = FM_RE.match(text)
         return _title(m.group(1)) if m else None
 
     rows, dropped = [], []
@@ -565,6 +569,38 @@ def _section_twin(spec: dict, content_dir: Path, data_dir: Path, dist_dir: Path,
 NO_TWIN_COLLECTIONS = {"sources"}
 
 
+def _blog_listing_twins(content_dir: Path, dist_dir: Path, site_url: str,
+                        stamp: str) -> list[Path]:
+    """Expose the blog and its research subset without copying article prose."""
+    rows = []
+    for source in sorted((content_dir / "blog").rglob("*.md")):
+        data = metadata(source.read_text(encoding="utf-8"))
+        if not is_published(data):
+            continue
+        route = route_of(source.relative_to(content_dir))
+        if not (dist_dir / route.strip("/") / "index.html").is_file():
+            continue
+        rows.append((data.get("date", ""), data.get("title", source.stem), route,
+                     data.get("category") == "research" or route.startswith("/blog/research/")))
+    out = []
+    for route, title, research_only in (("/blog/", "Blog", False),
+                                        ("/blog/research/", "Research papers", True)):
+        if not (dist_dir / route.strip("/") / "index.html").is_file():
+            continue
+        selected = sorted((row for row in rows if not research_only or row[3]),
+                          key=lambda row: (row[0], row[1]), reverse=True)
+        listing = "\n".join(f"- [{name}]({site_url}{href})" for _, name, href, _ in selected)
+        twin = dist_dir / (route.strip("/") + ".md")
+        twin.parent.mkdir(parents=True, exist_ok=True)
+        twin.write_text(
+            f"<!-- llms-explorer twin of {site_url}{route} · generated {stamp} -->\n\n"
+            f"# {title}\n\nResearch papers are a subset of the blog.\n\n"
+            f"[All articles]({site_url}/blog/) · [Research papers]({site_url}/blog/research/) · "
+            f"[Find references by task]({site_url}/research/)\n\n{listing}\n", encoding="utf-8")
+        out.append(twin)
+    return out
+
+
 def write_twins(content_dir: Path, dist_dir: Path, site_url: str) -> list[Path]:
     out = []
     stamp = datetime.datetime.now(datetime.UTC).date().isoformat()
@@ -574,6 +610,8 @@ def write_twins(content_dir: Path, dist_dir: Path, site_url: str) -> list[Path]:
             continue
         route = route_of(rel)
         text = src.read_text(encoding="utf-8")
+        if rel.parts and rel.parts[0] == "blog" and not is_published(metadata(text)):
+            continue
         m = FM_RE.match(text)
         fm, body = (m.group(1), text[m.end():]) if m else ("", text)
         # the twin lives at the route with `.md` appended, which is what
@@ -621,6 +659,7 @@ def write_twins(content_dir: Path, dist_dir: Path, site_url: str) -> list[Path]:
         twin = _static_twin(spec, dist_dir, site_url, stamp)
         if twin is not None:
             out.append(twin)
+    out.extend(_blog_listing_twins(content_dir, dist_dir, site_url, stamp))
     return out
 
 

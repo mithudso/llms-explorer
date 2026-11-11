@@ -4780,3 +4780,15 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [x] Concept: `Pinned replicated-metadata repair command and no-op ingestion boundaries` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `3.90`
 - [x] Concept: `Pinned streaming replicated-metadata scan progress and transaction-chain visibility` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `3.90`
 - [ ] Concept: `Value averaging as a target-value accumulation-policy comparator` | Parent: `Crypto coin selection for grid and DCA strategies` | Mode: `dr` | CVS: `3.20`
+
+
+## Queryable research expertise implementation family (2026-11-11)
+
+The implementation paper documents delivered software. These narrower topics remain
+frontier research; publication does not manufacture native claim acceptance.
+
+- [ ] Concept: `Neo4j research-expertise projection` | Parent: `Queryable Research Expertise` | Note: implementation family; native research qualification pending
+- [ ] Concept: `Provenance-aware hybrid expertise retrieval` | Parent: `Queryable Research Expertise` | Note: implementation family; native research qualification pending
+- [ ] Concept: `Claim-to-source provenance for retrieved expertise` | Parent: `Queryable Research Expertise` | Note: implementation family; native research qualification pending
+- [ ] Concept: `Private skill registry and distribution` | Parent: `Queryable Research Expertise` | Note: implementation family; native research qualification pending
+- [ ] Concept: `Research-guided artifact optimization` | Parent: `Queryable Research Expertise` | Note: implementation family; native research qualification pending

@@ -165,6 +165,27 @@ not a third blind gate or a new convergence claim. The three residuals and the
 records14 file passes and explicit N/A for repo-only/entrypoint passes; it does
 not inflate the parent audit's57 record events or51 distinct reviewed files.
 
+### Integration with a parallel delivered feature
+
+While PR334 checks ran, main advanced to `7ea7cd17` through the independently
+reviewed publication release PR335. Three shared metadata conflicts were
+reconciled by preserving both complete histories and unioning the curated index
+(34 live paths). The combined memory crossed200KiB; the reviewed rotation tool
+saved an exact207,823-byte preimage and retained101,235 bytes of complete newest
+sections. A staged-history/source-hash proof verifies the archive and all51
+reviewed production files, which are unchanged by the integration.
+
+Integrated checks passed with exit0: owning hub bootstrap89 tests; full site
+pre/build/postbuild and publication policy;389 site tests; Astro0errors/0warnings
+and21hints;34-path index. The earlier build attempt exited127 because the isolated
+hub environment was absent; bootstrapping the documented environment resolved it.
+No scheduled publication, model or indexing job was invoked.
+
+The original audit snapshot remains68/682 with614 pending. Four source files
+introduced by the parallel feature make the delivery inventory686 with618 outside
+the CDO ledger. The next-plan JSON is refreshed and preserves the earlier snapshot.
+This does not expand the51-file audit or certify the parallel feature's source.
+
 ## Activated skills and method
 
 - Migrated CDO1.17.1 supplied the pass/ledger contract; canonical body differs only
@@ -1568,7 +1589,7 @@ it is not57 unique reviewed files. Matching ledger hashes prove review coverage,
 not absence of findings. The residual paths must be explicitly selected first because
 the unchanged-file planner otherwise skips their reviewed hashes.
 
-[code-deep-optimizer-2026-11-11-followup-next-plan.json](code-deep-optimizer-2026-11-11-followup-next-plan.json) contains the full614-path remainder,
+[code-deep-optimizer-2026-11-11-followup-next-plan.json](code-deep-optimizer-2026-11-11-followup-next-plan.json) contains the delivery-time618-path remainder (614 at the audit snapshot),
 known residuals first, and actual `.astro`/`.css` enumeration omissions. Snapshot/archive
 copies are not relabeled as live production risk. The prior17-file audit remains dated
 history with its own accepted fixes, retractions and dissent; this run does not certify

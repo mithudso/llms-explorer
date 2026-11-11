@@ -6,10 +6,14 @@ import SkillDemo from "../components/SkillDemo.astro";
 import { skillInstall } from "../data/skill-install";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { articleDate, isPublishedArticle, isResearchArticle } from "../data/publication";
 export async function getStaticPaths() {
   const out = [];
   for (const c of ["reference", "examples", "blog", "skills"] as const) {
-    for (const e of await getCollection(c)) out.push({ params: { slug: `${c}/${e.id}` }, props: { entry: e, collection: c } });
+    for (const e of await getCollection(c)) {
+      if (c === "blog" && !isPublishedArticle(e)) continue;
+      out.push({ params: { slug: `${c}/${e.id}` }, props: { entry: e, collection: c } });
+    }
   }
   return out;
 }
@@ -34,11 +38,14 @@ if (collection === "skills") {
   }
 }
 const installCmd = skillInstall(entry.id);
+const research = collection === "blog" && isResearchArticle(entry);
+const publishedDate = collection === "blog" ? articleDate(entry) : "";
 ---
 <Base title={entry.data.title} description={entry.data.description} route={`/${collection}/${entry.id}/`} noindex={entry.data.noindex} adEligible={collection !== "skills" && !entry.data.evidenceStatus}>
   {collection === "blog" && (
     <div class="article-context">
-      {entry.data.date && <p>Published <time datetime={entry.data.date}>{entry.data.date}</time></p>}
+      <nav aria-label="Breadcrumb"><a href="/blog/">Blog</a>{research && <> / <a href="/blog/research/">Research papers</a></>}</nav>
+      {publishedDate && <p>Published <time datetime={publishedDate}>{publishedDate}</time></p>}
       <p>Project article; see <a href="/editorial/">sources and editorial standards</a>.</p>
     </div>
   )}
