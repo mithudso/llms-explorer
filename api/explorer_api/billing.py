@@ -66,6 +66,8 @@ SIGNATURE_TOLERANCE_SECONDS = 300
 #: unknown type can never be a 500 that makes Stripe retry forever.
 HANDLED_EVENTS: frozenset[str] = frozenset({
     "checkout.session.completed",
+    "checkout.session.async_payment_succeeded",
+    "checkout.session.async_payment_failed",
     "customer.subscription.created",
     "customer.subscription.updated",
     "customer.subscription.deleted",
@@ -93,8 +95,7 @@ DONATION_INTERVALS = ("once", "month")
 
 
 class InvalidDonationAmount(BillingError):
-    """A donation of zero or less — Stripe would reject it anyway, but this is
-    the clearer message and it avoids a round trip to find out."""
+    """A nonpositive, nonfinite or fractional-cent donation is not chargeable."""
 
 
 # --- the outbound seam -------------------------------------------------------
@@ -156,6 +157,10 @@ class LiveStripe:
             params["customer_email"] = customer_email
         if mode == "subscription":
             params["subscription_data"] = {"metadata": dict(metadata)}
+        elif mode == "payment":
+            # A payment-mode Checkout otherwise need not create a Customer,
+            # leaving a signed-in donor without a Customer Portal account.
+            params["customer_creation"] = "always"
         session = await self._client.v1.checkout.sessions.create_async(params=params)
         return CheckoutSession(id=session.id, url=session.url or "")
 
@@ -176,14 +181,19 @@ async def customer_id_for(session: AsyncSession, user: m.User) -> str | None:
     row that belongs to them, so no request can open a portal onto somebody
     else's billing.
     """
-    stmt = (
-        select(m.Subscription.stripe_customer_id)
-        .where(m.Subscription.user_id == user.id,
-               m.Subscription.stripe_customer_id.is_not(None))
-        .order_by(m.Subscription.updated_at.desc())
-        .limit(1)
-    )
-    return (await session.execute(stmt)).scalars().first()
+    # Donations own their customer independently of the retired paid plans.
+    # Keep legacy customers reachable without manufacturing a Subscription.
+    for model in (m.Donation, m.Subscription):
+        stmt = (
+            select(model.stripe_customer_id)
+            .where(model.user_id == user.id, model.stripe_customer_id.is_not(None))
+            .order_by(model.updated_at.desc())
+            .limit(1)
+        )
+        customer_id = (await session.execute(stmt)).scalars().first()
+        if customer_id:
+            return customer_id
+    return None
 
 
 async def create_donation_checkout(
@@ -204,8 +214,11 @@ async def create_donation_checkout(
     """
     if interval not in DONATION_INTERVALS:
         raise BillingError(f"interval must be one of {DONATION_INTERVALS}, got {interval!r}")
-    if amount_usd <= 0:
+    if not amount_usd.is_finite() or amount_usd <= 0:
         raise InvalidDonationAmount(f"amount_usd must be positive, got {amount_usd}")
+    minor_units = amount_usd * 100
+    if minor_units != minor_units.to_integral_value():
+        raise InvalidDonationAmount("amount_usd must be expressed in whole cents")
 
     donation = m.Donation(
         user_id=user.id if user else None,
@@ -218,7 +231,7 @@ async def create_donation_checkout(
 
     price_data: dict[str, Any] = {
         "currency": "usd",
-        "unit_amount": int(amount_usd * 100),
+        "unit_amount": int(minor_units),
         "product_data": {"name": "Donation to LLMS-Explorer"},
     }
     mode = "payment"
@@ -382,8 +395,11 @@ async def _donation_by_ids(
     session: AsyncSession, *, donation_id: str | None = None,
     checkout_session_id: str | None = None, subscription_id: str | None = None,
 ) -> m.Donation | None:
-    """The donation an event is about, tried in the order the event's own
-    fields are most to least specific."""
+    """Find and lock an event's donation until its transaction completes.
+
+    Refresh an already-loaded identity after the lock: another delivery may
+    have canceled it while this session still held the earlier state.
+    """
     for column, value in (
         (m.Donation.id, donation_id),
         (m.Donation.stripe_checkout_session_id, checkout_session_id),
@@ -393,6 +409,7 @@ async def _donation_by_ids(
             continue
         row = (await session.execute(
             select(m.Donation).where(column == value)
+            .with_for_update().execution_options(populate_existing=True)
         )).scalars().first()
         if row is not None:
             return row
@@ -409,23 +426,33 @@ async def _handle_checkout_completed(
     )
     if donation is None:
         return f"no donation for checkout session {obj.get('id')!r}"
-    donation.status = "active" if obj.get("mode") == "subscription" else "paid"
     subscription_id = obj.get("subscription")
     if subscription_id:
         donation.stripe_subscription_id = str(subscription_id)
-    # Capture customer ID for both one-time and recurring donations so the portal is reachable
     customer_id = obj.get("customer")
     if customer_id:
-        # Store customer ID in Subscription table for portal access (linked by user_id)
-        # For recurring donations, also update via subscription webhook
-        subscription_id = obj.get("subscription")
-        if subscription_id:
-            stmt = (
-                m.Subscription.__table__.update()
-                .where(m.Subscription.stripe_subscription_id == str(subscription_id))
-                .values(stripe_customer_id=str(customer_id))
-            )
-            await session.execute(stmt)
+        donation.stripe_customer_id = str(customer_id)
+    # Completion can precede funds arriving for delayed payment methods.
+    # Cancellation is terminal for this Stripe subscription, even if an older
+    # checkout or invoice arrives later with a distinct event ID.
+    if donation.status != "canceled" and obj.get("payment_status") == "paid":
+        donation.status = "active" if donation.interval == "month" else "paid"
+    await session.flush()
+    return None
+
+
+async def _handle_async_payment_failed(
+    session: AsyncSession, obj: Mapping[str, Any]
+) -> str | None:
+    metadata = obj.get("metadata") or {}
+    donation = await _donation_by_ids(
+        session, donation_id=metadata.get("donation_id"),
+        checkout_session_id=obj.get("id"),
+    )
+    if donation is None:
+        return f"no donation for checkout session {obj.get('id')!r}"
+    if donation.status != "canceled":
+        donation.status = "lapsed" if donation.interval == "month" else "pending"
     await session.flush()
     return None
 
@@ -444,7 +471,8 @@ async def _handle_invoice_paid(session: AsyncSession, obj: Mapping[str, Any]) ->
     donation = await _donation_by_ids(session, subscription_id=subscription_id)
     if donation is None:
         return f"no donation for subscription {subscription_id!r}"
-    donation.status = "active"
+    if donation.status != "canceled":
+        donation.status = "active"
     await session.flush()
     return None
 
@@ -465,7 +493,8 @@ async def _handle_payment_failed(
     donation = await _donation_by_ids(session, subscription_id=subscription_id)
     if donation is None:
         return f"no donation for subscription {subscription_id!r}"
-    donation.status = "lapsed"
+    if donation.status != "canceled":
+        donation.status = "lapsed"
     await session.flush()
     return None
 
@@ -496,6 +525,8 @@ async def _handle_subscription_deleted(
 
 _HANDLERS = {
     "checkout.session.completed": _handle_checkout_completed,
+    "checkout.session.async_payment_succeeded": _handle_checkout_completed,
+    "checkout.session.async_payment_failed": _handle_async_payment_failed,
     "customer.subscription.created": _handle_subscription_created,
     "customer.subscription.updated": _handle_subscription_updated,
     "customer.subscription.deleted": _handle_subscription_deleted,

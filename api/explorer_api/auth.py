@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import base64
 import datetime as dt
+import logging
 import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -51,6 +52,8 @@ from webauthn.helpers.structs import (
 
 from . import models as m
 from .settings import Settings
+
+_LOG = logging.getLogger(__name__)
 
 # --- cookie names and lifetimes ----------------------------------------------
 
@@ -152,6 +155,7 @@ def revoke_sessions(user: m.User) -> int:
     together or not at all.
     """
     user.session_epoch = int(user.session_epoch or 0) + 1
+    _LOG.info("auth_session_revocation_requested user_id=%s", user.id)
     return user.session_epoch
 
 
@@ -235,6 +239,22 @@ class HttpOAuthProvider:
             token = await self._exchange(client, code=code, redirect_uri=redirect_uri)
             return await self._profile(client, token)
 
+    def _response_object(self, response: httpx.Response, *, operation: str) -> dict[str, Any]:
+        """Normalize provider JSON failures without exposing its potentially secret body."""
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            _LOG.warning("oauth_response_invalid provider=%s operation=%s reason=invalid_json",
+                         self.name, operation)
+            raise OAuthError(
+                f"{self.name}: {operation} response was not valid JSON"
+            ) from exc
+        if not isinstance(payload, dict):
+            _LOG.warning("oauth_response_invalid provider=%s operation=%s reason=not_object",
+                         self.name, operation)
+            raise OAuthError(f"{self.name}: {operation} response was not a JSON object")
+        return payload
+
     async def _exchange(self, client: httpx.AsyncClient, *, code: str,
                         redirect_uri: str) -> str:
         try:
@@ -250,15 +270,21 @@ class HttpOAuthProvider:
                 headers={"Accept": "application/json"},
             )
         except httpx.HTTPError as exc:  # network, TLS, timeout
+            _LOG.warning("oauth_token_exchange_failed provider=%s error_type=%s",
+                         self.name, type(exc).__name__)
             raise OAuthError(f"{self.name}: token endpoint unreachable") from exc
         if response.status_code >= 400:
             # Never echo the body: it can contain the client secret we just sent back.
+            _LOG.warning("oauth_token_exchange_failed provider=%s status=%s",
+                         self.name, response.status_code)
             raise OAuthError(f"{self.name}: token exchange failed ({response.status_code})")
-        payload = response.json()
+        payload = self._response_object(response, operation="token")
         token = payload.get("access_token") or payload.get("id_token")
-        if not token:
+        if not isinstance(token, str) or not token.strip():
+            _LOG.warning("oauth_token_exchange_failed provider=%s reason=invalid_token", self.name)
             raise OAuthError(f"{self.name}: no access token in the token response")
-        return str(token)
+        _LOG.info("oauth_token_exchange_succeeded provider=%s", self.name)
+        return token
 
     async def _profile(self, client: httpx.AsyncClient, token: str) -> OAuthProfile:
         raise OAuthError(f"{self.name}: profile lookup is not implemented")
@@ -274,10 +300,7 @@ class GitHubProvider(HttpOAuthProvider):
         if user_response.status_code >= 400:
             raise OAuthError(f"{self.name}: profile lookup failed ({user_response.status_code})")
 
-        try:
-            user = user_response.json()
-        except ValueError as exc:
-            raise OAuthError(f"{self.name}: profile response was not valid JSON") from exc
+        user = self._response_object(user_response, operation="profile")
 
         # The public profile email may be unset or unverified; the emails
         # endpoint is the only place GitHub says which address it has proven.
@@ -321,10 +344,7 @@ class GoogleProvider(HttpOAuthProvider):
             raise OAuthError(f"{self.name}: profile lookup failed") from exc
         if response.status_code >= 400:
             raise OAuthError(f"{self.name}: profile lookup failed ({response.status_code})")
-        try:
-            info = response.json()
-        except ValueError as exc:
-            raise OAuthError(f"{self.name}: profile response was not valid JSON") from exc
+        info = self._response_object(response, operation="profile")
         account_id = info.get("sub")
         if account_id is None:
             raise OAuthError(f"{self.name}: profile response had no account id")
@@ -431,6 +451,7 @@ async def resolve_oauth_user(session: AsyncSession, profile: OAuthProfile) -> m.
     if email and profile.email_verified:
         user = await _user_by_email(session, email)
 
+    created_user = user is None
     if user is None:
         user = m.User(
             email=email if profile.email_verified else None,
@@ -471,6 +492,8 @@ async def resolve_oauth_user(session: AsyncSession, profile: OAuthProfile) -> m.
         return (
             await session.execute(select(m.User).where(m.User.id == raced.user_id))
         ).scalar_one()
+    _LOG.info("auth_oauth_account_resolved provider=%s user_id=%s created=%s",
+              profile.provider, user.id, created_user)
     return user
 
 
@@ -572,10 +595,11 @@ async def finish_passkey_registration(
 
     # The cookie, not the request body, says whose ceremony this was.
     owner = user
-    if owner is not None and ceremony.get("user_id") not in (None, owner.id):
+    if ceremony.get("user_id") is not None and (
+        owner is None or ceremony["user_id"] != owner.id
+    ):
+        _LOG.warning("auth_passkey_registration_denied reason=owner_session_missing_or_mismatch")
         raise AuthError("that ceremony belongs to a different session")
-    if owner is None and ceremony.get("user_id"):
-        owner = await load_user(session, str(ceremony["user_id"]))
 
     if owner is None:
         email = normalise_email(ceremony.get("email"))
@@ -606,6 +630,7 @@ async def finish_passkey_registration(
     except IntegrityError as exc:
         await session.rollback()
         raise AuthError("that passkey is already registered") from exc
+    _LOG.info("auth_passkey_registered user_id=%s", owner.id)
     return owner
 
 

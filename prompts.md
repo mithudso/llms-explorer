@@ -1,5 +1,14 @@
 # Prompts Log
 
+## Prompt v142 — 2026-11-11 repository bootstrapper and deep code optimizer
+
+```text
+Run the deep code optimizer on this repo and the repo bootstrapper
+```
+
+Version:142. Delta:v141 to v142. TASK-1330. Apply both skills to the current main repository in an isolated worktree. Reuse prior unchanged CDO coverage, audit manifest conventions, repair confirmed Medium+ findings, record complete selected-file/pass receipts and all limits, verify owning packages, then commit/push/PR/merge and verify changed installed surfaces. Preserve unrelated work and paused legacy services.
+
+
 Version:141. Delta: parallel log reconciliation after prompt140. Preserve both TASK-1315 research and TASK-1318 UI requests labelled v138 by concurrent sessions. No new user request is invented by this reconciliation.
 
 ## Prompt v140 — 2026-11-11 access decision

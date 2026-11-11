@@ -49,7 +49,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from . import ledger, models as m
+from . import ledger, models as m, tree_publication
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from .settings import Settings
@@ -218,9 +218,15 @@ def read_nodes(path: Path) -> list[dict[str, Any]]:
 
 
 def write_nodes(path: Path, nodes: list[dict[str, Any]]) -> None:
-    """Write ``nodes`` atomically, in the hub's own format."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    concept_tree().save_nodes(nodes, path)
+    """Write the hub's format, without running its external publication hook."""
+    lock = tree_publication.TreeLock(path)
+    try:
+        lock.acquire_nowait()
+        if tree_publication.Journal.load(lock.path) is not None:
+            raise tree_publication.PublicationError("a tree publication requires recovery")
+        tree_publication.atomic_replace(lock.path, tree_publication.encode_nodes(nodes))
+    finally:
+        lock.release()
 
 
 # --- paths -------------------------------------------------------------------
@@ -319,10 +325,11 @@ async def fork(
         raise QuotaExceeded(verdict)
 
     source = public_tree_path()
+    source_bytes = source.read_bytes()
     row = m.Tree(
         user_id=user.id,
         slug=slug,
-        forked_from_sha=sha_of(source),
+        forked_from_sha=hashlib.sha256(source_bytes).hexdigest(),
         path=relative_path(user.id, slug),
     )
     session.add(row)
@@ -332,7 +339,7 @@ async def fork(
     # must describe exactly what is now in the private file.
     destination = tree_path(settings, user.id, slug)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_bytes(source.read_bytes())
+    destination.write_bytes(source_bytes)
     return row
 
 

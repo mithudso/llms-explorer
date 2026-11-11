@@ -12,6 +12,7 @@ forces a test to reach the real network, and a route can wire in the real one.
 
 from __future__ import annotations
 
+import logging
 from typing import Protocol
 
 from . import models as m
@@ -19,6 +20,7 @@ from . import secrets_crypto
 from .settings import Settings
 
 HINT_LEN = 4
+log = logging.getLogger(__name__)
 
 
 class AnthropicKeyError(RuntimeError):
@@ -43,15 +45,20 @@ async def real_validator(api_key: str) -> None:
     """The real check: one free call, no tokens spent."""
     import anthropic
 
-    client = anthropic.AsyncAnthropic(api_key=api_key)
+    log.info("anthropic_key_validation_started")
     try:
-        await client.models.list()
+        async with anthropic.AsyncAnthropic(api_key=api_key) as client:
+            await client.models.list()
     except anthropic.AuthenticationError as exc:
+        log.info("anthropic_key_validation_failed reason=authentication")
         raise InvalidApiKey("the model provider rejected this key") from exc
     except anthropic.APIError as exc:
+        log.warning("anthropic_key_validation_failed reason=provider error_type=%s",
+                    type(exc).__name__)
         raise InvalidApiKey(
             "the model provider could not validate this key right now"
         ) from exc
+    log.info("anthropic_key_validation_succeeded")
 
 
 async def save(

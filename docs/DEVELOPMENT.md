@@ -93,3 +93,17 @@ These offline unit tests use temporary packs and fake embeddings. Neo4j, model
 downloads and production corpus writes are not prerequisites. Installation,
 capture, reingestion and model migration are separate operations documented in
 [the package guide](../hub/research-expertise/README.md).
+
+## Standalone skill registry
+
+```sh
+uv sync --directory hub/skill-registry --frozen --all-extras
+uv run --directory hub/skill-registry --frozen pytest -q
+uv run --directory hub/skill-registry --frozen ruff check src tests
+```
+
+The API lockfile resolves its `skill-registry` dependency from this sibling
+package. Run API setup from the complete checkout. The [package guide](../hub/skill-registry/README.md)
+separates offline temporary-fixture tests from catalog refresh, remote account
+access and model-backed worker execution. Installing test dependencies does not
+enable an optimizer policy or resume legacy indexing.

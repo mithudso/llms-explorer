@@ -11,7 +11,7 @@ The test suite enforces the following principles:
 
 1. **API Tests (`api/tests/`)**:
    - `test_auth.py`: OAuth, passkey registration/authentication, session security.
-   - `test_billing.py`: Stripe webhooks, subscription sync, invoice idempotency.
+   - `test_billing.py`: Donation webhooks, Customer Portal and event idempotency.
    - `test_gateway.py`: API key authentication, rate limiting, ledger spend tracking.
    - `test_keys.py`: Argon2id key generation, verification, and revocation.
    - `test_ledger.py`: Spending arithmetic, quotas, immutable ledger triggers.
@@ -71,3 +71,21 @@ target is meaningful assertions for changed and risky behavior, including
 errors and logs. Passing unit tests does not measure research answer quality,
 retrieval recall or semantic entailment. Those require separate datasets and
 independent evidence review.
+
+## Skill registry and hosted optimizer broker
+
+`hub/skill-registry/tests/` covers source aliases, live checksum reads, bundle
+validation, no-clobber publication, candidate jobs, subprocess lifecycle and
+stdio tools. Its own lockfile and `.github/workflows/skill-registry.yml` gate
+the standalone package:
+
+```sh
+uv run --directory hub/skill-registry --frozen pytest -q
+uv run --directory hub/skill-registry --frozen ruff check src tests
+```
+
+The offline fixtures do not execute a model, refresh a real catalog or contact
+a hosted account. API tests `test_skill_registry.py`, `test_optimizer_jobs.py`
+cover owner/scoped-key access, explicit
+release grants and worker leases against isolated PostgreSQL fixtures. A local
+worker or production deployment still needs separate installed-state acceptance.

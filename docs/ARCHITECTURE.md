@@ -23,7 +23,7 @@ graph TD
 ## Architectural Components
 
 1. **Frontend (`site/`)**:
-   - Built with Astro (SSR + Static generation) and TypeScript, styled with plain CSS (`site/src/styles/`).
+   - Built with Astro static generation and TypeScript, styled with plain CSS (`site/src/styles/`).
    - Hosts the directory of llms.txt sources, 3D force-directed concept graph, documentation viewers, and account islands.
    - Postbuild tools generate twin format endpoints and llms.txt indexes.
 
@@ -66,3 +66,19 @@ source snapshots and exact quotations before indexing. Save-time mechanical
 checks grant no native evidence qualification. Search rechecks canonical hashes
 and returns unreviewed status explicitly. See [the package guide](../hub/research-expertise/README.md)
 and [the native concept contracts](architecture/concept-knowledge-contracts.md).
+
+## Skill source and immutable release decision
+
+The standalone `hub/skill-registry/` package keeps source guides authoritative.
+SQLite FTS5 is a rebuildable local routing index. A source read rechecks the
+complete hash and returns a bounded span with its resource base. Bundles bind
+all accepted resources to checksums and executable flags; installation does not
+overwrite an existing directory.
+
+The hosted FastAPI adapter reuses account identities, scoped API keys and
+explicit per-release grants. It accepts private releases and queues jobs using
+the existing relational Job model. HTTP does not import uploaded code, execute
+commands or publish candidates automatically. A deliberately configured local
+worker may execute the native optimizer in a private candidate workspace.
+Execution, checks, reported convergence and publication remain distinct.
+See [the package contract](../hub/skill-registry/README.md) and [[skill-registry]].

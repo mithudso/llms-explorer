@@ -132,32 +132,27 @@ async def contribute(
 
     skill_policy = skills.SKILL_POLICY["concept-abstract-mini"]
     run_request = skills.RunRequest(input=text, concept=concept)
+    job = await skills._reserve_job(session, principal, text, skill_policy)
     try:
         pass_output, in_tokens, out_tokens = await skills._run_passes(
             llm, skill_policy, run_request
         )
     except gw.GatewayRefusal:
+        job.status = "failed"
+        job.finished_at = dt.datetime.now(dt.UTC)
+        await session.commit()
         raise
     except Exception as exc:  # noqa: BLE001
+        job.status = "failed"
+        job.finished_at = dt.datetime.now(dt.UTC)
+        await session.commit()
         raise skills.LlmUnavailable("the model provider did not answer") from exc
 
-    # Create a job record
-    from ..models import Job
-    job = Job(
-        user_id=user.id,
-        kind=skill_policy.job_kind,
-        status="done",
-        params={
-            "skill": skill_policy.name,
-            "passes": skill_policy.passes,
-            "bounded": True,
-        },
-    )
-    job.started_at = dt.datetime.now(dt.UTC)
+    # Preserve the completed provider attempt even if proposal validation fails.
+    job.status = "done"
     job.finished_at = dt.datetime.now(dt.UTC)
     job.cost_tokens = in_tokens + out_tokens
-    session.add(job)
-    await session.flush()
+    await session.commit()
 
     # --- 3. Persist the artifact -----------------------------------------
 

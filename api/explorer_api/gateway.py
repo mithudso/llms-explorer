@@ -34,6 +34,7 @@ exist to authorise it.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 import time
@@ -45,10 +46,13 @@ from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any, Protocol
 
 import httpx
+from sqlalchemy import select
 
 from . import ledger
 from . import models as m
 from . import keys as keys_module
+
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -622,22 +626,67 @@ class HttpHubClient:
 # --- the public catalogue ----------------------------------------------------
 
 
+def _upstream_failure(operation: str, error: BaseException | None = None) -> None:
+    """Keep a useful failure diagnostic without logging provider text or input."""
+    safe_operation = operation if operation in TOOL_POLICY or operation == "tools/list" \
+        else "tools/call"
+    cause = (error.__cause__ or error) if error is not None else None
+    error_type = type(cause).__name__[:64] if cause is not None else "ToolError"
+    log.warning(
+        "gateway_upstream_failed operation=%s error_type=%s", safe_operation, error_type,
+        extra={"operation": safe_operation, "error_type": error_type},
+    )
+
+
+def _tool_failed(result: Mapping[str, Any]) -> bool:
+    """Recognize MCP errors and the local hub's established subprocess errors."""
+    if result.get("isError") is True:
+        return True
+    content = result.get("content")
+    if not isinstance(content, list):
+        return False
+    for block in content:
+        if not isinstance(block, Mapping) or block.get("type") != "text":
+            continue
+        text = block.get("text")
+        if not isinstance(text, str):
+            continue
+        if text.startswith("ERROR:"):
+            return True
+        exited = re.match(r"\AEXIT (-?[0-9]{1,10})(?:\n|\Z)", text)
+        if exited is not None and int(exited[1]) != 0:
+            return True
+    return False
+
+
 async def call_hub(hub: HubClient, tool: str, arguments: Mapping[str, Any], *,
                    timeout: float | None = None) -> dict:
-    """Call the hub, turning *any* failure into a 502 that names no internals.
+    """Sanitize tool errors and turn transport failures into a safe 502.
 
     The :class:`HubClient` contract says failures arrive as
     :class:`HubUnavailable`, but a gateway that trusts a contract to hold is one
     stack trace away from returning a 500 with the hub's address in it.
+    MCP tool failures stay tool-error results and are never metered as success.
     """
     try:
         result = await hub.call_tool(tool, arguments, timeout=timeout)
+    except HubUnavailable as exc:
+        _upstream_failure(tool, exc)
+        raise
     except GatewayRefusal:
         raise
     except Exception as exc:
+        _upstream_failure(tool, exc)
         raise HubUnavailable("the hub did not answer") from exc
     if not isinstance(result, Mapping):
+        _upstream_failure(tool)
         raise HubUnavailable("the hub sent an unreadable tool result")
+    if _tool_failed(result):
+        _upstream_failure(tool)
+        # Preserve the MCP tool-error result while withholding arbitrary local
+        # paths/provider diagnostics. A failed call is never successful usage.
+        return {"content": [{"type": "text", "text": "the hub could not complete this call"}],
+                "isError": True}
     return dict(result)
 
 
@@ -645,11 +694,16 @@ async def list_hub_tools(hub: HubClient) -> list[dict]:
     """:meth:`HubClient.list_tools`, guarded the same way as :func:`call_hub`."""
     try:
         tools = await hub.list_tools()
+    except HubUnavailable as exc:
+        _upstream_failure("tools/list", exc)
+        raise
     except GatewayRefusal:
         raise
     except Exception as exc:
+        _upstream_failure("tools/list", exc)
         raise HubUnavailable("the hub did not answer") from exc
     if not isinstance(tools, list):
+        _upstream_failure("tools/list")
         raise HubUnavailable("the hub sent an unreadable tool list")
     return tools
 
@@ -1085,21 +1139,41 @@ class Gateway:
 
         outgoing = await check_arguments(self.settings, policy, arguments, principal,
                                          self.catalogue)
-        await check_quota(session, policy, principal, self.catalogue)
+        try:
+            if principal.user is not None and (policy.quota_feature or policy.own_args):
+                # The same per-account transaction lock used by tree forks and
+                # optimizer admission. Hold it through usage commit so two
+                # calls cannot both observe the last free unit. Other accounts
+                # remain independent, including while an index is running.
+                await session.execute(
+                    select(m.User.id).where(m.User.id == principal.user.id).with_for_update()
+                )
+                if policy.quota_feature == "indexes":
+                    # Another gateway process may have created the last allowed
+                    # index while we waited. Its cache invalidation is not ours.
+                    self.catalogue.invalidate()
+            await check_quota(session, policy, principal, self.catalogue)
 
-        call_id = f"mcp_{uuid.uuid4().hex}"
-        result = await call_hub(
-            self.hub, tool, outgoing,
-            timeout=HUB_TIMEOUTS.get(tool, DEFAULT_HUB_TIMEOUT),
-        )
-        if policy.own_args:
-            # The registry just changed under us; the next namespacing check
-            # and the next quota count must not read a stale snapshot.
-            self.catalogue.invalidate()
+            call_id = f"mcp_{uuid.uuid4().hex}"
+            result = await call_hub(
+                self.hub, tool, outgoing,
+                timeout=HUB_TIMEOUTS.get(tool, DEFAULT_HUB_TIMEOUT),
+            )
+            if result.get("isError") is True:
+                await session.rollback()
+                return result
+            if policy.own_args:
+                # The next namespacing check/count must not reuse this snapshot.
+                self.catalogue.invalidate()
 
-        await meter(session, policy, principal, tool, arguments, result, call_id)
-        await session.commit()
-        return filter_reply(tool, principal, result)
+            await meter(session, policy, principal, tool, arguments, result, call_id)
+            await session.commit()
+            return filter_reply(tool, principal, result)
+        except BaseException:
+            # Cancellation is also a failed transaction. Release the account
+            # lock before a caller reuses this session or queues its next call.
+            await session.rollback()
+            raise
 
 
 __all__ = [

@@ -1,7 +1,7 @@
 """Email delivery for the subscribers mailing list.
 
 No provider is wired in by default: with ``smtp_host`` unset (the default),
-:func:`send_email` logs the message instead of sending it, so a dev environment
+:func:`send_email` records a skipped-delivery event instead of sending, so a dev environment
 or a deploy that has not configured SMTP still runs — it just does not mail
 anyone. Set ``SMTP_HOST``/``SMTP_PORT``/``SMTP_USER``/``SMTP_PASSWORD``/
 ``SMTP_FROM`` to send for real (see ``api/.env.example``).
@@ -9,6 +9,7 @@ anyone. Set ``SMTP_HOST``/``SMTP_PORT``/``SMTP_USER``/``SMTP_PASSWORD``/
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import smtplib
 from email.message import EmailMessage
@@ -26,20 +27,28 @@ log = logging.getLogger(__name__)
 
 
 def send_email(to: str, subject: str, body: str, settings: Settings) -> None:
-    """Send one email, or log it if no SMTP provider is configured."""
+    """Send one email, or record a skipped event if SMTP is not configured."""
     if not settings.smtp_host:
-        log.info("smtp not configured; would send %r to %s", subject, to)
+        log.info("smtp_delivery_skipped reason=not_configured")
         return
     message = EmailMessage()
     message["Subject"] = subject
     message["From"] = settings.smtp_from
     message["To"] = to
     message.set_content(body)
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as smtp:
-        smtp.starttls()
-        if settings.smtp_user and settings.smtp_password:
-            smtp.login(settings.smtp_user, settings.smtp_password.get_secret_value())
-        smtp.send_message(message)
+    log.info("smtp_delivery_started")
+    try:
+        with smtplib.SMTP(
+            settings.smtp_host, settings.smtp_port, timeout=settings.smtp_timeout_seconds,
+        ) as smtp:
+            smtp.starttls()
+            if settings.smtp_user and settings.smtp_password:
+                smtp.login(settings.smtp_user, settings.smtp_password.get_secret_value())
+            smtp.send_message(message)
+    except (OSError, smtplib.SMTPException) as error:
+        log.warning("smtp_delivery_failed error_type=%s", type(error).__name__)
+        raise
+    log.info("smtp_delivery_succeeded")
 
 
 async def notify_new_post(
@@ -47,9 +56,8 @@ async def notify_new_post(
 ) -> int:
     """Mail every confirmed, still-subscribed address about a new post.
 
-    Returns the number of subscribers notified. Run this after staging a post
-    (see ``scripts/notify_new_post.py``); it is not triggered automatically by
-    anything in this service.
+    Returns the number of subscribers processed. Call this explicitly after
+    staging a post; this module provides no automatic publishing hook.
     """
     rows = (
         await session.execute(
@@ -65,7 +73,7 @@ async def notify_new_post(
             f"?token={subscriber.unsubscribe_token}"
         )
         body = f"New post: {title}\n{url}\n\nUnsubscribe: {unsubscribe_url}"
-        send_email(subscriber.email, f"New post: {title}", body, settings)
+        await asyncio.to_thread(send_email, subscriber.email, f"New post: {title}", body, settings)
     return len(rows)
 
 

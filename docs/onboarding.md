@@ -1,13 +1,13 @@
 # Contributor Onboarding
 
-Welcome to LLMS-Explorer! Follow this guide to set up your environment in under 10 minutes.
+Welcome to LLMS-Explorer! Use the owning package setup below; private library access and optional runtimes have separate prerequisites.
 
 ## 1. Install Tools
 
 Ensure you have installed:
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - [Node.js 22.18+](https://nodejs.org/) & npm
-- [PostgreSQL](https://www.postgresql.org/) (optional if running tests, `conftest.py` locates `initdb`)
+- [PostgreSQL](https://www.postgresql.org/) (required for real database tests; fixtures locate installed `initdb`/`pg_ctl` or use an explicit test maintenance DSN)
 
 ## 2. Clone and Bootstrap
 

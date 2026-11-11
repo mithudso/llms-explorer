@@ -356,9 +356,12 @@ class Donation(Base):
     """A Stripe-recorded donation — one-time or monthly, account optional.
 
     `user_id` is nullable: a donation does not require signing in. `status`
-    tracks the Stripe lifecycle (`pending` until `checkout.session.completed`,
+    tracks the Stripe lifecycle (`pending` until Stripe confirms payment,
     `active` while a monthly donation's subscription renews, `lapsed` on a
-    failed renewal, `canceled` when the donor cancels via the Portal).
+    failed renewal, `canceled` when the donor cancels via the Portal). A
+    canceled subscription stays canceled when older events arrive late.
+    `stripe_customer_id` keeps the owning donor's Portal reachable without a
+    legacy paid-plan Subscription.
     """
 
     __tablename__ = "donations"
@@ -375,6 +378,7 @@ class Donation(Base):
     currency: Mapped[str] = mapped_column(String(3), default="usd", server_default="usd")
     interval: Mapped[str] = mapped_column(String(8))
     stripe_checkout_session_id: Mapped[str | None] = mapped_column(Text, index=True)
+    stripe_customer_id: Mapped[str | None] = mapped_column(Text)
     stripe_subscription_id: Mapped[str | None] = mapped_column(Text, unique=True)
     status: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
     created_at: Mapped[dt.datetime] = mapped_column(Timestamp, server_default=func.now())

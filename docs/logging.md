@@ -8,7 +8,7 @@
 
 ## Log Levels
 
-- `DEBUG`: Detailed execution tracing, SQL statement inspection in dev.
+- `DEBUG`: Detailed execution tracing without SQL parameters or private content.
 - `INFO`: Lifecycle milestones (app startup, job dispatched, invoice paid).
 - `WARNING`: Recoverable errors, database reconnect attempts, quota limits hit, unknown webhook events.
 - `ERROR`: Unhandled exceptions, failed third-party RPCs, database query failures.
@@ -18,6 +18,18 @@
 
 - `api/`: Uvicorn stderr / stdout.
 - `hub/`: `logs/pipeline_manager.log`, launchd agent stdout/stderr.
+
+## API event safety
+
+Key and ledger helpers log `*_staged` after flushing. These events do not claim
+that the caller committed its transaction. API database failures record the
+operation and exception class, without SQL text, bound parameters or driver
+exception strings. Provider and SMTP outcomes follow the same rule; recipient
+addresses, subjects, prompts and provider response bodies stay out of service logs.
+
+Research subprocess output is a separate owner-private artifact: new log
+directories use mode `0700`, and files use mode `0600`. Service events identify
+the job and lifecycle outcome without copying its argv, output or private path.
 
 ## Research expertise
 

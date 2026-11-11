@@ -83,7 +83,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=list(settings.site_origins),
         allow_credentials=True,
-        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["authorization", "content-type", "accept", "x-requested-with"],
         max_age=600,
     )
@@ -137,8 +137,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         which is not a JSON-RPC envelope and which no monitor can distinguish
         from an application bug.
         """
-        log.warning("database unavailable for %s %s", request.method,
-                    request.url.path, exc_info=exc)
+        # DBAPIError renders SQL and bound parameters in its traceback. Keep
+        # account data and driver messages out of operational logs.
+        log.warning("database unavailable for %s %s error=%s", request.method,
+                    request.url.path, type(exc).__name__)
         return _unavailable(request, "the service is temporarily unavailable")
 
     @app.exception_handler(gw.GatewayRefusal)

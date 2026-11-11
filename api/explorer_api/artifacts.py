@@ -31,7 +31,11 @@ here runs; this module never sees a request and never decides who anybody is.
 
 from __future__ import annotations
 
+import os
 import re
+import secrets
+import stat
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -168,19 +172,44 @@ def resolve(stores_root: Path | str, user_id: str, slug: str, relative: str) -> 
     read anything the process can.
     """
     parts = _check_relative(relative)
-    root = artifact_dir(stores_root, user_id, slug)
+    root = artifact_dir(Path(stores_root).resolve(), user_id, slug)
     candidate = root.joinpath(*parts)
     try:
         real = candidate.resolve(strict=True)
         real_root = root.resolve(strict=True)
     except (OSError, RuntimeError) as exc:  # missing, loop, or unreadable parent
         raise NotFound(relative) from exc
-    if not real.is_relative_to(real_root) or not real.is_file():
+    if real_root != root or not real.is_relative_to(real_root) or not real.is_file():
         raise NotFound(relative)
     return real
 
 
 # --- reading and headers -----------------------------------------------------
+
+
+@contextmanager
+def _artifact_parent(stores_root, user_id, slug, parts, *, create=False):
+    """Hold no-follow directory descriptors through each private operation."""
+    stores = Path(stores_root).resolve()
+    root = artifact_dir(stores, user_id, slug)
+    if create:
+        stores.mkdir(parents=True, exist_ok=True)
+    with ExitStack() as stack:
+        def open_directory(name, parent=None):
+            fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                         dir_fd=parent)
+            stack.callback(os.close, fd)
+            return fd
+
+        parent = open_directory(stores)
+        for segment in (user_id, ARTIFACTS_SUBDIR, f"{slug}{LLMS_SUFFIX}", *parts[:-1]):
+            if create:
+                try:
+                    os.mkdir(segment, mode=0o700, dir_fd=parent)
+                except FileExistsError:
+                    pass  # The no-follow open validates existing entries.
+            parent = open_directory(segment, parent)
+        yield root.joinpath(*parts), parent, stack
 
 
 def content_type_for(name: str) -> str:
@@ -190,10 +219,17 @@ def content_type_for(name: str) -> str:
 
 def read(stores_root: Path | str, user_id: str, slug: str, relative: str) -> ServedFile:
     """Resolve and read one artifact file."""
-    path = resolve(stores_root, user_id, slug, relative)
+    parts = _check_relative(relative)
     try:
-        data = path.read_bytes()
-    except OSError as exc:
+        with _artifact_parent(stores_root, user_id, slug, parts) as (path, parent, stack):
+            fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                         dir_fd=parent)
+            stack.callback(os.close, fd)
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise NotFound(relative)
+            with os.fdopen(fd, "rb", closefd=False) as source:
+                data = source.read()
+    except (OSError, RuntimeError) as exc:
         raise NotFound(relative) from exc
     return ServedFile(path=path, data=data, content_type=content_type_for(path.name))
 
@@ -234,38 +270,39 @@ def write(stores_root: Path | str, user_id: str, slug: str, relative: str,
     if isinstance(content, str):
         content = content.encode("utf-8")
 
-    # Validate the path the same way resolve() does
-    _check_relative(relative)
-    if not SAFE_RE.match(slug or ""):
-        raise NotFound(slug)
-    if not SAFE_RE.match(user_id or ""):
-        raise NotFound(user_id)
-
-    root = artifact_dir(stores_root, user_id, slug)
-    candidate = root.joinpath(*(p for p in (relative or "").split("/") if p))
-
-    # After writing, resolve follows symlinks — we cannot prevent them from
-    # being planted, but we can refuse to write outside the store.
+    parts = _check_relative(relative)
+    # Resolve the configured store once, then walk owned directories using
+    # descriptors. A link planted before or during the walk cannot redirect a
+    # mkdir or write. Atomic replacement also never follows a leaf symlink.
     try:
-        root.resolve(strict=False)  # may raise here; parents need not exist yet
+        with _artifact_parent(stores_root, user_id, slug, parts, create=True) as (
+            candidate, parent, stack
+        ):
+            try:
+                existing = os.stat(parts[-1], dir_fd=parent, follow_symlinks=False)
+            except FileNotFoundError:
+                pass
+            else:
+                if not stat.S_ISREG(existing.st_mode):
+                    raise NotFound(relative)
+            temporary = f".artifact-{secrets.token_hex(16)}"
+            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                         0o600, dir_fd=parent)
+            stack.callback(os.close, fd)
+            try:
+                with os.fdopen(fd, "wb", closefd=False) as output:
+                    output.write(content)
+                    output.flush()
+                    os.fsync(output.fileno())
+                os.replace(temporary, parts[-1], src_dir_fd=parent, dst_dir_fd=parent)
+            finally:
+                try:
+                    os.unlink(temporary, dir_fd=parent)
+                except FileNotFoundError:
+                    pass  # Successful replacement consumed the staging file.
     except (OSError, RuntimeError) as exc:
         raise NotFound(relative) from exc
-
-    # Ensure the parent exists
-    candidate.parent.mkdir(parents=True, exist_ok=True)
-
-    # Write and then verify the written path is still inside the store
-    try:
-        candidate.write_bytes(content)
-        real = candidate.resolve(strict=True)
-        real_root_strict = root.resolve(strict=True)
-    except (OSError, RuntimeError) as exc:
-        raise NotFound(relative) from exc
-
-    if not real.is_relative_to(real_root_strict):
-        raise NotFound(relative)
-
-    return real
+    return candidate
 
 
 __all__ = [

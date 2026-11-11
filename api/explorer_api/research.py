@@ -12,9 +12,9 @@ repo root, under a timeout. The API is served from the machine that holds the
 hub, the repo and the ``claude`` CLI, so the run is a child process of the API.
 
 There is no job worker in this service. The run is an asyncio task that owns
-its Job row: queued, then running, then done or failed. If the API restarts
-mid-run the task dies with it, and :func:`expire_stale` marks the orphaned row
-failed the next time anyone asks, so a dead run never reads as in progress.
+its Job row: queued, running, then done, failed or cancelled. Cancellation kills
+and reaps its process group before returning. If the API restarts mid-run,
+:func:`expire_stale` fails the orphaned row on the next write path.
 
 Only the concept and parent names enter the prompt, and only after
 :func:`safe_name` passes them. Summaries and other tree text never do.
@@ -29,8 +29,10 @@ import os
 import re
 import shutil
 import signal
+import stat
 import uuid
 from collections.abc import Callable, Coroutine
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +40,13 @@ from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from . import models as m
+from .settings import (
+    DEFAULT_RESEARCH_MAX_RUNNING,
+    DEFAULT_RESEARCH_PROCESS_CLEANUP_TIMEOUT_SECONDS,
+    DEFAULT_RESEARCH_TIMEOUT_SECONDS,
+    MIN_RESEARCH_TIMEOUT_SECONDS,
+    RESEARCH_ORPHAN_GRACE_SECONDS,
+)
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +59,7 @@ SAFE_NAME = re.compile(
     rf'^[^\s\-`"\\\x00-\x1f\x7f][^`"\\\x00-\x1f\x7f]{{0,{SAFE_NAME_MAX - 1}}}\Z')
 
 #: Runs allowed at once. Each one is a `claude -p` session with web search.
-MAX_RUNNING = 2
+MAX_RUNNING = DEFAULT_RESEARCH_MAX_RUNNING
 #: Statuses that mean "a run for this concept is still going".
 ACTIVE = ("queued", "running")
 #: This API process. A run belongs to the process that started it, so an
@@ -59,6 +68,7 @@ BOOT = uuid.uuid4().hex
 #: Serialises check-and-insert in `routes/research.py` across concurrent POSTs.
 LOCK_KEY = 0x6C6C6D73  # "llms"
 LOST = "the run was lost (API restart or crash)"
+PROCESS_CLEANUP_TIMEOUT_SECONDS = DEFAULT_RESEARCH_PROCESS_CLEANUP_TIMEOUT_SECONDS
 
 
 def safe_name(name: str | None) -> bool:
@@ -68,9 +78,10 @@ def safe_name(name: str | None) -> bool:
 def timeout_seconds() -> int:
     """`RESEARCH_TIMEOUT_SECONDS`, default one hour (the TUI's default)."""
     try:
-        return max(60, int(os.environ.get("RESEARCH_TIMEOUT_SECONDS", "3600")))
+        return max(MIN_RESEARCH_TIMEOUT_SECONDS, int(os.environ.get(
+            "RESEARCH_TIMEOUT_SECONDS", str(DEFAULT_RESEARCH_TIMEOUT_SECONDS))))
     except ValueError:
-        return 3600
+        return DEFAULT_RESEARCH_TIMEOUT_SECONDS
 
 
 def repo_root() -> Path:
@@ -172,7 +183,7 @@ def _now() -> dt.datetime:
 def _orphaned():  # noqa: ANN202 - a SQLAlchemy clause
     """Active research rows no live run owns: started by another API process,
     or older than the timeout plus a grace period."""
-    cutoff = _now() - dt.timedelta(seconds=timeout_seconds() + 600)
+    cutoff = _now() - dt.timedelta(seconds=timeout_seconds() + RESEARCH_ORPHAN_GRACE_SECONDS)
     return (m.Job.kind == "research") & m.Job.status.in_(ACTIVE) & (
         (m.Job.params["boot"].astext.is_distinct_from(BOOT)) | (m.Job.created_at < cutoff))
 
@@ -250,39 +261,93 @@ async def _set(factory: async_sessionmaker[AsyncSession], job_id: str, **values:
         await session.commit()
 
 
+@contextmanager
+def _private_log(path: Path):
+    """Raw worker output stays private, including an existing permissive file."""
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with ExitStack() as stack:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW
+                     | os.O_NONBLOCK, 0o600)
+        stack.callback(os.close, fd)
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError("research log must be a regular file")
+        os.fchmod(fd, 0o600)
+        yield stack.enter_context(os.fdopen(fd, "wb", closefd=False))
+
+
 async def run(factory: async_sessionmaker[AsyncSession], job_id: str,
               argv: list[str], cwd: Path, timeout: int, log_path: Path) -> None:
     """Run one research job to completion and record the outcome on its row."""
+    proc = None
+    spawning = None
+
+    async def reap():
+        if proc is not None:
+            _kill(proc)
+            await asyncio.wait_for(proc.wait(), PROCESS_CLEANUP_TIMEOUT_SECONDS)
+            _PROCS.discard(proc)
+
     try:
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        await _set(factory, job_id, status="running", started_at=_now(), log_ref=str(log_path))
-        with log_path.open("wb") as out:
-            # Its own process group, so a timeout or an API shutdown stops the
-            # run and everything it spawned, not only the `claude` parent.
-            proc = await asyncio.create_subprocess_exec(
-                *argv, cwd=str(cwd), stdin=asyncio.subprocess.DEVNULL, env=run_env(),
-                stdout=out, stderr=asyncio.subprocess.STDOUT, start_new_session=True)
-            _PROCS.add(proc)
+        with _private_log(log_path) as out:
             try:
-                code = await asyncio.wait_for(proc.wait(), timeout)
-            except TimeoutError:
-                _kill(proc)
-                await proc.wait()
-                await _set(factory, job_id, status="failed", finished_at=_now(),
-                           error=f"timed out after {timeout} s")
-                return
-            finally:
-                _PROCS.discard(proc)
+                await _set(factory, job_id, status="running", started_at=_now(),
+                           log_ref=str(log_path))
+                # Keep the spawn task referenced and shielded: cancellation
+                # during process creation must still retrieve and reap its child.
+                spawning = asyncio.create_task(asyncio.create_subprocess_exec(
+                    *argv, cwd=str(cwd), stdin=asyncio.subprocess.DEVNULL, env=run_env(),
+                    stdout=out, stderr=asyncio.subprocess.STDOUT, start_new_session=True))
+                proc = await asyncio.shield(spawning)
+                _PROCS.add(proc)
+                log.info("research_job_started job_id=%s", job_id)
+                timed_out = False
+                try:
+                    code = await asyncio.wait_for(proc.wait(), timeout)
+                except TimeoutError:
+                    timed_out = True
+                finally:
+                    await reap()
+                if timed_out:
+                    await _set(factory, job_id, status="failed", finished_at=_now(),
+                               error=f"timed out after {timeout} s")
+                    log.warning("research_job_finished job_id=%s status=failed timed_out=true",
+                                job_id)
+                else:
+                    status = "done" if code == 0 else "failed"
+                    values = {} if code == 0 else {"error": f"the run exited with code {code}"}
+                    await _set(factory, job_id, status=status, finished_at=_now(), **values)
+                    log.info("research_job_finished job_id=%s status=%s exit_code=%s",
+                             job_id, status, code)
+            except asyncio.CancelledError:
+                async def finish_cancelled():
+                    nonlocal proc
+                    if proc is None and spawning is not None:
+                        proc = await spawning
+                        _PROCS.add(proc)
+                    await reap()
+                    await asyncio.wait_for(
+                        _set(factory, job_id, status="cancelled", finished_at=_now()),
+                        PROCESS_CLEANUP_TIMEOUT_SECONDS)
+                    log.info("research_job_finished job_id=%s status=cancelled", job_id)
+
+                cleanup = asyncio.create_task(finish_cancelled())
+                try:
+                    while True:
+                        try:
+                            await asyncio.shield(cleanup)
+                            break
+                        except asyncio.CancelledError:
+                            if cleanup.cancelled():
+                                raise
+                            # Repeated caller cancellation must not abandon reaping.
+                except Exception as exc:
+                    log.error("research_job_cleanup_failed job_id=%s error=%s",
+                              job_id, type(exc).__name__)
+                raise
     except Exception as exc:  # noqa: BLE001 - any launch failure is the job's outcome
-        log.warning("research job %s could not start", job_id, exc_info=exc)
+        log.warning("research_job_failed job_id=%s error=%s", job_id, type(exc).__name__)
         await _set(factory, job_id, status="failed", finished_at=_now(),
                    error="the run could not start")
-        return
-    if code == 0:
-        await _set(factory, job_id, status="done", finished_at=_now())
-    else:
-        await _set(factory, job_id, status="failed", finished_at=_now(),
-                   error=f"the run exited with code {code}")
 
 
 #: Strong references: the event loop holds tasks weakly, and a collected task
@@ -309,7 +374,7 @@ def shutdown() -> None:
 def _report(task: asyncio.Task[None]) -> None:
     _TASKS.discard(task)
     if not task.cancelled() and task.exception() is not None:
-        log.error("research task failed", exc_info=task.exception())
+        log.error("research_task_failed error=%s", type(task.exception()).__name__)
 
 Launcher = Callable[[async_sessionmaker[AsyncSession], str, list[str]], None]
 

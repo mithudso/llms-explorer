@@ -47,6 +47,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm.attributes import set_committed_value
 
 from .models import KEY_SCOPES, ApiKey, User
+from .settings import DEFAULT_API_KEY_STAMP_TIMEOUT_SECONDS
 
 log = logging.getLogger(__name__)
 
@@ -102,6 +103,9 @@ _DUMMY_HASH: str | None = None
 #: because it matches `parallelism` and keeps the worst case at 256 MiB.
 ARGON2_CONCURRENCY = max(1, int(os.environ.get("EXPLORER_ARGON2_CONCURRENCY", "4")))
 _hash_gate = asyncio.Semaphore(ARGON2_CONCURRENCY)
+# Keep shielded workers alive until their threads finish, even after the request
+# waiting for them has been cancelled.
+_verification_tasks: set[asyncio.Task[bool]] = set()
 
 #: How stale ``last_used_at`` is allowed to get before a successful
 #: authentication refreshes it. Every write is one row lock, and the request
@@ -112,11 +116,24 @@ TOUCH_INTERVAL = dt.timedelta(seconds=60)
 
 async def _verify(stored: str, secret: str) -> bool:
     """One bounded, off-loop Argon2 verify."""
-    async with _hash_gate:
-        try:
-            return bool(await asyncio.to_thread(HASHER.verify, stored, secret))
-        except (Argon2Error, InvalidHashError):
-            return False
+    gate = _hash_gate
+    await gate.acquire()
+    worker = asyncio.create_task(asyncio.to_thread(HASHER.verify, stored, secret))
+    _verification_tasks.add(worker)
+
+    def finished(task: asyncio.Task[bool]) -> None:
+        gate.release()
+        _verification_tasks.discard(task)
+        if not task.cancelled():
+            # Consume failures when the caller left; an active shielded waiter
+            # still receives the same exception through its normal await.
+            task.exception()
+
+    worker.add_done_callback(finished)
+    try:
+        return bool(await asyncio.shield(worker))
+    except (Argon2Error, InvalidHashError):
+        return False
 
 
 async def _burn() -> None:
@@ -215,6 +232,8 @@ async def create(
     )
     session.add(row)
     await session.flush()
+    log.info("api_key_create_staged key_id=%s prefix=%s user_id=%s",
+             row.id, row.prefix, user.id)
     return format_key(prefix, secret), row
 
 
@@ -288,13 +307,17 @@ async def _touch(session: AsyncSession, row: ApiKey) -> None:
         await session.flush()
         return
     try:
-        async with engine.connect() as connection:
-            done = await connection.execute(
-                update(ApiKey).where(ApiKey.id == row.id).values(last_used_at=now)
-            )
-            await connection.commit()
+        # Authentication already owns a pooled connection. A second checkout
+        # must remain optional when concurrent request reads fill that pool.
+        async with asyncio.timeout(DEFAULT_API_KEY_STAMP_TIMEOUT_SECONDS):
+            async with engine.connect() as connection:
+                done = await connection.execute(
+                    update(ApiKey).where(ApiKey.id == row.id).values(last_used_at=now)
+                )
+                await connection.commit()
     except Exception as exc:  # noqa: BLE001 - a stamp must never fail a request
-        log.warning("could not stamp last_used_at on key %s", row.prefix, exc_info=exc)
+        log.warning("key_last_used_stamp_failed prefix=%s error_type=%s",
+                    row.prefix, type(exc).__name__)
         return
     if not done.rowcount:
         # The row is not committed yet (a caller that minted the key in the same
@@ -338,6 +361,8 @@ async def revoke(session: AsyncSession, user: User, key_id: str) -> ApiKey | Non
         return None
     row.revoked_at = dt.datetime.now(dt.UTC)
     await session.flush()
+    log.info("api_key_revoke_staged key_id=%s prefix=%s user_id=%s",
+             row.id, row.prefix, user.id)
     return row
 
 
