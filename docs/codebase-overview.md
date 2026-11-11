@@ -33,7 +33,7 @@ This document maps the entire repository structure by directory and module.
   - `artifacts.py`: Public and private artifact storage and retrieval.
   - `routes/`: Sub-routers for `auth`, `keys`, `usage`, `billing`, `mcp`, `trees`, `proposals`, `artifacts`, `contribute`, `skills`.
 - `alembic/`: Database migrations.
-- `tests/`: 232 hermetic unit and integration tests.
+- `tests/`: Hermetic API unit and integration tests.
 
 ## 2. `site/` — Astro Frontend & Explorer Portal
 
@@ -41,11 +41,11 @@ This document maps the entire repository structure by directory and module.
 - `src/components/`: Reusable Astro/React components (Account navigation, 3D Canvas, Search).
 - `src/layouts/`: Base HTML page layouts.
 - `tools/`: Build scripts (`twins.py`, `build_llms.py`).
-- `tests/`: 139 Python tests verifying rendered pages and data pipelines.
+- `tests/`: Python tests for rendered pages and data pipelines.
 
 ## 3. `hub/` — Global AI Hub & Semantic Operations
 
-- `mcp-server/`: `hub_mcp_server.py` exposing 18 MCP tools.
+- `mcp-server/`: `hub_mcp_server.py`; registrations define the current tools.
 - `scripts/`:
   - `embed_core.py`: Weighted Ollama embedding pool manager.
   - `docset_indexer.py`: Vector and BM25 indexer.
@@ -53,7 +53,7 @@ This document maps the entire repository structure by directory and module.
   - `hub_manager/`: Terminal UI management console.
   - `docset_refine/`: Documentation cleaner and fact extractor.
   - `semantic_ops/`: Semantic analysis modules (RRF fusion, ask, symbols, router).
-- `tests/`: 265 unit and integration tests.
+- `tests/`: Hub unit and integration tests.
 
 ## 4. `llmsx/` — Standard Library & Specification
 
@@ -69,3 +69,19 @@ This document maps the entire repository structure by directory and module.
 
 - `concept-tree/`: Holds the semantic concept hierarchy data (`tree.json`).
 - `scripts/`: Various standalone utility scripts (e.g., `build_concept_packs.py`, `merge_concept_trees.py`, `refresh_snapshot.sh`).
+
+## Research expertise and lifecycle
+
+- `hub/research-expertise/`: Independently locked Python package and tests.
+  - `src/research_expertise/capture.py`: Source-grounded canonical writes.
+  - `src/research_expertise/store.py`: Neo4j, CPU embedding cache and retrieval.
+  - `src/research_expertise/mcp_server.py`: Bounded MCP contract.
+  - `src/research_expertise/explorer.py`: Private data snapshot viewer.
+  - `install.py`: Stable installed application outside temporary worktrees.
+- `scripts/research_gate.py`, `research_artifact.py`, `research_provenance.py`,
+  `research_claims.py`, `research_transaction.py`: Native evidence and commit contracts.
+- `scripts/research_site_sync.py`: Website projection and freshness.
+- `tests/test_research_*.py`: Native lifecycle regression checks.
+
+The package guide and [wiki entry](subsystems/research-expertise.md) describe
+command ownership and preserve the distinction between capture and validation.

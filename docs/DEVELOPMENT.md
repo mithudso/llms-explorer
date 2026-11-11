@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Python 3.13+ with `uv`
-- Node.js 20+ with `npm`
+- Node.js 22.18+ with `npm`
 - PostgreSQL 16 (for `api/` tests and local development)
 - Ollama (optional, for local embedding / generation models)
 
@@ -25,8 +25,8 @@
 
 3. Setup Hub virtual environment:
    ```bash
-   cd hub
-   uv sync
+   uv venv hub/.venv --python 3.13
+   uv pip install --python hub/.venv/bin/python -r hub/requirements-dev.txt -r hub/mcp-server/requirements.txt
    ```
 
 4. Setup Frontend dependencies:
@@ -61,16 +61,35 @@
 uv run --directory api --extra test pytest
 
 # Hub tests
-uv run --directory hub pytest
+HUB_DOCSET_BACKEND=sqlite hub/.venv/bin/python -m pytest hub/tests
 
 # llmsx tests
 uv run --directory llmsx pytest
 
 # Frontend tests & build
-uv run --directory hub pytest ../site/tests
+hub/.venv/bin/python -m pytest site/tests
 cd site && npm run build
 
 # Linting
-uv run --directory api ruff check .
-uv run --directory hub ruff check .
+uvx ruff check api
+uvx ruff check hub
 ```
+
+The hub requirements include the private `mithudso/ollama-client` and
+`mithudso/llms-txt` libraries. Installation needs authorized Git access. The hub's
+`pyproject.toml` contains tool configuration, not an installable `[project]`;
+`uv sync` cannot install its requirements. Installing dependencies does not
+authorize starting indexing, inference or paused background jobs.
+
+## Standalone research expertise
+
+```sh
+uv sync --directory hub/research-expertise --frozen
+uv run --directory hub/research-expertise --frozen pytest -q
+uv run --directory hub/research-expertise --frozen ruff check src tests install.py
+```
+
+These offline unit tests use temporary packs and fake embeddings. Neo4j, model
+downloads and production corpus writes are not prerequisites. Installation,
+capture, reingestion and model migration are separate operations documented in
+[the package guide](../hub/research-expertise/README.md).

@@ -308,3 +308,81 @@ def test_query_rejects_model_truncation_without_inference(tmp_path):
     with pytest.raises(ValueError, match="480 model tokens"):
         embedder.query("long input")
     embedder.close()
+
+
+@pytest.mark.parametrize("field", ["MODEL_REPO", "MODEL_REVISION"])
+def test_cache_binds_the_exact_model_repository_and_revision(tmp_path, monkeypatch, field):
+    first = store.Embedder(tmp_path)
+    first._model = FakeModel()
+    first.passages(["same content different vector space"])
+    first.close()
+    monkeypatch.setattr(store, field, "changed-model-identity")
+    changed = store.Embedder(tmp_path)
+    changed._model = FakeModel()
+    changed.passages(["same content different vector space"])
+    assert changed._model.calls == [(["same content different vector space"], 64)]
+    changed.close()
+
+
+def test_ingest_does_not_skip_unbound_legacy_vectors(tmp_path, monkeypatch):
+    doc = {"relative_path": "topic.llms/llms-facts.txt", "concept": "topic",
+           "sha256": "a" * 64, "manifest_sha256": "b" * 64,
+           "path": str(tmp_path / "topic.llms/llms-facts.txt"), "sources": []}
+    doc_id = hashlib.sha256((store.CORPUS + doc["relative_path"]).encode()).hexdigest()
+    previous = dict(doc, id=doc_id, model=store.MODEL, active=True,
+                    chunking_version=store.CHUNKING_VERSION)
+    projection = object.__new__(store.Store)
+    projection.database = "neo4j"
+    projection.schema = lambda: None
+    projection.read = lambda *args, **kwargs: [previous]
+    writes = []
+    projection.write = lambda *args, **kwargs: writes.append((args, kwargs))
+
+    class Session:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def execute_write(self, *args): pass
+
+    projection.driver = type("Driver", (), {"session": lambda self, **kwargs: Session()})()
+    projection._embedder = type("Embed", (), {"tokenizer": object(),
+        "passages": lambda self, texts: [[0.0] * store.DIMENSIONS for _ in texts]})()
+    monkeypatch.setattr(store, "iter_documents", lambda root: iter([dict(doc)]))
+    monkeypatch.setattr(store, "iter_relations", lambda root: iter([]))
+    monkeypatch.setattr(store, "chunk_document", lambda doc, tokenizer: iter([{"text": "text"}]))
+    result = projection._ingest(tmp_path)
+    assert result["updated"] == 1
+    assert result["unchanged"] == 0
+
+
+def test_search_binds_dense_space_but_keeps_sparse_reads_during_migration(canonical):
+    projection = object.__new__(store.Store)
+    projection._embedder = type("Embed", (), {"query": lambda self, text: [0.0] * 384})()
+    calls = []
+    old = dict(cached_passage(canonical), id="old", text="source prose", start_line=3)
+
+    def read(cypher, **params):
+        calls.append((cypher, params))
+        if params["require_embedding_space"]:
+            return []
+        return [{"passage": old}]
+
+    projection.read = read
+    result = projection.search("source prose")
+    assert result["hits"][0]["id"] == "old"
+    assert calls[0][1]["require_embedding_space"] is False
+    assert calls[1][1]["require_embedding_space"] is True
+    assert calls[1][1]["embedding_space_id"] == store.embedding_space_id()
+    assert "d.embedding_space_id=$embedding_space_id" in calls[1][0]
+
+
+@pytest.mark.parametrize("bound", [0, 2])
+def test_status_reports_unbound_vector_migration(bound):
+    projection = object.__new__(store.Store)
+    counts = {"documents": 2, "passages": 2, "vectors": 2,
+              "current_space_documents": bound, "current_space_vectors": bound}
+    projection.read = lambda query, **params: (
+        [{"corpus": {"state": "ready"}}] if "properties(c)" in query else [counts])
+    result = projection.status()
+    assert result["embedding_migration_required"] is (bound != 2)
+    assert result["embedding_recipe"]["revision"] == store.MODEL_REVISION
+    assert result["embedding_space_id"] == store.embedding_space_id()

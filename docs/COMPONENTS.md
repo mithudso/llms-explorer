@@ -30,7 +30,7 @@
 ## 3. `hub/` (Global AI Hub)
 
 - **MCP Server**: `mcp-server/hub_mcp_server.py`
-  - Stdio and HTTP JSON-RPC server implementing 18 `hub_*` tools.
+  - Stdio and HTTP JSON-RPC interfaces; tool registrations are authoritative.
 - **Embedding & Pool**: `scripts/embed_core.py`
   - Multi-host Ollama pooling with weighted fallbacks.
 - **Docset Indexer**: `scripts/docset_indexer.py`
@@ -53,3 +53,17 @@
 
 - **Operations**:
   - Contains python and shell utilities for tasks like tree merging, tree updates, and syncing.
+
+## 7. `hub/research-expertise/` (Local research interface)
+
+- **Canonical capture**: `src/research_expertise/capture.py` validates exact
+  source quotations, saves canonical packs atomically and retains prior revisions.
+- **Projection**: `store.py` stores exact passages/navigation in Neo4j; CPU-only
+  BGE vectors and full text feed reciprocal rank fusion.
+- **Interface**: `mcp_server.py` supplies five bounded tools; `cli.py` supplies
+  explicit local commands. `explorer.py` renders a private offline data snapshot.
+- **Contract and setup**: [package guide](../hub/research-expertise/README.md) and
+  [MCP contract](../hub/research-expertise/MCP.md). Imported prose remains unreviewed.
+- **Native validation**: `scripts/research_gate.py` and the
+  [concept knowledge contracts](architecture/concept-knowledge-contracts.md)
+  own stronger evidence qualification; quote matching is only mechanical integrity.

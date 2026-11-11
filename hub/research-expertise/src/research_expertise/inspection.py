@@ -16,10 +16,11 @@ def snapshot(store, concept="", demo=None):
         corpus=CORPUS,
         concept=concept,
     )
-    docs = []
+    docs, verified = [], {}
     for row in rows:
         d = row["doc"]
         if current(dict(d, doc_sha256=d["sha256"])):
+            verified[d["id"]] = dict(d)
             docs.append(
                 {k: d.get(k) for k in ["id", "concept", "title", "path", "sha256", "qualification"]}
             )
@@ -27,16 +28,26 @@ def snapshot(store, concept="", demo=None):
     nodes, edges = {}, []
     if docs:
         d = next((d for d in docs if d["concept"] == concept), docs[0])
+        binding = verified[d["id"]]
         nodes[d["id"]] = dict(d, label=d["title"], kind="Document")
         relations = store.read(
             "MATCH (d:RXDocument {id:$id})-[r]->(n) "
-            "WHERE type(r) IN ['RX_ABOUT','RX_CITES','RX_HAS_PASSAGE'] "
+            "WHERE d.sha256=$sha256 AND d.manifest_sha256=$manifest_sha256 "
+            "AND d.corpus=$corpus AND d.active=true "
+            "AND type(r) IN ['RX_ABOUT','RX_CITES','RX_HAS_PASSAGE'] "
             "RETURN type(r) AS relation,n.id AS id,labels(n) AS labels, "
             "n{.*,embedding:null} AS props "
             "ORDER BY CASE type(r) WHEN 'RX_ABOUT' THEN 0 WHEN 'RX_CITES' THEN 1 "
             "ELSE 2 END,n.start LIMIT 16",
             id=d["id"],
+            sha256=binding["sha256"],
+            manifest_sha256=binding["manifest_sha256"],
+            corpus=CORPUS,
         )
+        if not current(dict(binding, doc_sha256=binding["sha256"])):
+            docs = [row for row in docs if row["id"] != d["id"]]
+            nodes.clear()
+            relations = []
         for row in relations:
             props = row["props"]
             props.pop("embedding", None)

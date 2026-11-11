@@ -11,7 +11,17 @@
 
 <!-- Commands run and evidence of passing checks -->
 - [ ] `uv run --directory api --extra test pytest`
-- [ ] `uv run --directory hub pytest`
+- [ ] `HUB_DOCSET_BACKEND=sqlite hub/.venv/bin/python -m pytest hub/tests`
 - [ ] `cd site && npm run build`
-- [ ] `uv run --directory api ruff check .`
-- [ ] `uv run --directory hub ruff check .`
+- [ ] `uvx ruff check api`
+- [ ] `uvx ruff check hub`
+
+- [ ] Changed expertise package: `uv run --directory hub/research-expertise --frozen pytest -q`
+
+## Risk
+
+<!-- Material behavior, data, compatibility or installation risks -->
+
+## Rollback
+
+<!-- Exact safe rollback or reconstruction path for these changes -->

@@ -14,6 +14,8 @@ branch without another routine permission request. Preserve other active work.
 | `llms-concept-abstractor` (`/lca`) | `concept-tree/`, `outputs/` | Extracts concept packs, structures topical hierarchies, builds vocabulary. | `concept_tree.py`, `docset_refine` |
 | `api-maintainer` | `api/` | FastAPI backend, Alembic migrations, database models, Stripe billing. | `pytest`, `alembic`, `uvicorn` |
 | `site-builder` | `site/` | Astro UI, plain CSS styling, 3D visualization, twin page generators. | `npm`, `astro` |
+| [`llms-librarian`](.claude/agents/llms-librarian.md) | Catalog, tree, directory and index coverage | Sonnet; catalog/mirror upkeep through existing snapshot and CI pipeline. Respects paused indexing and private source boundaries. | Bash and file tools; publication access when used |
+| [`research-frontier-manager`](.claude/agents/research-frontier-manager.md) | Research frontier and revisit ledger | Opus; source-sharing batches, model tiers, queue planning and evidence-backed revisits. Research authorization and provider access remain required. | Agent, hub queue/library and Stele tools |
 
 <!-- llms-routing:pointer --> See `## llms routing` in CLAUDE.md for the llms files and quick answers.
 

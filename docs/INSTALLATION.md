@@ -4,7 +4,7 @@
 
 - **Operating System**: macOS (Apple Silicon or Intel) or Linux (Ubuntu 22.04+)
 - **Python**: Version 3.13 or 3.14 (managed via `uv`)
-- **Node.js**: Version 20 LTS
+- **Node.js**: Version 22.18+
 - **Database**: PostgreSQL 16+
 
 ## Step-by-Step Installation
@@ -29,9 +29,8 @@
 
 4. **Initialize Hub**:
    ```bash
-   cd hub
-   uv sync
-   cd ..
+   uv venv hub/.venv --python 3.13
+   uv pip install --python hub/.venv/bin/python -r hub/requirements-dev.txt -r hub/mcp-server/requirements.txt
    ```
 
 5. **Initialize Site**:
@@ -48,3 +47,6 @@
    uv run alembic upgrade head
    cd ..
    ```
+
+See [development setup](DEVELOPMENT.md) for private library prerequisites and the
+separately locked [research expertise package](../hub/research-expertise/README.md).

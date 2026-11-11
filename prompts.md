@@ -1,5 +1,31 @@
 # Prompts Log
 
+## Prompt v140 — 2026-11-11 access decision
+
+Version: 140. Delta: v139 to v140; TASK-1320.
+
+```text
+Private for me/team first
+```
+
+The user selected private/team sharing for the first shared skill server.
+
+## Prompt v139 — 2026-11-11 local and remote skill service
+
+Version: 139. Delta: v138 to v139; TASK-1320. Scope extends the active lifecycle audit; preserve its delivery.
+
+```text
+What about the possibility of making this system a shared, remote, central skill sharing and distribution server? So people could host their skills and access them from anywhere. Which means it also needs a local version. My skills are so many and all over the place and hard to keep track of or optimized, create a skill router that can do skill lookups, stays indexed, does automatic skill optimization passes on it. Could also have the system do an optional optimization pass on any code, document, query, etc. an auto-optimizer system.
+```
+
+## Prompt v138 — 2026-11-11 research lifecycle audit
+
+Version: 138. Delta: v137 to v138; TASK-1315.
+
+```text
+Look at the entire process of concept research, validation, storing the facts, embeddgings, retrieval, what can be improved at each stage of th process and all together? WHat features, or fixes or ways to think about things can be implemented? Run the repo bootstrapper and the deep code optimizer on this repo.
+```
+
 ## Prompt v137 — 2026-11-11 live expertise research and MCP capture
 
 ```text

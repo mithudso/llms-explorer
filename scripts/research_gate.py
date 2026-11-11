@@ -289,7 +289,9 @@ def check_spans(packet, claim, spans, root, *, authored=False):
     hex_values = re.findall(hex_pattern, claim['text'])
     numeric_text = re.sub(version_pattern, ' ', claim['text'])
     numeric_text = re.sub(hex_pattern, ' ', numeric_text)
-    numbers = re.findall(r'(?<![\w])\d+(?:[.,]\d+)*(?:%|[a-zA-Z]+)?', numeric_text)
+    numbers = re.findall(
+        r'(?<!\w)\d(?:_?\d)*(?:[.,]\d(?:_?\d)*)*'
+        r'(?:[eE][+-]?\d(?:_?\d)*)?(?:%|[a-zA-Z]+)?', numeric_text)
     def covered(pattern):
         return any(start <= match.start() and match.end() <= end
                    for text, start, end in source_spans for match in re.finditer(pattern, text))

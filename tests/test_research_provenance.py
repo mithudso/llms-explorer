@@ -172,3 +172,24 @@ def test_concurrent_evidence_aliases_preserve_every_envelope(tmp_path):
     assert len(records) == len(aliases)
     assert {json.dumps(row, sort_keys=True) for row in records} == {
         json.dumps(row, sort_keys=True) for row in aliases}
+
+
+@pytest.mark.parametrize("field,value", [
+    ("schema", "unknown-schema"), ("source_id", "src:wrong"),
+    ("snapshot_id", "snap:wrong"), ("snapshot_path", "/missing/other-snapshot"),
+    ("url", "https://other.example/source"), ("chars", 999999),
+])
+def test_archive_rejects_corrupted_version_receipt_identity(tmp_path, field, value):
+    text = tmp_path / "source.txt"
+    text.write_text("Exact source body.")
+    metadata = {"id": "src:0123456789abcdef", "url": "https://example.test/current/source/",
+                "text_path": str(text), "sha256": provenance.digest(text.read_bytes())}
+    saved = provenance.archive(tmp_path / "library", metadata)
+    receipt = tmp_path / "library/provenance/versions" / (saved["snapshot_id"][5:] + ".json")
+    modified = json.loads(receipt.read_text())
+    modified[field] = value
+    receipt.write_text(json.dumps(modified))
+    before = receipt.read_bytes()
+    with pytest.raises(ValueError, match="source version receipt mismatch"):
+        provenance.archive(tmp_path / "library", metadata)
+    assert receipt.read_bytes() == before

@@ -23,7 +23,7 @@ automated entity resolution or GraphRAG community summaries.
 
 ## Install
 
-Requires local Neo4j Community with Bolt, Python 3.11+ and `uv`. Dependencies are
+Requires local Neo4j Community with Bolt, Python 3.11–3.14 and `uv`. Dependencies are
 locked in `uv.lock`. Store the connection object in the private user config:
 `~/.config/neo4j-expertise/connection.json` with keys `uri`, `username`, `password`,
 `database`; restrict its permissions to 600. Keep the authenticated database
@@ -41,7 +41,14 @@ python3 install.py --schedule
 The installer places the application outside any Git worktree and links both
 entrypoints into the user's local bin directory. `--schedule` installs an hourly
 user launch agent for this corpus only. It does not start paused hub pipelines.
-An exclusive ingest lock rejects overlapping writers. Failed runs retain their
+An exclusive ingest lock rejects overlapping writers. Upgrades also acquire that
+lock and refuse to modify an actively refreshing application. The installer
+builds its environment with Python 3.14 at the final stable path; the locked ONNX
+runtime does not yet supply Python 3.15 wheels. It retains prior app/venv releases
+under private `install-history/` and restores the previous release when setup
+fails. Executable path conflicts are checked before upgrade; retired modules
+stay only in retained history. Dependencies can briefly be unavailable while a
+new release is installed. Failed runs retain their
 successfully imported documents and resume from exact file/manifest hashes.
 A completed inventory deactivates deleted packs. Each document replacement is
 transactional; unchanged text reuses cached vectors. The first model download
@@ -64,8 +71,24 @@ with the same model as passages: `BAAI/bge-small-en-v1.5`, 384 dimensions.
 The ONNX model is pinned to upstream revision
 `aa8f8b060edb00e03bfdd08813a2949946c8ba55`; installed queries use its cached
 files offline. Queries above 480 content tokens fail with a request to shorten
-the question; the model never silently truncates them. The local SQLite embedding cache is model/text keyed. Changing the model requires
-a new vector index and a complete reingest; do not mix vector spaces.
+the question; the model never silently truncates them. The SQLite cache binds exact text to a vector-space identity containing the model
+name, repository, pinned revision, dimensions, FastEmbed version and route recipe.
+Document skip decisions and dense candidates require that same identity. Changing
+any identity field requires a complete refresh; a dimension change also requires a
+compatible new vector index. Do not mix vector spaces.
+
+### Upgrade from 0.2.0
+
+Earlier rows/cache entries did not bind the model revision. Version 0.2.1 does not
+pretend those vectors have proven identity. `status` exposes
+`embedding_migration_required` and current-space document/vector counts. Run one
+explicit `research-expertise ingest` to rebuild this dedicated CPU projection.
+The first refresh recomputes embeddings for the corpus; it retains canonical
+files and old cache entries. Existing unchanged text reuses the newly bound cache
+on later refreshes. During migration, source-current sparse and passage reads
+remain usable; dense candidates require the current identity. A partial refresh
+never upgrades old vectors by relabeling them. This does not resume legacy hub
+indexing or Ollama.
 
 Search and passage reads recheck document and manifest hashes, excluding changed
 or deleted sources until refresh. Neighborhoods preserve explicit source/target direction and check the hashes

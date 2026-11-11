@@ -28,6 +28,7 @@ integration with separate repository access.
 | `api/` | FastAPI backend handling PostgreSQL ledger, WebAuthn/OAuth auth, API keys, and metering. |
 | `site/` | Astro + TypeScript frontend (plain CSS): directory, 3D concept graph, and account portals. |
 | `hub/` | Global AI Hub semantic operations, docset refiner, vector/keyword indexing, and MCP server. |
+| `hub/research-expertise/` | Standalone canonical research capture, Neo4j graph and CPU semantic retrieval through a bounded MCP interface. |
 | `llmsx/` | Python library and CLI for parsing, validating, and generating `llms.txt` standard v2 files. |
 | `concept-tree/` | Canonical hierarchical topic data (`tree.json`) that powers the 3D graph and topical navigation. |
 | `scripts/` | Python and shell utilities for tasks like tree merging, indexing, and snapshot refreshing. |
@@ -52,10 +53,10 @@ npm run dev
 
 ### Global AI Hub
 ```bash
-cd hub
-uv sync
+uv venv hub/.venv --python 3.13
+uv pip install --python hub/.venv/bin/python -r hub/requirements-dev.txt -r hub/mcp-server/requirements.txt
 # Launch TUI
-./scripts/hub-manager
+hub/scripts/hub-manager
 ```
 
 ### Verifying the Setup
@@ -64,7 +65,7 @@ uv sync
 uv run --directory api --extra test pytest
 
 # Verify Hub
-uv run --directory hub pytest
+HUB_DOCSET_BACKEND=sqlite hub/.venv/bin/python -m pytest hub/tests
 
 # Verify llmsx
 uv run --directory llmsx pytest
@@ -74,6 +75,8 @@ cd site && npm run build
 ```
 
 ## Documentation
+- [Maintained documentation wiki](docs/index.md): navigation and source verification rules.
+- [Research expertise](hub/research-expertise/README.md): local capture, graph/semantic retrieval and MCP.
 - `docs/ARCHITECTURE.md`: High-level system design.
 - `docs/DEVELOPMENT.md`: Prerequisites and environment setup.
 - `docs/COMPONENTS.md`: Catalog of all subsystems.

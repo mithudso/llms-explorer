@@ -382,3 +382,29 @@ def test_successful_update_retains_prior_revision_and_open_file_inode(store, tmp
     retained = Path(updated["previous_revision_path"])
     assert (retained / "sources/S1.txt").read_text() == "later manual edit through old descriptor"
     assert Path(updated["canonical_path"]).is_dir()
+
+
+def test_source_ids_are_unique_on_case_insensitive_filesystems(store, payload, tmp_path):
+    second = deepcopy(payload["sources"][0])
+    second["id"] = "s1"
+    payload["sources"].append(second)
+    payload["findings"][0]["source_ids"].append("s1")
+    payload["findings"][0]["quotes"].append(
+        {"source_id": "s1", "quote": second["content"]})
+    with pytest.raises(ValueError, match="case-insensitive"):
+        capture.save_research(store=store, root=tmp_path / "canonical", **payload)
+    assert not (tmp_path / "canonical").exists()
+    assert store.calls == []
+
+
+def test_pending_index_failure_logs_safe_operation_context(store, payload, tmp_path, caplog):
+    store.fail = True
+    with caplog.at_level("WARNING", logger="research_expertise.capture"):
+        result = capture.save_research(store=store, root=tmp_path / "canonical", **payload)
+    assert result["indexed"] is False
+    assert result["index_state"] == "pending"
+    assert any(record.message.startswith("research_capture_index_pending ") and
+               record.capture_slug == payload["slug"] and record.error_type == "ConnectionError"
+               for record in caplog.records)
+    assert "unavailable database" not in caplog.text
+    assert payload["sources"][0]["content"] not in caplog.text

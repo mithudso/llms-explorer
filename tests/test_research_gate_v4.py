@@ -612,3 +612,33 @@ def test_complete_ordinary_terms_keep_valid_punctuation(case, token, source):
     doc['claims'][0]['evidence'][0].update(quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
     packet = gate.prepare(shared, manifest, root / 'attempt', 'all', 0)
     assert gate.validate(packet, response(packet), root / 'attempt')['all_supported']
+
+
+@pytest.mark.parametrize('token', ['1e6', '1E6', '1e+6', '1e-6', '1.5e3', '10_000', '1_000.25', '1e6ms'])
+def test_complete_scientific_and_grouped_numeric_literals_pass(case, token):
+    shared, manifest, doc, root = case
+    source = 'The configured threshold is ' + token + ' operations.'
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = source
+    doc['claims'][0]['evidence'][0].update(
+        quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    packet = gate.prepare(shared, manifest, root / 'attempt', 0, 0)
+    assert gate.validate(packet, response(packet), root / 'attempt')['all_supported']
+
+
+@pytest.mark.parametrize('claim_token,source_token', [
+    ('1e6', '1e60'), ('1e6', '11e6'), ('1e6', '1e6ms'),
+    ('10_000', '10_0000'), ('10_000', '110_000'), ('1', '1e6'),
+    ('1e6', '1e+6'), ('10_000', '10000'),
+])
+def test_numeric_literal_support_still_requires_exact_boundaries(case, claim_token, source_token):
+    shared, manifest, doc, root = case
+    source = 'The configured threshold is ' + source_token + ' operations.'
+    body = root / 'source.txt'
+    body.write_text(source)
+    doc['claims'][0]['text'] = 'The configured threshold is ' + claim_token + ' operations.'
+    doc['claims'][0]['evidence'][0].update(
+        quote=source, end=len(source), snapshot_sha256=gate.digest(body.read_bytes()))
+    with pytest.raises(ValueError, match='identifiers or numbers'):
+        gate.prepare(shared, manifest, root / 'attempt', 0, 0)

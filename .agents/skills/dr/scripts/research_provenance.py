@@ -75,7 +75,11 @@ def archive(library, metadata):
         receipt = root / 'versions' / (identity[5:] + '.json')
         if receipt.exists():
             saved = json.loads(receipt.read_text())
-            if saved['snapshot_sha256'] != sha:
+            expected = {'schema': 'research-source/v1', 'snapshot_id': identity,
+                        'source_id': metadata['id'], 'url': metadata['url'],
+                        'snapshot_sha256': sha, 'snapshot_path': str(path),
+                        'chars': len(body.decode('utf-8'))}
+            if not isinstance(saved, dict) or any(saved.get(key) != value for key, value in expected.items()):
                 raise ValueError('source version receipt mismatch')
             return {**saved, **{k: metadata[k] for k in ('origin_id', 'derived_from', 'version', 'origin_annotation_sha256') if k in metadata}}
         url = metadata['url']

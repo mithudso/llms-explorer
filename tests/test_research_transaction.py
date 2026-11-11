@@ -170,3 +170,51 @@ def test_scoped_recovery_and_rollback_refuse_preexisting_foreign_overlap(tmp_pat
     assert set(transaction.recover_pending(research, repo)) == {str(own.root), str(foreign.root)}
     assert target.read_text() == 'original'
     assert not list(registry.glob('*.json'))
+
+
+@pytest.mark.parametrize("phase", ["write", "rollback"])
+def test_transaction_never_mutates_a_foreign_fixed_temp_destination(tmp_path, phase):
+    registry = transaction.registry_dir(tmp_path / "research")
+    target = tmp_path / "output"
+    target.write_text("original")
+    own = transaction.Transaction(tmp_path / "own-journal", registry=registry)
+    foreign = transaction.Transaction(tmp_path / "foreign-journal", registry=registry)
+    sibling = target.with_name(target.name + ".projection-tmp")
+    if phase == "rollback":
+        own.write(target, "own pending")
+    foreign.write(sibling, "foreign pending")
+    journal_before = (foreign.root / "journal.json").read_bytes()
+    if phase == "write":
+        own.write(target, "own pending")
+    else:
+        own.rollback()
+    assert sibling.read_text() == "foreign pending"
+    assert (foreign.root / "journal.json").read_bytes() == journal_before
+
+
+def test_dotdot_alias_cannot_escape_preimage_coverage(tmp_path):
+    safe = tmp_path / "safe"
+    safe.mkdir()
+    outside = tmp_path / "outside"
+    outside.write_text("original")
+    tx = transaction.Transaction(tmp_path / "journal")
+    tx.remember(safe)
+    tx.write(safe / ".." / "outside", "changed")
+    tx.rollback()
+    assert outside.read_text() == "original"
+
+
+def test_parent_symlink_alias_and_directory_preimage_preserve_originals(tmp_path):
+    safe, external = tmp_path / "safe", tmp_path / "external"
+    safe.mkdir()
+    external.mkdir()
+    (external / "value").write_text("original")
+    link = safe / "linked"
+    link.symlink_to(external, target_is_directory=True)
+    tx = transaction.Transaction(tmp_path / "journal")
+    tx.remember(safe)
+    tx.write(link / "value", "changed")
+    tx.rollback()
+    assert (external / "value").read_text() == "original"
+    assert link.is_symlink()
+    assert link.resolve() == external.resolve()

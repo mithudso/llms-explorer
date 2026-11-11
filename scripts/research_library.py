@@ -8,10 +8,13 @@ All existing source_library subcommands remain available. Extra commands:
 from __future__ import annotations
 
 import argparse
+import fcntl
+import hashlib
 import importlib.util
 import json
 import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -22,6 +25,24 @@ def load(name, path):
     return mod
 
 
+@contextmanager
+def source_guard(root, source_id):
+    """Serialize cooperating wrapper ingests of one upstream source identity.
+
+    Take this guard before the provenance and upstream library locks. Neither
+    inner lock calls back into the wrapper. Direct upstream writers that bypass
+    this wrapper must adopt the same protocol to share this protection.
+    """
+    directory = Path(root) / 'provenance/ingest-locks'
+    directory.mkdir(parents=True, exist_ok=True)
+    key = hashlib.sha256(source_id.encode()).hexdigest()
+    path = directory / (key + '.lock')
+    fd = os.open(path, os.O_CREAT | os.O_RDWR | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+    with os.fdopen(fd, 'a+b') as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        yield
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     provenance = load('library_provenance', Path(__file__).with_name('research_provenance.py'))
@@ -30,11 +51,12 @@ def main(argv=None):
     root = library.lib_dir()
     original = library.ingest
     def ingest(url, *args, **kwargs):
-        provenance.archive(root, provenance.origin_metadata(root, library.dr.lib_find(url)))
-        result = original(url, *args, **kwargs)
-        if result.get('ok'):
-            result['provenance'] = provenance.archive(root, provenance.origin_metadata(root, library.dr.lib_find(url)))
-        return result
+        with source_guard(root, library.dr.source_id(url)):
+            provenance.archive(root, provenance.origin_metadata(root, library.dr.lib_find(url)))
+            result = original(url, *args, **kwargs)
+            if result.get('ok'):
+                result['provenance'] = provenance.archive(root, provenance.origin_metadata(root, library.dr.lib_find(url)))
+            return result
     library.ingest = ingest
     if argv and argv[0] == 'annotate':
         parser = argparse.ArgumentParser(description='Record explicit source ownership and derivation')
