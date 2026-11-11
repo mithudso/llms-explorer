@@ -1,5 +1,20 @@
 # Memory
 
+## v0.22.188 — 2026-11-11 workstation reconciliation
+
+Version:0.22.188. Delta:v0.22.187 to v0.22.188; prompt145; TASK-1364.
+
+The workstation's unfinished merge has 2,061 pending paths and 542 unmerged
+paths. Its working files match AUTO_MERGE. Of 232 non-merge local commits,
+223 have patch equivalents on canonical main. The local tip differs from its
+canonical PR302 counterpart only in 32 deliberately purged verification files.
+No public source delta needs replaying. Verified private recovery covers the
+history bundle, index, merge metadata and pending files. Preserve companion
+worktrees and the separate TASK-1359 integration. Deliver the reconciliation
+report and workflow logs from current main, then synchronize the workstation.
+See docs/maintenance/workstation-reconciliation-2026-11-11.md for evidence and
+the task completion record for final delivery receipts.
+
 ## v0.22.187 — 2026-11-11 full-site prose DDO verified locally
 
 Version:0.22.187. Delta:v0.22.186 to v0.22.187; prompt144; TASK-1351.
