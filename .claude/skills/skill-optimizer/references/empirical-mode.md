@@ -1,6 +1,6 @@
 # Empirical mode: champion and challenger held-out loop
 
-skill-optimizer already runs this loop in part. **Pass H** is a 20-query trigger-accuracy eval with a persisted held-out corpus (`~/.claude/skill-consolidation/evals/<skill-id>.eval.jsonl`). Empirical mode names the promotion gate around it explicitly, per the shared contract `references/shared/champion-challenger.md` (**cite, don't restate**). It is **on by default** only when the corpus, must-pass invariants, and working/holdout splits satisfy the shared contract's minimum sizes and split discipline. A standard 20-query Pass H audit does not meet those minima: run it as exploratory trigger evaluation, with no empirical promotion. An eligible promotion persists the champion and its eval state across runs. Opt out with `--dry-run`, `--no-promote`, or `--structural-only`.
+Pass H provides a 20-query trigger audit. Resolve its persisted source corpus with `corpus-scope.md`. Empirical mode adds the promotion gate in `shared/champion-challenger.md`. It is on by default only when corpus sizes, must-pass invariants and working/holdout splits satisfy that contract. The standard 20-query audit is exploratory and does not qualify for empirical promotion. An eligible promotion persists the champion and its eval state. Opt out with `--dry-run`, `--no-promote` or `--structural-only`.
 
 Calibration:
 

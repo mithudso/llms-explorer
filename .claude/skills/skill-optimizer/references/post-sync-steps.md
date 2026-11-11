@@ -29,7 +29,7 @@ The run changed the target's `description`, `triggers`, and `version`, and `--co
 
 - **Regenerate:** run `node ~/.claude/skill-consolidation/gen-skills-index.mjs`. It re-reads every `SKILL.md` in a bounded parallel pass and rewrites both `SKILLS-INDEX.json` and `SKILLS-INDEX.md`.
 - **Gate:** then run `node ~/.claude/skill-consolidation/gen-skills-index.mjs --check`; it must exit 0. A non-zero (`STALE`) exit means the regenerate did not land, so re-run it once and re-gate.
-- **Runs in `--meta` and under `--no-sync`.** The index is a local artifact independent of the registry, and `--meta` still changes frontmatter and version, so a refresh is always warranted. Skipped only when the generator is absent.
+- **Scope first.** This local artifact is independent of the semantic registry. Refresh it in `--meta` or under `--no-sync` only when it indexes the changed source and the destination is within the authorized write scope. A repository-only run does not rewrite an unrelated installed-library index. If those conditions do not hold, inspect with `--check` when available and report the scope limit.
 - **Non-blocking:** generator unavailable or errors? Record `index: skipped (<reason>)`, continue.
 - Record outcome in Step 8 report: `index: refreshed (N skills)` or `index: skipped (<reason>)`.
 

@@ -44,7 +44,7 @@ Missing results (including a file missing under `--read-only` or `--meta`) mean 
 | Location | Kind | Before-hash | Action | After-hash |
 |---|---|---|---|---|
 
-Kinds: canonical, clone, copy, symlink, stub, remote, vendored. Actions: none, symlinked, synced, synced (worktree), ff-merged, blocked (dirty), blocked (diverged), FAILED, would sync, skipped (--no-sync), unreachable, orphan (report), report only, lead only (definitions in `references/location-sync.md`). Remote boxes and vendored copies are reported, never written. Add the backup directory when anything was written: `$HOME/Archive/sko-sync-<ts>/` for overwritten copies, `$HOME/Archive/symlinkify-<ts>/` for roots replaced by a symlink.
+Kinds: canonical, clone, copy, symlink, stub, remote, vendored, generated overlay, historical snapshot. Actions include verified sync, preserved divergence, report only, skipped (--no-sync), blocked (dirty), blocked (diverged), would sync, unreachable and lead only. Remote, plugin-managed and independently owned copies remain report-only unless separately authorized. Record the actual verified backup path for each permitted overwrite; do not invent a backup location or imply that the presence of a backup authorizes the write.
 
 **llms-first** (Pass P), one line: `llms-first: present | added | n/a (<reason>)`.
 

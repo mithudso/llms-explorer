@@ -7,10 +7,10 @@ different vocabularies, and had begun to drift. This file is the single canonica
 *calibration table* (which finding maps to which tier for that artifact) but should stay consistent
 with the ladder and exit conditions below. Cite this file; do not silently diverge from it.
 
-> mapping-table cross-checked against pdo/sko/ddo/document-critique SKILL.md tier vocabularies:
-> 2026-06-11 — re-check on any tier rename or every 90 days. After re-verifying, re-save this
-> file's shared-library registry entry (`tam_update_shared_library`) in the same pass —
-> `tam_staleness_scan` keys on the catalog-entry timestamp, not file content.
+> Historical mapping-table check: 2026-06-11. Re-check on a tier rename or when
+> the owning workflow requires a current review. This date is not a fresh verification.
+> Retired catalog APIs do not authorize registry writes. Follow the invoking
+> optimizer's current registry, ownership and service-pause gates.
 
 ## Severity ladder (canonical)
 

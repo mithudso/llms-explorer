@@ -1,5 +1,32 @@
 # Memory
 
+## v0.22.193 — 2026-11-11 all-skill SKO fan-out in progress
+
+Version:0.22.193. Delta:v0.22.192 to v0.22.193; prompt147; TASK-1372.
+
+The user requested /sko on every skill through agent fan-out. This isolated run
+freezes repository SKO2.24.1 and its references. Three source owners cover eleven
+skills each; the parent covers SKO, four unique Codex skills and the Hermes source
+bundle. The inventory identifies39 reusable sources,18legacy distributions and
+3generated Codex overlays. Four archived copies and3intentional malformed eval
+fixtures remain preserved. A private inventory separately accounts for138generated
+research-reference cards and22local distribution copies; their source facts are
+not rewritten or published by this skill-maintenance task.
+
+Author work fixes confirmed routing, ownership, safety and executable defects.
+Fresh-context blind reviewers grade final sources and scenarios without prior
+findings or expected-output labels. Trigger activation remains predicted; no
+Claude activation harness or native target workflow is represented as measured.
+Existing research/index/model pauses remain in effect. Global installed copies
+and their independently owned wrappers are preserved. Semantic registry rebuild
+is withheld; a file or lexical check does not establish semantic routing.
+
+Reports: docs/reviews/sko-all-skills-2026-11-11/. Source and eval work is active;
+remaining gates are fresh review, combined regressions, owning mirror generation,
+privacy, final-head CI, merge and safe synchronization. Stele MCP returned
+Transport closed during follow-up bookkeeping; private continuation retains the
+pending graph updates without using a substitute write path.
+
 ## v0.22.192 — 2026-11-11 public resource description
 
 Version:0.22.192. Delta:v0.22.191 to v0.22.192; TASK-1359; PR339.

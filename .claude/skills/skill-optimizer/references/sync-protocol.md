@@ -14,7 +14,7 @@ There is no create/update call and no per-skill push. `~/.global-ai-hub` indexes
 
 ### The shadowing trap (read this before trusting a rebuild)
 
-Roots are searched in order `~/.global-ai-hub/skills/`, then `~/.claude/skills/`, then the plugin cache, and the first `name` seen wins. If a stale twin of the target sits in an earlier root, every rebuild re-indexes *that* file and the copy you edited is never read. The failure is silent and total: the build prints a normal entry count, exits 0, and the registry keeps serving the old description no matter how many times you rebuild. When `~/.claude/skills` is a symlink to the hub root (this machine's layout since 2026-09), those two roots are one directory and cannot shadow each other; a same-`name` plugin-cache copy is still shadowed by the local one, and a hub-root twin reappears the moment the symlink is replaced by a real directory.
+Verify root order against the current collector. In the legacy collector described here, the hub root precedes the Claude root and plugin cache. An earlier same-name source can keep serving an older description even after a successful rebuild. Resolve real paths: two symlink aliases can name one file. Do not assume that a previous machine's root layout still applies.
 
 Before Step 7's rebuild, confirm the copy you edited is the one that will be indexed:
 
@@ -25,7 +25,7 @@ Before Step 7's rebuild, confirm the copy you edited is the one that will be ind
 done
 ```
 
-Two lines with the **same real path** are one file, not a twin. Two hits with different real paths and different hashes ⇒ Step 1's duplicate guard should already have filed this **High**. Do not overwrite the twin by hand. Report the winning root and withhold a clean routing verdict until Step 6.7 (`references/location-sync.md`) makes that copy identical to the canonical target. Step 6.7 syncs content; deleting a twin stays with `skill-tree-architect`. Observed live 2026-09-09 on this skill: two rebuilds, exit 0 both times, description unchanged in the index, because a v2.16.1 twin in the hub root was shadowing the edited v2.17.0 file.
+Two lines with the same real path name one file. A divergent, actively indexed source that shadows the selected source is a High finding. Report its owner and winning root. Step 6.7 may synchronize it only within the user's scope, after an unchanged-preimage check. Otherwise preserve it and report the routing limit. Repository distributions, overlays and historical snapshots are classified separately; their existence alone is not a High finding. Deleting a copy stays with `skill-tree-architect`.
 | Rebuild | `cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router build --prune` |
 | Read | `hub_route(task, kinds="skill", top=N)` — returns `score`, `ref`, `description`, `origin` |
 | Read (CLI, MCP not connected) | `PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router route "<task>" --top 5 --kinds skill` |
@@ -34,7 +34,7 @@ Consequences worth stating plainly, because they delete machinery older protocol
 
 - **One rebuild covers every skill written this run.** The target and all Pass O peers are re-indexed by the same command; there is no per-peer sync loop.
 - **No fallback chain.** There is one write path. A rebuild either runs or it doesn't.
-- **No durability caveat.** Nothing regenerates the registry from a separate mirror, so a rebuild cannot be silently undone by a later batch job.
+- **Verify the result.** A successful rebuild does not prove that the selected source won collection or that later automation will preserve it. Record the actual source and compare stored descriptions.
 - **A legacy `context.md` + `manifest.yaml` pair is never indexed.** The glob matches `SKILL.md` only. Optimizing such a target is valid; reporting it as registered is not.
 
 ## Duplicate-copy guard (Step 1.5 mechanics)
@@ -49,11 +49,11 @@ for root in ~/.claude/skills ~/.global-ai-hub/skills ~/.claude/plugins/cache; do
 done | xargs -n1 realpath 2>/dev/null | sort -u
 ```
 
-One line ⇒ a single copy. Classify every extra line by depth under its root: `<root>/<id>/SKILL.md` is a top-level twin (registry competition, **High**; see § The shadowing trap); anything deeper is a nested stale copy (unindexed, unloaded; report it and hand cleanup to `skill-tree-architect`). Observed live 2026-09-17 on this skill: the naive `find -path "*/<id>/*"` form returned 14 hits, of which one was the canonical file seen through the symlink, two were nested stale copies (v2.11.0, v2.15.1), and eleven were git worktrees.
+Also inspect the explicitly selected repository's skill roots and its generator manifests. Classify each real path by owner and loading role. An active indexed shadow with different content is High; an intentional distribution, generated overlay or historical snapshot is reported with its role. A path's depth alone does not prove that every runtime ignores it. Preserve other worktrees and plugin-managed sources. See `location-sync.md` for permitted writes.
 
 ## Sub-steps
 
-**7.0 Outcome changelog line.** A write outside the convergence loop, exempt from Step 6's SHA/parse checks (which ran before it): prepend one run-outcome line to the file named by the target's frontmatter `metadata.changelog_ref` (default `references/CHANGELOG.md`; create the file and set the key when absent, moving any inline `metadata.changelog` array into it at the same time, per Pass J.1). Newest first, no cap: the file loads only when read, never on invocation. Skipped under `--read-only`. Format: `<date> sko vX->vY — Pass H n/10->n/10 pos, n/10->n/10 neg; <counts> fixed`. One line, not a paragraph. Run a one-line frontmatter re-parse check after the write.
+**7.0 Outcome changelog line.** Prepend one outcome line to the file named by `metadata.changelog_ref` (default `references/CHANGELOG.md`). Preserve its preimage before writing. If a metadata key must be added, parse the frontmatter again. Recompute the final write-set hashes after this step; a post-verification changelog write is not exempt from the final manifest. Skip writes under `--read-only`. Record prediction, measurement and operational limits without claiming an unrun gate passed.
 
 **1. Rebuild the index.**
 
@@ -61,7 +61,7 @@ One line ⇒ a single copy. Classify every extra line by depth under its root: `
 cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router build --prune
 ```
 
-Runs unless the caller passed `--no-sync` or the run exited with High findings remaining (override `--sync-anyway`). The command is idempotent and covers the target plus every Pass O peer in one pass. Record its exit status.
+Run only within the authorized index scope and service permissions. Withhold it for `--no-sync`, an existing indexing pause or residual High findings. `--sync-anyway` overrides only the High-findings gate. It does not authorize embeddings, a service restart or writes outside the requested scope. Record either the actual exit status or the precise withheld reason.
 
 **2. Verify routing.** Read-only; **always runs**, even under `--no-sync`. For the target and each Pass O peer, record one verdict:
 

@@ -1,7 +1,7 @@
 ---
 name: skill-optimizer
 description: >-
-  Audit and improve a Claude Code skill to production quality: convergence-loop quality gate, Medium+ fixes, trigger and behavior evals on every run (missing ones created), peer-deferral edges, sync of every copy to the accessed one, hub registry rebuild.
+  Audit and improve a skill: run a convergence loop, fix Medium+ findings, add and grade trigger and behavior evals, and check peer routing. Discover copies; synchronize owned destinations only within the requested scope. Rebuild the hub registry when permitted.
   TRIGGER: "optimize skill", "audit skill", "run sko", "skill trigger accuracy", "skill too long", "fix skill", "skill collision check", "check my /command wrapper for drift", "add missing evals", "sync skill copies". `--meta` does wiring/registry/validation only: "register skill to the hub", "validate placement/folder/manifest", "wire up peer deferral edges". `--read-only` audits without writing.
   SKIP: non-skill prompt files → prompt-deep-optimizer / phe; new skill from scratch → skill-creator; prose-only edits → writing-expert; deep eval suite optimization → deep-eval-optimizer / deo; MCP tool audits → ai-mcp-sdk-prompting; whole-TREE rebalance → skill-tree-architect; freshness → skill-refresher.
 whenToUse:
@@ -23,10 +23,10 @@ whenToUse:
   - "add appropriate evals to a skill missing them"
   - "make every copy of this skill identical to the one Claude loads"
   - "add the look-for-llms-files-first section to this skill"
-version: 2.24.1
+version: 2.25.0
 category: meta
-updated: "2026-11-06"
-model: claude-opus-5
+updated: "2026-11-11"
+model: claude-opus-5-5
 effort: xhigh
 triggers:
   - sko
@@ -77,17 +77,18 @@ metadata:
 ---
 # Skill Optimizer
 
-Audit + rewrite Claude Code skill til pass measurable quality bar. Reads `SKILL.md` (or legacy `context.md` + `manifest.yaml`), runs 16 analytical passes (A–P, defined in `references/passes.md`) inside convergence loop (≤3 iterations, extendable to 5 per canonical contract; configurable via `--max-iter`), fixes all Medium+ findings (`--read-only`: reports them, writes nothing), ensures appropriate evals exist by creating missing functional test cases (`evals/evals.json`) and trigger evals (`evals/trigger-eval.json`) and runs both every time (no eval results, no clean exit), recommends model + effort skill run under and writes to frontmatter (Step 4.6), seeds reciprocal deferral refs into peer skills (Pass O), verifies post-write state, makes every on-disk copy of the skill identical to the accessed one (Step 6.7), rebuilds hub registry index over target + touched peers.
+Audit a skill against a stated quality bar. Read `SKILL.md` (or legacy `context.md` + `manifest.yaml`), then run the 16 analytical passes A–P in `references/passes.md`. Collect findings before rewriting. The convergence loop defaults to three iterations; the shared contract governs any extension, with `--max-iter` as a hard ceiling. Fix Medium+ findings, add missing evals and report both trigger and behavior results. Recommend runtime-compatible model and effort metadata, verify the candidate, and check peer routing. Discover copies and synchronize only authorized, owned destinations under Step 6.7. Rebuild the registry only when its gates and the session's service permissions allow it. Read-only runs report proposals and write nothing.
 
 **Registry model.** The hub registry is **derived, not authored**: `~/.global-ai-hub` indexes `~/.claude/skills/*/SKILL.md` (plus its own `skills/` and the plugin cache) into `registry.db` via `semantic_ops.router build`. There is no create/update API call — you write the file, then rebuild the index. Every registry read is `hub_route` (or its CLI form); Step 7 is a rebuild, not a push.
 
 ## Look for llms files first
 
-`/sko` works on a skill tree, so it reads the target's llms files before the tree. Follow `references/llms-first-section.md` (the format spec's section 5 and `llms-usage-guidance`).
-1. Look for the target's llms files: `~/.global-ai-hub/skills.llms/<name>.repo/`, its hub's `llms.txt`, and memory-central rows (`python3 ~/.global-ai-hub/scripts/keyword_index.py query "<name>" --prefix ~/.llms --top 5 --mode any --json`).
-2. Run `wc -c` first. Read a file whole only when it fits; otherwise search it. Prefer `llms-facts.txt` and `llms-sitemap.txt`; `llms-small.txt` is a map.
-3. Then read the whole skill tree (Step 1.4). The files on disk are the authority: verify every llms fact against its `path:line` before you act on it.
-4. Index hits are leads. Confirm each with Read.
+Before reading the subject raw, look for its llms files and open them by size. If you have the repo, step 4 sets the order.
+1. Locate the subject's `llms.txt`, source-qualified concept pack, or relevant documentation index. Existing keyword hits can help locate it.
+2. Run `wc -c` first. Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map.
+4. If you have the repo, search the code before opening an llms file. The code is the authority. Verify each fact against its source `path:line`.
+5. Index and llms hits are leads. Confirm their sources before acting.
 
 ## When not to use
 
@@ -136,12 +137,12 @@ Full orchestration sequence, `meta-validate.mjs` check list, tool-search check, 
 ### Step 1 — Locate skill
 
 1. Skill ID given? Resolve to `~/.claude/skills/<id>/SKILL.md`, the canonical location. Not there? Try `~/.global-ai-hub/skills/<id>/SKILL.md`, then a folded hub spoke via `~/.claude/skill-consolidation/*-manifest.json`, then the plugin cache (`~/.claude/plugins/cache/*/*/*/skills/<id>/SKILL.md`; indexed by the router, never edited here). **Wrapper resolution:** the argument names a `~/.claude/commands/<arg>.md` file instead (leading `/` optional)? Read it, take the skill it invokes (its `**<id>** skill` line or the `SKILL.md` path it cites) as the target, and keep the wrapper path for Pass G's wrapper-drift check. Skill ID given directly? Still locate its wrappers: `grep -l -e "\*\*<id>\*\*" -e "skills/<id>/" ~/.claude/commands/*.md`.
-2. Claude Code skill path given (`~/.claude/skills/<name>/SKILL.md`)? Treat single file as both context + manifest (frontmatter is manifest).
+2. Explicit skill path given? Resolve that path and follow its repository ownership rules. Treat its `SKILL.md` as both context and manifest. Do not silently redirect an explicitly selected repository source to a same-named installed copy. Inventory other copies separately; a selected source does not authorize overwriting them.
 3. Legacy `context.md` / `manifest.yaml` path given? Derive its companion and optimize the pair. Note in Step 8 that this format is **not indexed**: the router globs `*/SKILL.md` only, so Step 7's rebuild will not surface it.
 4. Read all files in full before any analysis. Only one file readable (e.g., `manifest.yaml` absent)? Proceed w/ available file, note missing companion in Step 8 report.
-5. **Duplicate-copy guard (High).** Before any analysis, list every copy of the target on disk with the command in `references/sync-protocol.md` § Duplicate-copy guard: it deduplicates by real path (a symlinked root such as `~/.claude/skills → ~/.global-ai-hub/skills` yields two paths to one file, not a twin), prunes git worktrees, run backups, and the eval shadow dir, and covers the plugin cache. One real path ⇒ clean. More? Compare their `version` values and report a **High** finding naming every path and version. Optimize the canonical copy (`~/.claude/skills/<id>/SKILL.md`) only; never edit a twin, never merge them. Step 6.7 makes the other copies identical to the canonical one (`references/location-sync.md`); deleting a copy stays with `skill-tree-architect`. This step exists so a run cannot silently optimize one of several copies and report clean. Extra copies differ in kind:
+5. **Duplicate-copy guard.** Before analysis, list copies with the command in `references/sync-protocol.md`. Deduplicate real paths; classify installed competitors, repository distributions, generated overlays, plugin-managed copies and historical snapshots. Compare versions and hashes. A divergent copy that shadows the selected source in an active index is **High**. An intentional distribution copy is not a collision merely because it exists. Optimize the selected owned source. Step 6.7 records permitted syncs and preserved differences; it never grants ownership or permission to overwrite another source.
 
-   - **A top-level twin in another indexed root** (a real `~/.global-ai-hub/skills/<id>/` directory, or the plugin cache) competes in the registry: roots are searched hub → `~/.claude/skills` → plugin cache and the first `name` wins, so no amount of rebuilding registers an edit to the shadowed copy. Report the winning root; Step 6.7 syncs the twin from canonical with a backup. Do not hand-edit it. Step 7 records the shadowing and withholds a clean routing verdict while the winning copy differs. See `references/sync-protocol.md` § The shadowing trap.
+   - **A top-level twin in another indexed root** can shadow the selected source. Verify the collector's current root order and report the winning file. Preserve a divergent or independently owned twin unless its synchronization is authorized and its preimage is unchanged. Withhold a clean routing verdict while the indexed source differs. See `references/sync-protocol.md` § The shadowing trap.
    - **A nested `<bucket>/<id>/SKILL.md`** is invisible to both the router (one-level glob) and the Claude Code loader, so it is stale-staging risk rather than live competition. Report, do not panic.
 6. **Registry unavailable fallback.** `global_ai_hub` MCP not connected? Use the CLI for every registry read:
 
@@ -163,7 +164,7 @@ Before any rewrite:
 2. Compute SHA-256 of each file, store as `baseline.sha256`; alongside, persist pre-write copy of every file run will modify to `~/.claude/skill-consolidation/backups/<skill>-<YYYYMMDD-HHMMSS>/<filename>` (contract's pre-write snapshot guardrail — central directory, never sibling `.bak` files). Persisted copy makes Step 8's `diff -u baseline current` preview computable, is rollback source. Same run directory holds streaming-checkpoint stub (§ Guardrails, "Streaming checkpoint" in `references/shared/convergence-and-severity.md`) — appended after each pass bundle + each iteration's writes, so crash resumes from last completed step instead of re-running Step 3 from scratch; cite that section for write mechanics.
 3. **Assemble eval suite & audit missing evals.**
    - **Functional execution evals (`evals/evals.json`):** Check if `<skill-dir>/evals/evals.json` exists. If absent or lacking test cases, flag a **Medium** finding (Pass F) to generate appropriate evals: author at least 2–3 realistic test cases with `id`, `name`, realistic user `prompt`, `expected_output`, `files` (if any), and objectively verifiable `assertions` conforming to standard skill eval schema.
-   - **Trigger-accuracy evals (`evals/trigger-eval.json` / canonical corpus):** Assemble Pass H trigger-eval set per `references/passes.md` (Pass H, step 1). **Canonical corpus** is `~/.claude/skill-consolidation/evals/<skill-id>.eval.jsonl`, the single store of record, carrying every query, verdict, description hash, skill version, and `retired:` marker. Replay it when it exists, fill to the 20-query set w/ fresh queries, persist every query + verdict back to it. If missing, generate the full 20-query set (10 should-trigger, 10 should-not-trigger near-misses). The target's own `<skill-dir>/evals/trigger-eval.json` is a **derived, disposable projection** of that corpus, regenerated from it when missing evals are created or before Pass H runs the measured harness (`run_eval` requires that exact path + shape) — never hand-edited, never read as the source of truth. Disagreement between the two? Canonical wins; overwrite the projection.
+   - **Trigger-accuracy evals:** Resolve the source corpus with `references/corpus-scope.md`, replay existing rows, then add fresh queries to the 10-positive/10-negative audit set. Preserve query history, verdict level, description hash, skill version and retirement markers. Derive `evals/trigger-eval.json` from the selected corpus; never use that disposable projection as the source. Keep user-level corpus files read-only when the requested scope is a repository.
 4. **Offline pre-lint (zero-token).** Run `python3 ~/.claude/scripts/skill_optimizer_offline.py <skill-dir> --json`. Its deterministic findings (frontmatter parse and required keys, duplicate keys, description over the index cap, body token budget, heading hierarchy, table shape, broken links, banned terms) enter iteration 1 as pre-computed evidence for Passes C, G, J, and K at those passes' severities; its prose heuristics (readability, hedges, empty quantifiers) stay Low. Script absent or failing? Record `pre-lint: skipped (<reason>)` and continue; it never blocks. It complements `meta-validate.mjs` (cross-file wiring), never replaces it, and runs in `--meta` too.
 
 Snapshot used in Step 5 to produce unified diff.
@@ -208,7 +209,7 @@ Pick the model tier and effort level the target should *run under*, staged for S
 
 Classify by dominant cognitive load and pick the **lowest** tier that covers the work: mechanical work takes the small tier at `low`, routine transforms the mid tier at `medium`, analytical or audit work the flagship tier at `high`, long-horizon agentic work the flagship tier at `xhigh`. Default to flagship plus `high` when uncertain, and never guess below it for a skill that makes judgments.
 
-**Resolve the tier to a current model ID from a live source, never from memory:** the `claude-api` skill's `shared/models.md` when installed, else the `Claude API ID` row of the models overview (`https://platform.claude.com/docs/en/models/overview`), else the harness's own model roster when the session names current IDs (record `source: harness roster`). None reachable? Write no `model` key and record `model: unresolved`. An absent key is advisory-neutral; a wrong one misroutes every future dispatch.
+**Match the target runtime, then resolve its tier to a current model ID from a live source:** for Claude targets, use the `claude-api` skill's `shared/models.md` when installed, else the `Claude API ID` row of the models overview (`https://platform.claude.com/docs/en/models/overview`), else the harness's own model roster when the session names current IDs (record `source: harness roster`). None reachable? Write no `model` key and record `model: unresolved`. An absent key is advisory-neutral; a wrong one misroutes every future dispatch.
 
 Full tier table, effort-validity rules, and caller-override handling live in `references/model-effort.md`. The recommendation's headline is always tier + effort (for example, "flagship, `effort: high`"). A concrete ID appears only if it was read from one of the sources above during this run. Never infer a tier from roster order, list position, or naming. Otherwise stage `effort` alone and record `model: unresolved (tier: <tier>)`. For Step 8, record the pair, the tier, two separate provenance fields, and a one-sentence rationale. The two provenance fields are classification source (`heuristic` / `caller-pinned`) and ID source (`models.md` / `models overview` / `harness roster (tier-labelled)` / `unresolved`).
 
@@ -218,7 +219,7 @@ Write all High + Medium findings directly into source files:
 
 - Edit `SKILL.md` / `context.md` for content, structure, clarity changes.
 - Edit `manifest.yaml` (or top-of-file frontmatter) for keyword, description, metadata changes.
-- **Add missing evals:** When evals were flagged as missing in Step 2 / Pass F: create `<skill-dir>/evals/` if absent; author appropriate functional test cases with realistic prompts, expected outputs, and verifiable assertions in `evals/evals.json`; establish queries and verdicts in the canonical corpus `~/.claude/skill-consolidation/evals/<skill-id>.eval.jsonl` first, then derive `evals/trigger-eval.json` from those rows. Never author the projection as input. Never delete or overwrite existing valid user test cases—only supplement or create if missing.
+- **Add missing evals:** Create realistic functional cases with expected outputs and verifiable assertions in `evals/evals.json`. Establish trigger queries and verdicts in the scoped source corpus from `references/corpus-scope.md`, then derive `evals/trigger-eval.json`. Preserve valid user cases. If an existing case contradicts a verified safety or ownership rule, correct its expectation and record the previous case and the reason in the run receipt.
 - Write `model` + `effort` frontmatter keys from Step 4.6 (advisory run-under hint). Overwrite existing value only when new recommendation differs, wasn't caller-pinned; unchanged? leave it. Adding/changing these keys counts as structural change for version bump.
 - Bump `version` (semver patch for content fixes, minor for structural changes, major for scope changes).
 - Set `updated` to today's ISO date.
@@ -258,7 +259,7 @@ Discover and hash installed copies; treat the explicitly selected source as cano
 
 Execute mechanics per `references/sync-protocol.md`. Read it before this step (7.0 outcome-changelog line → rebuild → per-skill routing verify). The registry is derived, so there is no per-skill write and no fallback chain: one rebuild covers the target and every Pass O peer at once. Invariants:
 
-- **Rebuild (sub-step 1)** runs unless caller passed `--no-sync` **or run exited w/ High findings remaining** (gate; override `--sync-anyway`); withheld rebuild reports `rebuild withheld: N High findings remain` in Step 8.
+- **Rebuild (sub-step 1)** runs unless `--no-sync`, residual High findings, scope restrictions or an existing indexing pause withholds it. `--sync-anyway` overrides only the residual-High gate; it never overrides a service pause, ownership or permission. Report the exact reason in Step 8.
 - **Routing verify (sub-step 2)** **always runs**, read-only, and records **indexed / stale / unroutable** per skill written, including every Pass O peer.
 - Step 7 is one post-loop phase. Its stale retry and any indexed-content refresh after opt-in compression are bounded sub-steps, not another phase or convergence iteration.
 - **`unroutable` is a routing defect, not a sync failure.** The file is on disk and the index is fresh, yet the skill does not surface for its own top intent phrase. That is the same failure Pass H measures, caught from the index side. File it as a standing Pass M finding for the next run; do not retry the rebuild.
@@ -311,11 +312,11 @@ Skill passes quality bar when:
 - Manifest keywords + description accurately reflect what skill does
 - Post-write verification (Step 6) confirms High = 0
 - Routing verification (Step 7 sub-step 2) confirms target (+ every peer Pass O touched) is **indexed**, meaning the description stored in `registry.db` matches the file's and the skill surfaces for its own top intent phrase, rather than **stale** or **unroutable**; or, under `--no-sync` or a withheld rebuild (High findings remained at budget exhaustion), index-behind state reported. Compare stored text, never mtimes: a rebuild can exit 0 having silently skipped an entry
-- Step 1's duplicate-copy guard found exactly one copy of the target on disk, or reported every extra copy as a High finding
+- Step 1 inventoried every discovered copy and distinguished active shadowing from intentional distributions and historical snapshots. Unresolved active shadowing remains a High finding; preserved external copies do not establish a global-sync claim
 - Target skill has appropriate evals: `<skill-dir>/evals/evals.json` exists with at least 2–3 realistic test cases and verifiable assertions, and Pass H trigger evals (`<skill-dir>/evals/trigger-eval.json` / canonical corpus) are assembled and verified
 - Step 2's offline pre-lint reports no unresolved critical or high finding (a false positive is recorded with its reason, not ignored)
 - Step 6.3 reported trigger and behavior eval pass rates with their levels; the run did not exit `EVALS-MISSING`
-- Step 6.7 printed the location table and every non-blocked copy equals canonical (no `SYNC-PARTIAL`); newer losing copies were listed with their backup paths
+- Step 6.7 printed the location table and verified every authorized destination. Preserved divergent, external or plugin-managed sources are reported separately. A blocked required destination reports `SYNC-PARTIAL`; a global-sync claim requires all required locations to be verified
 - Pass P found the llms-first section present, added it, or recorded `n/a (<reason>)`
 - Run did not exit `DEGRADED` (Step 7.8): fewer than two post-sync outcomes failed to land
 
