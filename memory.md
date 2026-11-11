@@ -1,5 +1,17 @@
 # Memory
 
+## v0.22.171 — 2026-11-11 Neo4j expertise acceptance checkpoint
+
+Version: 0.22.171. Delta: v0.22.170 to v0.22.171; prompt v136; TASK-1306.
+
+The standalone application and installed source match. All54 unit checks, Ruff, privacy checks and complete PR325 CI pass, including API, hub, site builds/tests and security analysis. Independent review found and repaired silent BGE tokenizer truncation, relocated source paths, non-atomic graph refresh and missing topic-tree export. A tokenizer-only whole-corpus audit produces45781 exact passages across2317 documents; every passage fits480 content tokens. The ONNX model is pinned at aa8f8b060edb00e03bfdd08813a2949946c8ba55 and runs locally on CPU. Imported prose remains unreviewed; no authored support status becomes independent proof.
+
+The official Neo4j MCP schema/read/write-rejection checks pass. Installed custom MCP protocol, citations, exact spans, bounds and identity checks pass against the partial corpus. Live synthetic acceptance proves cache-only unchanged/relocated reingestion, stale-source rejection, rollback-safe graph refresh, ZIP checksums and exact topic-tree reconstruction. Synthetic graph records were removed. The main corpus continues importing through its dedicated lock and checkpointed cache. Legacy paused pipelines remain untouched. The loaded hourly launch agent refreshes only this projection.
+
+Skills source delivery is complete in https://github.com/mithudso/skills/pull/108 at d626be556f29b525b882e0bda6fa08d07cbe2b8f. All43 delivered skill files match both clients; original skills HEAD, index, dirty work and source bytes remain intact. No global indexes were rebuilt.
+
+Remaining at this checkpoint: finish full ingestion; run the prepared all-passage inventory verifier and final installed stdio check; create the private full export; merge PR325 after its final-tip checks; remove only this task's clean merged worktree/branch. The current local lifecycle receipt is /Users/mitch/.config/neo4j-expertise/memory.md and the final delivery receipt is /Users/mitch/.config/neo4j-expertise/delivery.json. Consult those records and TASK-1306 before repeating work. Do not restart an ingest while its lock is held.
+
 ## v0.22.170 — 2026-11-11 Neo4j expertise implementation
 
 Version: 0.22.170. Delta: v0.22.169 to v0.22.170; prompt v136; TASK-1306.
