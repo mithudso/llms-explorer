@@ -22,7 +22,7 @@ verified-as-of: 2026-08-30 (every number below is dated; this domain moves month
 
 ## 1. The one-line verdict
 
-Adoption is real and growing (≈5–10% of the general web by mid-2026, 28% among SEO-savvy sites, 8.8× year on year); *unsolicited* consumption is near zero (97% of files never get an AI request); the demonstrated use is agents that are pointed at the file — the `Claude-Code` UA out-fetched every AI retrieval bot bar two (statespace-indexer, GPTBot).[^1][^2] Publish one for agents and coding tools; do not expect citations or rankings from it.[^3]
+The dated studies below report growing adoption (≈5–10% in selected ranked-domain samples by mid-2026, 28% in the Ahrefs sample, 8.8× year on year in Originality.ai's counts); *unsolicited* consumption is near zero (97% of files never get an AI request); the demonstrated use is agents that are pointed at the file — the `Claude-Code` UA out-fetched every AI retrieval bot bar two (statespace-indexer, GPTBot).[^1][^2] Publish one for agents and coding tools; do not expect citations or rankings from it.[^3]
 
 ## 2. Adoption measurements, dated
 
@@ -89,7 +89,7 @@ Self-submitted, overlapping, unverified — lower bounds, not measurements:[^27]
 | SecretiveShell/Awesome-llms-txt | 784 link lines (counted 2026-08-30) | GitHub |
 | llms-text.com | "780+ verified implementations" | vendor's own directory |
 
-None publishes an llms.txt-of-llms.txt; llmstxt.site's token-count column is the most useful signal for consumers budgeting context.[^29]
+The directory survey above did not identify an llms.txt-of-llms.txt. Its dated observations are not an exhaustive current inventory. llmstxt.site's token-count column helps consumers budget context.[^29]
 
 ## 7. Vendor sources graded
 

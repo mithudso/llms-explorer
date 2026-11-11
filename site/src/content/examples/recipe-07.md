@@ -36,9 +36,9 @@ done, and done by the same code that lints it.
    one).
 2. For each unit build one document: the text as content, and metadata
    `{type, url, anchor, keywords, verified_as_of, page_title}`.
-3. Embed with `mxbai-embed-large` (1024 dimensions) — the model every hub docset store uses.
-4. Upsert with the unit line's hash as the id, so a re-export updates rather than
-   duplicates.
+3. Use the collection's recorded embedding model. This historical example uses `mxbai-embed-large` (1024 dimensions); another collection may use a different model.
+4. Upsert with the unit line's hash as the id to deduplicate identical lines. A changed
+   line has a new hash; remove superseded IDs separately when replacing an export.
 
 ```python
 import hashlib, re
@@ -81,10 +81,18 @@ docs = list(units(Path("outputs/exports/code.claude.com.llms/llms-facts.txt")))
 print(len(docs), docs[0]["metadata"])
 ```
 
-Embedding and upsert with the store of your choice; with Chroma and Ollama, the shape is:
+Embedding and upsert with the store of your choice; with Chroma and Ollama, the shape is below. The destination adapter omits missing fields and empty keyword lists, and joins nonempty keywords into a scalar string. The parser output remains unchanged. See [Chroma metadata types](https://github.com/chroma-core/chroma/blob/main/docs/mintlify/docs/querying-collections/metadata-filtering.mdx).
 
 ```python
 import chromadb, requests
+
+def chroma_metadata(metadata):
+    # Keep scalar values; omit missing fields and empty keyword lists.
+    result = {key: value for key, value in metadata.items() if value is not None}
+    keywords = result.pop("keywords", [])
+    if keywords:
+        result["keywords"] = ", ".join(keywords)
+    return result
 
 def embed(texts):
     return [requests.post("http://127.0.0.1:11434/api/embeddings",
@@ -95,31 +103,29 @@ col = chromadb.PersistentClient(".rag").get_or_create_collection("code.claude.co
 for i in range(0, len(docs), 64):
     batch = docs[i:i + 64]
     col.upsert(ids=[d["id"] for d in batch], documents=[d["content"] for d in batch],
-               metadatas=[d["metadata"] for d in batch], embeddings=embed([d["content"] for d in batch]))
+               metadatas=[chroma_metadata(d["metadata"]) for d in batch], embeddings=embed([d["content"] for d in batch]))
 ```
 
 **The embedding-model trap.** The hub keeps two models: `nomic-embed-text` (768d) for the
 file corpus in `hub.db`, and `mxbai-embed-large` (1024d) for every docset and semantic-ops
-store. A query embedded with one against vectors from the other does not error — it returns
-nothing, or nonsense, silently. Name the model in the collection's metadata and refuse a
-query whose vector length does not match.
+store. Different dimensions can raise an error or cause stored vectors to be skipped, depending
+on the backend. Equal dimensions do not establish compatibility either. Record and match
+the model identity as well as the vector length before querying a collection.
 
 ## Expected output
 
-For the `code.claude.com` family: 14,031 documents, the first with metadata like
+For the `code.claude.com` family: 14,031 parsed documents, the first with metadata like this **before the Chroma adapter**
 
 ```
 {'type': 'parameter', 'url': 'https://code.claude.com/docs/en/admin-setup', 'anchor': 'set-up-claude-code-for-your-organization', 'keywords': [], 'verified_as_of': '', 'page_title': 'Set up Claude Code for your organization'}
 ```
 
 Every retrieval from the store now returns a unit whose `url#anchor` you can put in the
-answer — citation-grade, checkable by a reader, and the lint has already confirmed the
-anchor resolves (P7).
+answer. The citation is checkable only if the source and anchor are accessible and the
+claim matches that span. Parsing this file alone does not establish those checks.
 
 ## Cost
 
 Measured from the family's `manifest.json`: `llms-facts.txt` is ~844,553 tokens across
 14,031 units — one embedding call per unit at ingest (batched, minutes on the GPU host;
 longer on a laptop), then one embedding per query. Generation tokens: none until you answer.
-
-> Runnable in step 4 (playground).

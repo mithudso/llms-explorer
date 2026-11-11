@@ -1,5 +1,57 @@
 # Memory
 
+## v0.22.187 — 2026-11-11 full-site prose DDO verified locally
+
+Version:0.22.187. Delta:v0.22.186 to v0.22.187; prompt144; TASK-1351.
+
+The user confirmed /p orchestration and template review with cited generated fact text
+preserved. The /p fan-out reviewed40 blog/research documents,62 guide/example/skill-description/
+package-guide documents,64 shared template/data prose carriers and6 canonical reference
+sources;2 projections bring the final inventory to174 files. Applied252 grounded findings
+across78 changed sources. Fresh-context independent review found21(8Major,13Medium),all
+repaired and rechecked. Author source verification remains partial; independent review has
+explicit full-read/changed-span boundaries. This run does not certify every factual claim,
+research evidence qualification or universal clean convergence.
+
+Final174-file hashes and layered receipts are in docs/reviews/site-ddo-2026-11-11/coverage.json.
+Reports preserve earlier author hashes when a later independent repair superseded them.
+All2,570 generated concept fact source files and canonical concept tree remain byte-identical.
+Published research approval bytes and future scheduled papers remain untouched.
+
+Completed local gates: hub bootstrap89passed; full site389passed; LLMSX684passed;
+final Astro pre/build/postbuild and publication policy; Astrocheck0errors/0warnings/21hints;
+exact tree/context projection parity; llms lint gate; finalwheel/canonicalguide byte parity;
+/p mechanics selfcheck8/8; whitespace and reviewed-source hash checks. See verification.json
+for completed exits and limits. No local model,indexing,embedding or research server started.
+
+Remote CI,PR merge and independent deployed acceptance remain delivery gates as of this
+checkpoint. The private receipt at /Users/mitch/.local/state/llms-explorer-ddo-20261111-live/
+records actual final delivery rather than inferring it from a local build. Stele inventory
+TASK-1353 and reviewTASK-1355 are done; deliveryTASK-1356 is active. Continue only remaining
+delivery steps from this verified source. Preserve the unrelated dirty primary checkout.
+
+
+## v0.22.186 — 2026-11-11 site prose optimizer active
+
+Version:0.22.186. Delta:v0.22.185 to v0.22.186; prompt144; TASK-1351.
+
+User requests full DDO on every blog post, research article and prose page via agent fan-out.
+Worktree: /Users/mitch/dev/llms-explorer-wt-01a1cbf9; branch agent-01a1cbf9;
+baseline origin/main dea8d79a. The shared primary worktree is divergent, dirty and concurrently
+owned; preserve it. Initial inventory and per-document review reports live under
+docs/reviews/site-ddo-2026-11-11/. Inventory is not review completion.
+The installed orchestrator is /Users/mitch/.agents/skills/p/SKILL.md; exact skill name
+agent-orchestrator was not found locally or by skill relay. The user confirmed /p orchestration and template review with generated cited facts preserved. Full DDO references come from the live migrated
+/Users/mitch/.agents/skills/ddo/. Semantic hub calls failed with No module named numpy;
+file discovery is the fallback. stele-search agent failed because its fixed model is unsupported;
+direct Stele reads are available. TASK-1328 concurrently adds daily-reviewed research;
+never change its active files or publication schedule. Preserve paused legacy services.
+Canonical inventory is complete:101 public Markdown documents plus template/data prose;
+2,570 generated packs contain about3.7 million prose words. User confirmed template review with generated cited fact text preserved. Stele outbox ids:ea367628,4da6a3f2,91e4a070.
+Remaining: finish fan-out for every prose source family, blind review,
+validate site and publication receipts, commit/push/PR/checks/merge, verify actual deployed prose.
+
+
 ## v0.22.185 — 2026-11-11 integrated source verified
 
 Version: 0.22.185. Delta: v0.22.184 to v0.22.185; TASK-1334. Parallel main7ea7cd17 is integrated without changing any of the51 reviewed production source hashes. The34-path index validates. Owning hub bootstrap89 tests,389 site tests, full site pre/build/postbuild/publication policy, and Astro check(0errors/0warnings/21hints) all exited0. Initial site build127 was a missing isolated hub environment, resolved by the documented bootstrap. Complete parallel histories are preserved in /Users/mitch/dev/llms-explorer-wt-01a1ca5e/docs/archive/memory_20261111_182743_187004_9xz8v8_x.md; its207,823-byte preimage was reconstructed and verified against both staged histories, with only the boundary blank-line separator normalized. Retained memory was101,235 bytes before this new entry. The public owned manifest now includes74 files. Current source inventory is686, with68 CDO ledger entries current and618 pending; the earlier51-file audit and its three residuals remain unchanged. Final-head CI, merge and exact deployed/live acceptance remain required; read the private delivery receipt for actual completion. No publisher, model, indexing job or unrelated dirty checkout was changed.

@@ -1,6 +1,6 @@
 ---
 title: "rabbithole"
-description: "The narrow inverse of concept-family-explorer — takes one named concept and exhausts it completely, drilling down through mechanism, edge cases, and primary sources until a pass finds nothing new."
+description: "Deepens one named concept through mechanisms, edge cases and primary sources, with measured low-yield stopping rules and explicit pass or budget limits."
 order: 2
 tags: [concept-depth, exhaustive-research, saturation]
 aliasCommand: "rabbithole"
@@ -9,7 +9,7 @@ aliasCommand: "rabbithole"
 Where [concept-family-explorer](/skills/concept-family-explorer/) maps everything *around*
 a subject, `rabbithole` moves *inward*: mechanism, sub-parts, edge cases, failure modes, the
 history of how understanding of the concept changed, primary sources, and where experts
-disagree — pass after pass, until a pass turns up nothing new.
+disagree. It repeats within the configured pass and budget limits, using the low-yield rule below to decide when to stop.
 
 ## The six deepening questions
 
@@ -29,8 +29,8 @@ Each pass's claims are diffed against the accumulated list from every prior pass
 **new-information rate** — new atomic claims this pass ÷ total claims after this pass — is
 recorded per pass, and the run stops after **two consecutive passes** each score below 5%.
 A single low-yield pass isn't enough to stop on; it could just be an unlucky question angle.
-Two in a row, using a different subset of the six questions, is the corroborating evidence
-that the concept is actually exhausted rather than merely under-questioned.
+Two in a row, using a different subset of the six questions, meets this workflow's
+low-yield stopping rule. It does not prove that all possible sources or questions are exhausted.
 
 A pass whose new claims are mostly about a *different*, neighboring concept isn't
 saturation — it's a sign the "concept" was really a family, and the run hands off to

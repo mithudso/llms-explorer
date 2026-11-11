@@ -49,8 +49,9 @@ the current directory. If it finds none, it clones the repository into
 | `--no-sync` | Skip the `git pull --ff-only` on start. |
 | `--guide` | Print this guide and exit. |
 
-Browsing needs no account, no token and no network after the first clone. The explorer
-sends no telemetry.
+Browsing local tree and fact files needs no account or token. Use `--no-sync` to skip
+the startup pull when offline. Remote queue monitoring, downloads and provider jobs
+still need their configured services. The explorer sends no telemetry.
 
 ## 2. The screen
 
@@ -193,7 +194,9 @@ The scratchpad is local only. It is never committed.
 | `N` | Add a local root to the outline. | `~/.llmsx/local-tree.json` |
 | `M` | Move the concept under another node or a local root (local view only). | `~/.llmsx/local-tree.json` |
 
-Every write to the repository asks for confirmation first, or goes through a dialog.
+Marking for review, adding research and editing fields use confirmation or edit dialogs.
+Pressing `x` clears the selected concept's mark immediately and writes the marks file.
+Review the diff before committing changes.
 
 ## 8. Finding unresearched concepts
 
@@ -232,9 +235,9 @@ One job runs at a time. A job runs in the background and the explorer stays usab
 job log streams every event; `esc` hides it and the job keeps running; `x` cancels;
 `y` copies the log. Raw logs are kept under `~/.llmsx/jobs/`.
 
-Before a job touches the tree, the explorer snapshots `tree.json`. After the job it
-validates the tree. If the job fails, times out or is cancelled, the snapshot is restored.
-`LLMSX_RESEARCH_TIMEOUT` (seconds, default 3600) caps one job.
+Before a job touches the tree, the explorer snapshots `tree.json`. A timeout or cancellation restores that snapshot. Other completed runs, including runners that report an error, validate the tree and restore the snapshot only if the tree is unreadable or structurally invalid. A failed runner can leave valid tree changes in place; review the diff after a failure. Snapshot recovery covers the tree file, not every repository file.
+
+`LLMSX_RESEARCH_TIMEOUT` sets the job limit in seconds: normally 3600, or 10800 for Ollama when the variable is unset. eGPU jobs use their separate fixed 10800-second limit.
 
 **Queue viewer keys:** `r` run the selected row, `c` run the next cluster, `P` prefill
 clusters, `a` add a concept, `x` cancel the job, `o` job log, `R` refresh, `esc` back.
@@ -331,7 +334,7 @@ committed file.
 | `LLMSX_HOME` | Where local data lives. |
 | `LLMSX_CONCEPTS_PATH` | Where hub `.llms` directories live (default `~/.global-ai-hub/llms-concepts`). |
 | `LLMSX_GITHUB_TOKEN` | Token for push and `ls-remote`. |
-| `LLMSX_RESEARCH_TIMEOUT` | Seconds one job may run (default 3600). |
+| `LLMSX_RESEARCH_TIMEOUT` | Job limit in seconds; normally 3600, Ollama 10800 if unset. eGPU uses its separate fixed 10800-second limit. |
 | `LLMSX_API_URL` | API the queue viewer's research monitor reads (default `https://api.llms-explorer.com`). |
 | `EDITOR` / `VISUAL` | Editor for `e` and `E`. |
 

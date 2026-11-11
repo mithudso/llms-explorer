@@ -126,6 +126,17 @@ that links other indexes.
 | H7 | Lighthouse agentic audit would not flag it (no 5xx on fetch) | served | deterministic | 200 | Medium |
 | H8 | `manifest.json` present and consistent with the files (bytes, tokens, pages, units) | export dir | deterministic | consistent | Medium |
 
+## 10. The three kinds side by side
+
+| | index (`llms.txt`) | full (`llms-full.txt`) | facts (`llms-facts.txt`) |
+|---|---|---|---|
+| Purpose | orientation + navigation | whole text in one fetch | the checkable claims, each anchored |
+| Reader | an agent deciding where to look | a big-context agent or an indexer | a retriever answering a question |
+| Unit | link + description | page block | typed unit with source + anchor |
+| Size | ≤10 KB | unbounded (ladder beside it) | ≤15% of prose |
+| Judged mostly on | N*, D* | C1–C5, S* | C6–C7, R*, P4 |
+| Tested by | agent test (R5) | grammar round-trip (C1) | keyword + vector probes (R1–R2), facts test (R6) |
+
 ## 11. v3 shape, sitemap and resources (V1–V7)
 
 The authority is `references/llms-family-format.md`. These attributes apply to any output written by a producer in the hub, and to any `<stem>.llms/` directory or `llms.txt` file that declares `Mode:` or `Kind:` in its header. A file with no such header and no producer stamp is judged on the older attributes only.
@@ -139,14 +150,3 @@ The authority is `references/llms-family-format.md`. These attributes apply to a
 | V5 | `llms.txt` of a family links `llms-sitemap.txt` and `llms-sitemap.txt#resources` | family index | deterministic | both links present | Medium |
 | V6 | No legacy `llms-filemap.txt` and no separate URL or link-list file; per-file cards live in `llms-full.txt` `## Files` | export dir | deterministic | absent | Low (rename) / Medium (both exist) |
 | V7 | Sitemap and Resources hold no secret values | sitemap, single file | deterministic (secret scan) | 0 | High |
-
-## 10. The three kinds side by side
-
-| | index (`llms.txt`) | full (`llms-full.txt`) | facts (`llms-facts.txt`) |
-|---|---|---|---|
-| Purpose | orientation + navigation | whole text in one fetch | the checkable claims, each anchored |
-| Reader | an agent deciding where to look | a big-context agent or an indexer | a retriever answering a question |
-| Unit | link + description | page block | typed unit with source + anchor |
-| Size | ≤10 KB | unbounded (ladder beside it) | ≤15% of prose |
-| Judged mostly on | N*, D* | C1–C5, S* | C6–C7, R*, P4 |
-| Tested by | agent test (R5) | grammar round-trip (C1) | keyword + vector probes (R1–R2), facts test (R6) |

@@ -177,7 +177,7 @@ words. Do NOT use the words "pointer", "B-tree", or "algorithm".
 ## Appendix B — Skills applied
 
 - **`eval-driven-development`**: supplied the discipline: a rubric fixed before grading, objective-where-possible metrics, LLM-as-judge bias awareness (position/self-preference), and the ceiling-effect/error-analysis lens used in §3–§5.  
-- **`claude-api`**: source for the correct model IDs and tier ordering in §2.1.  
+- **`claude-api`**: the original author’s stated source for the model IDs and tier ordering in §2.1; the missing routing receipts prevent independently confirming which models served these requests.
 - **`da-applied-and-communication`**: BLUF structure, results tables, and honest-uncertainty disclosure in the Limitations section.
 
 ## Appendix C — Assumptions [ASSUMED]

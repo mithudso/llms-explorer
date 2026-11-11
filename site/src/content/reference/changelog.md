@@ -37,7 +37,7 @@ security-considerations section despite issue #152's steering finding (2026-08-2
 
 | Stage | V1 (to 2026-08-29) | V2 (from 2026-08-30) |
 |---|---|---|
-| Acquire | trafilatura BFS crawl → banner mirror | the ladder: `llms-full.txt` → `llms.txt` + `.md` twins → `Accept: text/markdown` → docs API → structured crawl; the banner mirror stays the internal format |
+| Acquire | trafilatura BFS crawl → banner mirror | implemented: `llms-full.txt` → `llms.txt` and linked pages, then a crawl owned by the caller; `Accept: text/markdown` and docs-API rungs remain design proposals; the banner mirror stays the internal format |
 | Clean | none (raw HTML → text) | `docset_refine clean`: boilerplate lines, MDX → markdown, page classes (reference / guide / changelog / marketing / index) |
 | Extract | `distill_offline.py bulk` — zero-LLM, output never consumed | `extract` (snippets, table rows → parameter, definitions, changelog → change; anchors to real headings) + `units` (local LLM, evidence rule) + `polish` |
 | Export | none | `export_llms`: index (split over 10 KB) / full (Mintlify grammar) / small (≤ 200,000 chars) / facts / manifest; `topical`; `vocabulary` |

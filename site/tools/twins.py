@@ -120,7 +120,7 @@ def _research_rows(data: dict, *, content_dir: Path, data_dir: Path) -> list[tup
 PAGE_SECTIONS = [
     {"route": "/tree/", "title": "Concepts",
      "page": "src/pages/tree/index.astro",
-     "description": "Every researched concept in the hub's tree, one page each, "
+     "description": "Every mapped topic in the concept tree, one page each,  "
                     "with its parent, its children and the frontier names below it.",
      "explains": "reference/concept-tree.md", "data": "tree.json", "dated": "generated",
      "index": lambda d, **_: [(n["concept"], f"/tree/{n['slug']}/") for n in
@@ -251,7 +251,7 @@ STATIC_PAGES = [
              "the two OAuth redirects. Signed out, the route is four buttons and a "
              "paragraph.\n\n"
              "## Why an account exists\n\n"
-             "Only the metered surfaces need one — your own docsets, the hosted MCP "
+             "Hosted features need one — your own docsets, the hosted MCP  "
              "endpoint, and private forks of the concept tree. Every published page, "
              "including the whole llms family, stays readable and unmetered without it.\n"},
     {"route": "/account/", "title": "Your account", "page": "src/pages/account.astro",
@@ -271,7 +271,7 @@ STATIC_PAGES = [
                     "MCP endpoint; the plaintext is shown once, at creation, and stored "
                     "only as a hash.",
      "body": "A key carries scopes — read for the hub\u2019s read tools, run for jobs that "
-             "spend credits, publish for your own artifacts. A key with only the scopes it "
+             "run model jobs, publish for your own artifacts. A key with only the scopes it "
              "needs is the difference between a leaked token that reads and one that "
              "spends.\n\n"
              "## Shown once, stored hashed\n\n"
@@ -285,10 +285,13 @@ STATIC_PAGES = [
      "body": "Totals and rows come from the API already priced; the page performs no "
              "arithmetic of its own, so a number on screen is a number in the ledger.\n\n"
              "## What metering counts\n\n"
-             "Model tokens on the refine and vocabulary passes, embedding calls on "
-             "indexing, and the wall time of a job holding a worker. Querying an "
-             "already-built index is not metered. A correction is a new ledger row, never "
-             "an edited one.\n"},
+             "Usage entries can record model tokens, embedding calls and job wall time. "
+             "Hosted keyword retrieval also counts against the account query quota "
+             "but is not billable. Semantic and hybrid retrieval follow separate "
+             "plan permissions and billing rules; the current free plan limits "
+             "semantic search to the fixed demo. Tracking usage does not by itself "
+             "mean a dollar charge. A correction is a new ledger row, never an "
+             "edited one.\n"},
     {"route": "/donate/", "title": "Donate", "page": "src/pages/donate.astro",
      "description": "LLMS-Explorer is free — reading, the tree, every served llms file, "
                     "no account needed — a one-time or monthly donation keeps it running.",
@@ -368,7 +371,7 @@ STATIC_PAGES += [{'route': '/start-here/',
           '\n'
           'Original experiments should expose methods, artifacts and limits. '
           'Architecture reports are not measured effect sizes. Agent-assisted references '
-          'references require source inspection. See [editorial '
+          'require source inspection. See [editorial '
           'standards](/editorial/).\n'
           '\n'
           '## Contact and corrections\n'
@@ -383,7 +386,7 @@ STATIC_PAGES += [{'route': '/start-here/',
   'title': 'Sources & editorial standards',
   'page': 'src/pages/editorial.astro',
   'description': 'How to distinguish original experiments, implementation reports, '
-                 'agent-assisted concept references on LLMSX.',
+                 'and agent-assisted concept references on LLMSX.',
   'body': 'LLMSX combines original writing, agent-assisted research and third-party '
           'references. An experiment should identify its questions, environment, '
           'comparisons, raw artifacts and limits. A design report describes architecture '
@@ -423,9 +426,16 @@ STATIC_PAGES += [{'route': '/start-here/',
           'advertising loaders are omitted from sign-in, account, API-key, usage, '
           'contribution, donation, moderation, proposal and playground routes.\n'
           '\n'
-          'Advertising is disabled during content assessment. The AdSense ownership meta '
-          'tag does not load an advertising script. Update the notice and consent setup '
-          'before enabling ads. Email updates store subscriber addresses, tokens, '
+          'Articles and curated concept references can load Google AdSense. Other pages, '
+          'including the home page, account routes and pages excluded from search, do '
+          'not load the advertising script. Google may use advertising cookies based '
+          'on prior visits. Do Not Track and Global Privacy Control request '
+          'non-personalized ads, which can still use cookies. Blocking ads does not '
+          'block reading, downloads or copying. See [Google advertising cookies]'
+          '(https://policies.google.com/technologies/ads), [Ads Settings]'
+          '(https://adssettings.google.com/) and the [full website privacy notice]'
+          '(/privacy/) for consent and opt-out options. Email updates store '
+          'subscriber addresses, tokens, '
           'timestamps and status. Confirmation and notices use the configured email '
           'service. Unsubscribe stops notices and marks the row; request deletion '
           'through the contact address. Accounts use session cookies and API requests. '

@@ -61,7 +61,7 @@ The largest recorded savings came from reducing what loaded into context.
 
 ## Part 1 — Always-on harness overhead
 
-Everything in this part is overhead the harness adds to every session, every request or every reply. Prompt caching makes a stable prefix cheap after the first turn. It still fills the context window and pushes compaction earlier, and output tokens are never cached.
+Everything in this part is overhead the harness adds to every session, every request or every reply. Prompt caching makes a stable prefix cheap after the first turn. It still fills the context window and pushes compaction earlier, and prompt caching does not discount newly generated output. Prior outputs can later become cacheable input when they form part of a repeated prompt.
 
 ### 1.1 The skill-listing budget: `skillListingBudgetFraction` and `skillListingMaxDescChars`
 
@@ -145,7 +145,7 @@ With `skillListingMaxDescChars: 300` set, the listing the model receives ends ea
 
 ### 1.9 Output style
 
-- **Mechanism.** The `caveman` output style drops articles, filler and hedging and allows fragments. Code, commits and security warnings stay in normal prose. It changes output tokens only; thinking tokens are untouched.
+- **Mechanism.** The `caveman` output style drops articles, filler and hedging and allows fragments. Code, commits and security warnings stay in normal prose. It requests shorter visible output; this inventory does not measure its effect on internal reasoning tokens.
 - **Claims, unverified here:** the plugin's README claims about 75% output reduction, and an average of 65% across 10 sample prompts (22–87%). For example, one prompt went from 704 to 121 tokens. `caveman-compress` claims about 46% fewer input tokens on compressed memory files (`plugins/cache/caveman/.../README.md:8,27,35-70`). **These are the plugin's own benchmarks. I have not reproduced them.** The numbers do not even agree with each other: the skill advertises about 75%, while its `caveman-stats` hook multiplies observed output by a hardcoded `COMPRESSION = {'full': 0.65}`, and the `benchmarks/results/*.json` it cites is not in my checkout (`skills/hooks/caveman-stats.js:14-18`).
 - **Measured in my logs:**
   - 12 memory files were compressed in one pass, saving about 2.9 KB.
@@ -225,7 +225,7 @@ This is the least obvious item on the list.
 
 ### 2.6 Routing probes as the test
 
-Link checks do not prove routing. Each fold is verified by spawning a fresh Haiku subagent with a plain-language question and no hints, and checking which `references/*.md` it actually opens. Gate: 80% or more.
+Link checks do not prove routing. The recorded fold workflow uses fresh Haiku subagents with plain-language questions and no hints, then checks which `references/*.md` they open. Its acceptance target is 80% or more on those probes; that does not establish routing accuracy on every future query.
 
 - **Result on 2026-09-27:** 8 of 8 after fixes.
 - **Fixes the probes forced:**

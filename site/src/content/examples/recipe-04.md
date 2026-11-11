@@ -33,7 +33,7 @@ cheapest confidence signal the hub has.
 1. Call `hub_query_docset` with the natural-language question and `mode="hybrid"`. Leave
    `layer="auto"` so the facts layer answers when it exists.
 2. Sort by the fused score the reply already applied; look at `legs` on each hit.
-3. A `legs: 2` hit is the answer. A `legs: 1` hit that carries `unit_type` came from the
+3. A `legs: 2` hit is a candidate supported by both retrieval rankings; read it and its source before treating it as the answer. A `legs: 1` hit that carries `unit_type` came from the
    vector leg alone — the source phrased it differently from you. A `legs: 1` hit with no
    `unit_type` and a `[bracketed]` `snippet` came from the keyword leg alone — you shared
    tokens with it; read the snippet before you trust it.
@@ -108,7 +108,7 @@ not an edit of ours:
 Hits are not uniform, and the shape tells you which leg produced them. A hit the vector leg
 saw carries `unit_type` and `origin`; a hit only the keyword leg saw (seq 4959) carries a
 `snippet` with FTS5's `[…]` match markers, has that snippet copied into `text`, and has no
-`unit_type` at all. Sort on `legs` before you sort on anything else.
+`unit_type` at all. Keep the fused-score order and use `legs` to understand how each candidate was found.
 
 `docset` is the store key (`<host-slug>__<mirror-stem-slug>`), not the host name — the same
 rule as [recipe-03](/examples/recipe-03/).
@@ -153,5 +153,3 @@ rather than returning nonsense.
 Measured: one embedding call (the question, ~20 tokens through `mxbai-embed-large` on the
 pool's nearest host — tens of milliseconds on the GPU box, hundreds on a laptop), plus the
 keyword lookup (sub-millisecond). Zero generation tokens. The fusion is arithmetic.
-
-> Runnable in step 4 (playground).

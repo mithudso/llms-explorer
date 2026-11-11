@@ -13,7 +13,7 @@ sources:
 
 The rules on this site come from one distinction. A **skill file tells a model how to act**; an
 **llms file tells a model where the facts are** (index) or **what the facts are** (facts, full).
-A skill is read once and obeyed. An llms file is read many times and *followed* — every line is a
+An authorized skill supplies instructions for the task. An llms file supplies source material and links — every line is a
 promise that a link or a claim will pay off. Five commitments follow.
 
 ## 1. Files are promises
@@ -32,9 +32,10 @@ output is lost on the next regeneration and, worse, is invisible until then. So 
 a hand edit the generator cannot reproduce as a Medium finding (pass P15, regeneration parity —
 it runs under the optimizer, not in the CLI gate), and the
 fix for a bad description is a change to the generator's inputs followed by `docset_refine export`.
-The same holds here: `/reference/attributes/` and `/reference/passes/` are copied at build time from
-the linter's own source files by `site/tools/gen_reference.py`, so the reference cannot disagree
-with the lint. A number on a page is never typed by hand.
+The same holds here: `site/tools/gen_reference.py` copies `/reference/attributes/` and
+`/reference/passes/` from their canonical rubric sources. Regenerate those pages after changing
+the sources. Copy parity prevents drift between those texts; it does not prove that the
+linter implements every documented check.
 
 ## 3. Never instruct the reader
 
@@ -57,14 +58,15 @@ pointed at it, and the site optimises for that reader alone.
 
 ## 5. Rights are explicit
 
-Three tiers, and the tooling knows which is which:
+The project distinguishes these content types. Publication still depends on the source
+licence, permissions and applicable law; attribution alone does not grant reuse rights:
 
 | Content | Publishable? |
 |---|---|
-| An index — links and extractive descriptions | yes; it is a map of someone's public pages |
-| A facts file — short anchored claims, each traceable | yes; quotation with attribution, bounded in length |
+| An index — links and extractive descriptions | review the descriptions and source terms before publishing |
+| A facts file — short anchored claims, each traceable | review quotation scope, attribution and permission; a short quote is not automatically publishable |
 | Your own words — hand pages, essays, this site | yes |
-| Third-party full text — a mirrored `llms-full.txt` of a site you do not own | served only to its owner, or under the internal marker; never on a public route |
+| Third-party full text — a mirrored `llms-full.txt` of a site you do not own | keep private unless the licence or permission allows republication; an internal marker is not access control |
 
 Evidence pages cite, they do not republish. Quoted spec text is short and attributed to
 llmstxt.org. `robots.txt` and Content Signals govern the **crawl** path — the trafilatura mirror

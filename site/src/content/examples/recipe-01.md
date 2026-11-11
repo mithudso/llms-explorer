@@ -62,8 +62,9 @@ print(url, twin)
 ```
 
 The scorer is deliberately naive — a bag-of-words overlap. It is enough when the index's
-descriptions are extractive (the lint's D-attributes exist to make them so), and it fails
-loudly when they are not, which is a finding about the file rather than the code.
+descriptions contain the query's tokens. A zero-overlap query still selects a link, so
+check the score and HTTP status before trusting the result. This short example omits
+those production checks; a wrong selection can reflect the scorer as well as the index.
 
 ## Expected output
 
@@ -90,5 +91,3 @@ returns the section file and you need the extra hop of
 Estimated: about 3.5k tokens — this site's index is 9,325 bytes (~2.3k tokens at chars/4;
 the rubric's bar is 10 KB) plus one page (~1.1k tokens for the twin above). Two HTTP
 requests, zero embeddings, zero model tokens until you hand the page to something.
-
-> Runnable in step 4 (playground).

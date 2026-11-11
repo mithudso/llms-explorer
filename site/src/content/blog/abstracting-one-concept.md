@@ -14,7 +14,7 @@ sources:
 
 ## Problem
 
-A topical file (previous post) starts from facts that are already about the subject. The
+A [topical file](/blog/topical-llms-from-a-fact-pool/) starts from facts that are already about the subject. The
 harder case is a concept buried in scope that is mostly about something else: "heart" in an
 anatomy textbook, "indexing" across a MongoDB manual and seven ORM docs, "prompt caching" in
 three vendor API references. Nobody has a pool; the pool has to be found.

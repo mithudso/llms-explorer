@@ -149,5 +149,3 @@ tokens, zero embeddings. The page read is bounded by `limit`, which defaults to 
 characters — about 5k tokens — and is capped at 200k by the tool. The env-vars page above is
 475,588 characters, so the default read came back `"truncated": true`; a shorter reference
 page returns whole.
-
-> Runnable in step 4 (playground).

@@ -1,6 +1,6 @@
 ---
 title: "Recipe 06 — The llmsx CLI"
-description: "Lint, query, export and inspect the tree from a shell: the llmsx commands and the hub scripts each one wraps today."
+description: "A historical design for lint, query and export wrappers, with supported hub-script commands and the current llmsx tree interface."
 section: examples
 order: 6
 date: "2026-08-31"
@@ -16,8 +16,10 @@ sources:
 
 Do the four everyday operations — lint a file, look up an exact token, export a family from
 a mirror, show a concept-tree node — from a shell, in a form a script or a CI step can call.
-`llmsx` is the site's CLI; in this step it is a thin name over the hub scripts, and each
-command below shows both spellings so the recipe works before `llmsx` ships.
+This is the 2026-08-31 design example. Its `llmsx lint`, `query` and `export` spellings
+were proposed interfaces, not commands in the current packaged CLI. Use the hub-script
+forms below for those operations. The current CLI does provide `llmsx tree`; see the
+[user guide](/explorer/guide/) for the terminal workbench.
 
 ## When not to use it
 
@@ -31,7 +33,7 @@ command below shows both spellings so the recipe works before `llmsx` ships.
 
 ## Steps
 
-Each pair is the `llmsx` form and the hub form it wraps. Run the hub forms from
+Each pair retains the proposed `llmsx` form beside the hub-script form. Run the hub forms from
 `~/.global-ai-hub` (or `hub/` in this repo) with its `.venv`.
 
 **Lint** — the deterministic passes P0–P3, P5–P7, P9 and P14, exit 1 on any High:
@@ -77,7 +79,7 @@ no finding is High. `query` prints one hit per line: type, text, `url#anchor`. `
 the manifest's file table. `tree show` prints the node, its `slug`, its `aliases` (which
 [recipe-12](/examples/recipe-12/) feeds), and its children with their state.
 
-A run against this site's own files:
+Historical design illustration of the proposed CLI output (the `llmsx lint` command below is not implemented):
 
 ```
 $ llmsx lint site/dist/llms.txt site/dist/llms-facts.txt --json | jq -c '.[] | {file, high: .counts.high}'
@@ -92,9 +94,6 @@ same verdict.
 
 ## Cost
 
-Measured: lint is under a second per file without `--check-links`, plus network time with
-it (8-way concurrent HEADs, 10 s timeout each). Keyword query is sub-millisecond after the
-index exists. Export is seconds per hundred pages and spends no model tokens in this step.
-Tree show is a JSON read.
+The original design example reported these timings without a retained execution receipt: lint under a second per file without `--check-links`, keyword query under a millisecond after indexing, and export taking seconds per hundred pages. Treat them as historical illustrations, not verified performance. Link checks add network time. The hub export uses no generation model; tree display reads JSON.
 
-> Runnable in step 4 (playground).
+Use the supported hub-script forms above, or inspect `llmsx tree --help` for the current tree commands.

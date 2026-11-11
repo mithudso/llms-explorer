@@ -1,6 +1,6 @@
 ---
 title: "Profitable Crypto Strategies and DeFi Yield Mechanics: An Unverified Quantitative Analysis"
-description: "An unverified quantitative analysis of DeFi yield: real yield versus emissions, loss-versus-rebalancing, a DefiLlama field guide, thirteen DefiLlama pages and a ranked strategy table, with an evidence note on what was not checked."
+description: "An unverified quantitative analysis of DeFi yield: real yield versus emissions, loss-versus-rebalancing, a DefiLlama field guide, twelve DefiLlama pages and a ranked strategy table, with an evidence note on what was not checked."
 date: "2026-11-06"
 noindex: true
 evidenceStatus: "unverified"
@@ -27,7 +27,7 @@ DeFi yield falls into three categories:
 2. **Dilutive capital subsidies (inflationary farming).** Yield paid in newly minted governance tokens such as AERO, RAY or CAKE. This transfers wealth from passive token holders to short-term farmers and tends to end in a liquidity death spiral.
 3. **Adverse-selection traps (loss-versus-rebalancing, LVR).** High gross trading-fee yield on volatile automated-market-maker pairs that is exceeded by the divergence loss inflicted by informed arbitrageurs and toxic flow.
 
-The decision tree the analysis uses to sort a quoted APY:
+The decision tree the analysis uses to sort a quoted APY follows. Its labels and positive-expectancy conclusions are unverified assumptions of the analysis. Emission share, a single-asset label or a correlated pair alone does not establish a positive or negative net return:
 
 - Is the yield base fee or interest, or reward emission?
   - 100% reward emission: **inflation trap.** The farm token is dumped faster than it accrues, so real PnL is negative.
@@ -63,7 +63,7 @@ LVR_daily = sigma^2 / (8 * (1 - exp(-w/2))) * V_position
 
 ### 2.2 The net LP profitability inequality
 
-A position is profitable if and only if fee growth exceeds LVR plus rebalancing costs:
+The analysis proposes the following inequality for fees to exceed modeled LVR and rebalancing costs. It does not establish total position profitability: the return benchmark and units must agree, and the finite-width LVR formula remains unverified:
 
 ```
 fee_growth_rate  >  LVR + rebalancing_costs
@@ -106,7 +106,9 @@ DefiLlama no longer computes impermanent loss across its yield endpoints, so the
 5. `stability_30d`: `1 / (1 + CV)`, where CV is the 30-day standard deviation of APY divided by its mean.
 6. `predictions`: a machine-learning classification of whether trailing yield will be `Stable/Up` or `Down`, with probability and binned confidence.
 
-## 4. Thirteen DefiLlama pages
+<a id="4-thirteen-defillama-pages"></a>
+
+## 4. Twelve DefiLlama pages
 
 Figures in this section were read from the live pages on 2026-11-06 and will have moved.
 
@@ -184,7 +186,7 @@ Two risk factors:
 ### 4.12 Yield predictions (`/predictions`, 15,698 pools)
 
 - Down: 6,235 pools (39.7%). Stable/Up: 4,596 (29.3%). Unclassified: 4,867 (31.0%).
-- More than 70% of active pools are therefore either in yield decay or unpredictable. APY spikes with a Down prediction reflect bribe or volume surges that the analysis expects to revert within 7 to 14 days.
+- Down and unclassified together account for about 70.7% of the quoted pool count. An unclassified pool has no classification in this snapshot; that does not establish that its yield is unpredictable. The analysis expects APY spikes with a Down prediction to revert within 7 to 14 days, but supplies no validation of that timing or its attribution to bribe or volume surges.
 
 ## 5. Taxonomy and ranking of the strategies
 

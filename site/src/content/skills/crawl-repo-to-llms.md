@@ -35,8 +35,8 @@ never documented anywhere.
 
 Then the parts of a repository that are invisible in its prose. The **index inventory**
 records each index's kind, location, builder command, backend, and embedding model *with
-dimensions* — because a store queried with the wrong model's vectors returns nothing and
-raises no error, and a backend written for one client can be unreadable to another. The
+dimensions* — because vectors from the wrong model can be rejected or produce irrelevant results,
+and a backend written for one client can be unreadable to another. The
 **infrastructure map** covers CI, schedulers, hosts, and environment-variable names. The
 **history** covers churn, hot files, reverts, and removed subsystems, so an agent stops
 searching for code that was deleted.

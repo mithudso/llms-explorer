@@ -136,6 +136,6 @@ flag with no documentation anywhere, is the same class of finding as these three
 
 The skill itself — the full Phase 4e specification, the card grammar, the guard about never
 running `--help`, and the quick-answers construction rule — is `.claude/skills/crawl-repo-to-llms/SKILL.md`
-in this repository. Point it at any repository with `/crawl-repo2llms <path>` and it emits
-`llms-executable.txt` alongside the rest of the dossier family; `--no-exec-inventory` skips
+in this repository. Point it at a repository with `/crawl-repo2llms <path>` to request
+`llms-executable.txt` alongside the rest of the dossier family; completeness still depends on which entrypoints static inspection can identify. `--no-exec-inventory` skips
 this axis on a monorepo with too many scripts to be worth cataloguing individually.

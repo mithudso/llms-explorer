@@ -14,8 +14,8 @@ sources:
 
 ## Problem
 
-The spec wants an index small enough that an agent reads it before deciding where to go. The
-rubric's bar is about 10 KB (`S1`; High above 100 KB). A
+The local lint rubric wants an index small enough that an agent reads it before deciding where to go. Its
+bar is about 10 KB (`S1`; High above 100 KB). A
 <!-- fig:developers.cloudflare.com.pages --> 1,943-page product tree with a
 one-line description per page is, unavoidably, half a megabyte of index. Both facts are true
 at once. Truncating it, dropping descriptions, or listing only the "main" pages breaks

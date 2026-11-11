@@ -92,5 +92,3 @@ Measured from the family's `manifest.json`: root ~280 tokens, `agent-sdk/llms.tx
 tokens, then one page. About 3–5k tokens total, four requests, zero embeddings. The
 section hop is cheaper than the alternative in every case the split exists for, because the
 split only happens when the unsplit index would exceed the spec-sized 10 KB.
-
-> Runnable in step 4 (playground).

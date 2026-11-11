@@ -15,9 +15,10 @@ sources:
 
 Make a published llms file a promise the repository keeps: every push runs the
 deterministic passes, a High finding fails the check, and each finding appears as an
-annotation on the line it came from. This is the gate this site runs on itself — the
-build is not deployed unless `llms_lint.py check` exits 0 on its own `llms.txt`,
-`llms-facts.txt`, `llms-full.txt`, `llms-small.txt` and `llms-vocabulary.txt`.
+annotation on the line it came from. This site's CI checks its generated `llms.txt`,
+`llms-facts.txt`, `llms-full.txt`, `llms-small.txt` and `llms-vocabulary.txt` with
+`llms_lint.py check`. To gate publication, the deploy workflow must depend on that
+completed successful check for the same commit.
 
 ## When not to use it
 
@@ -155,6 +156,4 @@ to reach production.
 
 Measured on this site's files: the deterministic passes complete in under 10 s per file;
 `--check-links` adds the slowest HEAD in each batch of eight (10 s timeout each) — for a
-50-link index, typically 5–15 s. Zero model tokens. The clone is the only download.
-
-> Runnable in step 4 (playground).
+50-link index, typically 5–15 s. Zero model tokens. Dependency installation also downloads the packages the runner does not already have.

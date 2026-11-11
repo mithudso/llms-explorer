@@ -18,9 +18,9 @@ node of it, and every gap in it is a thing not yet researched. Browse it at
 
 ## What a node is
 
-A node is one researched concept. The tree is stored as a **flat list of nodes linked by name** —
-each node names its parent and its children as strings, not as pointers — so a rename is a
-one-place edit and a reader can hold the whole file in mind. The site's copy is generated from
+A node represents a concept or a topic group. The tree is stored as a **flat list of nodes linked by name** —
+each node names its parent and its children as strings, not as pointers. A rename must
+also update every parent and child reference to that name. The site's copy is generated from
 `concept-tree/tree.json` by `site/tools/gen_tree.py` into `src/data/tree.json`, which is what
 both `/tree/` and the per-node pages read. Nothing on this site queries the hub at request time.
 
@@ -58,7 +58,7 @@ They are listed on their parent's page under `Frontier under this node`.
 | `conceptsCount` | how many concepts that run identified under this one |
 | `skillId` | the skill the research produced, when it produced one |
 | `cvs` | the Concept Viability Score, 0 to 5: how relevant, useful, novel, interesting and researchable the topic was judged before anyone researched it. Absent when the topic was never scored. Frontier names carry the same score when they have one. Automatic research skips anything below 3.2 |
-| `state` | `researched` for every node with a page; `frontier` only for a named child without one |
+| `state` | `domain` for a topic group, `researched` for another stored node, or `frontier` for an unresolved child or queued concept; these labels alone do not verify the facts |
 
 `sourcesCount` and `conceptsCount` describe **the run that created the node**, not the tree: a
 node with nine concepts and two children is a node whose run found nine and whose author has
@@ -106,7 +106,7 @@ and the facts panel are the only parts that need it.
 
 ## What is not here yet
 
-Queueing a frontier concept for research, forking the tree, and attaching your own files to a
-node are per-user actions, and this site has no accounts yet. The read-only half — the tree, the
-node pages, the 3D view — is served as build-time JSON rather than from an API, because it
-changes only when the hub changes.
+Accounts and moderator research controls are available through the site. The public tree,
+node pages and 3D view still use build-time JSON; their content changes after a site update.
+Local tree editing and personal files belong to the [LLMSX Explorer](/explorer/guide/)
+workflow. A stored node or a finished job status does not by itself certify evidence quality.

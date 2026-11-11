@@ -181,9 +181,13 @@ let transcriber = SpeechTranscriber(
 let analyzer = SpeechAnalyzer(modules: [transcriber])
 
 // Feed audio. SpeechAnalyzer wants a specific PCM format:
-let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
-                           compatibleWith: [transcriber])
-let converter = AVAudioConverter(from: micFormat, to: analyzerFormat)!
+guard let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
+        compatibleWith: [transcriber]) else {
+    /* required model assets are unavailable */ return
+}
+guard let converter = AVAudioConverter(from: micFormat, to: analyzerFormat) else {
+    /* unsupported audio conversion */ return
+}
 
 let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
 try await analyzer.start(inputSequence: stream)
@@ -207,7 +211,7 @@ for try await result in transcriber.results {
 Notes:
 
 - **Volatile vs. final drives the UX:** volatile results stream fast and get retracted or rewritten as more audio arrives (good for a live caption); only `isFinal` results are stable enough to persist. Write final results to disk; render volatile results to the screen.  
-- **Negotiate the format:** handle a missing `bestAvailableAudioFormat`, and create a converter only when input and analyzer formats differ. Check conversion errors and reuse converter state across buffers. The snippet force-unwraps for brevity; production code must handle failure.
+- **Negotiate the format:** handle a missing `bestAvailableAudioFormat`, and create a converter only when input and analyzer formats differ. Check conversion errors and reuse converter state across buffers. The snippet handles unavailable formats and converter creation; a complete application must also handle conversion failures.
 - **Run feeding and result consumption concurrently:** start a result-consumer task while the analyzer receives audio. On stop, finish the input sequence and finalize through the last sample, or cancel; await cleanup and retain only final results. Bounded queues need an explicit overflow policy and dropped-buffer telemetry.  
 - **Store the whole result's time range:** [`result.range`](https://developer.apple.com/documentation/speech/speechmoduleresult/range) covers the complete utterance. An attributed-string run's `.audioTimeRange` covers that run, so use those attributes for word-level alignment or highlighting rather than assigning the first run's range to the whole transcript.
 
@@ -355,7 +359,7 @@ The analysis becomes follow-up work: create task items for latent follow-ups (ga
 
 1. **Spike the Core Audio tap** against `insidegui/AudioCap` to prove far-end audio capture works. This is the riskiest piece; if it does not work, nothing downstream matters.  
 2. **Wire `SpeechAnalyzer`** on a saved WAV (file mode, section 2c) before going live; file input is easier to debug.  
-3. **Two-channel live capture** with channel-based speaker tags.  
+3. **Two-channel live capture** with source-channel tags; resolve speaker identity separately.
 4. **Utterance JSONL plus corpus ingestion.**  
 5. **Structured analysis** (sentiment and risks first; latent-initiative inference last, behind the human-review gate).
 

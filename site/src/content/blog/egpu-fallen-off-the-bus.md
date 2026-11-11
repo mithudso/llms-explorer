@@ -110,10 +110,10 @@ The original five-document set is not attached to this incident.
   switch in the incident report. The 32-Gbps tunnel specification is not a measured
   3-GB/s payload rate; protocol overhead, shared traffic, and the transfer pattern matter.
   Measure model loading and any inference-time transfers separately.
-- **The BIOS knobs are undocumented.** The embedded manual covers fan mode,
-  after-power-failure, modern standby and ErP (F2 or Del to enter). No Thunderbolt security
-  level, pre-boot Thunderbolt, Above-4G or Resizable-BAR settings appear in any of the five
-  documents. Whatever the firmware exposes, you find it in the setup screens or through the
+- **The reviewed TPS does not document those BIOS knobs.** The embedded manual covers fan mode,
+  after-power-failure, modern standby and ErP (F2 or Del to enter). The author reports no Thunderbolt security
+  level, pre-boot Thunderbolt, Above-4G or Resizable-BAR settings in the five
+  documents; the September review did not independently check the complete set. Whatever the firmware exposes, you find it in the setup screens or through the
   `iSetupCfg` CLI described in the main record, not by reading.
 - **The GPU uses a separate power supply.** The TPS lists a 120 W adapter for Core Ultra
   and 90 W for Core 3; the
