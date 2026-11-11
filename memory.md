@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.174 — 2026-11-11 deep UI optimizer verified locally
+
+Version: 0.22.174. Delta: v0.22.173 to v0.22.174; prompt v138; TASK-1318.
+
+Run ui-deep-optimizer 1.0.1 against seven public LLMSX routes at desktop, 390px and 320px. Preserve the occupied divergent primary checkout through isolated branch ui/deep-optimizer-20261111. Five confirmed defects are repaired: pointer-only frontier selection, tree/filter overflow, short-viewport resources clipping, low-contrast code comments and inline code overflow with text spacing. Browser regression verifies keyboard/AX behavior, expanded real tree labels, menu scroll/resize/Escape, 11.12:1 minimum sampled syntax contrast and reflow. All 357 site tests, Astro check and full build pass. Independent final static review has 35 observations, no remaining Medium+ and byte-exact served build identity.
+
+The validated 70-row ledger records 34 PASS, 10 PARTIAL, 3 N_A, 1 UNAVAILABLE and 22 OUT_OF_SCOPE. Exit NEEDS_EVIDENCE retains full history, non-text/target measurements, semantic completion, zoom, timing, second-engine, screen-reader and permission gaps. No global CLEAN, study result or WCAG conformance is claimed. Public report: docs/site/ui-optimizer-2026-11-11.md and .json. Local evidence and preimages: /Users/mitch/.local/state/llms-explorer-ui-optimizer-20261111/. Preserve paused services and unrelated edits. Next: commit/push, PR checks and merge, then verify public loaded changes; retain delivery receipt separately.
+
 ## v0.22.173 — 2026-11-11 sourced MCP capture demonstrated
 
 Version: 0.22.173. Delta: v0.22.172 to v0.22.173; prompt v137; TASK-1313.
