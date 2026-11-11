@@ -26,9 +26,11 @@ from . import contribute as contribute_routes
 from . import donate as donate_routes
 from . import keys as keys_routes
 from . import mcp as mcp_routes
+from . import optimizer_jobs as optimizer_job_routes
 from . import proposals as proposal_routes
 from . import research as research_routes
 from . import skills as skill_routes
+from . import skill_registry as skill_registry_routes
 from . import subscribers as subscriber_routes
 from . import trees as tree_routes
 from . import usage as usage_routes
@@ -48,6 +50,8 @@ ROUTER_MODULES = (
     anthropic_key_routes,
     mcp_routes,
     skill_routes,
+    skill_registry_routes,
+    optimizer_job_routes,
     tree_routes,
     proposal_routes,
     contribute_routes,

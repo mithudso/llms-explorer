@@ -1,0 +1,484 @@
+{
+  "info": {
+    "name": "Skill registry — private read-only contract",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Read-only private registry and owner-job HTTP checks. Import into Postman or run with the Postman CLI. Supply token only through a private local environment; never export populated secrets. Requests have cookies disabled and send the legitimate versioned client User-Agent. Optional pin/job checks skip without explicit identifiers. No requests publish, grant, create, claim, cancel or execute anything. Source PostgreSQL tests cover cross-account isolation and mutations."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.llms-explorer.com",
+      "type": "string",
+      "description": "API origin, without trailing slash. Loopback HTTP is suitable for a local instance."
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Existing private account read key. Set in a private environment, not the saved collection."
+    },
+    {
+      "key": "query",
+      "value": "research",
+      "type": "string",
+      "description": "Lexical skill search text."
+    },
+    {
+      "key": "namespace",
+      "value": "",
+      "type": "string",
+      "description": "Exact owner account namespace for optional release checks."
+    },
+    {
+      "key": "skillName",
+      "value": "",
+      "type": "string",
+      "description": "Exact release name for optional release checks."
+    },
+    {
+      "key": "skillVersion",
+      "value": "",
+      "type": "string",
+      "description": "Exact semantic version for optional release checks."
+    },
+    {
+      "key": "releaseSha256",
+      "value": "",
+      "type": "string",
+      "description": "Optional expected manifest identity. CLI fetch requires an exact pin."
+    },
+    {
+      "key": "jobId",
+      "value": "",
+      "type": "string",
+      "description": "Existing owner optimizer-job ID for optional status check."
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Health responds successfully\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Health is JSON\", () => pm.expect(pm.response.json()).to.be.an(\"object\"));"
+            ]
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableCookies": true
+      },
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "skill-registry/0.1.0",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/health",
+        "description": "Read-only deployment reachability. This does not prove loaded code provenance."
+      },
+      "response": []
+    },
+    {
+      "name": "Anonymous search is denied",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Anonymous read is denied\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Bearer challenge is present\", () => pm.expect(pm.response.headers.get(\"WWW-Authenticate\")).to.include(\"Bearer\"));",
+              "pm.test(\"Private response is not cacheable\", function () {",
+              "  const cache = pm.response.headers.get(\"Cache-Control\") || \"\";",
+              "  pm.expect(cache).to.include(\"private\");",
+              "  pm.expect(cache).to.include(\"no-store\");",
+              "});",
+              "pm.test(\"Private response varies on credentials\", function () {",
+              "  const vary = (pm.response.headers.get(\"Vary\") || \"\").toLowerCase();",
+              "  pm.expect(vary).to.include(\"authorization\");",
+              "  pm.expect(vary).to.include(\"cookie\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableCookies": true
+      },
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "skill-registry/0.1.0",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/skill-registry/search?query={{query}}&top=5",
+        "description": "No bearer key or cookies. A 401 proves this request did not read private releases."
+      },
+      "response": []
+    },
+    {
+      "name": "Search visible private releases",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const required = [\"token\"];",
+              "if (required.some(name => !pm.variables.get(name))) {",
+              "  pm.execution.skipRequest();",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Authorized search succeeds\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Results state retrieval method and bounds\", function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.method).to.eql(\"postgres-lexical\");",
+              "  pm.expect(body.hits).to.be.an(\"array\");",
+              "  pm.expect(body.hits.length).to.be.at.most(5);",
+              "  body.hits.forEach(hit => {",
+              "    pm.expect(hit.visibility).to.eql(\"private\");",
+              "    pm.expect(hit.release_sha256).to.match(/^[a-f0-9]{64}$/);",
+              "  });",
+              "});",
+              "pm.test(\"Private response is not cacheable\", function () {",
+              "  const cache = pm.response.headers.get(\"Cache-Control\") || \"\";",
+              "  pm.expect(cache).to.include(\"private\");",
+              "  pm.expect(cache).to.include(\"no-store\");",
+              "});",
+              "pm.test(\"Private response varies on credentials\", function () {",
+              "  const vary = (pm.response.headers.get(\"Vary\") || \"\").toLowerCase();",
+              "  pm.expect(vary).to.include(\"authorization\");",
+              "  pm.expect(vary).to.include(\"cookie\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableCookies": true
+      },
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "skill-registry/0.1.0",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/skill-registry/search?query={{query}}&top=5",
+        "description": "Requires an existing account key with read scope. An empty hit list is valid."
+      },
+      "response": []
+    },
+    {
+      "name": "Missing release stays undisclosed",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const required = [\"token\"];",
+              "if (required.some(name => !pm.variables.get(name))) {",
+              "  pm.execution.skipRequest();",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Absent release is not exposed\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Private response is not cacheable\", function () {",
+              "  const cache = pm.response.headers.get(\"Cache-Control\") || \"\";",
+              "  pm.expect(cache).to.include(\"private\");",
+              "  pm.expect(cache).to.include(\"no-store\");",
+              "});",
+              "pm.test(\"Private response varies on credentials\", function () {",
+              "  const vary = (pm.response.headers.get(\"Vary\") || \"\").toLowerCase();",
+              "  pm.expect(vary).to.include(\"authorization\");",
+              "  pm.expect(vary).to.include(\"cookie\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableCookies": true
+      },
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "skill-registry/0.1.0",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/skill-registry/releases/usr_registry_missing/absent-skill/0.0.0",
+        "description": "Read-only non-enumeration shape check for an intentionally absent release. This alone does not test a second account."
+      },
+      "response": []
+    },
+    {
+      "name": "Pinned release metadata",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const required = [\"token\", \"namespace\", \"skillName\", \"skillVersion\"];",
+              "if (required.some(name => !pm.variables.get(name))) {",
+              "  pm.execution.skipRequest();",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Pinned metadata is readable\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Identity is exact\", function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.namespace).to.eql(pm.variables.get(\"namespace\"));",
+              "  pm.expect(body.name).to.eql(pm.variables.get(\"skillName\"));",
+              "  pm.expect(body.version).to.eql(pm.variables.get(\"skillVersion\"));",
+              "  pm.expect(body.release_sha256).to.match(/^[a-f0-9]{64}$/);",
+              "  if (pm.variables.get(\"releaseSha256\")) pm.expect(body.release_sha256).to.eql(pm.variables.get(\"releaseSha256\"));",
+              "});",
+              "pm.test(\"Private response is not cacheable\", function () {",
+              "  const cache = pm.response.headers.get(\"Cache-Control\") || \"\";",
+              "  pm.expect(cache).to.include(\"private\");",
+              "  pm.expect(cache).to.include(\"no-store\");",
+              "});",
+              "pm.test(\"Private response varies on credentials\", function () {",
+              "  const vary = (pm.response.headers.get(\"Vary\") || \"\").toLowerCase();",
+              "  pm.expect(vary).to.include(\"authorization\");",
+              "  pm.expect(vary).to.include(\"cookie\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableCookies": true
+      },
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "skill-registry/0.1.0",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/skill-registry/releases/{{namespace}}/{{skillName}}/{{skillVersion}}",
+        "description": "Optional: set the exact identifiers of an owned or explicitly granted release."
+      },
+      "response": []
+    },
+    {
+      "name": "Pinned bundle download",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const required = [\"token\", \"namespace\", \"skillName\", \"skillVersion\"];",
+              "if (required.some(name => !pm.variables.get(name))) {",
+              "  pm.execution.skipRequest();",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Bundle download succeeds\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Bundle has a bounded ZIP response and identity\", function () {",
+              "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/zip\");",
+              "  const etag = pm.response.headers.get(\"ETag\");",
+              "  pm.expect(etag).to.match(/^\"[a-f0-9]{64}\"$/);",
+              "  if (pm.variables.get(\"releaseSha256\")) pm.expect(etag).to.eql(String.fromCharCode(34) + pm.variables.get(\"releaseSha256\") + String.fromCharCode(34));",
+              "  pm.expect(pm.response.responseSize).to.be.at.most(6 * 1024 * 1024);",
+              "});",
+              "pm.test(\"Private response is not cacheable\", function () {",
+              "  const cache = pm.response.headers.get(\"Cache-Control\") || \"\";",
+              "  pm.expect(cache).to.include(\"private\");",
+              "  pm.expect(cache).to.include(\"no-store\");",
+              "});",
+              "pm.test(\"Private response varies on credentials\", function () {",
+              "  const vary = (pm.response.headers.get(\"Vary\") || \"\").toLowerCase();",
+              "  pm.expect(vary).to.include(\"authorization\");",
+              "  pm.expect(vary).to.include(\"cookie\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableCookies": true
+      },
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "skill-registry/0.1.0",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/skill-registry/releases/{{namespace}}/{{skillName}}/{{skillVersion}}/bundle.zip",
+        "description": "Optional read-only download. The CLI additionally validates every archive member; this collection checks the HTTP contract."
+      },
+      "response": []
+    },
+    {
+      "name": "Existing owner job status",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const required = [\"token\", \"jobId\"];",
+              "if (required.some(name => !pm.variables.get(name))) {",
+              "  pm.execution.skipRequest();",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Owner job status is readable\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Status keeps publication and convergence separate\", function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.id).to.eql(pm.variables.get(\"jobId\"));",
+              "  pm.expect(body.kind).to.eql(\"optimize\");",
+              "  pm.expect(body.published).to.eql(false);",
+              "  pm.expect(body).not.to.have.property(\"lease_token\");",
+              "  pm.expect(body).not.to.have.property(\"input_snapshot\");",
+              "  if (body.result) {",
+              "    pm.expect(body.result.converged).to.eql(false);",
+              "    pm.expect(body.result.published).to.eql(false);",
+              "  }",
+              "});",
+              "pm.test(\"Private response is not cacheable\", function () {",
+              "  const cache = pm.response.headers.get(\"Cache-Control\") || \"\";",
+              "  pm.expect(cache).to.include(\"private\");",
+              "  pm.expect(cache).to.include(\"no-store\");",
+              "});",
+              "pm.test(\"Private response varies on credentials\", function () {",
+              "  const vary = (pm.response.headers.get(\"Vary\") || \"\").toLowerCase();",
+              "  pm.expect(vary).to.include(\"authorization\");",
+              "  pm.expect(vary).to.include(\"cookie\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableCookies": true
+      },
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "skill-registry/0.1.0",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/jobs/{{jobId}}",
+        "description": "Optional read-only status for a job the account already owns. This request does not create, claim or execute work."
+      },
+      "response": []
+    }
+  ]
+}

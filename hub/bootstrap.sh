@@ -48,6 +48,9 @@ fi
 # stub. Installed here, not as a separate CI step, so "no ad-hoc pip install"
 # stays literally true of the workflow and this stays the one place a caller
 # bootstraps everything the hub tests *and* the site tests need.
+# The API's local shared bundle contract is not fetched from a namesake PyPI
+# project. uv knows the path source; pip needs it installed explicitly first.
+.venv/bin/python -m pip install -q -e ./skill-registry
 .venv/bin/python -m pip install -q -e ../api
 
 if [ "$MODE" = none ]; then

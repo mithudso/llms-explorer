@@ -1,0 +1,28 @@
+name: Skill registry
+
+on:
+  pull_request:
+    paths:
+      - 'hub/skill-registry/**'
+      - '.github/workflows/skill-registry.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'hub/skill-registry/**'
+      - '.github/workflows/skill-registry.yml'
+
+jobs:
+  registry-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - name: Install the locked standalone package and MCP extra
+        run: uv sync --directory hub/skill-registry --frozen --all-extras --python 3.13
+      - name: Lint the package and its tests
+        run: uv run --directory hub/skill-registry --frozen ruff check src tests
+      - name: Test catalogs, bundles, worker lifecycles and stdio MCP
+        # Temporary roots and fake providers: no model credentials, inference,
+        # global index, or Neo4j service are required.
+        run: uv run --directory hub/skill-registry --frozen pytest -q

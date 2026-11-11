@@ -157,7 +157,20 @@ class Settings(BaseSettings):
     # --- defaulted ----------------------------------------------------------
     hub_mcp_url: str = Field(default=DEFAULT_HUB_MCP_URL)
     stores_root: Path = Field(default=DEFAULT_STORES_ROOT)
+    # Private skill releases share the existing account/scoped-key boundary.
+    skill_release_limit: int = Field(default=500, ge=1, le=10000)
+    skill_storage_limit_bytes: int = Field(default=100 * 1024 * 1024, ge=1)
+    # 6 MiB ZIP -> 8 MiB base64, plus bounded summaries/check names even when
+    # a JSON client escapes every Unicode character rather than emitting UTF-8.
+    skill_registry_request_bytes: int = Field(default=8 * 1024 * 1024 + 256 * 1024, ge=1024)
+    optimizer_job_request_bytes: int = Field(default=1024 * 1024, ge=1024, le=8 * 1024 * 1024)
+    optimizer_max_text_bytes: int = Field(default=262144, ge=1, le=2 * 1024 * 1024)
+    optimizer_max_active_jobs: int = Field(default=5, ge=1, le=100)
+    optimizer_max_jobs_per_day: int = Field(default=25, ge=1, le=1000)
     environment: Environment = "dev"
+    api_build_revision: str | None = Field(
+        default=None, validation_alias="EXPLORER_API_BUILD_SHA", pattern="^[a-f0-9]{40}$"
+    )
     #: Comma-separated in the environment; a list here.
     #:
     #: `NoDecode` is load-bearing, not decoration. Without it pydantic-settings
