@@ -1,7 +1,7 @@
 # Market geometry research continuation
 
-Version: 1.1.0
-Delta: audited evidence and canonical partial export complete; delivery checks running.
+Version: 1.2.0
+Delta: canonical partial export, integrated build and independent local acceptance passed.
 
 All seven roles ran. Private artifacts contain the complete prompt, role reports, original source extracts, immutable evidence snapshots, 31 atomic records, a 14-row matrix, a 40-candidate concept map/frontier and the authored dossier.
 
