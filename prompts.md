@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v137 — 2026-11-11 live expertise research and MCP capture
+
+```text
+show me it working, show me the data, and do an example research that goes to it and is saved naturally and show me you using it.  Also create an mcp server that operates as an interface for it.
+```
+
+Delta: v136 to v137. TASK-1313. Show actual data and source-backed research saved/retrieved through MCP. Extend the existing server with constrained canonical capture and show an interactive data snapshot.
+
 ## Prompt v136 — 2026-11-11 local Neo4j research expertise
 
 ```text
