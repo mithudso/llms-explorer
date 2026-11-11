@@ -20,6 +20,12 @@ Configure its absolute installed path in a client. The local catalog is SQLite
 FTS5 and refreshes on lookup. `watch` polls configured roots; it never starts the
 older hub indexing or embedding pipelines.
 
+The lock selects MCP SDK 2.3.0. The server uses its `MCPServer` import and falls
+back to `FastMCP` on SDK 1.x; the minimum supported SDK remains 1.30.0. The test
+suite exercises native stdio initialization, tool annotations, structured
+results and rejected inputs on both versions. Protocol assertions use serialized
+wire field names so SDK 2's Python attribute renames preserve the same checks.
+
 ## Authority and routing
 
 Live source files remain authoritative. Each canonical `SKILL.md` path has a

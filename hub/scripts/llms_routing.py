@@ -27,7 +27,9 @@ reads as a directive to an agent is dropped (and counted in the run log).
 `reorder` applies the query-first rule to an `llms.txt`: inside each H2
 section the link entries whose target file the ledger has seen go first,
 most read first; the rest keep their authored order. Sections themselves,
-`llms-small.txt` and `llms-full.txt` are never reordered.
+`llms-small.txt` and `llms-full.txt` are never reordered. A link to
+`llms-sitemap.txt` (or its anchor `#resources`) ranks by reads of that file, and reads
+of the legacy `llms-filemap.txt` count for it.
 
 Usage:
     llms_routing.py route <dir>
@@ -284,7 +286,7 @@ def reorder_index(text: str, ranking: dict[str, int]) -> str:
             return
         ranked = []
         for i, ln in entries:
-            target = _LINK.match(ln).group("target")
+            target = _LINK.match(ln).group("target").split("#")[0]  # `llms-sitemap.txt#resources`
             n = ranking.get(target) or ranking.get(os.path.basename(target)) or 0
             ranked.append((n, i, ln))
         ordered = [ln for _n, _i, ln in sorted(ranked, key=lambda t: (-t[0], t[1]))]
@@ -307,6 +309,11 @@ def reorder_index(text: str, ranking: dict[str, int]) -> str:
 def reorder(index_path: Path, days: int = 30) -> str:
     counts = {p.name: n for p, n in llms_ledger.rank(index_path.parent, days)}
     counts.update({str(p.resolve()): n for p, n in llms_ledger.rank(index_path.parent, days)})
+    # llms-filemap.txt is the legacy name of llms-sitemap.txt: reads of either count for both
+    for old, new in llms_ledger.LEGACY_ALIASES.items():
+        both = max(counts.get(old, 0), counts.get(new, 0))
+        if both:
+            counts[old] = counts[new] = both
     if not any(counts.values()):
         return "ordering: role order (no ledger data)"
     text = index_path.read_text(encoding="utf-8")

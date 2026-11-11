@@ -1,6 +1,12 @@
 """Verify the retrieval tool contract without opening a database connection."""
 
 import asyncio
+import json
+import os
+import sys
+
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 
 import pytest
 
@@ -30,8 +36,9 @@ def fake_store(monkeypatch):
 
 
 def test_tools_keep_read_contract_and_expose_only_constrained_capture():
-    tools = asyncio.run(mcp_server.mcp.list_tools())
-    assert {tool.name for tool in tools} == {
+    tools = [tool.model_dump(by_alias=True)
+             for tool in asyncio.run(mcp_server.mcp.list_tools())]
+    assert {tool["name"] for tool in tools} == {
         "expertise_status",
         "expertise_search",
         "expertise_passage",
@@ -39,19 +46,21 @@ def test_tools_keep_read_contract_and_expose_only_constrained_capture():
         "expertise_save_research",
     }
     assert all(
-        tool.annotations.readOnlyHint for tool in tools if tool.name != "expertise_save_research"
-    )
-    capture_tool = next(tool for tool in tools if tool.name == "expertise_save_research")
-    assert not capture_tool.annotations.readOnlyHint
-    assert capture_tool.annotations.idempotentHint
-    assert "root" not in capture_tool.inputSchema.get("properties", {})
-    assert capture_tool.annotations.destructiveHint
-    assert all(
-        not tool.annotations.destructiveHint
+        tool["annotations"]["readOnlyHint"]
         for tool in tools
-        if tool.name != "expertise_save_research"
+        if tool["name"] != "expertise_save_research"
     )
-    assert all("cypher" not in tool.inputSchema.get("properties", {}) for tool in tools)
+    capture_tool = next(tool for tool in tools if tool["name"] == "expertise_save_research")
+    assert not capture_tool["annotations"]["readOnlyHint"]
+    assert capture_tool["annotations"]["idempotentHint"]
+    assert "root" not in capture_tool["inputSchema"].get("properties", {})
+    assert capture_tool["annotations"]["destructiveHint"]
+    assert all(
+        not tool["annotations"]["destructiveHint"]
+        for tool in tools
+        if tool["name"] != "expertise_save_research"
+    )
+    assert all("cypher" not in tool["inputSchema"].get("properties", {}) for tool in tools)
 
 
 def test_tools_dispatch_normalized_inputs():
@@ -210,3 +219,66 @@ def test_cancelled_tool_leaves_running_work_owned_until_completion(monkeypatch):
             assert await asyncio.to_thread(finished.wait, 3)
 
     asyncio.run(exercise())
+
+
+def test_real_stdio_retrieval_protocol_uses_fixture_store_only():
+    """Exercise SDK framing, tool aliases and dispatch without Neo4j or embeddings."""
+    fixture_server = """
+from functools import lru_cache
+from research_expertise import mcp_server
+
+class FixtureStore:
+    def status(self):
+        return {"documents": 7, "backend": "fixture"}
+    def search(self, **kwargs):
+        return kwargs
+    def passage(self, passage_id):
+        return {"id": passage_id}
+    def neighbors(self, **kwargs):
+        return kwargs
+
+@lru_cache(maxsize=1)
+def fixture_store():
+    return FixtureStore()
+
+mcp_server._store = fixture_store
+mcp_server.main()
+"""
+
+    def payload(result):
+        # An unstructured dict annotation may serialize as JSON text on either SDK.
+        if result["structuredContent"] is not None:
+            return result["structuredContent"]
+        return json.loads("".join(block["text"] for block in result["content"]))
+
+    async def scenario():
+        params = StdioServerParameters(
+            command=sys.executable, args=["-c", fixture_server], env=dict(os.environ)
+        )
+        async with stdio_client(params) as (reader, writer):
+            async with ClientSession(reader, writer) as session:
+                await session.initialize()
+                tools = {tool.name: tool.model_dump(by_alias=True)
+                         for tool in (await session.list_tools()).tools}
+                assert set(tools) == {
+                    "expertise_status", "expertise_search", "expertise_passage",
+                    "expertise_neighbors", "expertise_save_research",
+                }
+                assert tools["expertise_status"]["annotations"]["readOnlyHint"]
+                assert tools["expertise_save_research"]["annotations"]["destructiveHint"]
+                status = (await session.call_tool("expertise_status", {})).model_dump(by_alias=True)
+                assert not status["isError"]
+                assert payload(status) == {"documents": 7, "backend": "fixture"}
+                search = (await session.call_tool("expertise_search", {
+                    "query": "  evidence  ", "top": 3, "concept": " topic ",
+                })).model_dump(by_alias=True)
+                assert not search["isError"]
+                assert payload(search) == {
+                    "query": "evidence", "top": 3, "concept": "topic",
+                }
+                invalid = (await session.call_tool("expertise_search", {
+                    "query": "evidence", "top": 21,
+                })).model_dump(by_alias=True)
+                assert invalid["isError"]
+
+    asyncio.run(scenario())

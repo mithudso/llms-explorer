@@ -1,5 +1,32 @@
 # Prompts Log
 
+## Prompt v146 — 2026-11-11 resume all-change reconciliation
+
+Version:146. Delta:v145 to v146; continue TASK-1359 from its private recovery and isolated integration.
+
+```text
+resume
+```
+
+Resume the existing commit/push/merge-all request. Preserve accepted DDO delivery and
+all active/private source checkpoints; finish verification and delivery, not new research.
+
+
+## Prompt v145 — 2026-11-11 commit, push and merge all pending changes
+
+Version:145. Delta:v144 to v145; TASK-1359.
+
+```text
+Merge commit push all changes
+```
+
+Inventory all PRs and all expanded pending paths across companion worktrees. Preserve
+active source checkouts, private data, existing evidence qualification and paused services.
+Snapshot pending bytes privately; replay reviewed public deltas onto post-purge main.
+Never push raw pre-rewrite histories. Resolve and validate compatible dependencies and
+current public changes, commit/push/PR/merge, then verify actual remote/live delivery.
+
+
 ## Prompt v145 — 2026-11-11 workstation repository reconciliation
 
 Version:145. Delta:v144 to v145; TASK-1364.

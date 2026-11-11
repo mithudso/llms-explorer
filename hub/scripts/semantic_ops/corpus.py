@@ -18,7 +18,8 @@ from typing import Protocol
 import embed_core
 import embedding_contract
 import hub_lib
-from search import cosine_similarity
+import hub_sqlite
+from embedding_matrix import shared_matrix
 
 from semantic_ops.fuse import Hit
 
@@ -112,13 +113,7 @@ class HubCorpus:
             _log.warning("codebase search degraded: hub_lib embedding "
                          "unavailable (is Ollama up on hub_lib's ollama_url?)")
             return []
-        scored: list[tuple[float, str]] = []
-        for path, entry in hub_lib.load_embeddings().items():
-            vec = entry.get("embedding")
-            if not vec or len(vec) != len(qvec):
-                continue  # missing or different-model vector — cosine meaningless
-            scored.append((cosine_similarity(qvec, vec), path))
-        scored.sort(reverse=True)
+        scored = shared_matrix(hub_sqlite.DB_FILE).search(qvec, top_k=top_k)
         hits = []
         for score, path in scored[:top_k]:
             snippet = (hub_lib.get_text_content(path, max_chars=SNIPPET_CHARS)

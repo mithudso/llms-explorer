@@ -47,8 +47,11 @@ QUERY_MAX = 200
 #: The file names this ledger is about, and nothing else.
 LLMS_NAME_RE = re.compile(r"(^llms[A-Za-z0-9._-]*\.txt\Z)|(_llms\.md\Z)")
 #: Role order: the fallback ranking, and the tie-break inside a ranking.
-ROLE_ORDER = ("llms.txt", "llms-facts.txt", "llms-small.txt", "_llms.md",
+ROLE_ORDER = ("llms.txt", "llms-facts.txt", "llms-sitemap.txt", "llms-small.txt", "_llms.md",
               "llms-full.txt", "llms-vocabulary.txt")
+#: Names the same role: `llms-filemap.txt` is the legacy name of `llms-sitemap.txt`
+#: (llms file format v3), so it ranks and counts as the sitemap.
+LEGACY_ALIASES = {"llms-filemap.txt": "llms-sitemap.txt"}
 CATEGORY_ORDER = ("decisions", "conventions", "lessons", "actions", "architecture")
 _REDACT = (
     re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),          # emails
@@ -77,7 +80,8 @@ def kind_of(name: str) -> str:
         return "category"
     for kind, fname in (("index", "llms.txt"), ("full", "llms-full.txt"),
                         ("small", "llms-small.txt"), ("facts", "llms-facts.txt"),
-                        ("vocabulary", "llms-vocabulary.txt")):
+                        ("vocabulary", "llms-vocabulary.txt"),
+                        ("sitemap", "llms-sitemap.txt"), ("sitemap", "llms-filemap.txt")):
         if name == fname:
             return kind
     return "other"
@@ -227,7 +231,8 @@ def role_key(name: str) -> tuple[int, int, str]:
         cat = name[:-len("_llms.md")].rsplit("_", 1)[-1]
         c = CATEGORY_ORDER.index(cat) if cat in CATEGORY_ORDER else len(CATEGORY_ORDER)
         return (ROLE_ORDER.index("_llms.md"), c, name)
-    return (ROLE_ORDER.index(name) if name in ROLE_ORDER else len(ROLE_ORDER), 0, name)
+    role = LEGACY_ALIASES.get(name, name)
+    return (ROLE_ORDER.index(role) if role in ROLE_ORDER else len(ROLE_ORDER), 0, name)
 
 
 def family_files(directory: Path) -> list[Path]:
@@ -245,10 +250,15 @@ def rank(directory: str | Path, days: int = 30) -> list[tuple[Path, int]]:
     ties (and an empty ledger) in role order. Matches by tilde-path."""
     d = Path(directory)
     counts: dict[str, int] = defaultdict(int)
+
+    def canonical(path: str) -> str:
+        p = Path(path)
+        return str(p.with_name(LEGACY_ALIASES.get(p.name, p.name))) if p.name else path
+
     for row in load_rows(days):
-        counts[str(row.get("path", ""))] += 1
+        counts[canonical(str(row.get("path", "")))] += 1
     files = family_files(d)
-    scored = [(p, counts.get(tilde(str(p.resolve())), 0)) for p in files]
+    scored = [(p, counts.get(canonical(tilde(str(p.resolve()))), 0)) for p in files]
     scored.sort(key=lambda t: (-t[1], role_key(t[0].name)))
     return scored
 

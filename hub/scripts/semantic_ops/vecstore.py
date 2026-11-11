@@ -7,6 +7,7 @@ query time (different embedding model — cosine meaningless).
 from __future__ import annotations
 
 import json
+import heapq
 import math
 import sqlite3
 import threading
@@ -52,26 +53,57 @@ class VecStore:
 
     def query(self, qvec: list[float], top: int = 10,
               kinds: tuple[str, ...] | None = None) -> list[dict]:
-        sql = "SELECT id, ref, ts, kind, text, vector, meta FROM chunks"
+        if top <= 0:
+            return []
+        sql = "SELECT id, vector FROM chunks"
         params: tuple = ()
         if kinds:
             sql += f" WHERE kind IN ({','.join('?' * len(kinds))})"
             params = tuple(kinds)
-        with self._lock:
-            rows = self.db.execute(sql, params).fetchall()
         qmag = math.sqrt(sum(x * x for x in qvec)) or 1.0
-        scored = []
-        for id_, ref, ts, kind, text, vec_json, meta_json in rows:
-            v = json.loads(vec_json)
-            if len(v) != len(qvec):
-                continue
-            mag = math.sqrt(sum(x * x for x in v)) or 1.0
-            sim = sum(a * b for a, b in zip(qvec, v, strict=True)) / (qmag * mag)
-            scored.append((sim, id_, ref, ts, kind, text, meta_json))
-        scored.sort(reverse=True)
+        best: list[tuple[float, str]] = []
+
+        def scores():
+            for id_, vec_json in self.db.execute(sql, params):
+                v = json.loads(vec_json)
+                if len(v) != len(qvec):
+                    continue
+                mag = math.sqrt(sum(x * x for x in v)) or 1.0
+                sim = sum(a * b for a, b in zip(qvec, v, strict=True)) / (qmag * mag)
+                yield sim, id_
+
+        with self._lock:
+            # Keep streamed scoring and winner reads on the same SQLite
+            # snapshot, including when another VecStore instance writes.
+            self.db.execute("SAVEPOINT vecstore_query")
+            try:
+                for candidate in scores():
+                    if not math.isfinite(candidate[0]):
+                        # NaN does not define a total ordering. Replay the old
+                        # full sort for corrupt/nonfinite data so the heap does
+                        # not silently change that existing behavior.
+                        best = sorted(scores(), reverse=True)[:top]
+                        break
+                    if len(best) < top:
+                        heapq.heappush(best, candidate)
+                    elif candidate > best[0]:
+                        heapq.heapreplace(best, candidate)
+                else:
+                    best.sort(reverse=True)
+                details = {}
+                for offset in range(0, len(best), 500):
+                    ids = [id_ for _, id_ in best[offset:offset + 500]]
+                    marks = ",".join("?" * len(ids))
+                    for row in self.db.execute(
+                        f"SELECT id, ref, ts, kind, text, meta FROM chunks WHERE id IN ({marks})",
+                        ids,
+                    ):
+                        details[row[0]] = row[1:]
+            finally:
+                self.db.execute("RELEASE vecstore_query")
         return [{"score": round(s, 4), "id": i, "ref": r, "ts": t, "kind": k,
                  "text": x, "meta": json.loads(mj)}
-                for s, i, r, t, k, x, mj in scored[:top]]
+                for s, i in best for r, t, k, x, mj in [details[i]]]
 
     def rows_between(self, ts0: float, ts1: float,
                      kinds: tuple[str, ...] | None = None) -> list[dict]:

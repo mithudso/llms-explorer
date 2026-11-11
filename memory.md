@@ -1,5 +1,114 @@
 # Memory
 
+## v0.22.192 — 2026-11-11 public resource description
+
+Version:0.22.192. Delta:v0.22.191 to v0.22.192; TASK-1359; PR339.
+
+Final acceptance found that the generated index promised exact local query commands even
+when the public exporter deliberately omits them. The Resources link now describes source
+and available docset resources. Only that copy changed. Focused export/family/site tests
+passed100with exit0; regenerated site family remained High0; Ruff/diff checks passed.
+Independent source review is extending its binding to this final copy hunk. The initial
+integration commit61f8ceb1 is pushed; the updated tip must pass CI before merge.
+Remaining: final-tip CI, merge, remote/live acceptance and bot-PR equivalence closure.
+Private final-receipt.json will record the final merge and zero remaining delivery steps.
+
+## v0.22.191 — 2026-11-11 verified all-change integration
+
+Version:0.22.191. Delta:v0.22.190 to v0.22.191; prompts145/146; TASK-1359.
+
+Reviewed public deltas are frozen on integration/all-changes-20261111, isolated worktree
+/Users/mitch/dev/llms-explorer-wt-01a1cbf9-all, based on post-purge main1c0187b7 after
+workstation PR338 merged. Both continuation histories remain intact. The original16
+worktrees remain untouched; all1966expanded pending paths have explicit dispositions.
+Private recovery copied1914extant paths; source drift audit found zero byte changes.
+Complete private manifests, source/check hashes and logs are under
+/Users/mitch/.local/state/llms-explorer-all-changes-20261111/.
+Public category counts and port reports are under docs/reconciliation/.
+
+Combined intent of dependency PRs330/331/332/336 is integrated with actual MCP2.3 locks.
+Registry72tests pass on SDK2.3 and1.30; expertise131pass/1opt-in skip on SDK2.3 and
+SDK1.20 (historical test environment pins Pydantic2.11.10). Native stdio checks verify
+wire aliases, annotations, results and rejected inputs against synthetic stores.
+HuggingFaceHub resolves1.33 because FastEmbed requires<2; no claim of Hub2 qualification.
+API451tests exercise its unchanged lock; Hub runtime FastAPI0.162.4 meets its new floor.
+Historical test venvs moved outside public scan roots without weakening the privacy gate.
+
+Public changes add sitemap export/access migration, public consumer copying without local
+resource paths, compact matrix retrieval, streamed VecStore scores, small accurate tool/docs
+corrections, and16byte-identical legacy skill archives. Current shared linter, qualified
+research/tree, lexical fusion, embedding/revision/cache contracts and LAN policy remain.
+The invalid generated agent adapter, private fleet/watch configuration, raw logs/backups,
+old generated projections and pre-purge histories are preserved rather than published.
+
+Local gates completed with exit0: Hub813pass/9skip; API451pass; site389pass; root759pass
+plus15subtests; full CLI suite; package/native tests; Ruff; privacy; exact tree/context
+projection regeneration; Astro0errors/0warnings; final npm3043page build and publication
+policy; generated llms High0. Independent review closed both Medium findings: same-hash
+GC/reinsert vector invalidation and an empty-public-sitemap local source header leak.
+Source-bound full-suite fixtures prevent deployed Hub modules substituting for this checkout.
+No models, inference, indexing, embeddings or paused services were started.
+
+Remaining at this pre-commit checkpoint: commit/push and open the maintainer integration PR,
+wait for exact-tip CI, merge, verify remote content and deployed sitemap, then close the four
+superseded bot PRs with equivalence receipts. Final delivery state belongs in the private
+final-receipt.json and Stele TASK-1359/TASK-1363; do not treat this checkpoint as a merge.
+
+## v0.22.190 — 2026-11-11 resumed all-change integration
+
+Version:0.22.190. Delta:v0.22.189 to v0.22.190; prompt146; TASK-1359 resumed.
+
+Read-only continuation recovery verified the complete private1966-path snapshot hash
+and located prior completed SDK2/SDK1.30 test exits; previous minimumSDK1.20 collection
+failed and its attempted repair had no completed receipt. Resumed workers are binding
+fresh current-version checks and finishing public v3/archive deltas. No previous agents
+remained active after interruption. Dependency files are still uncommitted.
+
+TASK-1364/PR338 belongs to another workstation at /Users/mitch.hudson/dev/llms-explorer;
+its scope is reconciliation documentation plus shared prompt/memory logs. Preserve its
+ownership and both log histories when main advances. Do not merge its active work early.
+
+The active private integration remains /Users/mitch/dev/llms-explorer-wt-01a1cbf9-all,
+branch integration/all-changes-20261111. Source backup/inventory remain under
+/Users/mitch/.local/state/llms-explorer-all-changes-20261111/. Final package/public-delta
+reports will be written there; do not infer their checks from partial logs.
+Remaining: finish scoped deltas/dispositions, combine with current main, verify all owning
+and site gates, commit/push/PR/merge and verify loaded delivery. Preserve original dirty
+worktrees, purged-history boundary and all paused services.
+
+
+## v0.22.189 — 2026-11-11 all-change reconciliation active
+
+Version:0.22.189. Delta:v0.22.187 to v0.22.189; private DDO delivery memory used v0.22.188;
+prompt145; TASK-1359. DDO PR337 is already merged and live; do not repeat its work.
+
+Current source integration worktree /Users/mitch/dev/llms-explorer-wt-01a1cbf9-all,
+branch integration/all-changes-20261111, base43c0df77b06c82e97697f9766e84eae371521cd9.
+The primary checkout and several companions contain purged history and active/private
+work. Raw branch merges/pushes are forbidden by the existing privacy/history guard.
+Read-only inventory covered16original worktrees,7dirty,1966expanded paths. Private
+recovery copied1914extant files/symlinks and retained52absent-path records, indexes and
+binary staged/unstaged patches; every snapshot read back stable with no source changes.
+
+Private manifests and recovery: /Users/mitch/.local/state/llms-explorer-all-changes-20261111/.
+The full worktree inventory and recovery manifests account for every path. Four bot PRs
+330,331,332,336 failed before tests because Dependabot has no LIBS_READ_TOKEN secret.
+A maintainer integration branch uses existing authorization without changing secrets or
+introducing privileged workflow bypasses. Standalone registry/expertise locks must exercise
+MCP2.3.0. FastEmbed currently constrains HuggingFaceHub<2, so do not claim HF2 support merely
+from a widened top-level range. The dependency worker owns those two packages and the
+hub MCP requirements file; other paths remain coordinator-owned.
+
+Many staged hub/LDO copies would revert newer main behavior or import missing helpers.
+Never overwrite the shared llms_txt.lint shim, configured local/LAN policy, DDO refinements
+or current public tree with old snapshots. Keep employer Drive paths, browser artifacts,
+configuration backups, private source bodies and unfinished research out of publication.
+Remaining: complete per-path semantic dispositions, integrate eligible public changes and
+actual dependencies, run owning/combined checks, commit/push/PR/merge, verify finalmain/live,
+and retain active sources unchanged. InventoryTASK-1361, integrationTASK-1362 and delivery
+TASK-1363 track the stages. No indexing, embeddings, inference or paused services may start.
+
+
 ## v0.22.188 — 2026-11-11 workstation reconciliation
 
 Version:0.22.188. Delta:v0.22.187 to v0.22.188; prompt145; TASK-1364.
