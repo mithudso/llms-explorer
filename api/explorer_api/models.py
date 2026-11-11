@@ -44,6 +44,7 @@ from sqlalchemy import (
     UniqueConstraint,
     event,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, BIGINT, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -493,6 +494,44 @@ for _statement in LEDGER_APPEND_ONLY_SQL:
 
 
 # --- jobs --------------------------------------------------------------------
+
+
+class SkillRelease(Base):
+    """Immutable owner-namespaced skill bundle; sharing is explicit per release."""
+
+    __tablename__ = "skill_releases"
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", "version", name="uq_skill_release_version"),
+        CheckConstraint("size_bytes > 0 AND size_bytes <= 6291456", name="skill_release_size"),
+        Index("ix_skill_releases_user_created", "user_id", "created_at"),
+        Index("ix_skill_releases_search", text("to_tsvector('simple', search_text)"),
+              postgresql_using="gin"),
+    )
+
+    id: Mapped[str] = _id("skr")
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(100))
+    version: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(Text)
+    release_sha256: Mapped[str] = mapped_column(String(64))
+    manifest: Mapped[dict] = mapped_column(JSONB)
+    bundle: Mapped[bytes] = mapped_column(LargeBinary)
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    search_text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[dt.datetime] = mapped_column(Timestamp, server_default=func.now())
+
+
+class SkillReleaseGrant(Base):
+    """An owner grants another existing account read access to one pinned release."""
+
+    __tablename__ = "skill_release_grants"
+    __table_args__ = (
+        UniqueConstraint("release_id", "user_id", name="uq_skill_release_grant"),
+    )
+    id: Mapped[str] = _id("skg")
+    release_id: Mapped[str] = mapped_column(ForeignKey("skill_releases.id", ondelete="CASCADE"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[dt.datetime] = mapped_column(Timestamp, server_default=func.now())
 
 
 class Job(Base):

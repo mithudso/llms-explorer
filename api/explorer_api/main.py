@@ -12,6 +12,8 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -90,6 +92,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # place a new one has to be named.
     include_routers(app)
 
+    @app.exception_handler(RequestValidationError)
+    async def private_skill_validation(request: Request, exc: RequestValidationError):
+        if not (request.url.path.startswith("/api/skill-registry/")
+                or request.url.path == "/api/jobs"
+                or request.url.path.startswith("/api/jobs/")):
+            return await request_validation_exception_handler(request, exc)
+
+        def safe(value):
+            return str(value).encode("utf-8", errors="replace").decode("utf-8")[:500]
+
+        # Never echo uploaded artifacts or parser context into error responses.
+        # Invalid Unicode must remain a client error, including when Pydantic
+        # stores an unpaired surrogate in its original `input` field.
+        detail = [
+            {"type": safe(error["type"]), "msg": safe(error["msg"]),
+             "loc": [item if isinstance(item, int) else safe(item)
+                     for item in error.get("loc", ())]}
+            for error in exc.errors()[:64]
+        ]
+        return JSONResponse(status_code=422, content={"detail": detail})
+
+    @app.middleware("http")
+    async def private_skill_responses(request: Request, call_next):
+        response = await call_next(request)
+        if (
+            request.url.path.startswith("/api/skill-registry/")
+            or request.url.path == "/api/jobs"
+            or request.url.path.startswith("/api/jobs/")
+        ):
+            response.headers["Cache-Control"] = "private, no-store"
+            vary = [v.strip() for v in response.headers.get("Vary", "").split(",") if v.strip()]
+            for name in ("Authorization", "Cookie"):
+                if name.lower() not in {v.lower() for v in vary}:
+                    vary.append(name)
+            response.headers["Vary"] = ", ".join(vary)
+        return response
+
     @app.exception_handler(DBAPIError)
     async def _database_is_down(request: Request, exc: DBAPIError) -> JSONResponse:
         """A dead database is a 503 with a status page, never a bare 500.
@@ -114,7 +153,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def health() -> dict[str, str]:
         """Liveness only — deliberately touches nothing. See `/ready`."""
         # Never echo anything from the secret half of the settings.
-        return {"status": "ok", "environment": settings.environment}
+        body = {"status": "ok", "environment": settings.environment}
+        if settings.api_build_revision:
+            body["build_revision"] = settings.api_build_revision
+        return body
 
     @app.get("/ready", tags=["ops"])
     async def ready(request: Request) -> JSONResponse:
