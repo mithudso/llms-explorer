@@ -31,6 +31,51 @@ vendored suite, `--no-tests` just builds the venv.
 `npm run dev` serves the pages without twins, llms files, sitemap or robots.txt — those exist only
 after a build, under `dist/`.
 
+## Blog, research papers and the daily queue
+
+`/blog/` is the article archive. `/blog/research/` is its research-paper subset.
+The existing `/research/` task/reference finder and existing article URLs remain
+available. New papers live at `src/content/blog/research/<slug>.md` with
+`category: research`; their canonical route is `/blog/research/<slug>/`.
+
+Hold future papers in `site/scheduled-posts/research/<slug>.md`, outside Astro's
+content collection. Set their intended `date` before full `/ddo`. Retain the
+sanitized report at `docs/publication-reviews/<slug>.md.ddo-report.md`, then add
+`site/research-reviews/<slug>.json` with these fields:
+
+```json
+{
+  "schema": "research-publication-review/v1",
+  "status": "approved",
+  "depth": "full",
+  "document_sha256": "<SHA256 of the exact final Markdown bytes>",
+  "report_path": "docs/publication-reviews/<slug>.md.ddo-report.md",
+  "report_sha256": "<SHA256 of the exact report bytes>",
+  "reviewed_at": "<ISO8601 timestamp with timezone>",
+  "unresolved": {"blocking": 0, "major": 0, "medium": 0}
+}
+```
+
+The scheduler and final publication check reject missing, stale, partial or
+unresolved approvals. This records editorial review; it does not upgrade the
+underlying research evidence qualification. Dates and reviewed source bytes stay
+unchanged during promotion. The actual publication date is recorded separately
+in `site/src/data/publication-ledger.json` and displayed on the article.
+
+The `publish-scheduled` workflow runs at 14:00 UTC (09:00 EST / 10:00 EDT).
+`site/tools/promote_scheduled_posts.py` publishes at most one due article per
+America/New_York day and never before 09:00 local time. A ledger entry or a
+manually published article dated today consumes that day's slot. Reruns publish
+nothing else; an overdue backlog resumes one article per day. Conflicting
+destinations are never overwritten. `--dry-run` validates the next candidate
+without moving files or recording a receipt.
+
+Promotion commits the article and ledger together. The existing Cloudflare Pages
+Git integration deploys `main`. The workflow explicitly dispatches `site.yml`
+because a `GITHUB_TOKEN` push does not trigger another Actions push workflow.
+That dispatch runs site validation; it is not itself a Pages deploy command.
+The daily publication workflow sends no subscriber notifications.
+
 ## Sitemap and crawler discovery
 
 Every `npm run build` regenerates `/sitemap.xml` and `/robots.txt` from the

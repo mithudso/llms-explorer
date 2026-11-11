@@ -5,6 +5,7 @@ import { packBySlug as downloadablePacks } from "../../data/context-downloads";
 import { RESEARCH_TASKS } from "../../data/research";
 import { tree, type TreeNode } from "../../data/tree";
 import type { ConceptPack, PackFact } from "../../data/types";
+import { isPublishedArticle } from "../../data/publication";
 
 // `/tree/3d/` is Task 3. Link it only once that page exists, so the node pages
 // never point at a route the build does not produce (test_internal_links_resolve).
@@ -182,6 +183,18 @@ const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n ==
 
 const skillPages = new Set((await getCollection("skills")).map((entry) => entry.id));
 const skillPage = node.skillId && skillPages.has(node.skillId) ? `/skills/${node.skillId}/` : null;
+// Editorial papers can explain a topic group without inventing a researched
+// concept pack for it. Resolve every read against actual published content.
+const readCollections = {
+  blog: new Map((await getCollection("blog")).filter((entry) => isPublishedArticle(entry)).map((entry) => [entry.id, entry.data])),
+  examples: new Map((await getCollection("examples")).map((entry) => [entry.id, entry.data])),
+};
+const relatedReads = [...new Map(RESEARCH_TASKS
+  .filter((task) => task.family === node.slug || task.references.includes(node.slug))
+  .flatMap((task) => task.reads.flatMap((read) => {
+    const data = readCollections[read.collection].get(read.id);
+    return data ? [[`${read.collection}/${read.id}`, { ...read, title: data.title }] as const] : [];
+  }))).values()];
 
 const description = hasPublishedReference && pack
   ? `${plural(facts.length, "fact")} on ${node.concept}, in sections: ${facetList}.`.slice(0, 180)
@@ -288,6 +301,12 @@ const description = hasPublishedReference && pack
       )}
     </>
   )}
+
+  {relatedReads.length > 0 && <section aria-labelledby="related-reading">
+    <h2 id="related-reading">Implementation papers and related reading</h2>
+    <p>These articles are separate from the source-linked reference packs.</p>
+    <ul>{relatedReads.map((read) => <li><a href={`/${read.collection}/${read.id}/`}>{read.title}</a> — {read.kind}</li>)}</ul>
+  </section>}
 
   <h2>Children</h2>
   <ul>

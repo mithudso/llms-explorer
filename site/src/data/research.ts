@@ -27,10 +27,11 @@ export interface ResearchReference {
 }
 
 const slug = z.string().regex(/^[a-z0-9][a-z0-9-]*$/);
+const contentId = z.string().regex(/^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/);
 const unique = <T>(values: T[]) => new Set(values).size === values.length;
 const TaskRead = z.object({
   collection: z.enum(["blog", "examples"]),
-  id: slug,
+  id: contentId,
   /** The kind of evidence the article holds, not a topic label. */
   kind: z.string().min(1),
 }).strict();
