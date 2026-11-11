@@ -291,3 +291,20 @@ def test_export_rejects_stale_topic_tree_and_cleans_partial_bundle(canonical, tm
         projection.export(output)
     assert not output.exists()
     assert not list(tmp_path.glob(".expertise-*"))
+
+
+def test_query_rejects_model_truncation_without_inference(tmp_path):
+    embedder = store.Embedder(tmp_path)
+
+    class Tokenizer:
+        def encode(self, text, add_special_tokens):
+            class Encoding:
+                ids = [1] * 481
+
+            return Encoding()
+
+    embedder._tokenizer = Tokenizer()
+    embedder._model = object()
+    with pytest.raises(ValueError, match="480 model tokens"):
+        embedder.query("long input")
+    embedder.close()

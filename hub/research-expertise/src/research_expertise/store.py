@@ -15,7 +15,7 @@ import zipfile
 
 from neo4j import GraphDatabase
 
-from .corpus import chunk_document, iter_documents, iter_relations
+from .corpus import chunk_document, extract_urls, iter_documents, iter_relations
 
 MODEL = "BAAI/bge-small-en-v1.5"
 MODEL_REPO = "Qdrant/bge-small-en-v1.5-onnx-Q"
@@ -135,6 +135,8 @@ class Embedder:
         return [found[k] for k in keys]
 
     def query(self, text):
+        if len(self.tokenizer.encode(text, add_special_tokens=False).ids) > 480:
+            raise ValueError("Query exceeds 480 model tokens; shorten the question")
         return next(iter(self.model.query_embed(text))).tolist()
 
     def close(self):
@@ -437,7 +439,9 @@ class Store:
         return {
             "found": True,
             "passage": passage,
-            "document_sources": [s["url"] for s in sources],
+            "document_sources": [s["url"] for s in sources[:20]],
+            "passage_urls": extract_urls(passage["text"]),
+            "additional_document_sources": max(0, len(sources) - 20),
             "citation": f"{passage['path']}:{passage['start_line']}",
         }
 

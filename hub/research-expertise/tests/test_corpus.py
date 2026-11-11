@@ -239,22 +239,25 @@ class CharacterTokenizer:
 
     def encode(self, text, add_special_tokens=False):
         assert add_special_tokens is False
-        return type("Encoding", (), {
-            "ids": list(range(len(text))),
-            "offsets": [(i, i + 1) for i in range(len(text))],
-        })()
+        return type(
+            "Encoding",
+            (),
+            {
+                "ids": list(range(len(text))),
+                "offsets": [(i, i + 1) for i in range(len(text))],
+            },
+        )()
 
 
 def test_token_aware_unicode_chunks_cover_source_and_cannot_stall(tmp_path):
-    text = "{\"café🚀\": [x=>x!==null]}\n" * 12
+    text = '{"café🚀": [x=>x!==null]}\n' * 12
     pack(tmp_path, text=text)
     doc = next(iter_documents(tmp_path))
     tokenizer = CharacterTokenizer()
-    chunks = chunk_document(doc, max_chars=100, overlap=80,
-                            tokenizer=tokenizer, max_tokens=20)
+    chunks = chunk_document(doc, max_chars=100, overlap=80, tokenizer=tokenizer, max_tokens=20)
     covered = set()
     for chunk in chunks:
-        assert chunk["text"] == text[chunk["start"]:chunk["end"]]
+        assert chunk["text"] == text[chunk["start"] : chunk["end"]]
         assert len(tokenizer.encode(chunk["text"]).ids) <= 20
         covered.update(range(chunk["start"], chunk["end"]))
     assert covered == set(range(len(text)))

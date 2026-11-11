@@ -63,7 +63,8 @@ splitting limits passages to 480 content tokens, below the model limit. Queries 
 with the same model as passages: `BAAI/bge-small-en-v1.5`, 384 dimensions.
 The ONNX model is pinned to upstream revision
 `aa8f8b060edb00e03bfdd08813a2949946c8ba55`; installed queries use its cached
-files offline. The local SQLite embedding cache is model/text keyed. Changing the model requires
+files offline. Queries above 480 content tokens fail with a request to shorten
+the question; the model never silently truncates them. The local SQLite embedding cache is model/text keyed. Changing the model requires
 a new vector index and a complete reingest; do not mix vector spaces.
 
 Search and passage reads recheck document and manifest hashes, excluding changed
