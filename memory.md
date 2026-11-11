@@ -1,5 +1,9 @@
 # Memory
 
+## v0.22.177 — 2026-11-11 parallel history reconciliation
+
+Version:0.22.177. Delta:v0.22.176 to v0.22.177. Retain both lifecycle/skill-service continuation and the independently delivered UI/Stele work from main559bf21f. Concurrent historical version labels remain under their original task IDs; no accepted result is discarded. PR329 lacked ordinary CI because these two append-only logs conflicted; source/runtimeacceptance remainsunchanged. The merged candidate now needs final-tipCI before delivery. TASK-1320private/teamskillservice continuesseparately.
+
 ## v0.22.176 — 2026-11-11 lifecycle repairs verified; skill service continues
 
 Version: 0.22.176. Delta: v0.22.175 to v0.22.176; prompts138–140; TASK-1315 and TASK-1320.
@@ -37,6 +41,14 @@ Repo-health agent owns bootstrap docs, optimizer ledger/report and source/test r
 Hub semantic MCP fails with missing numpy. Its CLI defaults to Ollama even when an unsupported --help is present; the accidental inspection process was terminated with exit143 before producing results. Use file/keyword inspection and do not repeat that fallback. Stele disconnected with Transport closed after parent TASK-1315 and first stage TASK-1317 were created/claimed. Exact remaining tracker writes queued as outbox118a6f1b,13bbbc2a,de45ec67. Private live progress: /Users/mitch/.config/neo4j-expertise/lifecycle-audit/progress.json.
 
 Remaining: finish lifecycle audit and bootstrap/optimizer passes, test repairs, write report/receipt, merge passing PR, independently verify changed installed code and close tracker through MCP or exact outbox operations. No completion or saturation claim yet.
+
+## v0.22.174 — 2026-11-11 deep UI optimizer verified locally
+
+Version: 0.22.174. Delta: v0.22.173 to v0.22.174; prompt v138; TASK-1318.
+
+Run ui-deep-optimizer 1.0.1 against seven public LLMSX routes at desktop, 390px and 320px. Preserve the occupied divergent primary checkout through isolated branch ui/deep-optimizer-20261111. Five confirmed defects are repaired: pointer-only frontier selection, tree/filter overflow, short-viewport resources clipping, low-contrast code comments and inline code overflow with text spacing. Browser regression verifies keyboard/AX behavior, expanded real tree labels, menu scroll/resize/Escape, 11.12:1 minimum sampled syntax contrast and reflow. All 357 site tests, Astro check and full build pass. Independent final static review has 35 observations, no remaining Medium+ and byte-exact served build identity.
+
+The validated 70-row ledger records 34 PASS, 10 PARTIAL, 3 N_A, 1 UNAVAILABLE and 22 OUT_OF_SCOPE. Exit NEEDS_EVIDENCE retains full history, non-text/target measurements, semantic completion, zoom, timing, second-engine, screen-reader and permission gaps. No global CLEAN, study result or WCAG conformance is claimed. Public report: docs/site/ui-optimizer-2026-11-11.md and .json. Local evidence and preimages: /Users/mitch/.local/state/llms-explorer-ui-optimizer-20261111/. Preserve paused services and unrelated edits. Next: commit/push, PR checks and merge, then verify public loaded changes; retain delivery receipt separately.
 
 ## v0.22.173 — 2026-11-11 sourced MCP capture demonstrated
 

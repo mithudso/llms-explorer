@@ -1,5 +1,7 @@
 # Prompts Log
 
+Version:141. Delta: parallel log reconciliation after prompt140. Preserve both TASK-1315 research and TASK-1318 UI requests labelled v138 by concurrent sessions. No new user request is invented by this reconciliation.
+
 ## Prompt v140 — 2026-11-11 access decision
 
 Version: 140. Delta: v139 to v140; TASK-1320.
@@ -25,6 +27,14 @@ Version: 138. Delta: v137 to v138; TASK-1315.
 ```text
 Look at the entire process of concept research, validation, storing the facts, embeddgings, retrieval, what can be improved at each stage of th process and all together? WHat features, or fixes or ways to think about things can be implemented? Run the repo bootstrapper and the deep code optimizer on this repo.
 ```
+
+## Prompt v138 — 2026-11-11 deep UI optimizer
+
+```text
+Run the deep ui optimizer on this site.
+```
+
+Delta: v137 to v138. TASK-1318. Run ui-deep-optimizer against the public LLMSX site in an isolated current-main worktree; repair verified Medium+ issues, preserve branding and behavior, record all method selections and evidence, verify browser behavior and deliver.
 
 ## Prompt v137 — 2026-11-11 live expertise research and MCP capture
 
