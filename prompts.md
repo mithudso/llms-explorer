@@ -1,5 +1,18 @@
 # Prompts Log
 
+## Prompt v145 — 2026-11-11 workstation repository reconciliation
+
+Version:145. Delta:v144 to v145; TASK-1364.
+
+```text
+Get this repo up to speed, commit everything
+```
+
+Inventory and preserve the conflicted workstation checkout. Compare its local
+history with canonical main before delivery. Commit reviewed public changes,
+complete normal PR checks and merge, then synchronize the checkout. Preserve
+private recovery files, companion worktrees and other sessions' task ownership.
+
 ## Prompt v144 — 2026-11-11 full-site prose optimizer fan-out
 
 Version:144. Delta:v143 to v144; TASK-1351.
