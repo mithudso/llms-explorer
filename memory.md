@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.169 — 2026-11-10 credential diagnosis correction
+
+Version: 0.22.169. Delta: v0.22.168 to v0.22.169; prompt v135; TASK-1279.
+
+The user corrected a fourth request to replace the non-expiring token. PR320 is not evidence of invalid credentials: the authoritative failed run42769536281 prints an empty LIBS_READ_TOKEN, and Dependabot has no separately configured secret. Main run42921044072 succeeds with the existing Actions secret. GitHub documentation confirms that Dependabot workflows cannot read ordinary Actions secrets. Never request rotation from this bot-run error alone. No secret or permission was changed. The exact Ruff update is included in normal PR311 so the complete required checks can validate it.
+
+The integrated commit and all local checks are complete. Final-tip CI, merge verification, superseded PR320 closure and deployed acceptance remain. The next section preserves full validation and hook-repair receipts. No research, inference, embeddings or indexing resumed.
+
 ## v0.22.168 — 2026-11-10 repository integration and hook repair
 
 Version: 0.22.168. Delta: v0.22.167 to v0.22.168; prompts v133 and v134; TASK-1279.

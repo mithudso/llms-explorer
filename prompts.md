@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v135 — 2026-11-10 Dependabot credential correction
+
+```text
+Clearly this isn't true becasue this is the 4th time you've asked me for that exact thing and the token doesn't have an expiration date and has access to every single repo so it's something else.
+```
+
+Delta: v134 to v135. Inspect actual secret availability before concluding that credentials are invalid. PR320 logs show an empty secret; current main CI succeeds. Preserve the existing token.
+
 ## Prompt v134 — 2026-11-10 hook failure follow-up
 
 ```text
