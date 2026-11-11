@@ -61,3 +61,37 @@ Mode: incremental   Status: BLIND-AUDIT-DISSENT
 Files reviewed this run: 1
 Source files covered by the ledger now: 68 of 682
 Still unreviewed or changed since review: 614
+
+## Final containment delivery refresh
+
+A second focused file-version refresh records the explicit lexical-parent check. This does not reopen the capped optimizer or add a blind gate.
+
+## Passes that ran (receipt)
+
+| Pass | State | Files | Note |
+|---|---|---|---|
+| C1 | ran | 1 |  |
+| C2 | ran | 1 |  |
+| C3 | ran | 1 |  |
+| S1 | ran | 1 |  |
+| S2 | ran | 1 |  |
+| S3 | ran | 1 |  |
+| S4 | ran | 1 |  |
+| S5 | ran | 1 |  |
+| P1 | ran | 1 |  |
+| P2 | ran | 1 |  |
+| M1 | ran | 1 |  |
+| M2 | ran | 1 |  |
+| M3 | na | 0 | Focused artifact containment delivery refresh; parent repo-scope audit and two-gate dissent remain unchanged |
+| M4 | ran | 1 |  |
+| T1 | ran | 1 |  |
+| T2 | na | 0 | Focused artifact containment delivery refresh; parent repo-scope audit and two-gate dissent remain unchanged |
+| T3 | na | 0 | Focused artifact containment delivery refresh; parent repo-scope audit and two-gate dissent remain unchanged |
+| T4 | na | 0 | Focused artifact containment delivery refresh; parent repo-scope audit and two-gate dissent remain unchanged |
+| M5 | na | 0 | Focused artifact containment delivery refresh; parent repo-scope audit and two-gate dissent remain unchanged |
+
+Fix-track passes that ran: 14 of 18 (+0 conditional)
+Mode: incremental   Status: BLIND-AUDIT-DISSENT
+Files reviewed this run: 1
+Source files covered by the ledger now: 68 of 682
+Still unreviewed or changed since review: 614

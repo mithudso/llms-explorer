@@ -145,6 +145,14 @@ names, passes explicit validated basenames to file operations, and uses fullmatc
 to reject final-newline components. It retains no-follow descriptor traversal,
 201-character slugs, safe punctuation and existing slash normalization.
 
+The basename-only follow-up `d7eb70ee` still triggered CodeQL. Inspection of
+GitHub's current path-injection model showed that it tracks normalization plus
+an explicit prefix check. The final helper now normalizes each child against
+its intended parent, checks the separator-terminated parent prefix, then returns
+the basename. Directory descriptors and no-follow checks remain authoritative
+for filesystem races. No CodeQL suppression, dismissal or weakened rule was used.
+The full451-test API suite passed again with exit0 in51.52s; Ruff passed.
+
 Nine added regressions produced six failures and three positive passes before
 the guard change (exit1). All41 artifact tests and the full451-test API suite
 then passed with exit0; Ruff passed. Independent focused inspection and20 pure

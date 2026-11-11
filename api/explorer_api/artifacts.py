@@ -187,7 +187,7 @@ def resolve(stores_root: Path | str, user_id: str, slug: str, relative: str) -> 
 # --- reading and headers -----------------------------------------------------
 
 
-def _basename(component: str) -> str:
+def _basename(component: str, directory: Path) -> str:
     """Return one validated relative name for a descriptor-based operation.
 
     Generated artifact directory names include the suffix after the caller's
@@ -196,7 +196,13 @@ def _basename(component: str) -> str:
     name = os.path.basename(component)
     if name != component or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name) is None:
         raise NotFound(component)
-    return name
+    # Validate lexical containment as well as the descriptor boundary. The
+    # descriptor remains pinned even if a directory pathname changes later.
+    normalized = os.path.normpath(os.path.join(directory, name))
+    prefix = os.path.normpath(directory).rstrip(os.sep) + os.sep
+    if not normalized.startswith(prefix):
+        raise NotFound(component)
+    return os.path.basename(normalized)
 
 
 @contextmanager
@@ -209,8 +215,9 @@ def _artifact_parent(stores_root, user_id, slug, parts, *, create=False):
     with ExitStack() as stack:
         parent = os.open(stores, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         stack.callback(os.close, parent)
+        directory = stores
         for segment in (user_id, ARTIFACTS_SUBDIR, f"{slug}{LLMS_SUFFIX}", *parts[:-1]):
-            name = _basename(segment)
+            name = _basename(segment, directory)
             if create:
                 try:
                     os.mkdir(name, mode=0o700, dir_fd=parent)
@@ -219,6 +226,7 @@ def _artifact_parent(stores_root, user_id, slug, parts, *, create=False):
             parent = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                              dir_fd=parent)
             stack.callback(os.close, parent)
+            directory = directory / name
         yield root.joinpath(*parts), parent, stack
 
 
@@ -232,7 +240,8 @@ def read(stores_root: Path | str, user_id: str, slug: str, relative: str) -> Ser
     parts = _check_relative(relative)
     try:
         with _artifact_parent(stores_root, user_id, slug, parts) as (path, parent, stack):
-            fd = os.open(_basename(parts[-1]), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+            fd = os.open(_basename(parts[-1], path.parent),
+                         os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
                          dir_fd=parent)
             stack.callback(os.close, fd)
             if not stat.S_ISREG(os.fstat(fd).st_mode):
@@ -281,7 +290,6 @@ def write(stores_root: Path | str, user_id: str, slug: str, relative: str,
         content = content.encode("utf-8")
 
     parts = _check_relative(relative)
-    leaf = _basename(parts[-1])
     # Resolve the configured store once, then walk owned directories using
     # descriptors. A link planted before or during the walk cannot redirect a
     # mkdir or write. Atomic replacement also never follows a leaf symlink.
@@ -289,6 +297,7 @@ def write(stores_root: Path | str, user_id: str, slug: str, relative: str,
         with _artifact_parent(stores_root, user_id, slug, parts, create=True) as (
             candidate, parent, stack
         ):
+            leaf = _basename(parts[-1], candidate.parent)
             try:
                 existing = os.stat(leaf, dir_fd=parent, follow_symlinks=False)
             except FileNotFoundError:

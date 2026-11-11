@@ -1,5 +1,10 @@
 # Memory
 
+## v0.22.183 — 2026-11-11 explicit parent containment for CodeQL
+
+Version: 0.22.183. Delta: v0.22.182 to v0.22.183; TASK-1334. PR334 head d7eb70ee still received the same three CodeQL path alerts. Root inspected GitHub's current PathInjectionQuery/Stdlib models, which track normalization followed by a prefix check. The artifact basename helper now normalizes each child against its actual intended parent and checks the separator-terminated parent prefix before returning the basename. Pinned descriptors, no-follow flags, strict component validation,201-character slugs and existing slash normalization remain. No alert was suppressed or dismissed and no rule was weakened. The full451-test API suite passed again with three existing warnings and exit0 in51.52s; scoped Ruff passed. The final pushed head must still pass CodeQL and other CI before merge. The original two-gate audit status and three residuals remain unchanged. See artifact-ci-containment-author-review.json and the current private delivery receipt for exact state.
+
+
 ## v0.22.182 — 2026-11-11 PR334 path-validation delivery checks
 
 Version: 0.22.182. Delta: v0.22.181 to v0.22.182; prompt142; TASK-1334. The completed optimizer remains BLIND-AUDIT-DISSENT with49 applied findings and the same three open residuals under TASK-1346.
