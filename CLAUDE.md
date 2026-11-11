@@ -5,9 +5,10 @@ Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway,
 ## Packages and Components
 
 - `api/`: FastAPI backend with PostgreSQL ledger, WebAuthn/OAuth auth, API keys (Argon2id), Stripe subscriptions, and quota enforcement.
-- `site/`: Astro + TypeScript static & SSR website styled with plain CSS (`site/src/styles/`, no CSS framework), 3D concept graph, and account pages.
+- `site/`: Astro + TypeScript static website with browser account islands styled with plain CSS (`site/src/styles/`, no CSS framework), 3D concept graph, and account pages.
 - `hub/`: Global AI Hub semantic ops, ChromaDB/SQLite docsets, Ollama embedding pools, MCP server (`global_ai_hub`).
 - `hub/research-expertise/`: Standalone Neo4j graph/CPU semantic projection and source-grounded research capture; see its `README.md` and `MCP.md`. Canonical packs remain authoritative.
+- `hub/skill-registry/`: Independently locked local skill router, immutable resource bundles, private/team hosted releases and opt-in candidate workers. See its `README.md`.
 - `llmsx/`: Python library and CLI for the llms.txt standard v2.
 - `.claude/commands/` & `.claude/skills/`: Agent commands and workflows (`/ldo`, `/lca`). Both live under `.claude/` so Claude Code (local and cloud sessions) loads them as project commands and skills.
 - `concept-tree/`: Holds semantic hierarchy (`tree.json`).
@@ -33,6 +34,12 @@ Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway,
 - Lint: `uv run --directory hub/research-expertise --frozen ruff check src tests install.py`
 - Commands and the five MCP tools: `hub/research-expertise/README.md` and `hub/research-expertise/MCP.md`.
 - Existing legacy indexing/embedding/Ollama pauses are separate from this standalone CPU projection.
+
+### Skill registry (`hub/skill-registry/`)
+- Install its locked environment: `uv sync --directory hub/skill-registry --frozen --all-extras`
+- Tests: `uv run --directory hub/skill-registry --frozen pytest -q`
+- Lint: `uv run --directory hub/skill-registry --frozen ruff check src tests`
+- Offline CLI/MCP, account-scoped release and worker contracts: `hub/skill-registry/README.md`. Refreshing this lexical catalog does not start legacy embeddings or imply native skill activation.
 
 ### Site (`site/`)
 - Install deps: `cd site && npm install`

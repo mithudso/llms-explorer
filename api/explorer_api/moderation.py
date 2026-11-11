@@ -61,7 +61,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from . import models as m, trees
+from . import models as m, tree_publication, trees
 
 # --- the hub, imported read-only ---------------------------------------------
 
@@ -161,6 +161,14 @@ class NotAModerator(ModerationError):
     """The caller may not decide proposals (403)."""
 
 
+class PublicationBusy(ModerationError):
+    """A cooperating writer currently owns the public tree (409)."""
+
+
+class PublicationRecoveryRequired(ModerationError):
+    """The public tree's interrupted publication could not be safely resolved."""
+
+
 class InvalidUnit(ValueError):
     """A unit the ladder refuses to score — no source is never queued (05 §6)."""
 
@@ -208,16 +216,31 @@ def read_tree(path: Path) -> tuple[list[dict], str]:
         # `trees.read_nodes` answers `[]` for a missing file; merging a patch
         # into an empty tree because the file vanished is worse than failing.
         raise ModerationError(f"the public tree is missing: {path}")
-    return list(trees.read_nodes(Path(path))), trees.sha_of(Path(path))
+    data = Path(path).read_bytes()
+    decoded = json.loads(data)
+    nodes = decoded if isinstance(decoded, list) else decoded.get("nodes", [])
+    return list(nodes), sha_of(data)
 
 
 def write_tree(path: Path, nodes: Sequence[Mapping[str, Any]], *, expected_sha: str) -> str:
     """Replace the tree atomically, refusing if another writer got there first."""
-    _, actual = read_tree(path)
-    if actual != expected_sha:
-        raise TreeMoved(expected_sha, actual)
-    trees.write_nodes(Path(path), [dict(n) for n in nodes])
-    return trees.sha_of(Path(path))
+    lock = tree_publication.TreeLock(Path(path))
+    try:
+        lock.acquire_nowait()
+        if tree_publication.Journal.load(lock.path) is not None:
+            raise tree_publication.PublicationError("a tree publication requires recovery")
+        _, actual = read_tree(lock.path)
+        if actual != expected_sha:
+            raise TreeMoved(expected_sha, actual)
+        data = tree_publication.encode_nodes([dict(n) for n in nodes])
+        tree_publication.atomic_replace(lock.path, data)
+        return sha_of(data)
+    except tree_publication.PublicationBusy as exc:
+        raise PublicationBusy(str(exc)) from exc
+    except tree_publication.PublicationError as exc:
+        raise PublicationRecoveryRequired(str(exc)) from exc
+    finally:
+        lock.release()
 
 
 # --- patches -----------------------------------------------------------------
@@ -774,41 +797,73 @@ async def decide(
     if hits := scan_for_steering(note):
         raise SteeringDetected(hits)
 
-    proposal = await session.get(m.Proposal, proposal_id)
-    if proposal is None:
-        raise ProposalNotFound(f"no such proposal: {proposal_id}")
-    if proposal.status != "proposed":
-        raise AlreadyDecided(
-            f"proposal {proposal.id} was already {proposal.status}; a second "
-            "decision would merge it twice"
-        )
+    lock = None
+    try:
+        if accept:
+            lock = tree_publication.TreeLock(public_tree_path())
+            await lock.acquire()
+            await tree_publication.recover(session, lock.path)
 
-    if accept:
-        path = public_tree_path()
-        nodes, current_sha = read_tree(path)
-        if current_sha != proposal.tree_sha:
-            raise TreeMoved(proposal.tree_sha, current_sha)
-        merged = apply_patch(nodes, proposal.patch_json)
-        if problems := validate_nodes(merged):
-            raise BrokenTree(problems)
-        write_tree(path, merged, expected_sha=current_sha)
+        # A rejection racing acceptance must wait for its durable disposition,
+        # including when this session had preloaded a stale proposal identity.
+        proposal = (await session.execute(
+            select(m.Proposal).where(m.Proposal.id == proposal_id)
+            .with_for_update().execution_options(populate_existing=True)
+        )).scalars().first()
+        if proposal is None:
+            raise ProposalNotFound(f"no such proposal: {proposal_id}")
+        if proposal.status != "proposed":
+            raise AlreadyDecided(
+                f"proposal {proposal.id} was already {proposal.status}; a second "
+                "decision would merge it twice"
+            )
 
-    now = dt.datetime.now(dt.UTC)
-    proposal.status = "merged" if accept else "rejected"
-    proposal.moderator_user_id = moderator.id
-    proposal.decided_at = now
+        if accept:
+            nodes, current_sha = read_tree(lock.path)
+            if current_sha != proposal.tree_sha:
+                raise TreeMoved(proposal.tree_sha, current_sha)
+            merged = apply_patch(nodes, proposal.patch_json)
+            if problems := validate_nodes(merged):
+                raise BrokenTree(problems)
+            before = lock.path.read_bytes()
+            # A noncooperating external writer is not covered by our lock.
+            if sha_of(before) != current_sha:
+                raise TreeMoved(current_sha, sha_of(before))
+            journal = tree_publication.Journal(
+                lock.path, proposal.id, before, tree_publication.encode_nodes(merged))
+            tree_publication.stage(session, lock, journal)
 
-    item = await _item_for(session, proposal)
-    if item is None:  # a proposal always has one; heal rather than lose the record
-        item = m.ModerationItem(subject_kind="proposal", subject_id=proposal.id)
-        session.add(item)
-    item.state = "approved" if accept else "rejected"
-    item.decided_by_user_id = moderator.id
-    item.decided_at = now
-    if note is not None:
-        item.note = note
-    await session.flush()
-    return proposal
+        now = dt.datetime.now(dt.UTC)
+        proposal.status = "merged" if accept else "rejected"
+        proposal.moderator_user_id = moderator.id
+        proposal.decided_at = now
+
+        item = await _item_for(session, proposal)
+        if item is None:  # heal a missing queue record without losing the decision
+            item = m.ModerationItem(subject_kind="proposal", subject_id=proposal.id)
+            session.add(item)
+        item.state = "approved" if accept else "rejected"
+        item.decided_by_user_id = moderator.id
+        item.decided_at = now
+        if note is not None:
+            item.note = note
+        await session.flush()
+        return proposal
+    except tree_publication.PublicationBusy as exc:
+        raise PublicationBusy(str(exc)) from exc
+    except tree_publication.PublicationError as exc:
+        raise PublicationRecoveryRequired(str(exc)) from exc
+    finally:
+        if lock is not None and not tree_publication.owns_lock(session, lock):
+            lock.release()
+
+
+async def commit_decision(session: AsyncSession) -> None:
+    """Resolve an ambiguous commit before a decision route reports failure."""
+    try:
+        await tree_publication.commit_decision(session)
+    except tree_publication.PublicationError as exc:
+        raise PublicationRecoveryRequired(str(exc)) from exc
 
 
 def public_view(proposal: m.Proposal) -> dict:
@@ -842,6 +897,8 @@ __all__ = [
     "NotAModerator",
     "PROVENANCE_FINDING",
     "ProposalNotFound",
+    "PublicationBusy",
+    "PublicationRecoveryRequired",
     "RUNGS",
     "StaleTree",
     "SteeringDetected",
@@ -850,6 +907,7 @@ __all__ = [
     "UnknownArtifact",
     "Verdict",
     "apply_patch",
+    "commit_decision",
     "conflict_record",
     "decide",
     "get_for_user",

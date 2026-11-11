@@ -218,7 +218,8 @@ async def oauth_callback(provider: str, request: Request, session: SessionDep,
     cookie_state = request.cookies.get(auth.OAUTH_STATE_COOKIE)
     # Both halves must be present, equal, and *ours*. Equality alone proves
     # nothing — an attacker who can set a cookie can set the query string too.
-    if not code or not state or not cookie_state or not hmac.compare_digest(state, cookie_state):
+    if (not code or not state or not cookie_state or not state.isascii()
+            or not cookie_state.isascii() or not hmac.compare_digest(state, cookie_state)):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "the sign-in did not check out")
     try:
         auth.verify_state(state, secret=secret)

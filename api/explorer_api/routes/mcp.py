@@ -94,7 +94,7 @@ async def _read_message(request: Request) -> Any:
         raise gw.BadRequest("the request body is empty")
     try:
         return json.loads(raw)
-    except json.JSONDecodeError as exc:
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise gw.BadRequest("the request body is not JSON") from exc
 
 

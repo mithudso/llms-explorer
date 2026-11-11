@@ -30,16 +30,20 @@ a counter whose usage lives outside Postgres — docsets are in the per-user sto
 from __future__ import annotations
 
 import datetime as dt
+import logging
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from sqlalchemy import Date, Integer, cast, func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import models as m
 from . import plans
+
+log = logging.getLogger(__name__)
 
 UTC = dt.UTC
 
@@ -253,17 +257,25 @@ async def record(
         # on: an account could spend without limit at a balance of −$500.
         await _debit_credit(session, user, price_usd)
     await session.flush()
+    log.info(
+        "ledger_append_staged ledger_id=%s user_id=%s component=%s kind=%s units=%s billable=%s",
+        row.id, user.id, row.component, row.kind, row.units, row.billable,
+    )
     return row
 
 
 async def _debit_credit(session: AsyncSession, user: m.User, amount: Decimal) -> None:
-    """Take ``amount`` off the account's balance, creating the row at zero first."""
-    credit = await session.get(m.Credit, user.id, with_for_update=True)
-    if credit is None:
-        credit = m.Credit(user_id=user.id, balance_usd=ZERO)
-        session.add(credit)
-        await session.flush()
-    credit.balance_usd = money(Decimal(credit.balance_usd) - amount)
+    """Atomically debit the current balance, including an account's first spend."""
+    amount = money(amount)
+    statement = insert(m.Credit).values(user_id=user.id, balance_usd=-amount)
+    statement = statement.on_conflict_do_update(
+        index_elements=[m.Credit.user_id],
+        set_={"balance_usd": m.Credit.balance_usd - amount, "updated_at": func.now()},
+    ).returning(m.Credit)
+    # Arithmetic belongs in PostgreSQL: a row lock cannot lock an absent row,
+    # and an already-loaded ORM object may retain a stale balance after a lock.
+    # Refresh that object too, so later work in this transaction sees this debit.
+    await session.scalar(statement, execution_options={"populate_existing": True})
 
 
 # --- quotas ------------------------------------------------------------------

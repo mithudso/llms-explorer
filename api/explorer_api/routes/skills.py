@@ -34,6 +34,7 @@ otherwise leak money:
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -50,6 +51,12 @@ from .. import ledger
 from .. import models as m
 from .. import secrets_crypto
 from ..db import get_session
+from ..settings import (
+    SHOWCASE_LLM_TIMEOUT_SECONDS,
+    SHOWCASE_MAX_INPUT_CHARS,
+    SHOWCASE_MAX_OUTPUT_TOKENS,
+    SHOWCASE_MODEL,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,19 +70,19 @@ COMPONENT = "16"
 #: The model every showcase run uses. One model, named here, so the price
 #: lookup in :func:`_quote` and the ledger rows can never disagree about what
 #: was actually called.
-MODEL = "claude-sonnet-5"
+MODEL = SHOWCASE_MODEL
 
 #: The demo's own input ceiling, in characters. Smaller than any plan's
 #: ``lint_max_bytes`` on purpose: this is a public showcase of a technique, and
 #: a visitor pasting a whole docset into it is a cost incident, not a use case.
-MAX_INPUT_CHARS = 4000
+MAX_INPUT_CHARS = SHOWCASE_MAX_INPUT_CHARS
 
 #: Output ceiling per model pass. The families these skills emit are indexes and
 #: fact lists, not prose, so this is generous for the demo and still bounded.
-MAX_OUTPUT_TOKENS = 4000
+MAX_OUTPUT_TOKENS = SHOWCASE_MAX_OUTPUT_TOKENS
 
 #: Wall-clock ceiling for one upstream call.
-LLM_TIMEOUT = 120.0
+LLM_TIMEOUT = SHOWCASE_LLM_TIMEOUT_SECONDS
 
 #: Job kinds that are a *model pass* on this surface. `plans.lint_per_day` is
 #: the daily allowance for model passes, and `ledger._count_lints_today` only
@@ -298,23 +305,28 @@ class LlmUnavailable(gw.GatewayRefusal):
 
 
 class AnthropicClient:
-    """The real provider. Built once per process and cached on `app.state`."""
+    """A request-scoped provider; each pass owns and closes its transport."""
 
     def __init__(self, api_key: str, model: str = MODEL,
                  timeout: float = LLM_TIMEOUT) -> None:
-        import anthropic
-
-        self._client = anthropic.AsyncAnthropic(api_key=api_key, timeout=timeout)
+        self._api_key = api_key
+        self._timeout = timeout
         self._model = model
 
     async def complete(self, *, system: str, prompt: str,
                        max_tokens: int) -> Completion:
-        message = await self._client.messages.create(
-            model=self._model,
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        import anthropic
+
+        async with (
+            asyncio.timeout(self._timeout),
+            anthropic.AsyncAnthropic(api_key=self._api_key, timeout=self._timeout) as client,
+        ):
+            message = await client.messages.create(
+                model=self._model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=[{"role": "user", "content": prompt}],
+            )
         parts = [
             block.text for block in message.content
             if getattr(block, "type", None) == "text"
@@ -436,8 +448,11 @@ async def _check_plan(session: AsyncSession, principal: gw.Principal,
             "account settings"
         )
 
-    size = await ledger.check_quota(session, user, "lint_max_bytes",
-                                    amount=len(text.encode("utf-8")))
+    try:
+        input_bytes = len(text.encode("utf-8"))
+    except UnicodeEncodeError as exc:
+        raise gw.InvalidParams("input must be valid UTF-8 text") from exc
+    size = await ledger.check_quota(session, user, "lint_max_bytes", amount=input_bytes)
     if not size.allowed:
         raise gw.QuotaExceeded(
             f"that input is larger than the {size.tier} plan allows",
@@ -453,6 +468,25 @@ async def _check_plan(session: AsyncSession, principal: gw.Principal,
             f"today's model-pass allowance on the {daily.tier} plan is used up",
             **daily.as_error(),
         )
+
+
+async def _reserve_job(session: AsyncSession, principal: gw.Principal,
+                       text: str, policy: SkillPolicy) -> m.Job:
+    """Serialize daily admission and expose the attempt before external work.
+
+    Both showcase routes share this account lock and counter. The commit
+    releases the lock before a provider call can spend time or tokens.
+    """
+    user = principal.user
+    assert user is not None
+    await session.execute(select(m.User).where(m.User.id == user.id).with_for_update())
+    await _check_plan(session, principal, text)
+    job = m.Job(user_id=user.id, kind=policy.job_kind, status="running",
+                params={"skill": policy.name, "passes": policy.passes, "bounded": True})
+    job.started_at = dt.datetime.now(dt.UTC)
+    session.add(job)
+    await session.commit()
+    return job
 
 
 # --- the run -----------------------------------------------------------------
@@ -583,12 +617,7 @@ async def run_skill(
         user = principal.user
         assert user is not None
         llm = llm_factory(user)
-        job = m.Job(user_id=user.id, kind=policy.job_kind, status="running",
-                    params={"skill": policy.name, "passes": policy.passes,
-                            "bounded": True})
-        job.started_at = dt.datetime.now(dt.UTC)
-        session.add(job)
-        await session.flush()
+        job = await _reserve_job(session, principal, body.input, policy)
 
         try:
             output, in_tokens, out_tokens = await _run_passes(llm, policy, body)

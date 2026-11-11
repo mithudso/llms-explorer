@@ -42,6 +42,21 @@ DEFAULT_HUB_MCP_URL = "http://127.0.0.1:8787"
 DEFAULT_STORES_ROOT = Path.home() / ".llms-explorer" / "stores"
 MIN_SESSION_SECRET_LEN = 32
 
+# Public operating defaults share this module even where a compatibility
+# constant is exported by a route/helper. Protocol and cryptographic format
+# invariants remain owned by their libraries.
+SHOWCASE_MODEL = "claude-sonnet-5"
+SHOWCASE_MAX_INPUT_CHARS = 4000
+SHOWCASE_MAX_OUTPUT_TOKENS = 4000
+SHOWCASE_LLM_TIMEOUT_SECONDS = 120.0
+DEFAULT_RESEARCH_MAX_RUNNING = 2
+DEFAULT_RESEARCH_TIMEOUT_SECONDS = 3600
+MIN_RESEARCH_TIMEOUT_SECONDS = 60
+RESEARCH_ORPHAN_GRACE_SECONDS = 600
+DEFAULT_RESEARCH_PROCESS_CLEANUP_TIMEOUT_SECONDS = 5
+TREE_PUBLICATION_LOCK_POLL_SECONDS = 0.01
+DEFAULT_API_KEY_STAMP_TIMEOUT_SECONDS = 0.1
+
 #: The site is a different origin from the API (`site/src/components/AccountNav.astro`
 #: publishes `https://api.llms-explorer.com`) and every account island fetches with
 #: `credentials: "include"`. That combination needs CORS with an **explicit** origin
@@ -194,6 +209,7 @@ class Settings(BaseSettings):
     #: `notify.py` logs instead of sending (see its module docstring).
     smtp_host: str | None = None
     smtp_port: int = 587
+    smtp_timeout_seconds: float = Field(default=15.0, gt=0)
     smtp_user: str | None = None
     smtp_password: SecretStr | None = None
     smtp_from: str = "no-reply@llms-explorer.com"

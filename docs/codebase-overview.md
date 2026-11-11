@@ -38,7 +38,7 @@ This document maps the entire repository structure by directory and module.
 ## 2. `site/` — Astro Frontend & Explorer Portal
 
 - `src/pages/`: Astro routing pages (`index.astro`, `directory/`, `tree/`, `account.astro`, `keys.astro`, `login.astro`, `usage.astro`, `contribute.astro`, `proposals.astro`, `moderate.astro`, `/api/contribute` reader).
-- `src/components/`: Reusable Astro/React components (Account navigation, 3D Canvas, Search).
+- `src/components/`: Reusable Astro components (Account navigation, 3D Canvas, Search).
 - `src/layouts/`: Base HTML page layouts.
 - `tools/`: Build scripts (`twins.py`, `build_llms.py`).
 - `tests/`: Python tests for rendered pages and data pipelines.
@@ -85,3 +85,31 @@ This document maps the entire repository structure by directory and module.
 
 The package guide and [wiki entry](subsystems/research-expertise.md) describe
 command ownership and preserve the distinction between capture and validation.
+
+## Skill registry and optimizer broker
+
+- `hub/skill-registry/`: independently locked Python package with its own README
+  and offline tests; it does not depend on Neo4j, Ollama or a terminal UI.
+  - `src/skill_registry/catalog.py`: source inventory, installation aliases and FTS5.
+  - `bundles.py`, `publication.py`, `client.py`: complete release validation,
+    no-clobber installation and pinned authenticated retrieval.
+  - `jobs.py`, `worker.py`, `remote_worker.py`: optional bounded candidate work,
+    cancellation, leases and external worker attestations.
+  - `cli.py`, `mcp_server.py`, `service.py`: entrypoints and shared service boundary.
+- `api/explorer_api/routes/skill_registry.py`: account-scoped immutable releases.
+- `api/explorer_api/optimizer_jobs.py` and `routes/optimizer_jobs.py`: hosted broker
+  over existing Job/JobEvent tables; no HTTP uploaded-code execution.
+- `.github/workflows/skill-registry.yml`: standalone lint/tests using its frozen lock.
+
+See [[skill-registry]] for source authority and worker-boundary traps.
+
+## Native speculative verifier
+
+- `native/speculative-mlx/`: optional independent Go/CGO module.
+- `main.go`, `main_test.go`: native block-verification sidecar and its tests.
+- `README.md`: hardware/library discovery, protocol, cache boundaries and
+  explicitly limited qualification evidence.
+- `llmsx/llmsx/speculative/`: Python coordinator and opt-in CLI integration.
+
+These hardware-facing runtimes require their own preflight and acceptance;
+repository bootstrap does not start them.

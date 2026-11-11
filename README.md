@@ -26,11 +26,13 @@ integration with separate repository access.
 | Component | Description |
 |---|---|
 | `api/` | FastAPI backend handling PostgreSQL ledger, WebAuthn/OAuth auth, API keys, and metering. |
-| `site/` | Astro + TypeScript frontend (plain CSS): directory, 3D concept graph, and account portals. |
+| `site/` | Astro + TypeScript frontend (plain CSS): directory, 3D concept graph, and browser account portals. |
 | `hub/` | Global AI Hub semantic operations, docset refiner, vector/keyword indexing, and MCP server. |
 | `hub/research-expertise/` | Standalone canonical research capture, Neo4j graph and CPU semantic retrieval through a bounded MCP interface. |
+| `hub/skill-registry/` | Standalone source-bound skill lookup, immutable private/team releases and bounded optional optimizer workers. |
 | `llmsx/` | Python library and CLI for parsing, validating, and generating `llms.txt` standard v2 files. |
 | `concept-tree/` | Canonical hierarchical topic data (`tree.json`) that powers the 3D graph and topical navigation. |
+| `native/speculative-mlx/` | Optional Apple Silicon/CGO verifier sidecar; separate hardware/runtime prerequisites and qualification limits. |
 | `scripts/` | Python and shell utilities for tasks like tree merging, indexing, and snapshot refreshing. |
 | `docs/` | Complete documentation suite detailing architecture, components, and workflows. |
 | `.claude/commands/` & `.claude/skills/` | Pre-configured agent instructions (`/ldo`, `/lca`) and semantic skills. |
@@ -77,6 +79,7 @@ cd site && npm run build
 ## Documentation
 - [Maintained documentation wiki](docs/index.md): navigation and source verification rules.
 - [Research expertise](hub/research-expertise/README.md): local capture, graph/semantic retrieval and MCP.
+- [Skill registry](hub/skill-registry/README.md): lexical lookup, pinned bundles, hosted account access and optional local workers.
 - `docs/ARCHITECTURE.md`: High-level system design.
 - `docs/DEVELOPMENT.md`: Prerequisites and environment setup.
 - `docs/COMPONENTS.md`: Catalog of all subsystems.

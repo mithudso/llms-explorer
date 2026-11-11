@@ -179,7 +179,7 @@ async def _decide(
     except moderation.ModerationError as exc:
         await session.rollback()
         raise _http(exc) from exc
-    await session.commit()
+    await moderation.commit_decision(session)
     return ProposalPublic(**moderation.public_view(proposal))
 
 

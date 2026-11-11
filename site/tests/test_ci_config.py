@@ -18,6 +18,7 @@ def test_workflow_runs_build_tests_and_lint_gate():
     wf = yaml.safe_load(WORKFLOW.read_text())
     steps = _run_steps(wf)
     assert "sh hub/bootstrap.sh" in steps and "npm run build" in steps
+    assert "cd site && npm run check" in steps, "Astro build does not type-check TypeScript"
     assert "pytest site/tests" in steps
     assert "llms_lint.py check site/dist/llms.txt" in steps and "--json" in steps
     assert "--check-links" in steps and "refs/heads/main" in WORKFLOW.read_text()

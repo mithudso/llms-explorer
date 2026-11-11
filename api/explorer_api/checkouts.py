@@ -29,11 +29,14 @@ from __future__ import annotations
 import datetime as dt
 import importlib.util
 import json
+import logging
 import os
 import re
 import time
 from pathlib import Path
 from typing import Any
+
+log = logging.getLogger(__name__)
 
 CACHE_SECONDS = 60
 DR_STALE_HOURS = 24
@@ -61,6 +64,19 @@ def _json(path: Path) -> Any:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+
+
+def _concepts(record: dict[str, Any], source: str) -> list[Any] | None:
+    """Reject one malformed record without hiding valid sibling reservations."""
+    value = record.get("concepts")
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    # Source names are fixed by our callers; omit local paths and private data.
+    log.warning("checkout_metadata_invalid source=%s field=concepts value_type=%s",
+                source, type(value).__name__)
+    return None
 
 
 def _iso(ts: float) -> str:
@@ -91,7 +107,10 @@ def _dr() -> list[dict[str, Any]]:
         updated = _mtime(path)
         if updated is None or updated < cutoff:
             continue
-        concepts = [c for c in m.get("concepts") or [] if isinstance(c, dict)]
+        raw_concepts = _concepts(m, "dr")
+        if raw_concepts is None:
+            continue
+        concepts = [c for c in raw_concepts if isinstance(c, dict)]
         names = [m.get("topic")] + [c.get("name") for c in concepts
                                     if c.get("status") not in ("done", "complete")]
         held = [n for n in names if isinstance(n, str) and n.strip()]
@@ -115,7 +134,10 @@ def _llmsx_batches() -> list[dict[str, Any]]:
                     finished.add(_key(row["concept"]))
         except (OSError, ValueError):
             pass
-        names = [n for n in m.get("concepts") or [] if isinstance(n, str)]
+        raw_concepts = _concepts(m, "explorer-batch")
+        if raw_concepts is None:
+            continue
+        names = [n for n in raw_concepts if isinstance(n, str)]
         held = [n for n in names if _key(n) not in finished]
         updated = max(filter(None, (_mtime(path), _mtime(results))), default=None)
         runs.append(_run("explorer-batch", str(m.get("root") or path.parent.name), "in-progress",
@@ -156,7 +178,10 @@ def _suites() -> list[dict[str, Any]]:
         for batch in batches:
             if not isinstance(batch, dict):
                 continue
-            names = [n for n in batch.get("concepts") or [] if isinstance(n, str)]
+            raw_concepts = _concepts(batch, "suite")
+            if raw_concepts is None:
+                continue
+            names = [n for n in raw_concepts if isinstance(n, str)]
             total += len(names)
             state_file = listing.parent / "batches" / str(batch.get("id")) / "state.json"
             state = _json(state_file)
