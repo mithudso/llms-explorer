@@ -1,5 +1,38 @@
 # Prompts Log
 
+## Prompt v135 — 2026-11-10 Dependabot credential correction
+
+```text
+Clearly this isn't true becasue this is the 4th time you've asked me for that exact thing and the token doesn't have an expiration date and has access to every single repo so it's something else.
+```
+
+Delta: v134 to v135. Inspect actual secret availability before concluding that credentials are invalid. PR320 logs show an empty secret; current main CI succeeds. Preserve the existing token.
+
+## Prompt v134 — 2026-11-10 hook failure follow-up
+
+```text
+Resolve these hook isssues: • Hook failed
+  └ hook exited with code 1
+```
+
+Delta: prompt v133 to v134. TASK-1279 adds exact loaded-hook diagnosis and targeted canonical repair. Preserve intentional hook blocks, paused services and unrelated configuration.
+
+## Prompt v133 — 2026-11-10 repository conflict and merge cleanup
+
+```text
+resolve the conflicts and merge issues with this repo and get it current.
+```
+
+Delta: prompt v132 to v133. TASK-1279 resumes existing branch integration and verification in /Users/mitch/dev/llms-explorer-wt-01a1c853. Preserve the concurrent primary checkout and research evidence. Resolve PR311 conflicts, validate combined projections and investigate PR320's failing CI. PR320's Dependabot run receives an empty LIBS_READ_TOKEN because no Dependabot secret is configured. Main CI run42921044072 succeeded with the existing Actions secret. No replacement token is needed. Include the exact Ruff update in the human-owned PR311 integration, rerun the same required checks and close PR320 after the merged requirement is verified. Do not restart research, embeddings or indexing.
+
+## Prompt v132 — 2026-11-09
+
+```text
+Write to disk what you have and wrap up
+```
+
+Delta: prompt v131 to v132. Historical incoming prompt v126 is renumbered during integration. Save the UI/UX full-suite state and stop. Preserve draft PRs311/154 and all worktrees. Do not wait for CI, mark ready, merge or start more inference. Resume from the saved continuation; the26-topic research and source release are already qualified.
+
 ## Prompt v131 — 2026-11-10 AdSense live diagnosis
 
 ```text
@@ -134,6 +167,12 @@ Run the full-suite skill on UI/UX design
 ```
 
 Delta: prompt v124 to v125. This independent checkpoint repairs the native gate publisher-identity false positive discovered during the full suite. Preserve all completed research, exact judgments, private evidence and paused embeddings. The full-suite continuation is maintained with PR311; this fix does not claim suite completion.
+
+Incoming UI/UX continuation heading: “Prompt v125 — 2026-11-08, continued 2026-11-09”. Preserve this branch-specific continuation alongside the publisher-fix entry above:
+
+Delta: prompt v124 to v125. Run the complete viable UI/UX queue through current CFE and native v4 research, preserving existing coverage, private evidence, paused embeddings and unrelated work. TASK-1234 tracks the suite. The initial21questions are accepted; three source-grounded frontier questions are active. PR311 preserves the public checkpoint.
+
+The necessary independent publisher-identity correction, TASK-1242, shipped through PR312 without repeating paid review or modifying original judgments. Full-suite continuation remains in docs/research/ui-ux-design-full-suite-2026-11-08/memory.md; publisher-fix context remains in docs/research/govuk-publisher-binding-2026-11-09/memory.md. This merged checkpoint does not claim suite completion.
 
 ## Prompt v124 — 2026-11-08
 
