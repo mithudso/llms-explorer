@@ -8,7 +8,7 @@ sources:
   - code: hub/research-expertise/install.py
   - code: .github/workflows/ci.yml
   - code: scripts/check_doc_indexes.py
-verified_at: 3dd863b0
+verified_at: 2655b289
 ---
 
 # Repository bootstrap audit
