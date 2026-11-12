@@ -102,17 +102,31 @@ class CanonicalBridge:
     def reservations(self, concept_ids, owner, run_id):
         if self.store is None:
             raise ValueError("Research reservation bridge is not bound")
-        requested = {}
-        for cid in concept_ids:
-            doc = self.store.concept_get(cid)
-            requested[cid] = {key(n) for n in [doc["name"], *doc.get("aliases", [])]}
+        # Frontier enumeration may contain thousands of IDs. Fetch only names
+        # and aliases in bounded batches; never issue one full-document read per
+        # concept or carry private claim bodies into the reservation scan.
+        wanted, requested, by_name = set(concept_ids), {}, {}
+        ids = sorted(wanted)
+        for offset in range(0, len(ids), 1000):
+            for doc in self.store.concepts.find(self.store._owned({
+                    "_id": {"$in": ids[offset:offset + 1000]}, "deleted": {"$ne": True}}),
+                    {"_id": 1, "name": 1, "aliases": 1}):
+                requested[doc["_id"]] = {key(n) for n in [doc["name"], *doc.get("aliases", [])]}
+                for name in requested[doc["_id"]]:
+                    by_name.setdefault(name, set()).add(doc["_id"])
+        if set(requested) != wanted:
+            raise KeyError("A reserved research concept is unavailable")
         holds = {}
-        for run in self._legacy_runs():
+        runs = self._legacy_runs()
+        running = [r["name"] for r in runs if r["source"] == "dr" and r["state"] == "researching"]
+        registered = {row["run_slug"]: row for row in self._jobs(self.store).find({
+            "managed_by": MANAGED_BY, "run_slug": {"$in": running}},
+            {"run_slug": 1, "concept_id": 1})} if running else {}
+        for run in runs:
             # These fixed, service-owned runs use Mongo leases. Keep manual
             # pauses and all other filesystem runs as independent reservations.
             if run["source"] == "dr" and run["state"] == "researching":
-                registration = self._jobs(self.store).find_one({
-                    "managed_by": MANAGED_BY, "run_slug": run["name"]})
+                registration = registered.get(run["name"])
                 path = self.hub / "research" / run["name"] / "manifest.json"
                 manifest = json.loads(path.read_text()) if path.is_file() else {}
                 if (registration and manifest.get("research_library_managed", {}).get(
@@ -122,9 +136,10 @@ class CanonicalBridge:
                    and owner in {"legacy:" + run_id, "publication:" + run_id})
             if own:
                 continue
-            pending = {key(n) for n in run.get("pending", []) if isinstance(n, str)}
-            for cid, names in requested.items():
-                if names & pending:
+            for name in run.get("pending", []):
+                if not isinstance(name, str):
+                    continue
+                for cid in by_name.get(key(name), ()):
                     holds[cid] = {"concept_id": cid, "source": run["source"],
                                   "owner": run["name"], "state": run["state"]}
         # A stopped ranked plan is not resumed by taking a new distributed lease.
@@ -146,8 +161,8 @@ class CanonicalBridge:
                     for child in value:
                         visit(child)
             visit(plan)
-            for cid, aliases in requested.items():
-                if aliases & names:
+            for name in names:
+                for cid in by_name.get(name, ()):
                     holds[cid] = {"concept_id": cid, "source": "ranked-STOP",
                                   "owner": stop.parent.name, "state": "stopped"}
         return holds

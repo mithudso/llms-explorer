@@ -1,8 +1,10 @@
 import copy
 import importlib.util
+import json
 import threading
 from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 import mongomock
 import pytest
@@ -10,6 +12,7 @@ from pymongo.errors import OperationFailure
 
 import research_library_service.store as store_module
 from research_library_service.models import MANAGED_BY, digest, normalize_url, source_id
+from research_library_service.queries import LibraryQueries
 from research_library_service.store import Conflict, LeaseConflict, LibraryStore
 
 
@@ -366,6 +369,73 @@ def test_cvs_null_hard_gates_and_queue_stop_are_preserved(store):
     assert not store.queue_list()["queue"][0]["eligible"]
 
 
+def test_real_importer_retains_scalar_cvs_including_zero_with_null_axes(store, tmp_path):
+    from research_library_service.importer import import_library, read_inventory
+
+    tree = tmp_path / "scalar-frontier.json"
+    tree.write_text(json.dumps([
+        {"concept": "Zero Score", "slug": "zero-score", "cvs": 0},
+        {"concept": "Scalar Score", "slug": "scalar-score", "cvs": 3.5},
+        {"concept": "Unscored", "slug": "unscored"},
+    ]))
+    inventory = read_inventory([tree])
+    assert {doc["name"]: doc["cvs"] for doc in inventory["concepts"]} == {
+        "Zero Score": 0, "Scalar Score": 3.5, "Unscored": None}
+    assert all(doc["cvs_axes"] is None for doc in inventory["concepts"])
+    receipt = import_library(store, tree_paths=[tree])
+    assert receipt["imported"] == 3 and not receipt["partial"]
+    for cid, expected in (("c:zero-score", 0), ("c:scalar-score", 3.5), ("c:unscored", None)):
+        current = store.concept_get(cid)
+        assert current["cvs"] == expected
+        assert current["cvs_axes"] is None and current["cvs_decision"] == "REVIEW"
+        assert current["completion"]["status"] == "unverified"
+    queries = LibraryQueries(store)
+    scored = {doc["id"]: doc for doc in queries.frontier(scored="scored")["items"]}
+    assert set(scored) == {"c:zero-score", "c:scalar-score"}
+    assert all(doc["eligibility"] == "review" for doc in scored.values())
+    assert {doc["id"] for doc in queries.frontier(scored="unscored")["items"]} == {"c:unscored"}
+    before = {cid: store.concept_get(cid)["revision"] for cid in scored}
+    again = import_library(store, tree_paths=[tree])
+    assert again["unchanged"] == 3 and again["imported"] == 0
+    assert before == {cid: store.concept_get(cid)["revision"] for cid in scored}
+
+
+def test_explicit_null_axes_alone_clear_derived_score_but_scalar_with_null_axes_is_retained(store):
+    doc, = make(store, "Clear Derived Score")
+    token = lease(store, [doc])["tokens"][doc["_id"]]
+    scored = store.concept_update(doc["_id"], {"cvs_axes": {
+        "Rel": 4, "Use": 4, "Nov": 4, "Int": 4, "Via": 4}}, 1, token)
+    assert scored["cvs"] == 4 and scored["cvs_decision"] == "RESEARCH"
+    cleared = store.concept_update(doc["_id"], {"cvs_axes": None}, 2, token)
+    assert cleared["cvs"] is None and cleared["cvs_axes"] is None
+    assert cleared["cvs_decision"] == "REVIEW"
+    assert store.concept_get(doc["_id"], 2)["cvs"] == 4
+    scalar = store.concept_update(doc["_id"], {"cvs": 0, "cvs_axes": None}, 3, token)
+    assert scalar["cvs"] == 0 and scalar["cvs_axes"] is None
+    assert scalar["cvs_decision"] == "REVIEW"
+    expect_revision = scalar["revision"]
+    with pytest.raises(ValueError, match="qualifying axis evidence"):
+        store.concept_update(doc["_id"], {"cvs_decision": "RESEARCH"}, expect_revision, token)
+    assert store.concept_get(doc["_id"])["revision"] == expect_revision
+
+
+@pytest.mark.parametrize("axes,expected,decision", [
+    ({"Rel": 4, "Use": 4, "Nov": 4, "Int": 4, "Via": 4}, 4, "RESEARCH"),
+    ({"Rel": 5, "Use": 5, "Nov": 0, "Int": 5, "Via": 5}, 4, "SKIP"),
+    ({"Rel": 5, "Use": 5, "Nov": 5, "Int": 5, "Via": 1}, 4.4, "SKIP"),
+])
+def test_numeric_axes_override_supplied_scalar_and_preserve_hard_gates(store, axes, expected, decision):
+    doc, = make(store, "Axes Authority")
+    token = lease(store, [doc])["tokens"][doc["_id"]]
+    updated = store.concept_update(doc["_id"], {"cvs": 0, "cvs_axes": axes}, 1, token)
+    assert updated["cvs"] == pytest.approx(expected)
+    assert updated["cvs_decision"] == decision and updated["cvs_axes"] is not None
+    if decision == "SKIP":
+        with pytest.raises(ValueError, match="qualifying axis evidence"):
+            store.concept_update(doc["_id"], {"cvs_decision": "RESEARCH"}, 2, token)
+        assert store.concept_get(doc["_id"])["revision"] == 2
+
+
 def test_pagination_alias_lookup_and_tombstone_history(store):
     docs = make(store, "One", "Two", "Three")
     page = store.concept_list(limit=2)
@@ -586,11 +656,11 @@ def test_unlabelled_mongos_write_conflict_retries_whole_transaction_once_per_com
 
     monkeypatch.setattr(store.versions, "insert_one", version_write)
     monkeypatch.setattr(store_module.time, "sleep", sleeps.append)
+    monkeypatch.setattr(store_module.secrets, "randbelow", lambda upper: upper - 1)
     created = store.concept_create("Mongos Retry", request_id="mongos-retry")
     assert created["revision"] == 1
     assert len(writes) == 3 and len(sleeps) == 2
-    assert 0.025 <= sleeps[0] <= 0.050
-    assert 0.050 <= sleeps[1] <= 0.075
+    assert sleeps == pytest.approx([0.050, 0.075])
     assert store.concepts.count_documents({}) == 1
     assert store.versions.count_documents({}) == 1
     assert store.receipts.count_documents({}) == 1
@@ -609,6 +679,7 @@ def test_write_conflict_exhaustion_is_bounded_sanitized_and_has_no_partial_write
         raise OperationFailure("WriteConflict private-diagnostic", code=112)
 
     monkeypatch.setattr(store_module.time, "sleep", sleeps.append)
+    monkeypatch.setattr(store_module.secrets, "randbelow", lambda upper: upper - 1)
     with pytest.raises(Conflict, match="retry with the same request ID") as failure:
         store._tx(conflict)
     assert "private-diagnostic" not in str(failure.value)
@@ -685,3 +756,56 @@ def test_source_lookup_distinguishes_retired_source_and_rejects_collision(store)
     store.sources.update_one({"_id": source["_id"]}, {"$set": {"url": "https://example.org/collision"}})
     with pytest.raises(Conflict, match="identity collision"):
         store.source_lookup(source["url"])
+
+
+@pytest.fixture
+def live_check_module():
+    path = Path(__file__).resolve().parents[1] / "scripts/live_check.py"
+    spec = importlib.util.spec_from_file_location("isolated_live_fixture", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_live_synthetic_fixture_exercises_public_store_interfaces_without_atlas(store, live_check_module):
+    check = live_check_module.LiveCheck()
+    check.store = store
+    check.records()
+    assert store.status()["counts"]["concepts"] == 4
+    assert store.status()["active_leases"] == 0
+    assert "simultaneous_leases_exactly_one_winner" in check.checks
+    assert "queue_hold_stop_recovery_and_frontier_accounting" in check.checks
+
+
+def test_live_index_diagnostics_do_not_print_credentials_hosts_or_signed_details(live_check_module):
+    error = OperationFailure("do not print this full error", code=508, details={
+        "errmsg": "Temporary limit at shard.example.mongodb.net: mongodb+srv://user:private@cluster/db token=private",
+        "$clusterTime": {"signature": {"hash": "private signature"}}})
+    message = live_check_module.index_error_message(error)
+    assert message.startswith("Temporary limit")
+    assert all(value not in message for value in ("private", "user:", "mongodb.net", "clusterTime", "signature"))
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_live_cleanup_uses_only_exact_creation_ledger_and_continues_after_drop_failure(
+        live_check_module, failed):
+    check = live_check_module.LiveCheck()
+    owned = [check.prefix + "concepts", check.prefix + "versions"]
+    check.expected, check.created = set(owned), list(owned)
+    remaining, dropped, closed = {"research_concepts", "skills", *owned}, [], []
+
+    def drop(name):
+        dropped.append(name)
+        if failed and name == owned[-1]:
+            raise RuntimeError("temporarily unavailable")
+        remaining.remove(name)
+
+    check.store = SimpleNamespace(database=SimpleNamespace(
+        drop_collection=drop, list_collection_names=lambda: list(remaining),
+        client=SimpleNamespace(close=lambda: closed.append(True))))
+    check.cleanup()
+    assert dropped == list(reversed(owned))
+    assert {"research_concepts", "skills"} <= remaining
+    assert check.report["cleanup_verified"] is not failed
+    assert check.report["collections_removed"] == (1 if failed else 2)
+    assert closed == [True]

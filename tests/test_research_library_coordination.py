@@ -169,7 +169,7 @@ def test_request_uses_exact_executable_private_env_and_json_stdin(coordination, 
     assert command == [SETTINGS["python"], "-m", "research_library_service.cli",
                        "--env-file", SETTINGS["env_file"], "request"]
     assert options == {"input": json.dumps({"operation": "coordinate", "arguments": payload}),
-                       "text": True, "capture_output": True, "timeout": 45}
+                       "text": True, "capture_output": True, "timeout": 45, "check": False}
     assert "secret" not in repr(calls)
 
 

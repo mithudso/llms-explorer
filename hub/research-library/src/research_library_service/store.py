@@ -398,13 +398,17 @@ class LibraryStore:
                 if not isinstance(value, list) or len(value) > 256:
                     raise ValueError("Invalid factual prose list")
                 changed[key] = json_value(value)
-        if "cvs_axes" in patch:
+        if "cvs_axes" in patch and patch["cvs_axes"] is not None:
             changed.update(score_axes(patch["cvs_axes"]))
         elif "cvs" in patch:
             value = patch["cvs"]
             if value is not None and (type(value) not in (int, float) or not 0 <= value <= 5):
                 raise ValueError("CVS must be null or 0..5")
             changed.update(cvs=value, cvs_axes=None, cvs_decision="REVIEW")
+        elif "cvs_axes" in patch:
+            # Explicitly clearing axes alone also clears the derived scalar.
+            # A supplied legacy scalar with null axes remains an unqualified score.
+            changed.update(score_axes(None))
         if "cvs_decision" in patch:
             value = patch["cvs_decision"]
             if value not in {"RESEARCH", "REFRESH", "SKIP", "REVIEW"}:

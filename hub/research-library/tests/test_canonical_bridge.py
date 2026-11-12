@@ -86,6 +86,22 @@ def test_mcp_owner_cannot_impersonate_legacy_run_and_coordination_is_owner_local
     bridge.coordinate(store, "release", "legacy-run", bundle=bundle)
 
 
+def test_inventory_scale_reservations_preserve_late_aliases_without_reading_claims(bridge, monkeypatch):
+    ids = ["c:lookup-" + str(i) for i in range(2501)]
+    for offset in range(0, len(ids), 500):
+        bridge.store.concepts.insert_many([{"_id": cid, "managed_by": bridge.store.managed_by,
+            "name": "Lookup " + cid[2:], "aliases": ["Exact " + cid[2:]], "deleted": False,
+            "claims": [{"text": "Private text irrelevant to reservation matching"}]}
+            for cid in ids[offset:offset + 500]])
+    monkeypatch.setattr(bridge.store, "concept_get", lambda *args, **kwargs:
+                        pytest.fail("Reservation matching must not read full claim bodies"))
+    monkeypatch.setattr(bridge, "_legacy_runs", lambda: [{"source": "dr", "name": "held-run",
+        "state": "paused", "pending": ["Exact lookup-2500"]}])
+    holds = bridge.reservations(ids, "reader", "")
+    assert set(holds) == {"c:lookup-2500"}
+    assert holds["c:lookup-2500"]["state"] == "paused"
+
+
 def test_export_preserves_claim_identity_and_exact_snapshot_history(bridge):
     concept, _ = draft(bridge)
     document = export_document(bridge, concept)

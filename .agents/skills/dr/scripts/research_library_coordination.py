@@ -23,7 +23,7 @@ def config() -> dict | None:
         raise ValueError("research library coordination configuration is oversized")
     value = json.loads(path.read_text())
     if not isinstance(value, dict):
-        raise ValueError("invalid research library coordination configuration")
+        raise ValueError("invalid research library coordination configuration")  # noqa: TRY004
     if value.get("enabled") is not True:
         return None
     for key in ("python", "env_file"):
@@ -41,7 +41,7 @@ def request(settings: dict, operation: str, arguments: dict) -> dict:
         raise ValueError("research library coordination request is oversized")
     try:
         result = subprocess.run(command, input=payload, text=True,
-            capture_output=True, timeout=45)
+            capture_output=True, timeout=45, check=False)
     except (OSError, subprocess.SubprocessError):
         raise ValueError("research library coordination transport is unavailable") from None
     if result.returncode or len(result.stdout) > 4 * 1024 * 1024:

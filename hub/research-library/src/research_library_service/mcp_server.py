@@ -84,7 +84,7 @@ def create_server(service=None, default_role: str = "read"):
 
     @tool()
     def research_status() -> dict[str, Any]:
-        """Report managed coverage, index readiness and coordination state."""
+        """Report managed corpus counts, graph revision and active lease count."""
         return invoke("status", {})
 
     @tool()
