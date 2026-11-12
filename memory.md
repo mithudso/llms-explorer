@@ -1,8 +1,14 @@
 # Memory
 
-## Salesforce Pub/Sub research checkpoint — 2026-11-12
+## Salesforce Pub/Sub bounded research delivery — 2026-11-12
 
-TASK-1517 is active. The full-suite plan has 30 scored candidates, 19 selected concepts and 11 deliberate skips, with source-sharing cohorts of 6/6/7. Preliminary scouting covers all 19 concepts. Native source-bound research is running through the repository adapter; no factual publication, skill installation, saturation or completed full-suite claim is made by this checkpoint. Runtime source bodies and attempts remain private. Embeddings and shared services remain paused. See docs/research/salesforce-pubsub-full-suite-2026-11-12/README.md and plan.json.
+The full-suite run reached SATURATION-DISSENT after its default three frontier rounds: 38 scored candidates, 19 complete concepts, one partial result, 15 skips and three queued gaps. Current v4 gates cover 260 structured facts and 96 auxiliary assertions. Twenty complete packs include a 79-claim aggregate that duplicates six leaves; the family has 19 members. The Omni channel diagnostic retains eight facts and five auxiliary assertions but withholds two details; no twentieth complete pack or researched node was promoted.
+
+Navigation preserves all canonical facts and auxiliary assertions. Scoped FTS5 indexed 30 files, with 9/10 complete-pack probes and a separate partial-reference identifier match. Fresh artifact readers passed 10/10 pack routes and 11/11 hub routes; mixed-vendor routing passed 12/12. These are artifact tests, not native activation. The final isolated LDO attempt returned no review because model execution hit the account usage limit. No third attempt ran. Final blind acceptance remains unavailable.
+
+Local validation passed 334 tests plus six subtests, a 3,064-page scoped Astro build and its five postbuild stages. Typecheck reported zero errors, zero warnings and 21 hints. Frozen search assets remain unchanged. Private skills PR111 merged as b8c8e8be0023a00ddcd0bbaf9b9c8753ad42519d; all 41 changed remote file hashes were verified. Public PR352 delivers the qualified research and design; its final remote check and merge state belongs to GitHub. See docs/research/salesforce-pubsub-full-suite-2026-11-12/README.md and verification.json.
+
+TASK-1517 remains incomplete. Three research gaps, the partial diagnostic, final blind acceptance and paused semantic indexing remain explicit. No Salesforce org/customer reads, production alert changes or service restarts were performed by this suite. Raw source snapshots, authored bindings and attempts remain private. Do not infer a completed full suite or production readiness from publication.
 
 ## v0.22.196 — 2026-11-11 repository SKO audit and scoped delivery
 
