@@ -1,18 +1,36 @@
 ---
 name: dr
 description: >-
-  Deep-research a topic on the open web, build a durable expert skill from the
-  findings, install it at user level, and cross-pollinate related skills.
-  TRIGGER: "/dr <topic>", "deep research X and make a skill", "build an expert
-  skill about X". SKIP: reading one document you already have -> document-distiller;
-  condensing a repo or docs site into reference context -> crawl-to-llms-txt.
+  Research a named topic on the open web and build a durable source-cited expert skill through the repository's evidence and completion gates.
+  TRIGGER: "/dr <topic>", "deep research X and make a skill", "build an expert skill about X".
+  SKIP: cited report without an installed skill → deep-research; family gap discovery → concept-family-explorer; exhaustive depth of one concept → rabbithole; one supplied document → llms-txt-tooling (references/document-distiller.md); repo/docset context compilation → crawl-to-llms-txt.
 model: claude-sonnet-5-5
 effort: max
+whenToUse:
+  - "Deep research CRDTs and make an expert skill."
+  - "Build a source-cited skill about Linux io_uring."
+  - "Refresh the volatile claims in my existing research run."
+related_skills:
+  - "deep-research"
+  - "concept-family-explorer"
+  - "rabbithole"
+  - "llms-txt-tooling"
+  - "research-scout"
+version: "3.6.1"
+updated: "2026-11-11"
+category: meta
 metadata:
-  version: "3.5.0"
-  updated: "2026-11-02"
-  delta: "Require all-claim evidence integrity, explicit conflicts, bounded repairs and projection/installed parity before publication."
+  changelog_ref: references/CHANGELOG.md
 ---
+
+## Look for llms files first
+
+Before reading the research subject and its source repositories raw, locate its llms files. If the repo is available, step 4 sets the order.
+1. Check the subject's `llms.txt`, its docs site's `/llms.txt`, or matching packs under `~/.global-ai-hub/skills.llms/` and `~/.global-ai-hub/llms-concepts/`; use available hub keyword/search tools as discovery leads.
+2. Run `wc -c` first (or inspect a remote size header). Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
+5. Index and llms hits are leads. Confirm them against readable source text before acting.
 
 ## Evidence required before publication
 
@@ -59,7 +77,6 @@ coverage labels do not establish support.
   Verify canonical, installed and runtime-specific skill copies with their sync check;
   equal version numbers alone do not establish parity. Report loaded state separately.
 
-
 You are executing the **`/dr` deep-research-to-skill workflow**. Input: **$ARGUMENTS**
 
 Empty input (no topic, no `--refresh <slug>`) → ask for the topic. Never research an empty string.
@@ -100,7 +117,7 @@ claim evidence before upgrading, and keep the accepted historical artifact intac
 |---|---|---|
 | `--depth quick\|standard\|saturate` | `standard` | Sets the research contract (table below). `saturate` is the old unbounded behaviour; use it only when asked. |
 | `--budget-minutes=N` | unbounded interactive; automation must pass it | Per `~/.claude/skill-consolidation/convergence-and-severity.md` §Budget contract: check at phase boundaries, finish the current phase's writes, exit `BUDGET_EXHAUSTED`. |
-| `--refresh <slug>` | off | Gap-focused re-verify of an existing run: `dr_run.py init "<topic>" --slug <slug> --refresh`, re-fetch only volatile claims and the skill's `verified-as-of` stamps, then Phases 2–3. Never a full re-research. |
+| `--refresh <slug>` | off | Gap-focused re-verify of an existing run: `codex_dr_run.py init "<topic>" --slug <slug> --refresh` through the mandatory adapter, re-fetch only volatile claims and the skill's `verified-as-of` stamps, then Phases 2–3. Never a full re-research. |
 | `--verify-claims` | required before promotion at every depth and on refresh | Blind claim gate (Phase 2 step 4). |
 | `--crosspoll` | **off** | Phase 4 peer edits. Opt-in: it is the riskiest phase and the least valuable per minute. |
 | `--cross-model` | off | Route the blind gate through another frontier model per `~/.claude/skill-consolidation/cross-model-gate.md`. |
@@ -114,7 +131,6 @@ claim evidence before upgrading, and keep the accepted historical artifact intac
 | saturate | cap 15 | 3+ independent | ~20% of queries | 2 empty rounds | deep: 2 × Sonnet `max` per concept, merged (≤4 in flight) | all factual assertions | full `--no-sync` |
 
 Target wall-clock: quick ≈ 8 min, standard ≈ 10 min per docs-only concept and 30–45 min per escalated one, saturate = whatever the topic needs.
-
 
 ## Research scout handoffs
 
@@ -138,20 +154,20 @@ substitute scout queries for independent discovery or required negation.
 1. Parse concepts from `$ARGUMENTS`. A family (several related topics) → identify the shared foundation concept first; it is researched first and siblings cite it.
 2. **Hub match.** Enumerate `~/.claude/skill-consolidation/*-manifest.json` (`hubs` → `{title, spokes[]}`); pick the best hub by id/title/spoke names, or none. Never keep a hardcoded family list. Existing spoke for this exact topic → this run is an update of that spoke (gap-focused).
 3. **Prior work.** `python3 ~/.global-ai-hub/scripts/concept_tree.py search "<topic>"` and `grep -i "<slug>" ~/.global-ai-hub/research/INDEX.md`. A prior run dir with `manifest.json` means resume, not restart.
-4. **Open the run:** `python3 ~/.global-ai-hub/scripts/dr_run.py init "<topic>" --depth <d> [--hub <hub>] [--parent "<parent concept>"] [--alias "<frontier placeholder name>"]… --concepts "<c1>,<c2>,…"`. Pass `--alias` for every frontier placeholder (a name that appears in some node's `childConcepts` but has no node of its own) this run answers, so `finish` folds it into the new node instead of leaving it greyed beside it. It prints the manifest and paths. `"resumed": true` → continue from `pending` (research-complete → go straight to Phase 2). The draft skeleton and progress marker now exist on disk.
+4. **Open the run:** `python3 "${LLMS_EXPLORER_REPO:-$HOME/dev/llms-explorer}/scripts/codex_dr_run.py" init "<topic>" --depth <d> [--hub <hub>] [--parent "<parent concept>"] [--alias "<frontier placeholder name>"]… --concepts "<c1>,<c2>,…"`. Pass `--alias` for every frontier placeholder (a name that appears in some node's `childConcepts` but has no node of its own) this run answers, so `finish` folds it into the new node instead of leaving it greyed beside it. It prints the manifest and paths. `"resumed": true` → continue from `pending` (research-complete → go straight to Phase 2). The draft skeleton and progress marker now exist on disk.
 5. **Confirm scope in ONE message** — the concept list in dependency order, the hub match, the depth, the run dir — unless an orchestrator (`concept-family-explorer`, `full-suite`, the hub's `concept_tree.py` launcher) dispatched you with a bounded brief: then record `scope: from orchestrator brief` and continue.
 
 ## Phase 1 — Research
 
-Methodology: `deep-research-methods` (decomposition, query formulation, source evaluation, confidence calibration, subagent briefs). Do not restate it here.
+Methodology: `deep-research` (references/deep-research-methods.md) (decomposition, query formulation, source evaluation, confidence calibration, subagent briefs). Do not restate it here.
 
 1. **Per concept, before searching:** note the authoritative source TYPE, fast-moving vs stable (sets recency weighting), and what a disconfirming finding would look like.
 2. **Source cache first.** Before any `WebFetch`, run `dr_run.py source lookup --url <url>`; a hit under 30 days old gives a `text` path — read that instead of refetching. After a fresh fetch you keep: `dr_run.py source put <slug> --url … --title … --tier docs|paper|postmortem|blog|forum|repo --concept "<c>" [--text-file <saved body>]`. Cached bodies are shared across runs and CFE siblings.
 3. **Retrieval ladder:** `exa`/`firecrawl` MCPs when present, else `WebSearch` + `WebFetch`. Start from a domain anchor (Wikipedia / an Awesome list / RFC / arXiv / vendor docs), then expand immediately to the primary sources they cite. Collapse citation chains to one evidentiary point. Vary terminology across ecosystems.
 4. **Fan-out, one command:** `python3 ~/.claude/skills/research-scout/scripts/with_scout.py --runtime ~/.global-ai-hub/scripts/dr_run.py research <slug>` runs slim headless `claude -p` agents for every pending concept. Lane by depth (`--lane single|adaptive|deep`): `standard` = **adaptive** — one Sonnet `high` probe per concept (~$0.45, ~3 min) that is recorded as the concept's research when it stays in the docs tier and meets the floors, else escalated; `saturate` = **deep** — two independent Sonnet `max` passes merged by `dr_run.py` (text dedup, then one tool-less Sonnet `medium` clustering call; an escalated probe is merged in too) and recorded as `claims/<slug>.json`; `quick` = one Sonnet `low` pass. The probe is a **scout** (`--probe-scout`, on by default): its brief orders at least six searches aimed at postmortems, engineering blogs, issue trackers, forums, source code and papers, `source put` for each real hit, and a top-level `scout` report (`tiers_seen`, `candidates`) in its claims file. Escalation triggers, read from that file: a cited or scouted source with tier postmortem/blog/forum/repo/paper, fewer sources than the depth floor, or fewer than 8 claims. Escalated deep passes receive the probe's sources and scout candidates as SEED SOURCES (non-docs first), so they read instead of re-discovering. Pass agents run `claims-check`, never `concept-done`. The merge call is also the **scope check**: it names claims that are not about this concept in this topic (the gate verifies truth against the cited source, not subject), the harness drops them to `claims/passes/<slug>-off-topic.json`, prunes orphaned sources and records `off_topic_dropped`; it runs on a probe that stands alone too. ≤4 agents in flight by default; `--lane`, `--passes N`, `--model`, `--effort` override (the study behind the deep lane: `docs/research/dr-model-repeats-2026-10-20` — one Sonnet `max` run is a peer of one Fable `max` run in both judge directions at 55 % of the price, and the second pass adds the breadth one run lacks). Each agent works from a bounded brief it writes to `<run dir>/briefs/`. Those agents load no skill catalogue and no MCP servers, so a turn costs ~26k tokens of context instead of ~156k. Run it in the background (a `max` pass takes 15–20 minutes; two passes of five concepts at four in flight ≈ 45 minutes) and poll `dr_run.py status <slug>`; it prints one JSON line per agent as each returns and a summary at the end. Each agent's real cost and token count land in `manifest.json` under `agents` and in the finish row. Never dispatch research through the in-process Agent tool; if `claude` is not on PATH, `research --dry-run` writes the briefs and you dispatch them yourself.
-5. **Recording is automatic:** an agent ends by running `dr_run.py concept-done` itself; the `research` command re-validates on return and blocks a concept whose agent wrote nothing or wrote an invalid file (reason recorded). Content to disk first, marker second — always. `tail <run dir>/draft.md` is the live monitor. Re-run `research <slug> --concept "<name>"` to retry one concept.
+5. **Recording is automatic:** pass agents run `claims-check`; the `research` runtime validates and records the merged concept with `concept-done`. It blocks a concept whose agent wrote nothing or wrote an invalid file (reason recorded). Content to disk first, marker second — always. `tail <run dir>/draft.md` is the live monitor. Re-run `research <slug> --concept "<name>"` to retry one concept.
 6. **Stop** per the depth contract. `saturate` only: stop when two consecutive query rounds add no new claim AND every concept meets its source floor; re-querying that returns the same evidence is thrash, which is its own stop signal.
-7. **Authority floor** (all depths): every concept has ≥ its source count from independent origins. A concept that cannot meet it after two broadened query rounds is blocked with reason "insufficient data". A topic where most concepts block → `dr_run.py finish <slug> --status INSUFFICIENT-AUTHORITY`, no install, recommend a narrower scope.
+7. **Authority floor** (all depths): every concept has ≥ its source count from independent origins. A concept that cannot meet it after two broadened query rounds is blocked with reason "insufficient data". A topic where most concepts block → `codex_dr_run.py finish <slug> --status INSUFFICIENT-AUTHORITY` through the mandatory adapter, no install, recommend a narrower scope.
 
 ## Phase 2 — Build and install
 
@@ -166,7 +182,7 @@ Methodology: `deep-research-methods` (decomposition, query formulation, source e
 
 ## Phase 3 — Register
 
-1. `dr_run.py finish <slug> --status COMPLETED --minutes <n> --agents <n> --stop-reason "…" [--report <run dir>/report.md]`. This is the only writer of: `manifest.json` final state, `research/INDEX.md`, `research/runs.jsonl`, the research-telemetry row, and the concept-tree node (upsert + parent link + `childConcepts` from every claims file's `child_concepts`).
+1. `python3 "${LLMS_EXPLORER_REPO:-$HOME/dev/llms-explorer}/scripts/codex_dr_run.py" finish <slug> --status COMPLETED --minutes <n> --agents <n> --stop-reason "…" [--report <run dir>/report.md]`. This is the only writer of: `manifest.json` final state, `research/INDEX.md`, `research/runs.jsonl`, the research-telemetry row, and the concept-tree node (upsert + parent link + `childConcepts` from every claims file's `child_concepts`).
 1b. **Website completion.** `finish` refreshes concept packs and generated website content automatically. Orchestrated runs use the same completion path. CFE Step 9d refreshes final placement again. A refresh error leaves persistence unfinished.
 2. Registry: `cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router build`. (There is no `tam_*` MCP on this machine and no mdb-context-hub persist step; do not look for them.)
 3. Hub-routed only: `node ~/.claude/skill-consolidation/referents.mjs --repair` (dry-run, then `--apply`) so peer pointers resolve to the new spoke.
@@ -180,28 +196,13 @@ Search peers by topic; skip superficial overlap and anything under active edit t
 
 - Interrupted → re-run the same `/dr <topic>`; `init` resumes from `manifest.json`. Done concepts are never re-researched; a concept that crashed mid-write is still pending and its section is rebuilt from claims, so no duplicated stubs.
 - `dr_run.py` exits non-zero → read its `error:` line; it names the exact fix. Do not work around it by writing files yourself.
-- Budget expiry → finish the current concept's `concept-done`, then `finish --status BUDGET_EXHAUSTED`; report done vs pending.
+- Budget expiry → finish the current concept's `concept-done`, then use the mandatory adapter for `codex_dr_run.py finish <slug> --status BUDGET_EXHAUSTED`; report done vs pending.
 - Registry build or referents repair fails → report it; the skill is installed and the run is re-runnable.
 - Hub manifests missing → approximate the hub with `router.py route`, mark routing REGISTRY-UNAVAILABLE, skip referents repair.
 
 ## Report
 
 Write `<run dir>/report.md` and echo it. Lead with `Run status: COMPLETED | BUDGET_EXHAUSTED | VERIFY-DISSENT | persist withheld | INSUFFICIENT-AUTHORITY | REGISTRY-UNAVAILABLE`, then: run dir · installed path · hub wiring done · concepts done/blocked with reasons · sources kept (cache hits vs fresh) · claim-gate verdicts · `/sko` exit state · registry route check · tree node written · minutes · Phase 4 table + restore command if run · follow-ups (`/dr --refresh <slug>` lines for anything left tentative). Every line is evidence from tool output, not self-certification.
-
-## Changelog
-
-- 2026-10-29 v3.4.1 — correct the cache-body description and distinguish URL hashes from content-read receipts; keep the existing gate and freshness policies.
-
-- 2026-10-29 v3.4.0 — validated private scout handoffs become bounded candidate seeds in research briefs; preserve ordinary discovery, provenance and evidence gates.
-
-- 2026-10-20 v3.3.3 — the adaptive probe scouts (hub `dr_run.py` 523d5572): deliberate searches for the non-docs tiers, a `scout` report in the claims file that drives escalation, and SEED SOURCES handed to the escalated deep passes. Makes the escalate decision deliberate instead of incidental and spends part of the saving on discovery.
-- 2026-10-20 v3.3.2 — the merge call doubles as an on-topic check (hub `dr_run.py` 101600b7): off-topic claims dropped and kept aside for audit, orphaned sources pruned, `off_topic_dropped` recorded; runs on probe-only results as well. Closes the gap where an off-subject pass merged cleanly and gated 10/10 (MongoDB frontier run, U02).
-- 2026-10-20 v3.3.1 — Phase 1 lane is adaptive at `standard`: one Sonnet `high` probe, escalated to the 2 × `max` deep lane only when the probe cites a non-docs tier or misses the source/claim floor (`dr_run.py research --lane`). Effort buys source tier, not accuracy, so docs-only concepts stop at ~$0.45; the uniform deep lane cost $6.38 per concept on the first MongoDB frontier run.
-- 2026-10-20 v3.3.0 — Phase 1 default is two independent Sonnet `max` passes per concept at `standard`/`saturate`, merged by `dr_run.py research` (pass agents run `claims-check`; merge = text dedup + one tool-less clustering call; `--passes`, per-effort turn and timeout defaults). Orchestrator frontmatter pinned to Sonnet `max` instead of the session model. Basis: `docs/research/dr-model-repeats-2026-10-20` (one Sonnet `max` run ≈ one Fable `max` run both ways at 55 % of the price).
-- 2026-09-12 v3.2.0 — Phase 1 fan-out is `dr_run.py research` and the claim gate is `dr_run.py gate`: slim headless Sonnet agents (no skill catalogue, no MCP; 26k-token baseline vs 156k in-process), briefs from `dr_assets/brief.md`, per-agent cost recorded.
-- 2026-09-12 v3.1.0 — `init --alias` consumes frontier placeholders; footnote keys `[^c<ordinal>-<n>]`; hub spokes are routable registry rows (`spoke:<hub>/<name>`).
-- 2026-09-12 v3.0.0 — rewrite. One research root (`~/.global-ai-hub/research/<slug>/`) owned by `dr_run.py`; structured per-concept claims + renderer replace free-prose stitching; `--depth` tiers; source cache; claim gate sampled at standard; Pass H moved to hub level in CFE Step 9; cross-pollination opt-in; single concept tree; removed dead `tam_*`/mdb-context-hub/persist-spoke/canonical-prompt/forensic-log/`distill_offline`/hardcoded-OLLAMA branches (none existed on this machine). Audit and rationale: `~/.global-ai-hub/research/dr-rewrite-2026-09-12/` and the artifact page linked from the session. Prior copy: `~/.claude/skill-consolidation/backups/dr-rewrite-20260912-035658/`.
-- Earlier history (v2.x, 2026-06-11 → 2026-08-20) lives in `~/.claude/skill-consolidation/backups/dr-*` and `audits/2026-06-11-research-family-audit.md`.
 
 <!-- shared-research-completion:start -->
 # Shared research library and completion

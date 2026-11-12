@@ -10,7 +10,7 @@ The exact shape of the `/sko` Step 8 report. The `SKILL.md` body keeps a one-lin
 | 2 | n | n | n | applied n fixes |
 | 3 | 0 | 0 | n | converged, stopped |
 
-Beneath it, report Pass L's pre-loop sweep in a separate **Hygiene row** (`Hygiene: n fixed`); hygiene fixes are excluded from the Medium+ totals above. When `--budget-minutes` was passed, a budget exit uses `budget, stopped` as the final-row Action and the report notes wall time.
+Beneath it, report Pass L's pre-loop sweep in a separate **Hygiene row** (`Hygiene: n fixed`); hygiene fixes are excluded from the Medium+ totals above. Add a **Pre-lint row** (`Pre-lint: n findings, c critical / h high folded into iteration 1` or `pre-lint: skipped (<reason>)`) for Step 2.4. When `--budget-minutes` was passed, a budget exit uses `budget, stopped` as the final-row Action and the report notes wall time.
 
 **Findings table**, capped at 20 rows with the rest rolled up:
 
@@ -26,7 +26,27 @@ Beneath it, report Pass L's pre-loop sweep in a separate **Hygiene row** (`Hygie
 
 Label the table with the eval mode, either `eval: measured` or `eval: predicted (<reason>)`. Never conflate the two.
 
-**Unified diff preview.** One fenced `diff` block per file modified, showing only the changed hunks (`diff -u baseline current` semantics; cap each file's diff at 80 lines and indicate truncation).
+**Unified diff preview.** One fenced `diff` block per file modified, showing only the changed hunks (`diff -u baseline current` semantics; cap each file's diff at 80 lines and indicate truncation). Under `--read-only` the hunks are proposals: label each block `proposed (read-only, not applied)` and carry `mode: read-only (no writes)` in the one-line summary.
+
+**Eval results** (Step 6.3), required in every run, including `--meta` and `--read-only`:
+
+| Eval | Result | Level | Files present? |
+|---|---|---|---|
+| trigger (Pass H) | pos n/10, false-positive n/10 | measured / predicted | trigger-eval.json yes / no |
+| behavior (evals.json) | n/m assertions, c/k cases | static / predicted / measured | evals.json yes / no |
+
+Missing results (including a file missing under `--read-only` or `--meta`) mean exit `EVALS-MISSING`, never `converged`; with another non-clean status, append `+EVALS-MISSING`.
+
+**Index discovery** (Step 1.7), one line: `index-discovery: colliders n, referrers n, copies n (verified v, lead only l)` or `index-discovery: degraded (<reason>)`.
+
+**Location sync table** (Step 6.7), required in every run. Emit `NEWER COPY OVERWRITTEN: <path> v<x> updated <date>; backup <path>` only after an actual authorized overwrite of a newer copy and verification of its backup. For every preserved newer copy, report `preserved divergence` and its actual unchanged hash. Never imply an overwrite or invent a backup.
+
+| Location | Kind | Before-hash | Action | After-hash |
+|---|---|---|---|---|
+
+Kinds: canonical, clone, copy, symlink, stub, remote, vendored, generated overlay, historical snapshot. Actions include verified sync, preserved divergence, report only, skipped (--no-sync), blocked (dirty), blocked (diverged), would sync, unreachable and lead only. Remote, plugin-managed and independently owned copies remain report-only unless separately authorized. Record the actual verified backup path for each permitted overwrite; do not invent a backup location or imply that the presence of a backup authorizes the write.
+
+**llms-first** (Pass P), one line: `llms-first: present | added | n/a (<reason>)`.
 
 **Routing verification** (Step 7), one row per skill written:
 
@@ -48,12 +68,12 @@ When the gate withheld the rebuild, the table carries `rebuild withheld: N High 
 
 **Snapshot & rollback.** One line carrying the literal restore command, per the contract's pre-write snapshot guardrail: `cp ~/.claude/skill-consolidation/backups/<skill>-<ts>/<filename> <path>`.
 
-**Telemetry.** Append telemetry rows per the canonical telemetry schema (the contract's Telemetry section; fail-safe, so a write error never blocks the run), and flag any wasted iteration (iteration 3 or later that closed zero Medium+ findings) in the summary.
+**Telemetry.** Under `--read-only`, emit telemetry fields in the report without writing a ledger. Otherwise append telemetry rows per the canonical telemetry schema (the contract's Telemetry section; fail-safe, so a write error never blocks the run), and flag any wasted iteration (iteration 3 or later that closed zero Medium+ findings) in the summary.
 
-**One-line summary.** "X high, Y medium, Z low findings across N iterations (profile: <small | standard>). M sections rewritten. Registry rebuild: <success | skipped | withheld: N High remain | failed>. Routing: <indexed | stale | unroutable>. Exit: <converged | DEGRADED | …>." Append wall time when `--budget-minutes` was passed.
+**One-line summary.** "X high, Y medium, Z low findings across N iterations (profile: <small | standard>). M sections rewritten. Registry rebuild: <success | skipped | withheld: N High remain | failed>. Routing: <indexed | stale | unroutable>. Exit: <converged | EVALS-MISSING | <other status>+EVALS-MISSING | SYNC-PARTIAL | DEGRADED | …>." Append wall time when `--budget-minutes` was passed.
 
 **Modified-sections list.** Every H2 in `SKILL.md` and every top-level key in `manifest.yaml` that was changed.
 
 **Trigger-eval queries used**, collapsed by default and expanded only if the caller requests them.
 
-If no Medium+ findings exist, say so in one line and skip the rest.
+If no Medium+ findings exist, omit the empty findings table and diff previews. Retain eval mode/results, routing verification, post-sync outcomes, degraded tally and exit status, plus snapshot/telemetry outcomes or explicit read-only omissions. A content-clean result never hides operational degradation.

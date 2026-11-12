@@ -1,23 +1,18 @@
 ---
 name: crawl-to-llms-txt
-version: 1.3.0
-updated: 2026-09-03
-model: claude-opus-4-8
+version: 1.4.1
+updated: '2026-11-11'
+model: claude-opus-5-5
 effort: high
 description: >-
-  Crawl a whole website/docset OR walk a whole local repo and condense everything
-  referenceable — commands, config, how-tos, gotchas — into an llms.txt family (index
-  + full + small + facts), provenance-tagged, code verbatim, nav/marketing stripped;
-  private agent context, not a publishable file. TRIGGER: "crawl this site/repo and
-  distill it", "condense this repo into an llms.txt", "make reference context from
-  this codebase/docs", "pre-digest these docs for an agent", "cheat sheet for this
-  whole library", "/crawl2llms". SKIP: ONE document/page →
-  document-distiller(-offline); a SKILL.md dump → skill-to-llms-txt; personal notes →
-  notes-to-llms-txt; topic research across the web → /dr; full mirror or raw pages, no
-  condensation → web-text-mirror / firecrawl-crawl; ONE concept across a docset →
-  llms-concept-abstractor; structured data (JSON/prices) → firecrawl-scrape;
-  publishable llms.txt for AI search → generative-engine-optimization; quality pass on
-  existing llms.txt → llms-deep-optimizer.
+  Condense a fixed public docs site or local repo into private llms reference context: commands,
+  config, how-tos and gotchas with source tags and verbatim code. TRIGGER: "crawl this docs site
+  into llms.txt", "condense this repo", "pre-digest the docs", "/crawl2llms". SKIP: full
+  repo/file/infra dossier → crawl-repo-to-llms; one document or SKILL.md → llms-txt-tooling;
+  notes → notes-to-llms-txt; new web research → full-suite; raw mirroring → web-text-mirror; one
+  concept → llms-concept-abstractor; structured data → firecrawl-scrape; publishable AI-search
+  guidance → generative-engine-optimization; existing-family audit → llms-deep-optimizer.
+  Auth-gated acquisition belongs to firecrawl-knowledge-ingest.
 category: developer
 whenToUse:
   - "crawl this docs site and turn it into an llms.txt I can inject"
@@ -55,6 +50,8 @@ related_skills:
   - web-text-mirror
   - llms-deep-optimizer
   - llms-concept-abstractor
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # Crawl-to-llms.txt
@@ -68,6 +65,12 @@ not a summary.
 Usage: `/crawl2llms <repo-path|url> [--pages N] [--files N] [--scope <subpath>]
 [--small-only] [--include-tests | --no-tests] [--out DIR] [--refresh] [--force]
 [--no-adopt] [--adopt-only]`
+
+## Current format and completion gate
+
+The current project format is `llms-deep-optimizer/references/llms-family-format.md` (in this repository, `.claude/skills/llms-deep-optimizer/references/llms-family-format.md`). Read it before emitting. This project's v3 convention is not an official version of the llmstxt.org specification. It takes precedence over the native family recipes and older v2 grammar examples below.
+
+After native generation, run the current `/ldo` audit before claiming delivery. Account for the single-file/family shape rule, a complete Sitemap and Resources, and contested claims kept out of settled Facts. Keep machine-readable provenance and inventory sidecars. Do not delete compatibility siblings required by a downstream reader; report a format/consumer conflict as `evidence-limited` and name the required migration. Repeat this finalization after regeneration. A failed or unavailable gate is a reported limitation, never a clean verdict. Indexing, embedding, research, service restarts and publication remain separately authorized operations; preserve existing pauses.
 
 ## Guards (non-negotiable; 1–2 shared with document-distiller, 3–5 corpus-specific)
 
@@ -93,6 +96,12 @@ Usage: `/crawl2llms <repo-path|url> [--pages N] [--files N] [--scope <subpath>]
    shapes — API keys, bearer tokens, connection strings with passwords, private-key
    headers — and replace the value with `<REDACTED:kind>`, preserving the surrounding
    command. Never redact silently: list every redaction in the Phase 5 report.
+
+## Indexing and scope authorization
+
+A crawl/condense request does not lift an existing embedding or indexing pause. Acquire and grade a published file without starting services. Run adoption steps 4–6 only when indexing is independently authorized; otherwise report `ADOPTION-PENDING-INDEX`, list the remaining stages and do not claim complete adoption. Keep a local acquired copy outside shared registries when catalog mutation is not authorized. Never restart shared services to finish adoption.
+
+Keep URL fetches inside the approved origin/path/version. Deduplicate normalized URLs, and do not follow local symlinks outside the selected source root.
 
 ## Provenance tag grammar (one grammar, all four files)
 
@@ -305,7 +314,7 @@ backend, embed model); keyword index (layer, rows); librarian registration confi
 both listings; the three verification probes with a one-line result each; and the usage
 hint: "query it with `hub_query_docset(docset=<key>, mode="keyword")` for exact tokens,
 `mode="semantic"` for concepts, `mode="hybrid"` when unsure — or
-`hub_llms_full_read(key=<key>, page=<title-or-url>)` to read one page whole." 
+`hub_llms_full_read(key=<key>, page=<title-or-url>)` to read one page whole."
 
 ## Flags
 
@@ -364,7 +373,7 @@ marker. No prior family found → run fresh and say so.
   adoption on an index the librarian cannot read.
 - Embed pool degraded — a weighted host that resolves but answers slowly poisons the
   run, because the pool keeps sending it work and each call burns a full timeout.
-  Benchmark one embed per host before a long index and pin `HUB_OLLAMA_URLS` to the
+  When embedding is authorized, benchmark one embed per host before a long index and pin `HUB_OLLAMA_URLS` to the
   hosts that actually answer fast; report the measured latencies.
 - Empty root / no readable sources → say so; never emit an empty family.
 - Crawl blocked (robots, auth, fetch failures) → per Phase 1's public-only rule:
@@ -374,3 +383,11 @@ marker. No prior family found → run fresh and say so.
   the remainder).
 - Output dir not writable → fall back to `~/.research/distillations/<name>.llms/`
   and report the relocation.
+
+## Placement (mandatory last step)
+
+The source read-only boundary takes precedence: do not run `install` against the target repository. Report source placement deferred and hand any requested meta-doc edit to `repo-bootstrapper`. Reordering the generated output is permitted. For another explicitly authorized writable project, the following placement procedure applies, so the map of what was written lands where an agent looks first and the files stay in query-first order:
+
+- Run `python3 ~/.global-ai-hub/scripts/llms_routing.py install <project-dir> --from <output-dir>` (in the llms-explorer checkout: `hub/scripts/llms_routing.py`). It writes the `## llms routing` block — routing table, quick answers, indexes — between `<!-- llms-routing:start -->` / `<!-- llms-routing:end -->` in `CLAUDE.md` (else `AGENTS.md`; both → block in `CLAUDE.md`, pointer in `AGENTS.md`; neither → a minimal `CLAUDE.md`). Idempotent; re-run after every regeneration. Outside any project directory it prints `skipped placement: no project directory`.
+- Run `python3 ~/.global-ai-hub/scripts/llms_routing.py reorder <output-dir>/llms.txt`: inside each H2 section the entries whose target file the access ledger (`llms_ledger.py rank`) has seen go first, most read first; the rest keep their authored order. Sections, `llms-small.txt` and `llms-full.txt` are never reordered. With no ledger data it says `ordering: role order (no ledger data)`.
+- Placement rule: defaults, file roles, formulas and commands are quick answers in `CLAUDE.md`/`AGENTS.md` (cached, cited, data not rules); everything else stays in the llms files, which remain the source of truth.

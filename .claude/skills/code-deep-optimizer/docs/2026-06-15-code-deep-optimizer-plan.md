@@ -23,7 +23,7 @@
   - **FM-PARSE** (frontmatter parses): `python3 -c "import yaml,sys; t=open(sys.argv[1]).read(); fm=t.split('---',2)[1]; yaml.safe_load(fm); print('FM OK')" <file>`
   - **DESC-LEN** (description ≤1000 chars): `python3 -c "import yaml,sys; fm=yaml.safe_load(open(sys.argv[1]).read().split('---',2)[1]); d=fm['description']; print(len(d),'chars'); assert len(d)<=1000,'DESC TOO LONG'" <file>`
   - **TOKENS** (SKILL.md body budget): `python3 -c "import sys; b=len(open(sys.argv[1]).read().encode()); print(b,'bytes ~', b//4,'tokens')" SKILL.md` — soft target <24000 bytes (~6k tokens), hard ceiling <40000 bytes (~10k tokens).
-  - **WS-LINT** (whitespace hygiene, from sko Pass L): `python3 -c "import sys,re; [print(n, repr(ln)) for n, ln in enumerate(open(sys.argv[1], newline='').read().splitlines(keepends=True), 1) if re.search('[ \t]+(?=\r?\n|\$)|\t|[​-‍ ﻿\x00-\x08\x0b\x0c\x0e-\x1f\x7f]|\r\n', ln)]" <file>` — clean file prints nothing.
+  - **WS-LINT** (whitespace hygiene, from sko Pass L): `python3 -c "import sys,re; [print(n, repr(ln)) for n, ln in enumerate(open(sys.argv[1], newline='').read().splitlines(keepends=True), 1) if re.search('[ \t]+(?=\r?\n|\$)|\t|[\u200b-\u200d \ufeff\x00-\x08\x0b\x0c\x0e-\x1f\x7f]|\r\n', ln)]" <file>` — clean file prints nothing.
 
 ---
 

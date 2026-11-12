@@ -1,3 +1,7 @@
+2026-11-11 final SKO TASK-1372: A–P and bounded independent rechecks recorded; exploratory predicted triggers; scoped operational exit DEGRADED. Raw dissent and focused correction receipts remain in the repository review ledger. No measured activation, semantic refresh or empirical promotion.
+
+2026-11-11 v1.19.0 — bounded blind-review repairs; offline regression evidence recorded; final fresh recheck pending.
+2026-11-11 sko 1.17.1->1.18.0 — content/routing audit and evaluation evidence; predicted results only; blind acceptance pending.
 # code-deep-optimizer — changelog
 
 Moved out of SKILL.md frontmatter 2026-09-09: it was 2,546 bytes, 47% of the always-loaded

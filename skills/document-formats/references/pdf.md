@@ -473,7 +473,7 @@ async function htmlToPDF(htmlContent, outputPath) {
     displayHeaderFooter: true,
     headerTemplate: '<div style="font-size:10px;width:100%;text-align:right;padding:0 20px;"><span class="title"></span></div>',
     footerTemplate: '<div style="font-size:10px;width:100%;text-align:center;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>',
-    margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' },
+    margin: { top: '35mm', right: '15mm', bottom: '20mm', left: '15mm' },
   });
   await browser.close();
 }

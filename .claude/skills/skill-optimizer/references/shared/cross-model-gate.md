@@ -22,14 +22,13 @@ abort the gate and log: `cross-model gate: skipped (content not cleared for cros
 1. **Availability check** — `copilot --version`. On failure, log
    `cross-model gate: skipped (copilot CLI unavailable)` in the report and continue to the normal
    exit. The gate must never block a run.
-2. **Model detection** — reuse copilot-adversarial-review's Step 0 latest-GPT snippet, or skip
-   detection entirely and use the hardcoded fallback to save one CLI round-trip:
-
-   ```bash
-   LATEST_GPT=$(copilot -p "What is the single most capable base GPT model ID available to you right now? Reply with only the model ID, nothing else." --silent \
-     | grep -oE 'gpt-[0-9]+\.[0-9]+' | head -1)
-   [[ "$LATEST_GPT" =~ ^gpt-[0-9] ]] || LATEST_GPT="gpt-4.1"
-   ```
+2. **Model selection without a provider call** — use a caller-pinned GPT model or
+   a model ID verified in the CLI's local roster or current configuration. Record
+   that source and the selected model. Check documented selection syntax with
+   local `--help` when needed. Do not call `copilot -p` for discovery, and do not
+   infer availability from an old fallback ID. If no eligible model can be
+   verified without a provider call, report
+   `cross-model gate: skipped (model availability unverified)`.
 
 3. **One review call** — exactly one `copilot -p` invocation per run (hard limit), passing the
    FINAL artifact with the review-prompt template below.

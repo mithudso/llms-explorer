@@ -18,7 +18,7 @@
 | V7 | **Conflicts** | every `conflict:` group has ≥ 2 units from ≥ 2 sources (or 2 pages) and is not version/vendor-explained | all groups valid | demote to `note:` |
 | V8 | **Budget** | `manifest.files` | small ≤ budget × 1.05; every non-empty facet present in small; full < 60k tokens or split decided | raise budget / `text_fix` / split |
 | V9 | **Summary honesty** | the blockquote's claims each map to a kept definition unit | every clause grounded | rewrite from units |
-| V10 | **Grammar** | `cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python scripts/llms_lint.py check <dir>/llms.txt` · `… check <dir>/llms-facts.txt --kind facts` · `… check <dir>/llms-small.txt --kind facts` (the pack's small file is a facts-style digest, not a page ladder — never lint it as `--kind small`) | 0 High from web-sourced units; expected and recorded as N/A: P5 S4 Medium (facts/full ratio — a pack's full file *is* its facts) and P7 C6 High on `file://` anchors (local textbooks/mirror files: the lint wants http URLs; the anchors are still traceable to file + heading) | anything else: fix the generator input and recompile |
+| V10 | **Grammar** | `cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python scripts/llms_lint.py check <dir>/llms.txt` · `… check <dir>/llms-facts.txt --kind facts` · `… check <dir>/llms-small.txt --kind facts` (the pack's small file is a facts-style digest, not a page ladder — never lint it as `--kind small`) | 0 High from web-sourced units; record a concept-catalogue ratio exception only when the current checker recognizes that grammar and its adjacent sidecars. A P7 C6 High on `file://` or a malformed provenance binding remains High: keep the source honest, report evidence-limited and do not fabricate an HTTP source or relabel the finding N/A | anything else: fix the generator input and recompile |
 
 V1, V2, V5, V8 are mandatory on every run. V3/V4/V6 are mandatory when `--rounds ≥ 1`
 (i.e. always unless `--no-llm`). V7 when conflicts > 0. V9/V10 before `--index`, `--ldo` or
@@ -69,8 +69,7 @@ hand-edit. First `/ldo` on a pack (prompt-caching, 2026-08-31): Medium+ 11 → 8
 all upstream (docset_refine lead-ins/truncation) or generator items since fixed in v1.3.0
 (definition ranking, facet descriptions with top terms, lead-in drop, snippet labels); agent
 test index 5 → 7/10, facts 6/10 — the remaining gap is extraction depth in the source facts
-layer, not the pack. Build the pack's index (`docset_indexer index units.jsonl --units --name
-concept__<slug>` + `keyword-index`) before `/ldo` so P11 is live.
+layer, not the pack. When indexing is independently authorized, build the pack's index (`docset_indexer index units.jsonl --units --name concept__<slug>` + `keyword-index`) before `/ldo` so P11 is live. Otherwise report P11 unavailable and preserve the pause.
 
 ## 5. Fresh-context agent test prompt
 

@@ -23,6 +23,7 @@ successful sync; that snapshot is the base of a three-way merge, which is how a 
 edit on one side is told apart from an item the other side has not seen yet.
 """
 import argparse
+import base64
 import datetime as dt
 import fcntl
 import glob
@@ -88,6 +89,30 @@ def group_of(item):
 
 # Markdown file <-> flat item list
 
+def parse_body(body):
+    """Recover the metadata boundary without treating user punctuation as syntax."""
+    marker = re.fullmatch(r"(.*) <!-- todo-meta64:([A-Za-z0-9+/=]*) -->", body)
+    if marker:
+        try:
+            meta = base64.b64decode(marker.group(2), validate=True).decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            return body, ""
+        visible = marker.group(1)
+        if not meta:
+            return visible, ""
+        suffix = " · " + meta
+        if visible.endswith(suffix):
+            return visible[:-len(suffix)], meta
+        # A hand edit removed or changed the displayed metadata. Preserve it.
+        return visible, ""
+    # Legacy rows have no explicit boundary. Recognize only the metadata forms
+    # this writer emits; preserve other middle-dot text instead of guessing.
+    legacy = re.search(r" · (?=(?:added|since|done) \d{4}-\d{2}-\d{2}\b|session [0-9a-fA-F]{1,8} · )", body)
+    if legacy:
+        return body[:legacy.start()], body[legacy.end():]
+    return body, ""
+
+
 def parse_todo(path=TODO_FILE):
     items = []
     if not os.path.exists(path):
@@ -106,7 +131,7 @@ def parse_todo(path=TODO_FILE):
                 continue
             m = ITEM_RE.match(line)
             if m:
-                text, _, meta = m.group(2).partition(" · ")
+                text, meta = parse_body(m.group(2))
                 items.append({"id": m.group(3), "text": text.strip(), "meta": meta.strip(),
                               "done": m.group(1) != " ", "src": m.group(4), "proj": m.group(5)})
                 continue
@@ -127,7 +152,10 @@ def render_todo(items):
            "`todo.py` (skills: /todo, /braindump); synced with StickySites and peer boxes._", ""]
 
     def line(i):
-        body = f"{i['text']} · {i['meta']}" if i.get("meta") else i["text"]
+        meta = str(i.get("meta") or "")
+        body = f"{i['text']} · {meta}" if meta else i["text"]
+        metadata = base64.b64encode(meta.encode("utf-8")).decode("ascii")
+        body += f" <!-- todo-meta64:{metadata} -->"
         proj = f" proj:{i['proj']}" if i.get("proj") else ""
         return f"- [{'x' if i['done'] else ' '}] {body} <!-- id:{i['id']} src:{i['src']}{proj} -->"
 
@@ -237,7 +265,8 @@ def merge3(local, remote, base, dismissed=frozenset()):
                 merged["done"] = l["done"] or r["done"]
                 out.append(merged)
             elif l:
-                out.append(l)
+                if iid not in dismissed:
+                    out.append(l)
             elif iid not in dismissed:
                 out.append(r)
             continue
@@ -376,15 +405,20 @@ def peer_sync_one(target):
             raise RuntimeError(f"export failed: {(res.stderr or res.stdout).strip()[:200]}")
         remote = json.loads(res.stdout)
         with Store() as st:
-            st.seen |= set(remote["seen"])
+            # Remote live IDs are new observations, not local dismissal tombstones.
+            local_dismissed = st.dismissed()
+            remote_live = {i["id"] for i in remote["items"]}
+            remote_dismissed = set(remote["seen"]) - remote_live
             base = st.state.get(key, [])
-            merged = merge3(st.items, remote["items"], base, st.dismissed())
-            doc = {"items": snapshot(merged), "seen": sorted(st.seen)}
+            merged = merge3(st.items, remote["items"], base, local_dismissed | remote_dismissed)
+            merged_seen = st.seen | set(remote["seen"]) | {i["id"] for i in merged}
+            doc = {"items": snapshot(merged), "seen": sorted(merged_seen)}
             res = ssh(target, f"import-json --expect {remote['hash']}", stdin=json.dumps(doc))
             if res.returncode == 3:
                 continue  # remote changed between export and import; re-read and retry
             if res.returncode != 0:
                 raise RuntimeError(f"import failed: {(res.stderr or res.stdout).strip()[:200]}")
+            st.seen = merged_seen
             st.items = merged
             st.state[key] = snapshot(merged)
             return len(merged)

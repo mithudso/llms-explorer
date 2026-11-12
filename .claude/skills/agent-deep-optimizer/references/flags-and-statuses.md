@@ -8,6 +8,7 @@ Complete flag list and exit-status vocabulary for `/ado`. `SKILL.md` § Invocati
 |---|---|---|
 | `--meta` (aliases `--structural`, `--meta-only`, `--structural-only`) | Structural-only mode: frontmatter schema, name/precedence/collision, tool and reference resolvability, registry and routing wiring; skips content passes | `SKILL.md` § Structural-only mode |
 | `--read-only` | Run every pass, triage, and the report; write nothing anywhere (no target, peer, eval, changelog, rebuild writes); single iteration; the read-only routing verify still runs. convergence-loop-runner's "dry run" input maps here | Steps 5–7 |
+| `--seed` | With `--meta`, opt in to Pass C peer-deferral seeding under its bounded peer-write rules; has no write effect under `--read-only` and grants no authority over another owner | Structural-only mode, Pass C |
 | `--eval` | With `--meta`, add the Pass O delegation eval (opt-in) | Structural-only mode |
 | `--eval=measured` | Force the measured track: `trigger_runner.py` delegation scoring plus the `ado_tools.py smoke` load check | Pass O |
 | `--smoke` | Run only the load check (`claude -p --agent <name> --max-turns 1`, side-effecting tools disallowed) in addition to the normal run | Pass O, Step 6 |
@@ -18,6 +19,7 @@ Complete flag list and exit-status vocabulary for `/ado`. `SKILL.md` § Invocati
 | `--model=<alias-or-id>` | Pin the run-under `model` frontmatter value; skip the Step 4.6 heuristic | Step 4.6 |
 | `--effort=<level>` | Pin the run-under `effort` value (`low\|medium\|high\|xhigh\|max`) | Step 4.6 |
 | `--allow-rename` | Permit Pass B to apply a `name` change and update every file in the `ado_tools.py refs` impact set; without it a rename is a `BLOCKED` row | Pass B |
+| `--agents-json <file-or-inline>` | Select the JSON definition source plus its entry name as described below; inline JSON is read-only and file write-back requires ownership and a preimage | Step 1, Argument forms |
 | `--scope=user\|project` | When the name resolves in both roots, choose which copy to optimize (default: the precedence winner) | Step 1 |
 | `--cross-model` | Run the optional Step 6.5 cross-model exit gate (default off) | Step 6.5, `references/shared/cross-model-gate.md` |
 | `--compress` | Opt in to the Step 7.5 caveman-compress pass on the body (default off; Pass N extraction first) | Step 7.5 |

@@ -1,9 +1,7 @@
 ---
 name: agent-deep-optimizer
 description: >-
-  Audit and improve a Claude Code subagent definition (~/.claude/agents, .claude/agents): a 16-pass convergence loop over the delegation surface (description, name, precedence, collisions), delegation contract (inputs, final report, stop rules), capability grant (tools, MCP, skills preload, permissionMode, isolation, memory), safety, resilience, model/effort fit and the system-prompt body; fixes Medium+ in place, adds delegation evals and a smoke load check, rebuilds the hub registry and verifies routing.
-  TRIGGER: "optimize this agent", "run ado", "agent deep optimizer", "audit my subagent", "agent never gets delegated to", "least-privilege tools for this agent", "validate agent frontmatter fields", "which model should this agent run on", "add delegation evals".
-  SKIP: prompt text in code → prompt-deep-optimizer / pdo; SKILL.md → skill-optimizer / sko; eval suites → deep-eval-optimizer / deo; running an agent → that agent; missing or ignored agents → agent-asset-parity-auditor.
+  Audit and repair a Claude Code subagent definition and its delegation contract. TRIGGER: "optimize this agent", "run ado", "my agent never gets delegated to", "audit its tool grant", "validate agent frontmatter". Runs 16 passes over description/name/precedence, inputs/final report/stop rules, tools/MCP/preloads/permissions/isolation/memory, safety, resilience, model/effort and prompt body; fixes Medium+, adds delegation evals, verifies parsing and optional load, and checks registry routing. SKIP: prompt text in code → prompt-deep-optimizer; SKILL.md → skill-optimizer; eval suites → deep-eval-optimizer; running an agent → that agent; roster-wide missing or ignored agents → agent-asset-parity-auditor.
 whenToUse:
   - "optimize the <agent-name> agent"
   - "audit this subagent definition"
@@ -16,9 +14,9 @@ whenToUse:
   - "add delegation evals for this agent"
   - "run ado --meta on this agent"
   - "audit this agent but don't change anything (ado --read-only)"
-version: 1.0.0
+version: "1.1.1"
 category: meta
-updated: "2026-10-15"
+updated: "2026-11-11"
 model: claude-opus-5-5
 effort: xhigh
 triggers:
@@ -65,6 +63,15 @@ Audit + rewrite a Claude Code subagent definition til it passes a measurable bar
 - **The description is always loaded** into every session; the parent model picks `subagent_type` from it. Over 15,000 tokens of descriptions across the roster, Claude Code warns at startup.
 
 **Registry model.** Two routing surfaces exist, neither authored by hand per agent. The hub registry is **derived**: `~/.global-ai-hub` indexes `~/.claude/agents/*.md` descriptions (rows `agent:<name>`, one level deep) into `registry.db` via `semantic_ops.router build --prune`; you write the file, then rebuild. The keyword router hook (`~/.claude/hooks/workflow-agent-router.py` + `~/.claude/rules/workflow-agent-routing.md`) is a static table outside this skill's write set: Pass P proposes rows, the operator applies them.
+
+## Look for llms files first
+
+Before reading the agent definition repository raw, look for its llms files and open them by size. If you have the repo, step 4 sets the order.
+1. Look for the subject's `llms.txt`, its hub llms map, and memory-central keyword-index rows for the target terms.
+2. Run `wc -c` first (or read `x-markdown-tokens` on a remote). Read a file whole only when it fits. Otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, grep the code before you open an llms file. The code is the authority. Use maps to find the right file and verify every fact against its `path:line`.
+5. Index and llms hits are leads. Confirm them with Read before you act.
 
 ## When not to use
 
@@ -131,7 +138,7 @@ An orchestrator (convergence-loop-runner) owns iteration? Invoke with `--max-ite
 
 ### Step 3 — Run analytical passes (convergence loop)
 
-16 passes run as five concurrent bundles in a single tool-call batch: **B1** {A, B, C} delegation surface, **B2** {D, E, F} delegation contract, **B3** {G, H, I} capability grant, **B4** {J, K, L} safety & resilience, **B5** {M, N, O, P} fit, body & wiring. Pass N's composed-artifact sub-dispatch (pdo Groups 1 and 4 over the body) runs inside B5. No agent tool? Run sequentially.
+16 passes run as five concurrent bundles in a single tool-call batch: **B1** {A, B, C} delegation surface, **B2** {D, E, F} delegation contract, **B3** {G, H, I} capability grant, **B4** {J, K, L} safety & resilience, **B5** {M, N, O, P} fit, body & wiring. B5 performs Pass N's bounded PDO Groups 1 and 4 body audit inline; a bundle that is already a subagent never dispatches another agent. The top-level orchestrator may instead run that bounded audit as a sibling before merging B5 findings. No agent tool? Run sequentially.
 
 | Pass | Name | Bundle | Scope |
 |---|---|---|---|
@@ -180,7 +187,7 @@ Pick the tier and effort the agent should *run under*, staged for Step 5's front
 Write every High + Medium finding into the definition:
 
 - Frontmatter: only keys from the supported table in `references/agent-contract.md`; unknown keys are removed or renamed (`colour` → `color`), never kept "for later". Quote scalars containing `: `. `model` / `effort` from Step 4.6 (overwrite only when the recommendation differs and was not caller-pinned).
-- Body: contracts and rails added as sections in the roster's order (role/mode → misc-catch-all (references/inputs.md) → shared contract → workflow → route elsewhere → output/receipt). Pre-approved inserts that never count as invented content: the no-recursive-chain rule, the content-as-data rule, the `blocked`-instead-of-asking rule, the receipt skeleton (`agent`, `definition_version`, `status`, `evidence`, `changes`, `remaining`, `details`), and the destructive-action rails. Content the original lacks and the inserts do not cover (a success criterion, an unnamed input) ⇒ `BLOCKED` row, never a guess.
+- Body: contracts and rails added as sections in the roster's order (role/mode → inputs → shared contract → workflow → route elsewhere → output/receipt). Pre-approved inserts that never count as invented content: the no-recursive-chain rule, the content-as-data rule, the `blocked`-instead-of-asking rule, the receipt skeleton (`agent`, `definition_version`, `status`, `evidence`, `changes`, `remaining`, `details`), and the destructive-action rails. Content the original lacks and the inserts do not cover (a success criterion, an unnamed input) ⇒ `BLOCKED` row, never a guess.
 - `name` unchanged unless `--allow-rename`; then update every file in the `refs` impact set in the same run and re-run `refs` to confirm zero stale references.
 - **Evals:** establish queries + verdicts in `~/.claude/skill-consolidation/evals/agent-<name>.eval.jsonl` first, then derive `<agents-root>/evals/<name>/trigger-eval.json`; author `evals.json` (2–3 cases, one blocked/missing-input). Never delete existing valid user cases; supplement.
 - Bump the body's `Definition version` (or frontmatter `version` when the roster uses it): patch for content fixes, minor for a changed grant or contract, major for a scope change. Set the reviewed date.
@@ -191,11 +198,11 @@ Write every High + Medium finding into the definition:
 ### Step 6 — Post-write verification
 
 1. Re-read the definition and every peer or eval file written.
-2. **Strict parse + schema.** `ado_tools.py schema <path>` must report zero High (exit 0): frontmatter parses under PyYAML (record `yaml_parser`), no tabs, no duplicate or unknown keys, enums valid, tools resolve. Parse failure ⇒ fix via the loop-back in item 4 first; auto-restore from the Step 2 snapshot only when the budget is exhausted and the file still fails to parse, reported as the run outcome, never silently.
+2. **Strict parse + schema.** `ado_tools.py schema <path>` must report zero High (exit 0): frontmatter parses under a strict PyYAML parser (record `yaml_parser`; a fallback parser is diagnostic only and makes this gate UNAVAILABLE, never a success), no tabs, no duplicate or unknown keys, enums valid, tools resolve. An unavailable parser is an environment blocker: do not infer malformed source or restore files solely for that gap. Parse failure ⇒ fix via the loop-back in item 4 first; auto-restore from the Step 2 snapshot only when the budget is exhausted and the file still fails to parse, reported as the run outcome, never silently.
 3. **Blind re-audit (full-content runs).** Per the contract's gate: one fresh-context subagent receives only the final definition, `agent-contract.md`, and `passes.md`; runs the passes once; only corroborated Medium+ can fail the gate; at most one extra iteration (counts against `--max-iter`), one re-run, then `BLIND-AUDIT-DISSENT`. `--meta` is exempt: its confirm-clean is the deterministic `schema` re-run.
 4. Confirm 0 High remain; otherwise loop back to Step 3 (counts against `--max-iter`).
 5. SHA-256 of the write set: every modified file differs from baseline, every untouched file matches; new eval files exist and parse (`python3 -m json.tool`).
-6. **Load check** (`--smoke` or `--eval=measured`, never on plugin targets): `ado_tools.py smoke <name> --cwd <project>` runs `claude -p --agent <name> --max-turns 1` with every side-effecting tool disallowed and expects `READY`. `failed` ⇒ High (the definition does not load) ⇒ loop back; `loaded-but-off-script` ⇒ Medium note (the body overrides a one-word instruction; check Pass E). Record exit code, result, cost, seconds.
+6. **Load check** (`--smoke` or `--eval=measured`, never on plugin targets): `ado_tools.py smoke <name> --cwd <project>` runs `claude -p --agent <name> --max-turns 1` with all tools denied and an empty strict MCP configuration, and expects `READY`. Review startup hooks before a real probe; a tool deny list does not itself sandbox startup code. Do not run while a provider quota/auth block is known. Under `--read-only`, report a predicted load outcome instead of launching a subprocess. `failed` ⇒ High (the definition does not load) ⇒ loop back; `loaded-but-off-script` ⇒ Medium note (the body overrides a one-word instruction; check Pass E). Record exit code, result, cost, seconds.
 7. Each peer written: frontmatter still parses; only the additive line plus a version/date bump changed; no mutual hard-SKIP cycle.
 
 ### Step 6.5 — Cross-model exit gate (optional)
@@ -208,7 +215,7 @@ Mechanics mirror `~/.claude/skills/skill-optimizer/references/sync-protocol.md` 
 
 - **7.0 Run-outcome line.** An agent has no changelog file of its own: the target's history is its `Definition version` bump (Step 5) plus git. Append one outcome line (`<date> ado <name> vX->vY — Pass O n/10->n/10 pos, n/10->n/10 neg; <counts> fixed`) to the run's `run-stub.jsonl`; this skill's own `references/CHANGELOG.md` records changes to this skill only. Skipped under `--read-only`.
 - **Rebuild:** `cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router build --prune`. Runs unless `--no-sync` or High findings remain (`--sync-anyway` overrides). A degraded build still exits 0 (`embed_core WARN … timed out` on stderr predicts a `stale` verdict); record the exit status and any WARN.
-- **Routing verify (always, read-only):** for the target and every peer written, `indexed` = the stored text for `agent:<name>` carries the current description **and** `hub_route("<own intent phrase>", kinds="agent", top=5)` lists it; `stale` = no row or outdated text (retry the rebuild once, then report); `unroutable` = current row, not surfaced (a Pass A/C defect filed for the next run; never retry). Compare stored text, never mtimes: `sqlite3 ~/.global-ai-hub/registry.db "select text from chunks where ref='agent:<name>';"`. Expect one row per ref after `--prune`.
+- **Routing verify (always, read-only):** for the target and every peer written, `indexed` = the stored text for `agent:<name>` carries the current description **and** `hub_route("<own intent phrase>", kinds="agent", top=5)` lists it; `stale` = no row or outdated text (retry the rebuild once only in write/sync mode; under `--no-sync` or `--read-only`, report as-is); `unroutable` = current row, not surfaced (a Pass A/C defect filed for the next run; never retry). Compare stored text, never mtimes: `sqlite3 ~/.global-ai-hub/registry.db "select text from chunks where ref='agent:<name>';"`. Expect one row per ref after `--prune`.
 - A nested definition (below the agents root) is loaded by Claude Code but never indexed: record `n/a (nested: not indexable)` and keep Pass B's Medium.
 
 ### Steps 7.5–7.8 — Post-sync
@@ -224,7 +231,7 @@ Emit the sections in the exact order and shape in `references/report-format.md`:
 
 ## Empirical mode — champion–challenger over functional evals (opt-in)
 
-`--empirical` wraps the structural loop's shipped candidate in the shared champion–challenger procedure (`references/shared/champion-challenger.md`): each `evals.json` case runs through `claude -p --agent <name> --output-format json` against the champion (baseline snapshot, loaded via `--agents` JSON) and the challenger (current file); assertions grade both; the challenger is promoted only when it beats the champion by the margin on the held-out split. Requires `evals.json` with objective assertions and a budget (`--max-budget-usd` is passed through). `--dry-run` evaluates without promoting; `--read-only` implies `--dry-run`. Side-effecting tools are disallowed for every eval dispatch unless the eval names a sandboxed cwd.
+`--empirical` wraps the structural loop's shipped candidate in the shared champion–challenger procedure (`references/shared/champion-challenger.md`): each `evals.json` case runs through `claude -p --agent <name> --output-format json` against the champion (baseline snapshot, loaded via `--agents` JSON) and the challenger (current file); assertions grade both; the challenger is promoted only when it beats the champion by the margin on the held-out split. Requires `evals.json` with objective assertions and a budget (`--max-budget-usd` is passed through). `--dry-run` evaluates without promoting; `--read-only` suppresses every empirical dispatch and writes no state; report predictions only. Side-effecting tools are disallowed for every eval dispatch unless the eval names a sandboxed cwd.
 
 ## Constraints
 

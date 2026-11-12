@@ -1,5 +1,47 @@
 # Memory
 
+## v0.22.196 — 2026-11-11 repository SKO audit and scoped delivery
+
+Version:0.22.196. Delta:v0.22.195 to v0.22.196; prompt150; all-skill maintenance TASK-1372; PR340.
+
+The frozen SKO2.24.1 run covers39 reusable sources with disjoint author fan-out,
+independent initial review and bounded rechecks. The70 final tracked SKILL.md
+entries include18 complete legacy distributions,3 Codex overlays,4 preserved
+archives and6 intentional fixture copies. Preserve138 private generated research
+cards and22 local copies; those factual bodies were excluded from workflow
+optimization and were not published or re-researched.
+
+Raw bounded dissent remains in the review ledger. Focused corrections address14
+post-repair artifact findings plus two DEO calibration/fixture issues without claiming a
+third full SKO convergence gate. Current results cover780 independently predicted
+trigger queries and388 assertions across142 cases:78 static and310 predicted.
+All39 exploratory trigger thresholds pass. This does not establish measured
+activation, native workflow success, empirical promotion or universal factual
+recertification. Ten load-bearing bodies retain justified soft-budget overages
+below the estimated hard ceiling.
+
+Local verification passes392 core tests plus15 subtests,70 optimizer-helper tests
+plus23 subtests,30 capture/task tests plus9 subtests,49 actual-distribution tests
+plus4 subtests, and14 projector/sync tests plus2 subtests. Source integrity checks
+pass39 targets and118 Python AST parses. Full-tree publication privacy is clean
+across18,573 files with27 denylist terms; final staged hooks also apply.
+
+Operational exit remains DEGRADED. Global installed copies/wrappers, existing
+embedding/research/model pauses and historical verification dates are preserved.
+Read-only keyword metadata checks have explicit bounds. Registry refresh and
+semantic intent probes are withheld. Stele MCP recovered and pending lessons and
+continuation context were restored through the MCP tools.
+
+CI follow-ups separate static scanner rule metadata without changing detections or
+output schema (29 tests+14 subtests, preimage controls also pass). Paired local
+projections refresh only two skill summaries; context is byte-identical. No CI
+security suppression, index operation or canonical fact change was used.
+
+Final source hashes, raw reviews, focused corrections and limitations are under
+docs/reviews/sko-all-skills-2026-11-11/. PR340 records final-head checks and remote
+merge identity; tracker completion follows verified remote content and safe local
+synchronization. Private preimages and scoped telemetry remain recoverable.
+
 ## v0.22.195 — 2026-11-11 EZMob pre-delivery verification
 
 Version: 0.22.195. Delta: v0.22.194 to v0.22.195; prompts147–149; TASK-1384.

@@ -53,7 +53,7 @@ Opt-in only — never auto-enabled. After 6a/6a2 pass and before final output, o
 
 1. **Intent-preservation check** — per-version 5-field checklist plus "Deliberate behavioral deltas (finding-justified)" block (or drift note if arrived here despite gate). When blind re-audit gate (6a0) ran, note result here.
 2. **Behavioral smoke test** — per-input PASS/FAIL table from Step 6a2 (input class | original result | rewrite result | contract-equivalent? | validator result | evidence grade), or explicit N/A reason row.
-3. **Original prompt** — the ingested text verbatim, so the reader can diff it against item 4 without holding their own copy. Above ~1,500 tokens, emit a unified diff instead. Omit only when the target was a file path the reader already has, and say which.
+3. **Original prompt** — a redacted display copy of the ingested text, preserving non-sensitive content so the reader can compare item 4. Above ~1,500 tokens, emit a unified diff of the redacted original and redacted candidate. Redact both removed and added lines before rendering a diff. Omit only when the target was a file path the reader already has, and say which. Never print the raw credential/PII-bearing original.
 4. **Final optimized prompt** — drop-in ready, complete, no truncation. Secrets/PII redacted per Step 4. On non-clean exit, this is best-of-pool candidate selected in Step 5.
 5. **Iteration log** — per-iteration table from Step 5.
 6. **Changes-made table** — cumulative across all iterations, explicit Status column:
@@ -67,6 +67,8 @@ Opt-in only — never auto-enabled. After 6a/6a2 pass and before final output, o
 
 7. **Summary line** — `Iterations: N. Active passes: X/16. Profile: small | standard. Final: 0 critical, 0 high, 0 medium, K low. Token delta: ±N tokens (sign+reason). Status: CLEAN | NO_CHANGE | STALLED | OSCILLATING | CAPPED | DRIFT_DEADLOCK | BUDGET_EXHAUSTED | BLIND-AUDIT-DISSENT. Smoke: PASS | FAIL | N/A (<reason>) [grade]. Evidence: 6a0=<grade> 6a2=<grade> edit-dist=<grade>.` Append every annotation raised during the run: `routing:`, `mode:`, `degraded:`, `contract:`, `telemetry:`, `blind gate:`, `budget:`, `max-iter clamped`. The Step 6f manifest's `status` carries the bare token; qualifiers stay in this line. (`STALLED` is the current token for the no-progress exit; older runs report it as `CONVERGED`.) When best-of-pool selection shipped earlier iteration, append selection note (e.g. `— shipped iteration 2 rewrite (0/1/2) over iteration 3 (0/1/4)`); when `--budget-minutes` passed, append wall time.
 8. **Algorithm recommendation** — picked row from decision table below + one-paragraph rationale + specific infrastructure needed (training set size, metric name, harness).
+**One redaction boundary covers all output and egress.** Apply the same replacements to displayed originals, candidates, diffs, quoted findings, smoke examples, manifests, telemetry details, saved variants and cross-model payloads. Scan every display/save surface; a redacted candidate does not make its raw original safe. Keep any necessary unredacted preimage only in the authorized private local snapshot; never include it in a published report or external library.
+
 9. **Redaction footer** (if any) — `Redacted N secret/PII value(s) from the rewrite — restore the original values before deployment.` Counts come from `pdo_tools.py scan`, not from reading.
 10. **Variant registration (library prompts only)** — only when (i) source prompt resolved to existing library promptId or caller asked to save, AND (ii) top-level pdo invocation (when running under prompt-optimizer-loop agent, its Stage 4 owns registration — skip here): register `pre-pdo-<YYYY-MM-DD>` (original) and `pdo-<YYYY-MM-DD>` (optimized) variants per that agent's Stage 4 convention — on same-day versionId collision, suffix `-2`, then `-3` — and print rollback call `tam_activate_prompt_variant(<prompt-id>, pre-pdo-<date>)`. On CLEAN exits saved variant/tag records (original, optimized, findings) triple, enabling on-demand re-audit of past-certified prompts after pdo pass-logic change (sample 3; new Medium+ findings in previously-clean artifacts measure optimizer's own behavior change) — not automatic on every version bump. Caveat: `tam_compare_prompt_variants` is textual diff, not outcome engine — A/B outcome data still comes from running both variants. Otherwise omit item from output entirely.
 
@@ -169,7 +171,7 @@ Algorithm recommendation is still produced — Pass P findings can be actionable
 ### CLEAN evidence and example plan (check 4)
 
 For CLEAN or NO_CHANGE, include example_plan from Pass G and acceptance using
-[the shared evidence contract](references/shared/evidence-contract.md).
+[the shared evidence contract](shared/evidence-contract.md).
 The plan declares task_kind and examples with role, input_class, covers and summary;
 the examples helper checks coverage/count declarations, while the auditor checks
 their actual meaning. The acceptance object binds final artifacts, required executed

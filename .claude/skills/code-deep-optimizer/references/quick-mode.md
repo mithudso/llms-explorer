@@ -28,16 +28,14 @@ exactly one iteration:
    after**: the baseline is a single extra run, not a loop, and without it a
    `FAIL` cannot be attributed. Skip only the bisect. If the after-run is red
    and the baseline was green, report
-   `Verify: FAIL (regression introduced by this run)` and leave the fix in
-   place with that warning; quick mode has no iteration budget to bisect; the
-   caller decides whether to revert or run full `/cdo`. If the baseline was
+   `Verify: FAIL (regression introduced by this run)`, restore only this run's owned regressing repair from its preimage without bisecting, and leave its Critical finding unresolved as `BLOCKED (verify-gate regression)`. Rerun the affected check once to verify restoration; if restoration cannot be verified, retain the failure and exit `TRIAGE-PARTIAL`. Never leave a known regressing repair in place as a completed fix. If the baseline was
    already red, report `Verify: FAIL (pre-existing — baseline was red)` and do
    not attribute it to this run. If no suite is detected, report
    `Verify: N/A` and never `FAIL`.
 5. Report the Summary line as
    `mode: --quick (bar: Critical)` with `Iterations: 1` and the required
    `Unfixed: N High / M Medium` field, exiting `TRIAGE-CLEAN` only when every
-   Critical was Applied (or none existed) and `Unfixed: 0 High / 0 Medium`; otherwise
+   Critical was Applied and successfully verified (or none existed), no Critical is unresolved, `Unfixed: 0 High / 0 Medium`, and verification did not fail; otherwise
    `TRIAGE-PARTIAL` (definition: `references/flags-and-statuses.md`). Per
    `references/shared/convergence-and-severity.md` § Triage modes,
    a quick run may never report `CLEAN` or `CONVERGED`.

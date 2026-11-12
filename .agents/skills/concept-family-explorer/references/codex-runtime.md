@@ -37,6 +37,16 @@ apply to both standard research passes. Quick keeps one medium-effort pass; satu
 keeps two independent medium-effort passes. `--passes` counts additional passes in
 the adaptive lane, so its standard default is 1 (two research passes in total).
 
+## Inherited evaluations
+
+The generated bundle includes its publication-safe `evals/trigger-corpus.jsonl`
+and `project_triggers.py`. The corpus retains source queries, labels and
+source-description-bound verdict history byte for byte. The disposable
+`trigger-eval.json` derives from those queries. Claude source predictions do not
+establish Codex trigger behavior or empirical promotion. Re-evaluate the current
+Codex description before making either claim. The sync manifest binds source and
+output hashes; it is a distribution receipt, not an execution result.
+
 ## Research and shared resources
 
 Generated briefs use the same domain policy as mechanical source qualification.

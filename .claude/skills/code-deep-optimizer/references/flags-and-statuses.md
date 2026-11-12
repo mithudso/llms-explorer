@@ -30,7 +30,7 @@ Flags are not freely composable. Resolve these first, state every resolution in 
 | `--implement-features` + `--quick` | `--implement-features` ignored; quick mode is a triage, not an improvement run. |
 | `--implement-features` + `--read-only` / `--report` | `--implement-features` ignored; read-only mode cannot write feature code. Identified improvements are emitted in the report as prescribed diffs only. |
 | `--implement-features` + `--annotate` | `--implement-features` ignored; annotate mode writes comments, not implementations. |
-| `--implement-features` + `--no-verify` | **`--implement-features` forces verify gate ON.** Feature additions without build/test verification are unsafe; `--no-verify` is overridden for the feature-implementation phase. |
+| `--implement-features` + `--no-verify` | **`--implement-features` forces verify gate ON.** Feature additions without build/test verification are unsafe; `--no-verify` is overridden for the feature-implementation phase, including its entry verification on the structural candidate. |
 | `--implement-features` + empirical mode | Sequenced, not merged: the empirical loop runs first on the structural result; the feature phase runs after it and outside champion–challenger, because a feature addition fails the public-API-unchanged veto by design. |
 | `--implement-features` + `--suggest` | Composable: `--suggest` emits the Recommendations section as usual; `--implement-features` additionally implements all identified features. Advisory A1/A2/A3 findings that overlap with implemented features are marked `Implemented` in the report. |
 
@@ -63,7 +63,7 @@ so no reader has to guess which exit fired.
 | `CAPPED` | 6 Iteration cap | The cap was reached with Medium+ findings outstanding: 5, or 3 under the small profile (raised to 5 when Medium+ findings dropped by at least 50% in the prior iteration), or the `--max-iter=N` ceiling. |
 | `BUDGET_EXHAUSTED` | 7 Budget expired | `--budget-minutes` elapsed; the current iteration's writes finished first, then the run exited. The Summary appends `· wall: N min`. |
 | `BLIND-AUDIT-DISSENT` | 1 Clean, gate refused | The blind re-audit still corroborated Medium+ findings after one extra iteration; they are listed, not applied. |
-| `TRIAGE-PARTIAL` / `TRIAGE-CLEAN` | none (triage mode) | `--quick` only, per the contract's § Triage modes; neither asserts convergence. `TRIAGE-CLEAN` when every Critical finding was Applied (or none existed) and the run reports `Unfixed: 0 High / 0 Medium`; `TRIAGE-PARTIAL` when any Unfixed count is above 0 or any Critical row is `BLOCKED`. |
+| `TRIAGE-PARTIAL` / `TRIAGE-CLEAN` | none (triage mode) | `--quick` only, per the contract's § Triage modes; neither asserts convergence. `TRIAGE-CLEAN` only when every Critical finding was Applied and verified (or none existed), no Critical remains unresolved, `Unfixed: 0 High / 0 Medium`, and verification did not fail. `TRIAGE-PARTIAL` when any Unfixed count is above 0, any Critical row is `BLOCKED`, or verification failed; restore owned regressing repairs without a bisect. |
 | `BLOCKED (--scope=changed: not a git repo)` | none (halted before Stage 0) | The scope flag needs a git repo and `git rev-parse` failed; no pass ran, no snapshot was taken. |
 | `BLOCKED (hostile content)` | none (halted) | Every in-scope file halted under § Stage 0.5's halt condition, so no pass completed. Per-file halts inside an otherwise normal run keep the run's normal status and appear as `BLOCKED` rows in the findings table. |
 

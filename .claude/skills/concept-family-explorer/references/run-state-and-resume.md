@@ -34,18 +34,16 @@ continue.
 
 ## Run lock (checked before re-entry) — NORMATIVE SPEC
 
-This section is the single normative lock definition (the SKILL.md section
-summarizes and points here). Two concurrent cfe runs on the same subject race
-this checkpoint and double-research the queue. Lock file:
-`~/.claude/skill-consolidation/run-state/cfe-<subject-slug>.lock`, one JSON
-line `{"pid","startedAt","subject"}` (same slug derivation as the checkpoint —
-SKILL.md "Run lock, slug & exit statuses"). Taken before the first
-shared-surface write; existing lock < 2h old ⇒ exit `LOCK-HELD` (zero writes —
-no checkpoint, no CQ file, no telemetry row — and no resume offer: a live lock
-means another run owns the subject); ≥ 2h ⇒ steal + note the steal in the
-report. Every lock this run created is deleted on EVERY exit path. `dryRun`
-never takes a lock, but before its one persistent write (the Step 1 CQ file)
-it checks for a live lock and skips that write if one exists.
+This section is the single normative lock definition. Two concurrent CFE runs on the same subject must not race its checkpoint or queue. Use the colocated `scripts/run_lock.py` helper with `run-state/cfe-<subject-slug>.lock` before the first shared-surface write. Pass the actual orchestrator PID with `--pid`; the helper's own short-lived PID is not the owner.
+
+A live owner's lock remains held regardless of age. A legacy, malformed, remote-host or permission-denied owner is uncertain: keep the lock and report `LOCK-HELD`. Age is diagnostic only. Recover only a positively dead local owner with `acquire --recover-dead`; record the recovery. Do not weaken the separate resume/fresh decision below.
+
+The helper serializes lock operations through a stable sidecar flock and atomically creates the JSON lock. Keep the returned random token. On every exit, release only the matching ownership token and PID; if ownership changed, leave the other lock intact. Never delete the guard inode. `LOCK-HELD` writes no checkpoint, CQ or telemetry. `dryRun` takes no run lock and skips its CQ write if a lock exists or ownership cannot be established.
+
+```sh
+python3 <skill-dir>/scripts/run_lock.py acquire <lock-path> --subject "<subject>" --pid <orchestrator-pid>
+python3 <skill-dir>/scripts/run_lock.py release <lock-path> --token <returned-token> --pid <orchestrator-pid>
+```
 
 ## Re-entry algorithm
 

@@ -142,7 +142,7 @@ Mark `N/A` or `partial` when precondition unmet. Always emit row in findings tab
 | K | Target model unknown | `partial (model unknown, running on Claude defaults)` |
 | L | No variants, no production traffic | `N/A (no eval surface)` |
 | N | No dynamic slots | `N/A (static prompt)` |
-| O | Free-text output, no schema | `partial (unstructured output)` — emit one Medium finding (`output is free-text with no validation hook — consider a "re-read and confirm the output addresses the stated goal" self-check step`) ONLY IF no case-insensitive match for `re-?read`, `double-?check`, `self-?check`, `verify (the |your )?(output\|answer\|result)`, `confirm (that )?the (output\|answer)`, `before (responding\|answering), (check\|ensure)`, or a schema/regex validation clause. On a match, mark `N/A (self-check present: "<matched phrase>")` and quote the phrase. |
+| O | Free-text output, no schema | `partial (unstructured output)` — emit one Medium finding (`output is free-text with no validation hook — consider a "re-read and confirm the output addresses the stated goal" self-check step`) ONLY IF no case-insensitive match for `re-?read`, `double-?check`, `self-?check`, `verify (the \|your )?(output\|answer\|result)`, `confirm (that )?the (output\|answer)`, `before (responding\|answering), (check\|ensure)`, or a schema/regex validation clause. On a match, mark `N/A (self-check present: "<matched phrase>")` and quote the phrase. |
 
 **Skip-reason priority:** multiple conditions on same pass → list both, more specific first. E.g., `N/A (fragment mode; no eval surface)`.
 

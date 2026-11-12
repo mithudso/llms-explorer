@@ -46,7 +46,8 @@ class Plan(Base):
 
     def test_rerun_reviews_only_changed_and_new(self):
         run("begin", "--repo", str(self.repo))
-        run("record", "--repo", str(self.repo), "--passes", "C1,S1", "a.py", "b.py", "c.js")
+        run("record", "--repo", str(self.repo), "--passes", ",".join(L.PASSES),
+            "--verdict", "CLEAN", "a.py", "b.py", "c.js")
         self.assertEqual(self.plan()["review"], [])
         (self.repo / "b.py").write_text("print('edited')\n")
         (self.repo / "d.py").write_text("print('d')\n")
@@ -90,7 +91,8 @@ class Receipt(Base):
 
     def test_complete_receipt_lists_every_pass(self):
         run("begin", "--repo", str(self.repo))
-        run("record", "--repo", str(self.repo), "--passes", ",".join(L.PASSES), "a.py")
+        run("record", "--repo", str(self.repo), "--passes", ",".join(L.PASSES),
+            "--verdict", "CLEAN", "a.py")
         code, out, _ = run("receipt", "--repo", str(self.repo), "--status", "CLEAN")
         self.assertEqual(code, 0)
         self.assertIn("Fix-track passes that ran: 18 of 18", out)

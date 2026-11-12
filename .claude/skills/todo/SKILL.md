@@ -1,7 +1,7 @@
 ---
 name: todo
-version: "1.1.0"
-updated: "2026-09-27"
+version: "1.2.1"
+updated: "2026-11-11"
 owner: mitch
 description: >-
   Personal to-do list in one markdown file: add items by hand, mark them done, list what is open,
@@ -10,6 +10,18 @@ description: >-
   StickySites extension's to-do list and with peer boxes over SSH. TRIGGER: "/todo",
   "add to my to-do", "remind me to", "what's on my list", "what's left across my sessions",
   "mark X done". SKIP: in-session step tracking (use TaskCreate), repo issue trackers.
+whenToUse:
+  - "Add call the dentist to my to-do list."
+  - "What is left across my sessions?"
+  - "Mark task 3fa9c2e1 done."
+related_skills:
+  - "braindump"
+  - "note-organizer"
+model: claude-haiku-5-5
+effort: low
+category: custom
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # To-do
@@ -17,6 +29,15 @@ description: >-
 One file: `~/dev/personal/Areas/todo/TODO.md` (local Obsidian vault, not in git; override with `PERSONAL_TODO`). Script: `~/.claude/skills/todo/scripts/todo.py`. Tests: `python3 ~/.claude/skills/todo/scripts/test_todo.py`.
 
 Sections: **Manual** (added by hand), **From braindumps** (tasks `/braindump` found, with the raw path:line), **From sessions** (grouped by project), **Done**.
+
+## Look for llms files first
+
+For cross-session context retrieval, use this lookup order. Direct add/done/list operations still use the Commands below.
+1. Check the subject's `llms.txt`, its docs site's `/llms.txt`, or matching packs under `~/.global-ai-hub/skills.llms/` and `~/.global-ai-hub/llms-concepts/`; use available hub keyword/search tools as discovery leads.
+2. Run `wc -c` first (or inspect a remote size header). Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
+5. Index and llms hits are leads. Confirm them against readable source text before acting.
 
 ## Commands
 

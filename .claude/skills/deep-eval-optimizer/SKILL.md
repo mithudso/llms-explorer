@@ -1,9 +1,7 @@
 ---
 name: deep-eval-optimizer
 description: >-
-  Audit, grade, optimize, and generate evaluation suites for AI agent skills across the corpus: runs a 12-pass convergence loop (Passes A-L) on eval prompts, assertions, near-miss trigger sets, and fixtures; writes Medium+ fixes in place; creates missing evals from templates; runs tests via --run only when a verified real executor is available.
-  TRIGGER: "optimize evals", "audit skill evals", "create evals for skill", "eval optimizer", "run deo", "deep eval optimizer", "grade evals", "fix evals", "run skill evals", "eval test cases".
-  SKIP: optimize skill markdown/code/prompts → skill-optimizer / sko; optimize general system prompts → prompt-deep-optimizer / pdo; code AST refactoring → code-deep-optimizer / cdo; tree rebalancing → skill-tree-architect.
+  Audit, improve and create evaluation suites for AI agent skills. TRIGGER: "optimize evals", "run deo", "audit skill evals", "create missing evals", "grade assertions", "run skill benchmarks". The 12-pass loop covers realistic prompts, objective assertions, near-miss triggers, fixtures, leakage and schemas; fixes Medium+ and preserves valid cases. --run requires a verified real executor; audit/dry-run writes nothing. SKIP: skill markdown → skill-optimizer; production prompts → prompt-deep-optimizer; code refactoring → code-deep-optimizer; skill-tree taxonomy → skill-tree-architect.
 whenToUse:
   - "optimize evals for a skill"
   - "audit existing eval suite quality"
@@ -12,10 +10,10 @@ whenToUse:
   - "grade assertions and prompts in an eval suite"
   - "calibrate trigger accuracy negative near-misses"
   - "run deo on this skill"
-version: 1.0.0
+version: "1.1.1"
 category: meta
-updated: "2026-09-29"
-model: claude-opus-5
+updated: "2026-11-11"
+model: claude-opus-5-5
 effort: xhigh
 triggers:
   - deo
@@ -46,7 +44,16 @@ metadata:
 
 # Deep Eval Optimizer (DEO)
 
-Audit, grade, optimize, and generate evaluation suites for AI agent skills. Operates across both functional execution evals (`<skill-dir>/evals/evals.json`) and trigger-accuracy evals (`<skill-dir>/evals/trigger-eval.json`). Runs a 12-pass convergence loop (Passes A–L, defined in `references/passes.md`) to fix Medium+ findings in place, creates missing evals using bundled templates from `templates/`, and optionally executes benchmarks via a separately configured real executor. Resolve bundle paths from this skill directory.
+Audit, grade, optimize, and generate evaluation suites for AI agent skills. Operates across both functional execution evals (`<target-dir>/evals/evals.json`) and trigger-accuracy evals (`<target-dir>/evals/trigger-eval.json`). Runs a 12-pass convergence loop (Passes A–L, defined in `references/passes.md`) to fix Medium+ findings in place, creates missing evals using bundled templates from `templates/`, and optionally executes benchmarks via a separately configured real executor. Call this optimizer's own directory `<optimizer-dir>` and the skill being audited `<target-dir>`. Resolve templates and `scripts/suite_validator.py` from `<optimizer-dir>`; resolve the target definition, fixtures and eval files from `<target-dir>`. For example, `/deo some-skill` validates its eval file with this optimizer's bundled helper, not `some-skill/scripts/suite_validator.py`.
+
+## Look for llms files first
+
+Before reading the target skill and its evaluation tree raw, look for its llms files and open them by size. If you have the repo, step 4 sets the order.
+1. Look for the subject's `llms.txt`, its hub llms map, and memory-central keyword-index rows for the target terms.
+2. Run `wc -c` first (or read `x-markdown-tokens` on a remote). Read a file whole only when it fits. Otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, grep the code before you open an llms file. The code is the authority. Use maps to find the right file and verify every fact against its `path:line`.
+5. Index and llms hits are leads. Confirm them with Read before you act.
 
 ## Invocation
 
@@ -84,21 +91,22 @@ Defined in detail in `references/passes.md`:
 **Pipeline:** 1 Locate target & existing evals → 2 Create missing evals (if absent) → 3 Autonomous Rewrite-Commit-Eval Convergence Loop (Audit → In-Place Rewrite → Git Commit → Run Eval Suite → Loop until 0 Medium+) → 4 Verification & Re-aggregate → 5 Report.
 
 ### Step 1 — Locate Skill & Evals
-1. Resolve skill directory (`~/.claude/skills/<id>`, `~/.global-ai-hub/skills/<id>`, or direct path).
-2. Inspect `<skill-dir>/evals/` for:
+1. Resolve write mode first. `--audit` and `--dry-run` are read-only: no file creation, rewrite, snapshots, corpus updates, commits or executor runs. A plugin-managed or unowned target is read-only unless the caller authorizes an owned fork. Missing suites become proposed artifacts in the report.
+2. Resolve skill directory (`~/.claude/skills/<id>`, `~/.global-ai-hub/skills/<id>`, or direct path).
+3. Inspect `<target-dir>/evals/` for:
    - Functional evals: `evals/evals.json`
    - Trigger evals: `evals/trigger-eval.json`
    - Canonical corpus: `~/.claude/skill-consolidation/evals/<skill-id>.eval.jsonl`
 
 ### Step 2 — Missing Eval Generation
-If evals are absent (or caller passed `--create`):
-1. Create `<skill-dir>/evals/` directory.
+If evals are absent and write mode permits it (`--create` never overwrites valid existing cases):
+1. Create `<target-dir>/evals/` directory.
 2. Read the appropriate bundled template from `templates/` (`functional-eval-template.json`, `code-eval-template.json`, or `trigger-eval-template.json`).
 3. Tailor prompts, expected outputs, assertions, and trigger queries specifically to the target skill's domain and instructions.
-4. Write `<skill-dir>/evals/evals.json` and `<skill-dir>/evals/trigger-eval.json`.
+4. Write `<target-dir>/evals/evals.json`. Preserve/replay any canonical trigger corpus, update its query/expectation rows first, then derive `<target-dir>/evals/trigger-eval.json`; the projection is never the source of truth. Under read-only mode, print proposals instead.
 
 ### Step 3 — Autonomous Rewrite-Commit-Eval Convergence Loop
-The optimizer **always** executes the rewrite-commit-eval loop until convergence (max 5 iterations):
+In write mode, run the audit/rewrite/verification loop (default 3 iterations; `--max-iter=N` may set 1–5). In audit/dry-run mode run one diagnostic iteration without writes or execution:
 
 1. **Passes A–L Audit:** Evaluate `SKILL.md`, `evals/evals.json`, and `evals/trigger-eval.json` against all 12 analytical passes.
 2. **Triage Severity:**
@@ -107,7 +115,7 @@ The optimizer **always** executes the rewrite-commit-eval loop until convergence
    - **Low:** Minor wording polish, cosmetic formatting. (Defer).
 3. **Rewrite in Place:** Apply all High and Medium fixes directly to `SKILL.md`, `evals/evals.json`, and `evals/trigger-eval.json`.
 4. **Preserve work:** Follow the target repository's instructions and user authorization for commits. Stage only owned changes; do not automatically commit another person's work.
-5. **Validate and execute:** Run the bundled validator with `python3 <skill-dir>/scripts/suite_validator.py <eval-file>`. Inspect its findings; a zero process exit alone does not mean the suite passed. If `--run` is requested, discover a real execution harness, verify that it actually invokes the target skill, and record its command, observations and exit status. Replay, generated expected outputs and simulated grading are not executed skill results. If no suitable executor exists, report `EXECUTOR_UNAVAILABLE` and do not claim benchmark rates or convergence.
+5. **Validate and execute (write mode only):** Run the bundled validator with `python3 <optimizer-dir>/scripts/suite_validator.py <eval-path>` (the resolved target eval JSON path). Inspect its findings; a zero process exit alone does not mean the suite passed. If `--run` is requested, discover a real execution harness, verify that it actually invokes the target skill, and record its command, observations and exit status. Replay, generated expected outputs and simulated grading are not executed skill results. If no suitable executor exists, report `EXECUTOR_UNAVAILABLE` and do not claim benchmark rates or convergence.
 6. **Convergence decision:** Require zero unresolved Medium-or-higher findings and the selected verification evidence. Missing requested execution remains `EXECUTOR_UNAVAILABLE`. Stop at the iteration cap with unresolved findings reported.
 
 ### Step 4 — Verification and aggregation
@@ -122,7 +130,7 @@ Emit report containing:
 - Benchmark test results and pass rates
 
 ## Quality Bar
-Apply the following checks when the required tools, evidence and scope exist. Mark unavailable methods UNAVAILABLE; never claim a measurement without executing it. A clean or converged verdict requires all selected checks and evidence. An evaluation suite passes when:
+Core checks below apply to every selected suite. Kernel tracing, gradient attribution, boundary mining, Shapley analysis and sequential canary trials are optional diagnostics: select them only with explicit scope, compatible tools and actual observations. Mark selected unavailable methods UNAVAILABLE and retain their evidence gap. Never install kernel probes or collect telemetry merely to audit a suite. Apply the following checks when the required tools, evidence and scope exist. Mark unavailable methods UNAVAILABLE; never claim a measurement without executing it. A clean or converged verdict requires all selected checks and evidence. An evaluation suite passes when:
 - 0 High or Medium findings remain across Passes A–L
 - Contains at least 2–3 diverse functional test cases (happy path, edge case, data/fixture handling)
 - Contains at least 2 verifiable, objective assertions per test case (Structural, Schema, Deterministic, Negative Bounds, Count Reconciliation)
@@ -133,8 +141,5 @@ Apply the following checks when the required tools, evidence and scope exist. Ma
 - Zero answer leakage: $\mathcal{C}_4(p, S) \le 0.05$, $\mathcal{C}_6(p, S) = 0$, and attention gradient saliency leakage $\mathcal{L}_{\text{leak}} \le 0.40$ ($H(\mathbf{p}) \ge 0.50 \ln N$) verified via Gauss-Legendre Integrated Gradients completeness
 - System prompt instructions exhibit non-negative Causal Shapley attribution ($\forall i, \phi_i(v) \ge 0$) via Stratified Kernel SHAP with dead tokens pruned
 - Zero regressions allowed on frozen golden datasets ($\forall t \in \mathcal{G}_{\text{golden}}, \text{Pass}(v_{\text{challenger}}, t) \ge \text{Pass}(v_{\text{champion}}, t)$)
-- Dynamic canary rollouts governed by Wald's Bayesian Sequential Probability Ratio Test (SPRT) early stopping with precomputed integer martingale boundaries
+- Dynamic canary rollouts governed by a predeclared Sequential Probability Ratio Test (SPRT) early stopping with precomputed integer martingale boundaries
 - When `--run` is executed, positive trigger rate is $\ge 90\%$, false-positive rate is $\le 10\%$, and net capability delta $\Delta > 0$
-
-
-

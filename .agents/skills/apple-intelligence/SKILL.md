@@ -1,23 +1,43 @@
 ---
 name: apple-intelligence
-version: "1.0.0"
-updated: "2026-10-23"
-description: >-
-  Explain Apple Intelligence product features, privacy and developer integration.
-  TRIGGER: Apple Intelligence eligibility; Siri AI; Writing Tools; Visual Intelligence;
-  image provenance; Shortcuts Use Model; managed controls; Private Cloud Compute;
-  ChatGPT consent; App Schemas, content transfer and AppIntentsTesting; Foundation Models capability,
-  provider, guardrails and OS changes. Read the matching dated reference first.
-  SKIP: MLX-LM training or runtime APIs -> mlx-lm-expert; new source research -> dr.
+version: 1.1.0
+updated: '2026-11-11'
+description: 'Explain Apple Intelligence product features, privacy and developer integration. TRIGGER: Apple Intelligence
+  eligibility; Siri AI; Writing Tools; Visual Intelligence; image provenance; Shortcuts Use Model; managed controls; Private
+  Cloud Compute; ChatGPT consent; App Schemas, content transfer and AppIntentsTesting; Foundation Models capability, provider,
+  guardrails and OS changes. Read the matching dated reference first. SKIP: MLX-LM training or runtime APIs -> mlx-lm-expert;
+  new source research -> dr.'
 category: developer
-keywords: [Apple Intelligence, Siri AI, Private Cloud Compute, Foundation Models, AppIntentsTesting, App Schemas, image provenance, Shortcuts, privacy, availability]
-related_skills: [mlx-lm-expert, dr]
+keywords:
+- Apple Intelligence
+- Siri AI
+- Private Cloud Compute
+- Foundation Models
+- AppIntentsTesting
+- App Schemas
+- image provenance
+- Shortcuts
+- privacy
+- availability
+related_skills:
+- mlx-lm-expert
+- dr
 whenToUse:
-  - Explain Apple Intelligence availability and supported product workflows
-  - Check privacy, external intelligence consent and managed-device controls
-  - Integrate and test Siri App Schemas, entities and contextual actions
-  - Reconcile dated Foundation Models and Private Cloud Compute API contracts
+- Explain Apple Intelligence eligibility using the dated product references
+- Check Private Cloud Compute privacy and ChatGPT consent boundaries
+- Find the documented App Schemas or AppIntentsTesting contract
+- Distinguish a dated Foundation Models source from verified device behavior
+model: gpt-6.1-sol
+effort: medium
+triggers:
+- Apple Intelligence eligibility
+- Private Cloud Compute
+- Siri App Schemas
+- Foundation Models contracts
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
+
 
 # Apple Intelligence
 
@@ -26,6 +46,15 @@ verification date, release status and scope qualifications. A documented API con
 or an announcement does not establish behavior on a particular device or SDK build.
 For volatile availability, language, region, entitlement or quota details, refresh
 sources when the question requires a more recent answer than the reference provides.
+
+## Look for llms files first
+
+Before reading the subject raw, look for its llms files and open them by size. If you have the repo, step 4 sets the order.
+1. Locate the subject's `llms.txt`, source-qualified concept pack, or relevant documentation index. Existing keyword hits can help locate it.
+2. Run `wc -c` first. Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map.
+4. If you have the repo, search the code before opening an llms file. The code is the authority. Verify each fact against its source `path:line`.
+5. Index and llms hits are leads. Confirm their sources before acting.
 
 ## Research references
 
@@ -53,3 +82,11 @@ model downloads and deployment qualification need their own requested work.
 The suite report records partial competency-question coverage and the actual
 CFE exit status. Keyword retrieval and source verification do not establish
 semantic-index coverage or a skill-optimizer CLEAN certification.
+
+## Response contract
+
+Answer the selected question with the matching reference and its verification date.
+Keep documented behavior, announcements and device-tested behavior distinct. If
+the reference does not cover the requested version or environment, name that gap
+and use `dr` only when new research is requested. Do not fill the gap from an
+unrelated Apple feature or treat a source citation as a local device test.

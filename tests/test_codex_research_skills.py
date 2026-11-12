@@ -72,6 +72,38 @@ class SyncTests(unittest.TestCase):
         self.assertIn("~/.claude/skill-consolidation/cvs_check.py", text)
         self.assertNotIn("~/.Codex", text)
 
+    def test_bundle_preserves_scoped_corpus_and_rebuilds_projection(self):
+        evaluations = self.sources / "dr/evals"
+        evaluations.mkdir()
+        source_hash = "a" * 64
+        rows = [{"query": f"Sonnet source routing query {index}",
+                 "should_trigger": index < 10,
+                 "verdicts": [{"mode": "predicted", "description_sha256": source_hash}]}
+                for index in range(20)]
+        corpus = "".join(json.dumps(row) + "\n" for row in rows)
+        (evaluations / "trigger-corpus.jsonl").write_text(corpus)
+        projection = [{"query": row["query"], "should_trigger": row["should_trigger"]}
+                      for row in rows]
+        projection_text = json.dumps(projection, ensure_ascii=False, indent=2) + "\n"
+        (evaluations / "trigger-eval.json").write_text(projection_text)
+        shutil.copy2(REPO / ".claude/skills/dr/evals/project_triggers.py",
+                     evaluations / "project_triggers.py")
+        sync.sync(self.repo, self.sources, self.canonical)
+        destination = self.repo / ".agents/skills/dr/evals"
+        self.assertEqual((destination / "trigger-corpus.jsonl").read_text(), corpus)
+        self.assertEqual((destination / "trigger-eval.json").read_text(), projection_text)
+        subprocess.run([sys.executable, str(destination / "project_triggers.py")],
+                       check=True, capture_output=True, text=True)
+        projected = json.loads((destination / "trigger-eval.json").read_text())
+        self.assertEqual(projected, [{"query": row["query"],
+                                     "should_trigger": row["should_trigger"]}
+                                    for row in rows])
+        manifest = json.loads((self.repo / ".agents/skills/dr/references/sync-manifest.json").read_text())
+        binding = next(item for item in manifest["sources"]
+                       if item["skill"] == "dr" and item["file"] == "evals/trigger-corpus.jsonl")
+        self.assertEqual(binding["source_sha256"], binding["output_sha256"])
+        self.assertTrue(sync.sync(self.repo, self.sources, self.canonical, check=True)["ok"])
+
     def test_existing_files_are_backed_up_before_sync(self):
         sync.sync(self.repo, self.sources, self.canonical)
         destination = self.repo / ".agents/skills/dr/SKILL.md"

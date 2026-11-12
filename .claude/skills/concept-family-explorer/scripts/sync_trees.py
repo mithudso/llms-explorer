@@ -21,8 +21,8 @@ Per-target guarantees:
   * refuses to write if the node count would shrink, or if the upsert
     introduces a structural problem `ConceptTree.validate()` did not already
     report (dangling parent, non-reciprocal link, duplicate, uninstalled skill)
-  * a parent with no node in that tree is NOT invented — the concept is
-    promoted to a root in that target and the note says so
+  * an unavailable requested parent is rejected; existing placement is retained
+    and no unanchored root is invented. Explicit parentConcept: null requests root.
   * the site target refuses `--apply` on main/master (branch or worktree first)
 
 Spec (JSON, file or `-` for stdin):
@@ -83,8 +83,7 @@ def upsert(ct, nodes: list[dict], item: dict, today: str) -> str:
     want_parent = item.get("parentConcept") or None
     note = ""
     if want_parent and want_parent not in by:
-        note = f" (parent '{want_parent}' has no node here -> root)"
-        want_parent = None
+        raise ValueError(f"requested parent {want_parent!r} has no node here; placement retained")
     node = by.get(name)
     if node is None:
         node = {"concept": name, "skillId": item.get("skillId"),
@@ -107,7 +106,7 @@ def upsert(ct, nodes: list[dict], item: dict, today: str) -> str:
             if item.get(k) not in (None, ""):
                 node[k] = item[k]
         old = node.get("parentConcept")
-        if want_parent and old != want_parent:  # placement moved (Step 9b re-file)
+        if old != want_parent:  # placement moved, including promotion to a root
             if old in by:
                 by[old]["childConcepts"] = [c for c in by[old].get("childConcepts") or [] if c != name]
             node["parentConcept"] = want_parent
@@ -130,7 +129,10 @@ def sync_target(label: str, tree_path: Path, queue_path: Path, spec: dict,
     before = ct.load_nodes(tree_path)
     after = copy.deepcopy(before)
     for item in spec.get("researched", []):
-        lines.append("  " + upsert(ct, after, item, today))
+        try:
+            lines.append("  " + upsert(ct, after, item, today))
+        except ValueError as error:
+            return False, lines + [f"  REFUSED, nothing written: {error}"], []
     # Concept Viability Scores: spec["scores"] ({name: {cvs, decision, neighborhood}}) covers every
     # scored row of the run, skips included; a `cvs` key on a researched/queue item counts too.
     # Researched names land on their node, the rest in concept-tree/cvs-scores.json.
@@ -187,7 +189,7 @@ def _branch(repo: Path) -> str:
     return r.stdout.strip()
 
 
-def regen(repo: Path, hub: Path, slugs: list[str]) -> list[str]:
+def regen(repo: Path, hub: Path, slugs: list[str]) -> tuple[bool, list[str]]:
     py = repo / "hub" / ".venv" / "bin" / "python"
     py = py if py.exists() else Path(sys.executable)
     steps = []
@@ -199,11 +201,12 @@ def regen(repo: Path, hub: Path, slugs: list[str]) -> list[str]:
         r = subprocess.run(cmd, cwd=repo, capture_output=True, text=True)
         out.append(f"[regen] {name}: {'ok' if r.returncode == 0 else 'FAILED'}")
         if r.returncode:
-            out.append("  " + (r.stderr or r.stdout).strip().splitlines()[-1])
-            return out
+            details = (r.stderr or r.stdout).strip().splitlines()
+            out.append("  " + (details[-1] if details else f"exited with status {r.returncode}"))
+            return False, out
     stat = subprocess.run(["git", "-C", str(repo), "diff", "--stat", "--", "site/src/data", "concept-tree"],
                           capture_output=True, text=True).stdout.rstrip()
-    return out + [stat or "  (no tracked changes)"]
+    return True, out + [stat or "  (no tracked changes)"]
 
 
 def main(argv=None) -> int:
@@ -216,7 +219,11 @@ def main(argv=None) -> int:
     ap.add_argument("--repo", default=os.environ.get("LLMS_EXPLORER_REPO", "~/dev/llms-explorer"))
     a = ap.parse_args(argv)
     hub, repo = Path(a.hub_dir).expanduser(), Path(a.repo).expanduser()
-    spec = json.load(sys.stdin if a.spec == "-" else open(a.spec))
+    if a.spec == "-":
+        spec = json.load(sys.stdin)
+    else:
+        with open(a.spec, encoding="utf-8") as spec_file:
+            spec = json.load(spec_file)
     ct = _load_ct(hub)
     today = datetime.date.today().isoformat()
     ok_all, slugs = True, []
@@ -231,7 +238,9 @@ def main(argv=None) -> int:
         print("\n".join(lines))
         ok_all &= ok
         if label == "site" and ok and a.apply and a.regen:
-            print("\n".join(regen(repo, hub, s)))
+            regen_ok, regen_lines = regen(repo, hub, s)
+            print("\n".join(regen_lines))
+            ok_all &= regen_ok
     return 0 if ok_all else 1
 
 

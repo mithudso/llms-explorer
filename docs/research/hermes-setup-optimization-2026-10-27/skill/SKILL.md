@@ -1,18 +1,53 @@
 ---
 name: hermes-operations
-description: Maintain memory, context and native runtime setups.
-version: 1.0.0
+description: 'Configure and verify Hermes memory, context, MCP and native runtime behavior. TRIGGER: Hermes lost a saved memory;
+  Hermes routes to the wrong runtime; verify Hermes MCP tools or context limits; recover a Hermes setup change. Configuration
+  and observed behavior need separate evidence. SKIP: general skill discovery -> skill-registry; new source research -> dr.'
+version: 1.1.0
 author: Mitchell Hudson
-platforms: [macos, linux]
+platforms:
+- macos
+- linux
 metadata:
   hermes:
     category: devops
-    tags: [hermes, memory, context, mcp, recovery]
+    tags:
+    - hermes
+    - memory
+    - context
+    - mcp
+    - recovery
+  changelog_ref: references/CHANGELOG.md
+category: custom
+effort: high
+whenToUse:
+- Verify Hermes memory persistence in a fresh isolated profile
+- Diagnose Hermes native runtime routing and launch context capacity
+- Check actual Hermes MCP handshakes and tool results
+- Recover an interrupted Hermes setup change without replacing active owners
+triggers:
+- Hermes memory persistence
+- Hermes native runtime routing
+- Hermes MCP verification
+related_skills:
+- skill-registry
+- dr
+updated: '2026-11-11'
 ---
+
 
 # Hermes Operations Skill
 
 Use this workflow to configure and verify Hermes on the Mac and the 5080 host. Load the architecture reference only for the subsystem being changed. Configuration success and actual model behavior need separate evidence.
+
+## Look for llms files first
+
+Before reading the subject raw, look for its llms files and open them by size. If you have the repo, step 4 sets the order.
+1. Locate the subject's `llms.txt`, source-qualified concept pack, or relevant documentation index. Existing keyword hits can help locate it.
+2. Run `wc -c` first. Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map.
+4. If you have the repo, search the code before opening an llms file. The code is the authority. Verify each fact against its source `path:line`.
+5. Index and llms hits are leads. Confirm their sources before acting.
 
 ## When to Use
 
@@ -60,3 +95,11 @@ Use `read_file` to load `references/operations.md`. Use `references/architecture
 ## Verification
 
 Require a real MCP handshake and a read operation for each selected server. Require a native Hermes turn with a genuine tool call and verified output. For memory, write a harmless unique test fact in an isolated profile, load it in a fresh process, then remove only that test entry. Report latency and resource observations without claiming a comparative speedup unless matched before/after measurements exist.
+
+## Report
+
+Name the selected profile, source revision and actual runtime route. List the
+checks executed, observed tool results, persistence evidence and remaining gaps.
+Keep planned actions and configured values separate from verified observations.
+The `skill/` directory is a source bundle; install it under its declared
+`hermes-operations` identity when native loading is requested.

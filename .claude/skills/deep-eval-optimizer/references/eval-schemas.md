@@ -12,6 +12,7 @@
     {
       "id": 1,
       "name": "descriptive-eval-name",
+      "evaluation_intent": "task",
       "prompt": "Realistic user input without leaked skill names or answers",
       "expected_output": "Comprehensive deliverable specification",
       "files": ["inputs/fixture.txt"],
@@ -31,6 +32,8 @@
   ]
 }
 ```
+
+`evaluation_intent` is optional: `task` (default), `manual-invocation`, or `routing`. Explicit skill names are valid in the latter two intents. Clear leading calls such as "Run sample-skill on this input" also count as manual invocations. Naming a skill does not excuse copied answers or internal algorithm leakage; retain those independent checks.
 
 ## 2. Trigger Accuracy Evals (`evals/trigger-eval.json`)
 

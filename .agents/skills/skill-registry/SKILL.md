@@ -1,7 +1,31 @@
 ---
 name: skill-registry
-description: Find and load indexed local skills, share pinned private skill releases, or queue optional artifact optimization through the Skill Registry MCP and CLI.
+description: 'Find and load indexed local skills, manage pinned private skill releases, or queue explicitly requested optimization.
+  TRIGGER: find a skill for this task; load an exact skill hash; inspect a private skill release; queue an optimizer job.
+  Catalog search does not enable automatic policies. SKIP: direct skill audit and rewrite -> skill-optimizer; concept research
+  -> dr.'
+version: 1.1.0
+category: meta
+model: gpt-6.1-sol
+effort: medium
+whenToUse:
+- Find the most specific installed skill for this task
+- Load this skill using the returned source hash
+- Inspect or fetch a pinned private skill release
+- Queue an explicitly requested artifact optimization job
+triggers:
+- find a local skill
+- load skill by source hash
+- private skill release
+- queue optimizer job
+related_skills:
+- skill-optimizer
+- dr
+updated: '2026-11-11'
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
+
 
 # Skill Registry
 
@@ -42,3 +66,12 @@ scope; the worker does not overwrite the original.
 Use `skills_status` to report coverage and `skills_refresh` for a requested
 refresh. The router does not require Ollama or start legacy embedding pipelines.
 For CLI details, use `skill-registry --help` and its command-specific help.
+
+## Look for llms files first
+
+Before reading the subject raw, look for its llms files and open them by size. If you have the repo, step 4 sets the order.
+1. Locate the subject's `llms.txt`, source-qualified concept pack, or relevant documentation index. Existing keyword hits can help locate it.
+2. Run `wc -c` first. Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map.
+4. If you have the repo, search the code before opening an llms file. The code is the authority. Verify each fact against its source `path:line`.
+5. Index and llms hits are leads. Confirm their sources before acting.

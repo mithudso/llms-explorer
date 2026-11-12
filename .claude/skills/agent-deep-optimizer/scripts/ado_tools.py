@@ -15,13 +15,14 @@ auditor did not author. Each subcommand prints one JSON object tagged
   backup  <path> --run-id ID [--iter N --from FILE]
                                              pre-write snapshot into the family backup dir
 
-Stdlib only. PyYAML parses the frontmatter when importable; otherwise a minimal
-key / value / list parser runs and the output carries "yaml_parser": "fallback".
+Stdlib diagnostics. The schema success gate requires PyYAML; without it, the
+minimal parser is diagnostic only and cannot certify strict YAML validity.
 The contract the checks encode lives in ../references/agent-contract.md.
 """
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -174,7 +175,7 @@ def parse_frontmatter(fm: str) -> tuple[dict, str, str | None]:
             return data, "pyyaml", None
         except Exception as exc:  # noqa: BLE001
             return fallback_parse(fm), "fallback-after-pyyaml-error", str(exc).splitlines()[0]
-    return fallback_parse(fm), "fallback", None
+    return fallback_parse(fm), "fallback", "strict YAML parser unavailable (PyYAML required)"
 
 
 def top_level_keys(fm: str) -> list[str]:
@@ -204,10 +205,9 @@ def plugin_agent_roots() -> list[Path]:
 
 
 def iter_agent_files(root: Path):
-    for md in sorted(root.rglob("*.md")):
-        if any(part in {"node_modules", ".git", "backups", "evals"} for part in md.relative_to(root).parts):
-            continue
-        yield md
+    # The agent contract treats named Markdown recursively under an agents root.
+    # Report fixture/backup definitions instead of hiding their loaded identities.
+    yield from sorted(root.rglob("*.md"))
 
 
 def load_agent(md: Path) -> dict:
@@ -325,7 +325,9 @@ def schema(args) -> None:
         dups = sorted({k for k in keys if keys.count(k) > 1})
         if dups:
             add("L", "High", "duplicate-keys", f"duplicate top-level keys: {dups}")
-    if a["parse_error"]:
+    if a["parser"] == "fallback":
+        add("L", "High", "yaml-parser-unavailable", "UNAVAILABLE: strict YAML validity was not checked; fallback diagnostics cannot certify the gate")
+    elif a["parse_error"]:
         add("L", "High", "yaml-parse", f"strict parse failed: {a['parse_error']}")
 
     name = data.get("name")
@@ -366,18 +368,18 @@ def schema(args) -> None:
             add("M", "High", "model-value", f"`model: {model!r}` is neither an alias (sonnet/opus/haiku/fable/inherit) nor a claude-* model ID")
     pm = data.get("permissionMode")
     if pm is not None:
-        if pm not in PERMISSION_MODES:
+        if not isinstance(pm, str) or pm not in PERMISSION_MODES:
             add("I", "High", "permissionMode-value", f"`permissionMode: {pm!r}` not in {sorted(PERMISSION_MODES)}")
         elif pm in {"bypassPermissions", "dontAsk"}:
             add("I", "Medium", "permissionMode-broad", f"`permissionMode: {pm}` needs a stated justification and a narrowed tool grant")
     eff = data.get("effort")
-    if eff is not None and eff not in EFFORTS:
+    if eff is not None and (not isinstance(eff, str) or eff not in EFFORTS):
         add("M", "High", "effort-value", f"`effort: {eff!r}` not in {sorted(EFFORTS)}")
     col = data.get("color")
-    if col is not None and col not in COLORS:
+    if col is not None and (not isinstance(col, str) or col not in COLORS):
         add("I", "Low", "color-value", f"`color: {col!r}` not in {sorted(COLORS)}")
     mem = data.get("memory")
-    if mem is not None and mem not in MEMORY_SCOPES:
+    if mem is not None and (not isinstance(mem, str) or mem not in MEMORY_SCOPES):
         add("I", "High", "memory-value", f"`memory: {mem!r}` not in {sorted(MEMORY_SCOPES)}")
     iso = data.get("isolation")
     if iso is not None and iso != "worktree":
@@ -395,7 +397,7 @@ def schema(args) -> None:
     if exp is not None:
         if not isinstance(exp, dict):
             add("H", "Medium", "experimental-type", "`experimental` must be a mapping")
-        elif "cacheTtl" in exp and exp["cacheTtl"] not in CACHE_TTLS:
+        elif "cacheTtl" in exp and (not isinstance(exp["cacheTtl"], str) or exp["cacheTtl"] not in CACHE_TTLS):
             add("H", "Medium", "cacheTtl-value", f"`experimental.cacheTtl: {exp['cacheTtl']!r}` not in {sorted(CACHE_TTLS)}")
     ip = data.get("initialPrompt")
     if ip is not None and not isinstance(ip, str):
@@ -424,11 +426,18 @@ def schema(args) -> None:
         if "(" in t:
             add("G", "Medium", "disallowed-specifier", f"`disallowedTools` entry `{t}` carries a specifier; the harness removes the whole tool, not the pattern")
     read_only_claim = bool(re.search(r"(?im)^(mode:\s*read-only|.*\bread-only\b.*)$", body))
-    write_grant = tools is None or any(t.split("(")[0] in WRITE_TOOLS for t in tools)
+    granted_write_tools = WRITE_TOOLS if tools is None else {
+        t.split("(", 1)[0] for t in tools if t.split("(", 1)[0] in WRITE_TOOLS
+    }
+    # A partial denial removes only the named tool. Scoped rules are not a
+    # proof that every use of that tool is denied; they retain the High gate.
+    effective_write_tools = sorted(t for t in granted_write_tools if not any(
+        "(" not in rule and fnmatch.fnmatchcase(t, rule) for rule in disallowed
+    ))
     if read_only_claim and tools is None:
         add("G", "High", "read-only-inherits-all", "body declares read-only but `tools` is omitted (inherits every tool incl. Write/Edit/Bash)")
-    elif read_only_claim and write_grant and not any(t.split("(")[0] in WRITE_TOOLS for t in disallowed):
-        add("G", "High", "read-only-with-write-tools", "body declares read-only but Write/Edit/NotebookEdit remain granted")
+    elif read_only_claim and effective_write_tools:
+        add("G", "High", "read-only-with-write-tools", f"body declares read-only but these write tools remain granted: {effective_write_tools}")
 
     skills = as_list(data.get("skills"))
     preload_tokens = 0
@@ -495,6 +504,7 @@ def schema(args) -> None:
         "preload_tokens_est": preload_tokens,
         "tools": tools,
         "disallowedTools": disallowed,
+        "effective_write_tools": effective_write_tools,
         "has_version_marker": has_version,
         "mentions_output_contract": has_receipt,
         "findings": findings,
@@ -553,6 +563,8 @@ def roster(args) -> None:
         "shadowing": [a for a in agents if a["shadowed"]],
         "builtin_collisions": [a["name"] for a in agents if a["builtin_collision"]],
         "nested_files": [a["winner"] for a in agents if a["nested"]],
+        "markdown_in_evals": [r["path"] for r in rows
+                              if "evals" in Path(r["path"]).relative_to(Path(r["root"])).parts[:-1]],
         "non_agent_markdown_under_roots": non_agents,
         "agents": agents,
     })
@@ -646,8 +658,8 @@ def smoke(args) -> None:
     if args.agents_json:
         cmd += ["--agents", args.agents_json]
     # Deny every side-effecting tool for the probe; the question needs none.
-    cmd += ["--disallowedTools", "Bash", "Write", "Edit", "NotebookEdit", "WebFetch", "WebSearch", "Agent",
-            "SendMessage", "Artifact"]
+    cmd += ["--tools", "", "--disallowedTools", "*", "--strict-mcp-config",
+            "--mcp-config", '{"mcpServers":{}}']
     t0 = time.time()
     try:
         proc = subprocess.run(cmd, cwd=str(project_dir), capture_output=True, text=True, timeout=args.timeout)

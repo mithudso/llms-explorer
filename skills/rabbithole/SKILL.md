@@ -1,22 +1,13 @@
 ---
 description: >-
-  Narrow inverse of concept-family-explorer: take ONE already-named concept and exhaust it
-  completely — drill straight down through its mechanism, sub-parts, edge cases, failure
-  modes, historical evolution, primary sources, and expert disagreements — running repeated
-  deepening passes until a pass adds no meaningfully new information. CFE asks "what am I
-  missing AROUND this subject" (breadth); this skill asks "what am I missing INSIDE this one
-  concept" (depth). TRIGGER: /rabbithole, "deepen my understanding of X", "exhaust X
-  completely", "go as deep as possible on X", "rabbithole on X", "don't stop until there's
-  nothing left to learn about X", "give me everything there is to know about X". SKIP:
-  subject is a family/domain, not one concept → concept-family-explorer; concept already
-  named and just needs one research pass, no exhaustion loop → /dr; abstracting a concept's
-  mentions OUT of an existing docset/corpus you already hold → llms-concept-abstractor;
-  reorganizing the skill tree → skill-tree-architect.
+  Deepen ONE named concept through its mechanism, parts, limits, failure modes, history, primary sources and expert disagreements; repeat measured deepening passes to the stated stop condition.
+  TRIGGER: "/rabbithole", "deepen my understanding of X", "exhaust X completely", "go as deep as possible on X".
+  SKIP: family/domain gaps → concept-family-explorer; one ordinary research pass → dr; extract concept mentions from an existing corpus → llms-txt-tooling (references/llms-concept-abstractor/llms-concept-abstractor.md); reorganize existing skill tree → skill-tree-architect.
 name: rabbithole
-version: "1.0.0"
-updated: "2026-09-01"
-model: claude-opus-5
-effort: high
+version: "1.4.1"
+updated: "2026-11-11"
+model: claude-sonnet-5-5
+effort: max
 category: meta
 tags: [concept-depth, exhaustive-research, saturation, orchestration]
 keywords:
@@ -32,9 +23,8 @@ keywords:
 related_skills:
   - concept-family-explorer
   - deep-research
-  - llms-concept-abstractor
+  - llms-txt-tooling
   - skill-tree-architect
-  - full-suite
 whenToUse:
   - "deepen my understanding of <concept>"
   - "exhaust <concept> completely — go as deep as you can"
@@ -46,7 +36,63 @@ whenNotToUse:
   - "one ordinary research pass is enough, no exhaustion loop wanted (use /dr)"
   - "the concept's mentions already sit inside a corpus you hold and you want them pulled out (use llms-concept-abstractor)"
   - "you want the skill tree reorganized, not a concept researched (use skill-tree-architect)"
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
+
+## Look for llms files first
+
+Before reading the single concept and its source corpus raw, locate its llms files. If the repo is available, step 4 sets the order.
+1. Check the subject's `llms.txt`, its docs site's `/llms.txt`, or matching packs under `~/.global-ai-hub/skills.llms/` and `~/.global-ai-hub/llms-concepts/`; use available hub keyword/search tools as discovery leads.
+2. Run `wc -c` first (or inspect a remote size header). Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
+5. Index and llms hits are leads. Confirm them against readable source text before acting.
+
+## Evidence required before publication
+
+Apply this contract to every factual assertion, including summaries, inherited parent
+facts, disagreements, open-question premises and final dossiers. Discovery leads and
+coverage labels do not establish support.
+
+- Keep each atomic claim's exact statement, immutable claim ID, source URL, source
+  snapshot hash, exact quoted passage and locator together. For v4, author an `evidence`
+  list of spans with `url`, `source_id`, `snapshot_sha256`, `start`, `end`, `quote` and
+  `extraction_status: complete`. Mark complete only after reading a usable source;
+  the attestation never overrides a missing identifier or invalid span. Read the snapshot;
+  a URL, reference list, cache hash or model recollection supplies no evidence credit.
+- Run deterministic integrity checks over **all** claims before paid semantic review.
+  Require each quote to exist in the pinned body and belong to the cited source.
+  Check exact technical identifiers, values, units and applicability against the
+  passage. Missing identifiers or an incomplete Markdown derivative require readable
+  rendered HTML, original RST/source or another complete primary source; withhold the
+  assertion until reacquisition succeeds. A keyword match alone does not prove support.
+- A semantic judge decides whether the passage supports the complete assertion,
+  including negation, version, scope and caveats. It cannot override a failed integrity
+  check. In research-gate/v4, review every new or changed factual assertion once.
+  Reuse a prior validated SUPPORTED verdict only when the exact assertion and bound
+  source snapshots are unchanged. Structural binding alone cannot qualify publication.
+  Do not turn structural failures into expensive blanket multi-model reruns.
+- Preserve contradictory claims with both source passages and their applicability.
+  Record the conflict explicitly and block an unconditional conclusion. Resolve it
+  with source evidence or publish only an accurately scoped, qualified conflict.
+  Never average opposing claims, silently choose the preferred source, lower confidence
+  to bypass a failure, or treat absence from an incomplete extract as proof of absence.
+- Build prose and every persisted projection from canonical claim records. Validate
+  citation and evidence bindings through concept packs, reader JSON, context and facts
+  downloads before completion. Missing bindings or changed assertions stop publication;
+  a dossier or tree update alone cannot bypass the shared /dr completion gate.
+- Repair only failed claim/source pairs. Keep successful claims, snapshots and paid
+  attempts. Allow one bounded evidence repair followed by a fresh bound gate; residual
+  substantive dissent stops that claim. An unchanged failed evidence packet must not
+  incur another paid judgment; one malformed-JSON repair is allowed. Retry recognized
+  transport failures at most twice within the original deadline. Do not repeat discovery, whole-family research
+  or successful website generation to repair a citation.
+- Before shipping changes to this workflow, exercise real failure regressions:
+  uncited claims, wrong-source quotes, incomplete derivatives, missing field names,
+  negation or version conflicts, stale snapshot hashes and dropped output citations.
+  Verify canonical, installed and runtime-specific skill copies with their sync check;
+  equal version numbers alone do not establish parity. Report loaded state separately.
 
 # Rabbithole (`/rabbithole`, "deepen")
 
@@ -75,7 +121,7 @@ concept ─▶ [1] scope & boundary ─▶ [2] pass 0: broad draft ─▶ [3] pa
 - Subject is a domain, family, or "what am I missing about X" question → `concept-family-explorer`.
 - One ordinary research pass is what's wanted, no forced exhaustion loop → `/dr` directly.
 - The concept's mentions already live inside a corpus you hold (docs, notes, a textbook) and
-  you want them pulled out and organized → `llms-concept-abstractor`.
+  you want them pulled out and organized → llms-txt-tooling (references/llms-concept-abstractor/llms-concept-abstractor.md).
 - Skill tree needs reorganizing, no new research → `skill-tree-architect`.
 
 ## Inputs
@@ -90,6 +136,27 @@ concept ─▶ [1] scope & boundary ─▶ [2] pass 0: broad draft ─▶ [3] pa
 - **seedMaterial** (optional) — a corpus, docset, or file the user already has; used as
   Pass 0 evidence before any web research, so passes don't re-derive what's already on disk.
 
+## Research scout handoffs
+
+Before discovery, read `~/.claude/skills/research-scout/references/consumer.md`.
+Run `python3 ~/.claude/skills/research-scout/scripts/scout.py seeds --concept "<exact concept>" --parent "<exact parent>"`
+to inspect validated candidate URLs. Resolve unknown or ambiguous parents against
+the live inventory; do not guess from a slug. No scout is a normal result:
+continue ordinary research. Report malformed bundles and keep other discovery available.
+
+Use only leads inside the scoped concept in Pass 0 and later gap-focused passes.
+Read relevant mechanism, limitation, issue and disagreement sources. Hand sibling
+and adjacent leads to CFE. A scout URL, repeated query or repeated source adds no
+researched novelty by itself; measure new sourced claims in the existing depth loop.
+
+Check live coverage and aliases, source applicability, freshness and originating
+organization. Acquire readable source text yourself; the scout's access label is
+not your read receipt. Preserve partial, stale, blocked and snippet-only limits.
+Record retained and rejected leads with reasons in this run's private notes or
+briefs, including scout run, revision, bundle hash, source ID and URL. Leave scout
+bundles unchanged. Keep the normal source, negation, authority, scope, claim-gate,
+CVS and saturation rules; scout leads do not establish verified claims or completion.
+
 ## Workflow
 
 ### Step 1 — Scope and boundary
@@ -103,7 +170,9 @@ depth does.
 
 ### Step 2 — Pass 0: broad draft
 
-One ordinary research pass (reuse `/dr`'s research step, or read `seedMaterial` first if
+One ordinary research pass (reuse `/dr`'s research step — two independent Sonnet `max`
+agents per concept merged by `dr_run.py research`, never a single Fable pass; see
+llms-explorer `docs/research/dr-model-repeats-2026-10-20` — or read `seedMaterial` first if
 given): mechanism in plain terms, the sub-parts/phases it decomposes into, the two or three
 most-cited primary sources, the obvious edge cases. This draft is the baseline every later
 pass is measured against — write it down as a flat list of atomic claims (one fact per line),
@@ -145,19 +214,27 @@ Otherwise return to Step 3.
 
 ### Step 6 — Compile the dossier
 
-Write the final claim list as a structured dossier: definition, mechanism (with the
-sub-parts a Step 3 pass surfaced), history/evolution, edge cases and failure modes,
-disagreements (side by side, never averaged — same non-negotiable as `llms-concept-abstractor`),
-primary sources cited per claim. If the concept sits in the concept tree, this dossier is
-what backs its node's depth (as opposed to CFE's breadth-only stub); write it back via the
-same concept-tree tools CFE uses, tagged as a depth-pass rather than a coverage pass so CFE
-doesn't re-count it as a sibling gap filled.
+Write the final claim list as a structured dossier: definition, mechanism, history, edge cases, failure modes and disagreements side by side, with primary sources bound per atomic claim. Use one owned `/dr` run for the final accumulated claims, including every new depth-pass assertion; a gate receipt for Pass 0 alone does not cover later additions.
+
+Follow `/dr`'s mandatory repository adapter contract and claim schema. Reuse the owned run; if one does not exist, initialize it through that adapter before recording. Then perform this concrete finalization sequence:
+
+1. Record the complete final structured claims and evidence snapshots through `dr_run.py concept-done <slug> <final-claims.json>`. Preserve immutable claim IDs and every bound source passage.
+2. Render with `dr_run.py render <slug>` and the resolved hub/standalone/output arguments owned by `/dr`. Scan for injection and preserve the existing output-binding checks.
+3. Gate every new or changed assertion through the adapter. A failed or stale binding withholds publication; repair only the failed pairs within the established bounded-repair rule.
+4. Finish through the adapter so the canonical tree and reader/context/facts projections refresh together. Do not write the concept tree directly as a substitute. A failed refresh leaves persistence unfinished.
+
+```sh
+python3 "${LLMS_EXPLORER_REPO:-$HOME/dev/llms-explorer}/scripts/codex_dr_run.py" gate <slug>
+python3 "${LLMS_EXPLORER_REPO:-$HOME/dev/llms-explorer}/scripts/codex_dr_run.py" finish <slug> --status COMPLETED --minutes <n> --agents <n> --stop-reason "depth gate and projections complete"
+```
+
+Use `COMPLETED` only after the final evidence and projection gates pass. A budget stop remains `BUDGET_EXHAUSTED`; a boundary-breach stop uses supported runtime status `BLOCKED` and hands adjacent concepts to CFE. Keep the depth/saturation verdict separate: `SATURATED-DEPTH` is not a substitute for persistence completion. Report the runtime status, exact accepted artifact path, final gate and projection-refresh outcome independently.
 
 ### Step 7 — Handoffs and report
 
 Report per-pass new-information rate (the declining curve), total passes run, saturation
 verdict (`SATURATED-DEPTH` / `BUDGET_EXHAUSTED` / `BOUNDARY-BREACH → handed to CFE`), the
-compiled dossier's location, and any sibling/adjacent concepts surfaced along the way as a
+compiled dossier's location, the separate final claim-gate/persistence status, and any sibling/adjacent concepts surfaced along the way as a
 handoff list for `concept-family-explorer` — this skill never chases them itself.
 
 ## Quality rules
@@ -184,4 +261,4 @@ handoff list for `concept-family-explorer` — this skill never chases them itse
 **Should NOT trigger:**
 - "What am I missing about distributed systems in general?" → `concept-family-explorer`.
 - "Research CRDTs and make a skill" (one pass, no forced exhaustion) → `/dr`.
-- "Pull everything these three docsets say about caching" → `llms-concept-abstractor`.
+- "Pull everything these three docsets say about caching" → llms-txt-tooling (references/llms-concept-abstractor/llms-concept-abstractor.md).

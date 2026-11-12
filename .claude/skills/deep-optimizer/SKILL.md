@@ -1,20 +1,25 @@
 ---
 name: deep-optimizer
 description: >-
-  Convergence-loop optimizer ROUTER for code, prose, prompts, skills, agents, SQL, UI/UX,
-  llms files and trading strategies. Members fix Medium+ and verify. Routes to: code-deep-optimizer (source files & repos, /cdo);
-  document-critique (prose docs, /ddo); prompt-deep-optimizer (production prompts in code, /pdo);
-  skill-optimizer (SKILL.md files, /sko); agent-deep-optimizer (Claude Code subagent definitions,
-  /ado); deep-eval-optimizer (skill evaluation suites, /deo); deep-query-optimizer (SQL, EXPLAIN-verified, /dqo); design-deep-optimizer (graphic/UI/UX
-  screens, /deso); ui-deep-optimizer (interface workflows, /ui-deep-optimizer); deep-strategy-optimizer (trading strategies, indicators, cards & backtests, /dso);
-  llms-deep-optimizer (llms.txt / llms-full / llms-facts / family indexes, /ldo). `--sweep
-  <folder|session>` routes every file in a folder, or every file created or modified this session,
-  to its member with a resumable ledger. MongoDB MQL/aggregation routes to deep-mongodb-mql-query-optimizer.
+  Route mixed-artifact optimization work to the matching deep-optimizer family member, or plan a resumable folder/session sweep. TRIGGER: "which optimizer fits these files", "run deep optimizer", "sweep this folder", "optimize everything changed this session". Covers code, prose, prompts, skills, agents, evals, SQL, MongoDB MQL, UI, graphics, llms files and trading strategies. SKIP: a single known artifact uses its specialist: code-deep-optimizer; writing-expert (references/document-critique.md); prompt-deep-optimizer; skill-optimizer; agent-deep-optimizer; deep-eval-optimizer; deep-query-optimizer; deep-mongodb-mql-query-optimizer; ui-deep-optimizer; design-deep-optimizer; llms-deep-optimizer; deep-strategy-optimizer. Whole-tree skill taxonomy uses skill-tree-architect.
 origin: local
-model: claude-opus-5
+model: claude-opus-5-5
 effort: high
-version: "1.3.2"
-updated: "2026-11-09"
+version: "1.5.0"
+updated: "2026-11-11"
+category: meta
+whenToUse:
+  - "Which optimizer should review these mixed files?"
+  - "Sweep this folder with the matching optimizers"
+  - "Optimize all files changed in this session"
+related_skills:
+  - code-deep-optimizer
+  - skill-optimizer
+  - agent-deep-optimizer
+  - deep-eval-optimizer
+  - ui-deep-optimizer
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 > **Output rules:** Skip preamble and recaps. When delivering fixes, output diffs/edits directly. Required structured outputs (convergence tables, findings tables) are not preamble; keep them.
@@ -30,7 +35,7 @@ The optimizer family uses domain-specific multi-pass audits, verifies changes, a
 | `code-deep-optimizer` | Source files & repos (any language/framework) | `/cdo` | in place | build/lint/tests verify gate; 18 passes |
 | `document-critique` | Prose documents (specs, RFCs, runbooks, KBs) | `/ddo` | in place | passes 0–14; blind re-audit; human-voice pass |
 | `prompt-deep-optimizer` | Production prompts shipped in code | `/pdo` | **report only; `--write` opt-in** | 16 passes; injection guard; algorithm pick; `pdo_tools.py selfcheck` executed gate; evidence grading (EXECUTED/ISOLATED/SIMULATED) |
-| `skill-optimizer` | `SKILL.md` files | `/sko` | in place | 15 passes A–O; Pass H trigger eval; hub sync |
+| `skill-optimizer` | `SKILL.md` files | `/sko` | in place | 16 passes A–P; Pass H trigger eval; hub sync |
 | `agent-deep-optimizer` | Claude Code subagent definitions (`~/.claude/agents/*.md`, `.claude/agents/`, plugin agents read-only) | `/ado` | in place | 16 passes A–P; `ado_tools.py schema` deterministic gate; 10+10 delegation eval; optional `claude -p --agent` load check; registry `agent:<name>` verify |
 | `deep-eval-optimizer` | Skill evaluation suites | `/deo` | in place | 12-pass evaluation audit and optional measured execution |
 | `deep-query-optimizer` | SQL queries (Postgres/MySQL/SQLite/SQL Server) | `/dqo` | in place | EXPLAIN/EXPLAIN ANALYZE verify; index DDL |
@@ -61,19 +66,18 @@ For "run X on every file in this folder" and "run the optimizers on everything c
 session". The router enumerates, routes each file to its member, and keeps a resumable ledger;
 the members still own their own loops. Engine: `scripts/sweep.py` (stdlib; `--help` for usage).
 
-1. **Plan.** `python3 scripts/sweep.py plan --folder <DIR>` or `plan --session` (run inside the
-   repo; targets are the dirty tree plus branch commits, or `--since "6 hours ago"` / `--base REF`).
+1. **Plan.** Resolve the sweep helper from the selected optimizer directory. Use `python3 "<optimizer-dir>/scripts/sweep.py" plan --folder <DIR>`, or the same absolute helper with `plan --session` while working inside the target repo (targets are its dirty tree plus branch commits, or `--since "6 hours ago"` / `--base REF`). The `sweep.py` shorthand below always means that absolute bundled helper, not a script in the target repository.
    It writes `<DIR>/.sweep/ledger.json` (session: `<git root>/.sweep/session.json`), one row per
    file with `member`, `alias`, `status`. Show the per-member counts, then proceed. Unroutable files
-   (binaries, data) become `skipped` rows with a reason. `--map .ext=member` overrides a route.
+   (binaries, data) become `skipped` rows with a reason. `--map .ext=member` overrides a route. Ambiguous JSON is not inferred as MQL: use `--map .json=deep-mongodb-mql-query-optimizer` for a deliberately selected pipeline set; the alias is `/dmqo`. Changing the explicit route invalidates an old skipped/completed route, preserving prior failure details.
 2. **Dispatch.** Loop: `sweep.py next --n 4` claims up to 4 pending rows (the cap counts rows already
    in flight). Dispatch one subagent per claimed row invoking that row's `alias` on that one file,
    all claimed rows in a single parallel batch; no nested dispatch. Rows for `/cdo` are batched
    into one `--scope=<paths>` call per repo so cdo's own `.cdo/ledger.json` applies.
 3. **Record.** `sweep.py done <path> --status done|failed --findings N --note "<Status>"` after each
-   subagent returns. A failed row is reported, never retried silently.
+   subagent returns. A failed row is reported and retained with its note across reset/replan. Requeue it only with the explicit `sweep.py retry <path>` action; its failure history remains attached.
 4. **Resume.** After an interruption run `sweep.py reset` (running -> pending), then `plan` again:
-   it keeps `done` rows whose file sha is unchanged and re-queues edited files. `sweep.py status`
+   it keeps completed/skipped rows only when file SHA and route are unchanged, and requeues edited non-failed rows. Failed rows remain failed even after content or route edits; the explicit `retry` action applies the planned change and preserves the failure history. `sweep.py status`
    lists what is still open.
 5. **Report** the final `status` counts and each member's own Status line. Do not start convergence
    loops beyond what each member runs on its own row, and do not widen the sweep past the plan.

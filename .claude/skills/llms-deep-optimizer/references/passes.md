@@ -34,6 +34,10 @@ collected before any write (the family rule, `convergence-and-severity.md` § Co
 - Severity resolution across passes
 - N/A rules
 
+## Executed checks versus repair recipes
+
+The bundled linter implements the subset visible in `scripts/_ldo_v3.py`. Its safe writer performs only hygiene, Optional-last, bare-URL wrapping, full-file residue stripping and a missing Mintlify banner. The broader Updated recipes below are model/upstream repair guidance, not claims that `--fix` performs them. Re-run the checker after any such repair. Existing pauses and authorization govern all model, index, embedding, live-service and publication operations; report blocked stages rather than starting or restarting them.
+
 ## Bundle map and dispatch rules
 
 | Bundle | Passes | Kind | Runs as |
@@ -41,7 +45,7 @@ collected before any write (the family rule, `convergence-and-severity.md` § Co
 | B0 | P0 | deterministic | inline, first — every other pass keys off the detected kind |
 | B1 | P1 P2 P3 P5 P14 | deterministic | one `llms_lint.py` invocation, JSON findings |
 | B2 | P4 P9 | model | one subagent reading the index (+ sample pages) |
-| B3 | P6 P7 | deterministic | `llms_lint.py --full` / `--facts` (same invocation as B1 when the kind is full/facts) |
+| B3 | P6 P7 | deterministic | `llms_lint.py full` / `facts` (same invocation as B1 when the kind is full/facts) |
 | B4 | P8 | model, sampled | one subagent, 20 units re-read against source spans |
 | B5 | P10 | deterministic + model | only when kind = family or `--family` |
 | B6 | P11 | live | `docset_indexer.py keyword` + `query --layer facts` probes |

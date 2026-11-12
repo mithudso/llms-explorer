@@ -13,6 +13,7 @@ Run:  python -m pytest .claude/skills/notes-to-llms/scripts/test_notes_normalise
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -22,7 +23,22 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import notes_normalise as nn  # noqa: E402
 
-HUB = Path(__file__).resolve().parents[3] / "hub" / "scripts"
+def resolve_repo_root(start: Path | None = None) -> Path:
+    """Use the explicit reviewed repository, or discover its local markers."""
+    configured = os.environ.get("LLMS_EXPLORER_REPO")
+    if configured:
+        candidates = [Path(configured).expanduser().resolve()]
+    else:
+        source = (start or Path(__file__)).resolve()
+        candidates = [source if source.is_dir() else source.parent, *source.parents]
+    for root in candidates:
+        marker = (root / "AGENTS.md").is_file() or (root / ".git").exists() or (root / "pyproject.toml").is_file()
+        if marker and (root / "hub/scripts").is_dir():
+            return root
+    raise RuntimeError("Cannot locate the reviewed hub checkout; set LLMS_EXPLORER_REPO to its repository root")
+
+
+HUB = resolve_repo_root() / "hub" / "scripts"
 
 LIMITS = """---
 title: Rate limits
@@ -73,7 +89,7 @@ LOOSE = "A wall of text with no headings at all, long enough to clear the minimu
 def _hub(module: str):
     sys.path.insert(0, str(HUB))
     if not (HUB / "llms_lint.py").exists():  # pragma: no cover
-        pytest.skip("hub checkout not present")
+        pytest.fail("reviewed hub linter is absent; check LLMS_EXPLORER_REPO")
     return __import__(module)
 
 
@@ -241,7 +257,7 @@ def test_mirror_round_trips_through_the_hub_parser(notes: Path, tmp_path: Path) 
     mirror = tmp_path / "n.md"
     nn.write_mirror(pages, mirror)
     if not (HUB / "docset_refine" / "mirror_io.py").exists():  # pragma: no cover
-        pytest.skip("hub checkout not present")
+        pytest.fail("reviewed mirror parser is absent; check LLMS_EXPLORER_REPO")
     sys.path.insert(0, str(HUB))
     from docset_refine import mirror_io  # noqa: PLC0415
 
@@ -253,7 +269,7 @@ def test_mirror_round_trips_through_the_hub_parser(notes: Path, tmp_path: Path) 
 def test_slug_matches_the_hub_implementation() -> None:
     """Drift here silently breaks every anchor this script writes."""
     if not (HUB / "docset_refine" / "__init__.py").exists():  # pragma: no cover
-        pytest.skip("hub checkout not present")
+        pytest.fail("reviewed refine package is absent; check LLMS_EXPLORER_REPO")
     sys.path.insert(0, str(HUB))
     import docset_refine  # noqa: PLC0415
 
@@ -269,7 +285,7 @@ def test_the_mirror_stem_is_what_docset_refine_expects(notes: Path, tmp_path: Pa
     mirror = out / "my-notes.md"
     assert mirror.exists()
     if not (HUB / "docset_refine" / "__init__.py").exists():  # pragma: no cover
-        pytest.skip("hub checkout not present")
+        pytest.fail("reviewed refine package is absent; check LLMS_EXPLORER_REPO")
     sys.path.insert(0, str(HUB))
     import docset_refine  # noqa: PLC0415
 
@@ -298,3 +314,45 @@ def test_no_readable_pages_is_an_error_not_an_empty_file(tmp_path: Path) -> None
     (tmp_path / "only.pdf").write_text("x")
     assert nn.main([str(tmp_path), "--project", "p", "--out", str(tmp_path / "o")]) == 1
     assert not (tmp_path / "o" / "p.md").exists()
+
+
+def test_file_symlink_cannot_expand_the_selected_root(tmp_path: Path) -> None:
+    root = tmp_path / "notes"
+    root.mkdir()
+    outside = tmp_path / "outside.md"
+    outside.write_text("# Outside\n\nThis private source was not selected for the note export.\n")
+    (root / "escape.md").symlink_to(outside)
+    pages, report = nn.normalise([root], project="n")
+    assert not pages
+    assert report["skipped_unreadable"] == [
+        {"path": "escape.md", "reason": "symlink target outside input roots"}
+    ]
+
+
+def test_distinct_input_roots_keep_distinct_source_urls(tmp_path: Path) -> None:
+    left, right = tmp_path / "left", tmp_path / "right"
+    left.mkdir()
+    right.mkdir()
+    (left / "notes.md").write_text("# Limits\n\nThe first selected input records a limit of sixty requests.\n")
+    (right / "notes.md").write_text("# Limits\n\nThe second selected input records a limit of eighty requests.\n")
+    pages, _ = nn.normalise([left, right], project="n")
+    assert len(pages) == 2
+    assert len({page["url"] for page in pages}) == 2
+    assert pages == nn.normalise([left, right], project="n")[0]
+
+
+@pytest.mark.parametrize("layout", [".claude/skills", "skills"])
+def test_repository_markers_work_for_both_layouts(tmp_path, monkeypatch, layout):
+    monkeypatch.delenv("LLMS_EXPLORER_REPO", raising=False)
+    (tmp_path / "AGENTS.md").write_text("fixture repository marker\n")
+    (tmp_path / "hub/scripts").mkdir(parents=True)
+    script = tmp_path / layout / "notes-to-llms/scripts/test_notes_normalise.py"
+    script.parent.mkdir(parents=True)
+    script.write_text("# original layout fixture\n")
+    assert resolve_repo_root(script) == tmp_path
+
+
+def test_bad_explicit_repository_is_not_silently_skipped(tmp_path, monkeypatch):
+    monkeypatch.setenv("LLMS_EXPLORER_REPO", str(tmp_path))
+    with pytest.raises(RuntimeError, match="LLMS_EXPLORER_REPO"):
+        resolve_repo_root()

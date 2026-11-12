@@ -1,5 +1,21 @@
 # Prompts Log
 
+## Prompt v150 — 2026-11-11 skill optimizer agent fan-out
+
+Version:150. Delta:v149 to v150; TASK-1372.
+
+```text
+Run the /sko skill on every skill, do this as a fan out of agents
+```
+
+Apply the complete frozen skill-optimizer procedure to the repository skill
+inventory through disjoint agents. Preserve current purpose, factual evidence,
+private source bodies, paused services and other active work. Distinguish authored
+workflow sources, generated overlays, installed distributions and research-reference
+data. Keep predicted evals separate from measured activation and record every
+selected target's disposition. Deliver verified repository changes through checked
+PRs and remote-main verification.
+
 ## Prompt v149 — 2026-11-11 game-specific EZMob banner
 
 Version: 149. Delta: v148 to v149; TASK-1384.

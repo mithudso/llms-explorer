@@ -6,7 +6,7 @@ what to check afterwards.
 
 ## Why a separate stage
 
-A run touches **three** tree surfaces; `/dr` covers the first (and the hub file node as it finishes), but nothing writes the website file or corrects parentage after the 9b rebalance:
+A run touches **three** tree surfaces; `/dr` covers the first (and the hub file node as it finishes), and its completion hook refreshes website content; Step 9d corrects final parentage after the 9b rebalance:
 
 | Surface | Written by | Where |
 | --- | --- | --- |
@@ -80,14 +80,12 @@ writes atomically. Pre-existing validate problems are left alone; it only blocks
 
 Behaviours worth knowing:
 
-- **Missing parent.** A parent with no node *in that tree* is not invented — the
-  concept becomes a root there and the line says `-> root`. Expect this on the
-  hub tree, which lacks most of the site tree's mid-level nodes. No stub nodes.
+- **Missing parent.** An unavailable requested parent is not invented. The helper refuses that target and retains its existing placement; it never silently promotes the concept to an unanchored root. Resolve the required ancestor through the owning `/dr` contract before retrying. An explicit `parentConcept: null` requests root placement and removes the old reciprocal child link.
 - **Moved placement.** If Step 9b re-filed a spoke, the helper removes it from
   the old parent's `childConcepts` and adds it to the new one.
 - `--regen` (site only) runs `site/tools/gen_tree.py`, and
   `site/tools/gen_concepts.py` only when `~/.global-ai-hub/llms-concepts/<slug>.llms/`
-  exists for a touched slug. `gen_concepts.py` rebuilds *every* pack from the live
+  exists for a touched slug. A generator failure returns a nonzero exit status and leaves projection refresh unfinished, even if the tree write succeeded. `gen_concepts.py` rebuilds *every* pack from the live
   hub — read the printed `git diff --stat` and drop unrelated pack churn before
   committing.
 

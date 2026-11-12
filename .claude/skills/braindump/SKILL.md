@@ -1,15 +1,26 @@
 ---
 name: braindump
-version: "1.1.0"
-updated: "2026-11-06"
+version: "1.2.1"
+updated: "2026-11-11"
 owner: mitch
 description: >-
-  Quick capture of raw thoughts: saves the dump verbatim, parses it into categorical llms files
-  (braindump_<category>_llms.md with an llms.txt index, every row cited to raw path:line), and
-  pushes any tasks found into the personal to-do list. TRIGGER: "/braindump", "braindump",
-  "brain dump", "capture this", "get this out of my head", "note to self", a stream of loose
-  thoughts the user wants kept. SKIP: repo/agent memory (memory-central, auto-memory), adding a
-  single known task (use /todo), URL capture (web-text-mirror / firecrawl).
+  Capture raw thoughts verbatim, classify source-cited items into private categorical llms files, and add actions to the personal to-do list.
+  TRIGGER: "/braindump", "brain dump", "capture this", "get this out of my head", "note to self".
+  SKIP: one known task → todo; organize existing notes → note-organizer; agent-memory compilation → llms-txt-tooling (references/memory-to-llms-txt.md); capture a URL → web-text-mirror / firecrawl.
+whenToUse:
+  - "Capture this brain dump verbatim."
+  - "Get these loose thoughts out of my head and file them."
+  - "Save this note to self and add any actions to my to-do list."
+related_skills:
+  - "todo"
+  - "note-organizer"
+  - "llms-txt-tooling"
+  - "web-text-mirror"
+model: claude-sonnet-5-5
+effort: medium
+category: custom
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # Braindump
@@ -22,13 +33,11 @@ Store: `$HOME/dev/personal/Areas/braindump/` (local Obsidian vault, not in git; 
 
 1. **Get the dump.** If the user invoked `/braindump` with no text, ask one line: "Go ahead, dump it." Take whatever comes back as-is. Do not ask clarifying questions before saving.
 
-2. **Save it verbatim.** Pipe the exact text through a quoted heredoc so nothing is expanded:
+2. **Save it verbatim.** Write the exact text as a JSON string in a scratch file, preserving boundary newlines, CRLF and whether the final newline exists. Transport that string as a UTF-8 byte payload; do not interpolate the user's text into shell code. A heredoc or `echo` may add a newline, so use this byte-preserving transport instead:
    ```bash
-   python3 $HOME/.claude/skills/braindump/scripts/braindump.py save-raw <<'DUMP'
-   <user's text, unchanged>
-   DUMP
+   python3 -c 'import json,sys; sys.stdout.buffer.write(json.load(open(sys.argv[1], encoding="utf-8")).encode("utf-8"))' "<scratchpad>/raw-text.json" | python3 "$HOME/.claude/skills/braindump/scripts/braindump.py" save-raw
    ```
-   It prints the raw file path, then the file with line numbers. Use those numbers in step 3.
+   The raw file contains only that payload, without a metadata header. It prints the path and numbered lines. New captures start at payload line 1; existing captures keep their original physical line numbers and must never be rewritten. Use the printed numbers in step 3.
 
 3. **Parse into items.** Split the dump into atomic thoughts. For each, pick:
    - `category`: one of `braindump.py categories` (career, work, projects, ideas, learning, tech, trading, finance, health, relationships, personal, reflections). Invent a new slug only when none fits and the topic will recur.

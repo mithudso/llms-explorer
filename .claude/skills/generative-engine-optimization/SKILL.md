@@ -1,21 +1,11 @@
 ---
 name: generative-engine-optimization
 title: Generative Engine Optimization (GEO) & Answer Engine Optimization (AEO)
-version: "1.0.3"
-description: >
-  Advise on structuring content to be cited by AI answer engines — Google AI
-  Overviews, ChatGPT search, Perplexity, Bing Copilot, Gemini — not just ranked.
-  Covers GEO (Princeton/Aggarwal 2023-24), AEO, GEO vs AEO distinction,
-  engine-specific citation mechanics, evidence-backed tactics (statistics,
-  quotations, in-content citations, passage answerability, schema.org, E-E-A-T,
-  entity authority, freshness), AI share-of-voice measurement, and llms.txt
-  (community proposal — no major LLM reads it yet).
-  TRIGGER: get content cited by AI search; appear in AI Overviews; optimize for
-  Perplexity/ChatGPT/Gemini search; track AI citation share-of-voice; GEO or AEO
-  strategy; write for answer engines; zero-click AI visibility; llms.txt.
-  SKIP: classic/local SEO or Google Business Profile →
-  venture-marketing-strategy-local-seo; article prose →
-  content-and-marketing-writing; RAG pipeline architecture → ai-rag-retrieval.
+version: "1.1.1"
+description: >-
+  Advise on content citation strategy for AI answer engines: GEO/AEO, passage answerability, source credibility and per-engine citation measurement.
+  TRIGGER: "get cited by AI search", "appear in AI Overviews", "track AI share of voice", "does llms.txt improve citations?".
+  SKIP: generate/validate llms.txt or llms-full.txt → document-formats; classic/local SEO → venture-business (references/venture-marketing-strategy-local-seo.md); article prose → content-and-marketing-writing; RAG architecture → ai-rag-retrieval; EU TDM rights reservations → eu-ai-act-tdm-opt-out.
 keywords:
   - generative engine optimization
   - GEO
@@ -33,21 +23,30 @@ keywords:
   - structured data schema
   - topical authority
 whenToUse:
-  - User wants their content cited in AI-generated answers (not just ranked)
-  - User asks about appearing in Google AI Overviews or AI Mode
-  - User asks how Perplexity, ChatGPT, or Gemini select sources
-  - User wants to track AI citation rate or share of voice
-  - User asks about GEO vs AEO vs SEO distinctions
-  - User wants to add llms.txt to their site
-  - User is structuring content for zero-click AI environments
+  - "How can our pages get cited by AI answer engines?"
+  - "Compare GEO, AEO and classic SEO for this content."
+  - "Design a per-engine citation-rate and AI share-of-voice measurement plan."
+  - "Evaluate evidence that llms.txt improves AI citation visibility."
 whenNotToUse:
-  - \"generating, validating, or recreating the llms.txt / llms-full.txt file itself (use document-formats; this skill covers llms.txt only as a visibility tactic)"
+  - "generating, validating, or recreating the llms.txt / llms-full.txt file itself (use document-formats; this skill covers llms.txt only as a visibility tactic)"
   - "whether an llms.txt / ai.txt / robots.txt signal is a legally valid EU text-and-data-mining opt-out under DSM Art. 4(3) or AI Act Art. 53(1)(c) (use eu-ai-act-tdm-opt-out; llms.txt is a visibility artefact, never a rights reservation)"
   - Classic keyword/on-page SEO without an AI-citation angle
   - Local SEO, Google Business Profile, GMB optimization
   - Writing/editing the article prose itself
   - RAG pipeline architecture for internal LLM apps
   - Marketing compliance or legal review of copy
+related_skills:
+  - "document-formats"
+  - "venture-business"
+  - "content-and-marketing-writing"
+  - "ai-rag-retrieval"
+  - "eu-ai-act-tdm-opt-out"
+updated: "2026-11-11"
+model: claude-opus-5-5
+effort: high
+category: custom
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # Generative Engine Optimization (GEO) & Answer Engine Optimization (AEO)
@@ -55,6 +54,19 @@ whenNotToUse:
 > **Recency flag:** This field emerged in late 2023 and is still maturing rapidly as of mid-2026. Most "best practices" circulating online are based on small studies, vendor analyses, or extrapolation from classic SEO intuitions — not large-scale controlled experiments. The Princeton GEO paper is the strongest empirical anchor; treat other specific claims with proportional skepticism. Where the evidence base is thin, this skill says so explicitly.
 
 ---
+
+## Look for llms files first
+
+Before reading the engine documentation and cited research domain raw, locate its llms files. If the repo is available, step 4 sets the order.
+1. Check the subject's `llms.txt`, its docs site's `/llms.txt`, or matching packs under `~/.global-ai-hub/skills.llms/` and `~/.global-ai-hub/llms-concepts/`; use available hub keyword/search tools as discovery leads.
+2. Run `wc -c` first (or inspect a remote size header). Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
+5. Index and llms hits are leads. Confirm them against readable source text before acting.
+
+## Using dated research
+
+The engine mechanics, adoption statements, statistics and tool lists below are dated research observations, not current guarantees. Before giving a present-day recommendation, verify the relevant claim in readable primary documentation or its original study, retain its date and scope, and distinguish correlation from a proven causal effect. Withhold unsupported specifics. In particular, do not turn an old llms.txt non-adoption observation into a universal claim about current agents or citation benefit.
 
 ## 1. Core Definitions and the GEO / AEO Distinction
 

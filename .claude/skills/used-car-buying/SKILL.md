@@ -1,17 +1,10 @@
 ---
 description: >-
-  Used-car and salvage-auction buying hub: Copart and IAAI auction mechanics, AutoBidMaster and
-  other bidding brokers for buyers without a dealer license, reading a listing's
-  title-status/damage/odometer fields, bidding strategy and fees, salvage-title valuation,
-  repair-cost estimation from listing photos, newbie mistakes, picking a best-value used car, and
-  alternatives to salvage auctions (dealer wholesale auctions, private-party, CPO). TRIGGER: "how
-  do I buy a car at Copart/IAAI", "is AutoBidMaster worth it", "what does Run and Drive mean",
-  "how much should I bid on this salvage title", "how much will this car cost to repair", "best
-  value used car", "mistakes to avoid buying a salvage car". SKIP: new-car financing/loans/leasing
-  → belongs to a personal-finance skill, not this one; general auto repair/maintenance procedures
-  once a car is already owned → a repair-specific reference, not this hub.
+  Guide used-car and salvage-auction buying: Copart, IAAI, AutoBidMaster and brokers; title/damage/odometer fields; bidding, fees, valuation, repair budgets, reliable choices and buying alternatives.
+  TRIGGER: "buy a car at Copart/IAAI", "what does Run and Drive mean", "how much should I bid", "estimate this salvage repair", "best-value used car".
+  SKIP: new-car financing, loans, leases and maintenance procedures after purchase are outside this hub; use a separate specialist; this hub does not provide one.
 name: used-car-buying
-category: consumer
+category: custom
 tags:
   - used-cars
   - salvage-auctions
@@ -39,21 +32,20 @@ keywords:
   - Manheim
   - ADESA
 whenToUse:
-  - "buying a car at a salvage or insurance auction (Copart, IAAI)"
-  - "using a bidding broker like AutoBidMaster without a dealer license"
-  - "reading an auction listing's title status, damage codes, or odometer field"
-  - "setting a bid ceiling or understanding buyer fees at a salvage auction"
-  - "valuing a salvage or rebuilt-title vehicle before bidding"
-  - "estimating repair cost from listing photos alone"
-  - "avoiding common first-time salvage-auction buyer mistakes"
-  - "picking a genuinely best-value used car by reliability and depreciation, not sticker price"
-  - "finding a cheaper alternative to salvage auctions"
+  - "How do I buy a car at Copart or IAAI without a dealer license?"
+  - "Read this auction listing and explain its title, odometer and damage fields."
+  - "Estimate a bid ceiling including repairs, fees and transport."
+  - "Compare reliable used-car choices and alternatives to salvage auctions."
 whenNotToUse:
   - "New-car financing, loans, or leasing — not covered here"
   - "General auto repair/maintenance procedures for a car you already own — use a repair-specific reference"
 related_skills: []
-version: "1.0.1"
-updated: "2026-11-07"
+version: "1.1.1"
+updated: "2026-11-11"
+model: claude-opus-5-5
+effort: high
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # Used Car Buying
@@ -61,9 +53,18 @@ updated: "2026-11-07"
 Reference hub for buying a used car through salvage/insurance auctions (Copart, IAAI) or
 through the cheaper alternatives to them. Compiled from source-cited `/rabbithole` research
 (SEC filings, regulatory records, official auction-site documentation, and independent
-industry reporting) — every claim in each reference file below carries its own citation.
+industry reporting). The references retain source citations for verification.
 Start from the routing table, then read the listed `references/…md` file before answering
 a deep question.
+
+## Look for llms files first
+
+Before reading the relevant auction, vehicle and title/registration sources raw, locate its llms files. If the repo is available, step 4 sets the order.
+1. Check the subject's `llms.txt`, its docs site's `/llms.txt`, or matching packs under `~/.global-ai-hub/skills.llms/` and `~/.global-ai-hub/llms-concepts/`; use available hub keyword/search tools as discovery leads.
+2. Run `wc -c` first (or inspect a remote size header). Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
+5. Index and llms hits are leads. Confirm them against readable source text before acting.
 
 ## Sub-skill routing table
 
@@ -83,10 +84,9 @@ a deep question.
 
 ## Notes on this research
 
-- Every reference file lists its real sources under `## Sources`; no claim was invented.
+- Reference files retain their source citations. Read the relevant source before relying on a claim; this routing table is not an evidence verdict.
 - A handful of source citations in the underlying compiled packs were truncated mid-URL by
   the research pipeline (a known pipeline issue, not something fixed by rewriting the
   source) — those specific broken citations were filtered out rather than published as if
-  valid. The surrounding claim text is unaffected.
-- This is a genuinely new domain for this skill tree — there was no prior used-car or
-  auto-auction coverage to fold into or conflict with.
+  valid. Treat any claim left without a usable supporting citation as unverified until you reacquire its source.
+- Verify current auction fees, access rules, title/registration law, insurance eligibility and vehicle-specific costs against primary sources before a buying recommendation. State the jurisdiction and date; a dated research snapshot cannot establish current eligibility or a guaranteed repair estimate.

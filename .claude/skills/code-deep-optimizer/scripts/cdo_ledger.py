@@ -49,13 +49,16 @@ PASSES = (
 )
 CONDITIONAL = ("M5",)
 REPO_SCOPE_ONLY = ("M3", "T2", "T3")  # N/A for a single file by definition
+FILE_PASSES = tuple(p for p in PASSES if p not in REPO_SCOPE_ONLY)
+REVIEW_CONTRACT = "cdo-file-coverage-v2"
 
 SOURCE_EXT = {
     ".py", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".go", ".rs", ".java",
     ".kt", ".kts", ".swift", ".c", ".h", ".cc", ".cpp", ".hpp", ".cs", ".rb",
     ".php", ".sh", ".bash", ".zsh", ".lua", ".scala", ".sql", ".ex", ".exs",
-    ".dart", ".vue", ".svelte",
+    ".dart", ".vue", ".svelte", ".tf", ".yaml", ".yml",
 }
+SOURCE_NAMES = {"Dockerfile", "Jenkinsfile", "manifest.json"}
 SKIP_DIRS = {
     ".git", "node_modules", "vendor", "dist", "build", "out", "target", ".venv",
     "venv", "__pycache__", ".cdo", ".tox", ".mypy_cache", ".ruff_cache",
@@ -96,11 +99,11 @@ def is_source(rel: str) -> bool:
         return False
     if rel.endswith(SKIP_SUFFIXES):
         return False
-    return p.suffix.lower() in SOURCE_EXT
+    return p.suffix.lower() in SOURCE_EXT or p.name in SOURCE_NAMES or p.name.startswith("Dockerfile.")
 
 
 def enumerate_sources(repo: Path) -> list[str]:
-    """Source files honoring .gitignore; falls back to a walk outside git."""
+    """Source/config files honoring .gitignore; falls back to a walk outside git."""
     out = git(repo, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
     if out is not None:
         rels = [r for r in out.split("\0") if r]
@@ -160,6 +163,13 @@ def classify(data: dict, rel: str, sha: str, full: bool) -> str | None:
         return "changed"
     if row.get("mode") == "quick":
         return "quick-only"  # a Critical-only triage is not coverage
+    if row.get("review_contract") != REVIEW_CONTRACT:
+        return "contract-changed"
+    if row.get("mode") != "full" or row.get("verdict") != "CLEAN":
+        return "partial"
+    covered = set(row.get("passes", [])) | set(row.get("na_passes", {}))
+    if not set(FILE_PASSES) <= covered:
+        return "partial"
     return None
 
 
@@ -173,7 +183,8 @@ def cmd_plan(args, repo: Path) -> int:
         else:
             covered += 1
     # changed files first (they carry new risk), then never-reviewed; big first
-    order = {"changed": 0, "new": 1, "quick-only": 2, "full": 3}
+    order = {"changed": 0, "partial": 1, "contract-changed": 2,
+             "new": 3, "quick-only": 4, "full": 5}
     todo.sort(key=lambda t: (order[t[1]], -t[2], t[0]))
     deferred = todo[args.max_files:] if args.max_files else []
     todo = todo[: args.max_files] if args.max_files else todo
@@ -228,10 +239,17 @@ def ensure_run(data: dict) -> dict:
 
 def cmd_record(args, repo: Path) -> int:
     passes = [p.strip().upper() for p in args.passes.split(",") if p.strip()]
+    na_passes = [p.strip().upper() for p in args.na_passes.split(",") if p.strip()]
     known = set(PASSES) | set(CONDITIONAL)
-    bad = [p for p in passes if p not in known]
+    bad = [p for p in passes + na_passes if p not in known]
     if bad:
         print(f"cdo_ledger: unknown pass id(s): {', '.join(bad)}", file=sys.stderr)
+        return 1
+    if na_passes and not args.na_reason.strip():
+        print("cdo_ledger: --na-reason is required for --na-passes", file=sys.stderr)
+        return 1
+    if set(passes) & set(na_passes):
+        print("cdo_ledger: a pass cannot be both run and N/A", file=sys.stderr)
         return 1
     data = load(repo)
     run = ensure_run(data)
@@ -244,11 +262,20 @@ def cmd_record(args, repo: Path) -> int:
             return 1
         sha = blob_sha(full)
         prev = data["files"].get(rel, {})
-        merged = sorted(set(passes) | (set(prev.get("passes", [])) if prev.get("sha") == sha else set()))
+        reusable = prev.get("sha") == sha and prev.get("review_contract") == REVIEW_CONTRACT
+        merged = sorted(set(passes) | (set(prev.get("passes", [])) if reusable else set()))
+        na = dict(prev.get("na_passes", {})) if reusable else {}
+        for pid in passes:
+            na.pop(pid, None)
+        for pid in na_passes:
+            na[pid] = args.na_reason
+        merged = [pid for pid in merged if pid not in na]
+        complete = args.verdict == "CLEAN" and set(FILE_PASSES) <= set(merged) | set(na)
         data["files"][rel] = {
             "sha": sha, "passes": merged, "date": args.date or today(),
             "findings": args.findings, "verdict": args.verdict or "",
-            "mode": "quick" if mode == "quick" else "full",
+            "mode": "quick" if mode == "quick" else ("full" if complete else "partial"),
+            "review_contract": REVIEW_CONTRACT, "na_passes": na,
         }
         run["reviewed"] += 1
         for p in passes:
@@ -256,6 +283,11 @@ def cmd_record(args, repo: Path) -> int:
             if slot.get("state") != "ran":
                 slot.update(state="ran", files=0)
             slot["files"] = slot.get("files", 0) + 1
+        for p in na_passes:
+            slot = run["passes"].setdefault(p, {"state": "na", "files": 0})
+            slot["na_files"] = slot.get("na_files", 0) + 1
+            if slot.get("state") != "ran":
+                slot.update(state="na", reason=args.na_reason)
     save(repo, data)
     print(f"cdo ledger: recorded {len(args.files)} file(s)")
     return 0
@@ -289,7 +321,7 @@ def cmd_receipt(args, repo: Path) -> int:
     shas = {r: blob_sha(repo / r) for r in sources}
     covered = sum(
         1 for r in sources
-        if (row := data["files"].get(r)) and row.get("sha") == shas[r] and row.get("mode") != "quick"
+        if classify(data, r, shas[r], False) is None
     )
     lines = ["## Passes that ran (receipt)", "",
              "| Pass | State | Files | Note |", "|---|---|---|---|"]
@@ -324,7 +356,8 @@ def cmd_receipt(args, repo: Path) -> int:
 def cmd_status(args, repo: Path) -> int:
     data = load(repo)
     sources = enumerate_sources(repo)
-    counts = {"new": 0, "changed": 0, "quick-only": 0, "covered": 0}
+    counts = {"new": 0, "changed": 0, "quick-only": 0, "partial": 0,
+              "contract-changed": 0, "covered": 0}
     for rel in sources:
         counts[classify(data, rel, blob_sha(repo / rel), False) or "covered"] += 1
     print(f"cdo ledger {repo / LEDGER_REL}: {len(sources)} source files")
@@ -360,6 +393,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--json", action="store_true")
     p = sub.add_parser("record", help="mark files reviewed at their current sha"); common(p)
     p.add_argument("--passes", required=True, help="comma list, e.g. C1,C2,S1")
+    p.add_argument("--na-passes", default="", help="comma list of inapplicable passes")
+    p.add_argument("--na-reason", default="", help="factual applicability reason for --na-passes")
     p.add_argument("--findings", type=int, default=0)
     p.add_argument("--verdict", default="")
     p.add_argument("--date", default="")

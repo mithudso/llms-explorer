@@ -23,11 +23,12 @@ import json
 import os
 import re
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "todo", "scripts"))
 import todo  # noqa: E402
 
-VERSION = "1.1.0"
+VERSION = "1.2.1"
 SINGLE_FILE_MAX_BYTES = 32000      # llms-family-format.md v3 section 2
 SINGLE_FILE_MAX_ENTRIES = 200
 SKILLS_DIR = os.environ.get("BRAINDUMP_SKILLS_DIR", os.path.expanduser("~/.claude/skills"))
@@ -61,15 +62,14 @@ def cell(s):
 
 
 def save_raw(text):
-    text = text.strip("\n")
     if not text.strip():
         raise SystemExit("empty braindump")
     os.makedirs(RAW_DIR, exist_ok=True)
     stamp = now().strftime("%Y-%m-%d-%H%M%S")
-    path = os.path.join(RAW_DIR, f"{stamp}.md")
-    header = f"---\ntype: braindump-raw\ncaptured: {now().isoformat(timespec='seconds')}\n---\n"
-    with open(path, "x", encoding="utf-8") as f:
-        f.write(header + text + "\n")
+    fd, path = tempfile.mkstemp(prefix=f"{stamp}-", suffix=".md", dir=RAW_DIR)
+    # The raw file is the UTF-8 payload only. Do not prepend metadata or normalize newlines.
+    with os.fdopen(fd, "wb") as f:
+        f.write(text.encode("utf-8"))
     print(path)
     with open(path, encoding="utf-8") as f:
         for n, line in enumerate(f, 1):
@@ -221,7 +221,7 @@ def file_parsed(doc):
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if cmd == "save-raw":
-        save_raw(sys.stdin.read())
+        save_raw(sys.stdin.buffer.read().decode("utf-8"))
     elif cmd == "file":
         file_parsed(json.load(sys.stdin))
     elif cmd == "categories":

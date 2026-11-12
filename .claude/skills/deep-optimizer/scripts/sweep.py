@@ -15,6 +15,7 @@ with `done`. Pure stdlib.
     sweep.py done  PATH --status done|failed [--findings N] [--note T]
     sweep.py status                        counts, and the rows still open
     sweep.py reset                         running -> pending (after a crash)
+    sweep.py retry PATH                    explicitly requeue a failed row, keeping history
 
 Ledger: `<DIR>/.sweep/ledger.json` for a folder sweep, `<git root>/.sweep/session.json`
 for a session sweep, or --ledger PATH. Re-running `plan` keeps `done` rows whose
@@ -53,6 +54,7 @@ MEMBERS = {
     "skill-optimizer": "/sko",
     "agent-deep-optimizer": "/ado",
     "deep-query-optimizer": "/dqo",
+    "deep-mongodb-mql-query-optimizer": "/dmqo",
     "design-deep-optimizer": "/deso",
     "ui-deep-optimizer": "/ui-deep-optimizer",
     "deep-strategy-optimizer": "/dso",
@@ -220,10 +222,22 @@ def cmd_plan(args) -> int:
         member, why = route(rel)
         member = overrides.get(Path(rel).suffix.lower(), member)
         prev = old.get("rows", {}).get(rel)
-        if prev and prev.get("sha") == sha and prev.get("status") in ("done", "skipped"):
+        same_route = prev and prev.get("member", "") == (member or "")
+        if prev and prev.get("status") == "failed":
+            row = dict(prev)
+            if prev.get("sha") != sha or not same_route:
+                row["planned_change"] = {"sha": sha, "why": why,
+                    "member": member or "", "alias": MEMBERS[member] if member else ""}
+            else:
+                row.pop("planned_change", None)
+            rows[rel] = row  # only explicit retry can requeue a failed attempt
+            continue
+        if prev and prev.get("sha") == sha and same_route and prev.get("status") in ("done", "skipped"):
             rows[rel] = prev  # resume: finished work at the same content is kept
             continue
         row = {"sha": sha, "why": why}
+        if prev and prev.get("failures"):
+            row["failures"] = list(prev["failures"])
         if member is None:
             row.update(member="", alias="", status="skipped", note=why)
         else:
@@ -314,6 +328,31 @@ def cmd_reset(args) -> int:
     return 0
 
 
+def cmd_retry(args) -> int:
+    """An explicit retry retains the prior failure rather than erasing it."""
+    path = find_ledger(args)
+    data = load(path)
+    row = data["rows"].get(args.path)
+    if row is None or row.get("status") != "failed":
+        print("sweep: retry requires an existing failed row", file=sys.stderr)
+        return 1
+    if row.get("planned_change", {}).get("member", row.get("member")) not in MEMBERS:
+        print("sweep: retry requires a routable target; replan with --map", file=sys.stderr)
+        return 1
+    target = Path(data["root"]) / args.path
+    if not target.is_file():
+        print("sweep: retry requires an existing target file", file=sys.stderr)
+        return 1
+    row.setdefault("failures", []).append({k: row[k] for k in
+        ("sha", "note", "findings", "finished", "member") if k in row})
+    row.update(row.pop("planned_change", {}))
+    row.update(sha=blob_sha(target), status="pending", note="explicit retry requested")
+    row.pop("finished", None)
+    save(path, data)
+    print(f"sweep: requeued {args.path}; failure history retained")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
@@ -336,10 +375,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--findings", type=int, default=0); p.add_argument("--note", default="")
     p = sub.add_parser("status", help="counts and open rows"); where(p)
     p = sub.add_parser("reset", help="running rows back to pending"); where(p)
+    p = sub.add_parser("retry", help="explicitly requeue one failed row"); where(p)
+    p.add_argument("path")
 
     args = ap.parse_args(argv)
     return {"plan": cmd_plan, "next": cmd_next, "done": cmd_done,
-            "status": cmd_status, "reset": cmd_reset}[args.cmd](args)
+            "status": cmd_status, "reset": cmd_reset, "retry": cmd_retry}[args.cmd](args)
 
 
 if __name__ == "__main__":

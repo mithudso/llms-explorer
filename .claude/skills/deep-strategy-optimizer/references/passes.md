@@ -106,4 +106,3 @@ Critical-capable. Run first; a finding here invalidates everything downstream.
 
 **Skip protocol:** any pass may report `N/A (reason)` or `partial`, never silently dropped. The
 Summary line names the active pass count (e.g. `17 of 19 passes active`).
-

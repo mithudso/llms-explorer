@@ -8,7 +8,8 @@ import sys
 import json
 from pathlib import Path
 import math
-from typing import Dict, Any, List
+import re
+from typing import Dict, Any
 
 PASSES = {
     "Pass A": "Prompt Realism & Ecological Validity",
@@ -27,13 +28,94 @@ PASSES = {
 
 def validate_suite(eval_file: str) -> Dict[str, Any]:
     path = Path(eval_file).resolve()
-    if not path.exists():
-        return {"error": f"File {eval_file} not found"}
-
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
     findings = []
+    resolved_fixtures = {}
+
+    def add(pass_id, message, severity="High"):
+        findings.append({"pass": pass_id, "severity": severity, "finding": message,
+                         "recommendation": "Repair the suite or fixture before grading execution."})
+
+    def report():
+        return {"file": str(path), "total_findings": len(findings),
+                "high_findings": sum(f["severity"] == "High" for f in findings),
+                "medium_findings": sum(f["severity"] == "Medium" for f in findings),
+                "low_findings": sum(f["severity"] == "Low" for f in findings),
+                "findings": findings}
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError) as exc:
+        add("Pass L", f"Unreadable or malformed eval JSON: {exc}")
+        return report()
+    if not isinstance(data, (dict, list)):
+        add("Pass L", "Eval JSON must be a functional-suite object or trigger-query array")
+        return report()
+    if isinstance(data, list):
+        for index, row in enumerate(data):
+            if (not isinstance(row, dict) or not isinstance(row.get("query"), str)
+                    or not row["query"].strip() or type(row.get("should_trigger")) is not bool):
+                add("Pass L", f"Trigger row {index} needs a nonempty query and a Boolean should_trigger")
+        if findings:
+            return report()
+        if len(data) != 20:
+            add("Pass L", f"Trigger projection has {len(data)} rows; exactly 20 required")
+        if len({row["query"] for row in data}) != len(data):
+            add("Pass L", "Trigger queries must be unique")
+    else:
+        if not isinstance(data.get("skill_name"), str) or not data["skill_name"].strip():
+            add("Pass L", "Functional suite needs a nonempty skill_name")
+        if not isinstance(data.get("evals"), list):
+            add("Pass L", "Functional suite needs an evals array")
+            return report()
+        ids = set()
+        for index, case in enumerate(data["evals"]):
+            if not isinstance(case, dict):
+                add("Pass L", f"Case {index} must be an object")
+                continue
+            key = case.get("id")
+            if not (type(key) is int or isinstance(key, str) and bool(key.strip())):
+                add("Pass L", f"Case {index} needs a string or integer id")
+            elif key in ids:
+                add("Pass L", f"Duplicate case id {key}")
+            else:
+                ids.add(key)
+            for field in ("name", "prompt", "expected_output"):
+                if not isinstance(case.get(field), str) or not case[field].strip():
+                    add("Pass L", f"Case {index} needs a nonempty {field}")
+            intent = case.get("evaluation_intent", "task")
+            if not isinstance(intent, str) or intent not in {"task", "manual-invocation", "routing"}:
+                add("Pass L", f"Case {index} has an unsupported evaluation_intent")
+            assertions = case.get("assertions")
+            if not isinstance(assertions, list) or not assertions:
+                add("Pass L", f"Case {index} needs a nonempty assertions array")
+            else:
+                for assertion in assertions:
+                    check = assertion if isinstance(assertion, str) else assertion.get("check") if isinstance(assertion, dict) else None
+                    if not isinstance(check, str) or not check.strip():
+                        add("Pass L", f"Case {index} contains an invalid assertion")
+            files = case.get("files", [])
+            if not isinstance(files, list) or any(not isinstance(f, str) or not f for f in files):
+                add("Pass L", f"Case {index} files must be an array of nonempty paths")
+                continue
+            skill_root = path.parent.parent if path.parent.name == "evals" else path.parent
+            resolved_fixtures[index] = []
+            for fixture in files:
+                rel = Path(fixture.replace("<INPUT>/", "inputs/"))
+                candidates = [(path.parent / rel).resolve(), (skill_root / rel).resolve()]
+                if rel.is_absolute():
+                    add("Pass G", f"Fixture '{fixture}' escapes the skill tree")
+                else:
+                    allowed = [candidate for candidate in candidates if candidate.is_relative_to(skill_root)]
+                    resolved = next((candidate for candidate in allowed if candidate.is_file()), None)
+                    if resolved is not None:
+                        resolved_fixtures[index].append((fixture, resolved))
+                    elif len(allowed) != len(candidates):
+                        add("Pass G", f"Fixture '{fixture}' escapes the skill tree")
+                    else:
+                        add("Pass G", f"Fixture '{fixture}' is missing")
+        # The analytical checks below assume structurally valid rows.
+        if any(f["pass"] == "Pass L" for f in findings):
+            return report()
 
     # Check if trigger-eval list or functional-eval dict
     is_trigger_eval = isinstance(data, list)
@@ -47,7 +129,7 @@ def validate_suite(eval_file: str) -> Dict[str, Any]:
         if len(negatives) < 10:
             findings.append({
                 "pass": "Pass D",
-                "severity": "High" if len(negatives) < 5 else "Medium",
+                "severity": "High",
                 "finding": f"Insufficient negative near-miss queries ({len(negatives)} found, min 10 required for trigger calibration)",
                 "recommendation": "Add realistic near-miss queries with contrasting intent (Verb_competing + Noun_shared)."
             })
@@ -92,7 +174,7 @@ def validate_suite(eval_file: str) -> Dict[str, Any]:
                 "recommendation": "Add diverse test cases covering happy path, edge cases, and file transformation."
             })
 
-        for ev in evals:
+        for index, ev in enumerate(evals):
             eid = ev.get("id")
             name = ev.get("name", f"eval-{eid}")
             prompt = ev.get("prompt", "")
@@ -119,7 +201,12 @@ def validate_suite(eval_file: str) -> Dict[str, Any]:
                         })
 
             # Pass F: Answer leakage, N-gram priming & Saliency Entropy
-            if skill_name and skill_name in prompt.lower():
+            invocation = bool(re.match(
+                r"\s*(?:please\s+)?(?:run|invoke|use|call)\s+(?:the\s+)?/?" +
+                re.escape(skill_name or "") + r"(?=$|[\s.,:;!?])", prompt, re.I
+            ))
+            allowed_name = ev.get("evaluation_intent") in {"manual-invocation", "routing"} or invocation
+            if skill_name and skill_name.casefold() in prompt.casefold() and not allowed_name:
                 findings.append({
                     "pass": "Pass F",
                     "severity": "High" if "run the " + skill_name.lower() in prompt.lower() else "Medium",
@@ -144,16 +231,17 @@ def validate_suite(eval_file: str) -> Dict[str, Any]:
                     })
 
             # Pass G: Fixture size and isolation
-            files = ev.get("files", [])
-            for fpath in files:
-                fp = Path(fpath)
-                if not fp.is_absolute():
-                    fp = path.parent / fpath
-                if fp.exists() and fp.stat().st_size > 50 * 1024:
+            for fpath, fp in resolved_fixtures.get(index, []):
+                try:
+                    size = fp.stat().st_size
+                except OSError as exc:
+                    add("Pass G", f"Resolved fixture '{fpath}' became unreadable: {exc}")
+                    continue
+                if size > 50 * 1024:
                     findings.append({
                         "pass": "Pass G",
                         "severity": "Medium",
-                        "finding": f"Fixture '{fpath}' in eval #{eid} exceeds 50KB ({fp.stat().st_size // 1024}KB)",
+                        "finding": f"Fixture '{fpath}' in eval #{eid} exceeds 50KB ({size // 1024}KB)",
                         "recommendation": "Minify fixture dataset to minimal reproducible representation under 50KB."
                     })
 

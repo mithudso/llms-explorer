@@ -40,8 +40,7 @@ All existing research flags, model choices and gates remain owned by the runtime
 The bridge adds validated candidate seeds and a bounded provenance block to its
 normal worker briefs. It does not import claims, mark completion or replace a
 source cache. `research <slug> --dry-run` writes ordinary briefs without inference;
-use a disposable test run for verification. Use the original runtime directly
-for `init`, `source`, `gate`, `render` and `finish`.
+use a disposable test run for verification. Shared `source` and `render` operations may use the original runtime. For every depth and refresh, `init`, `gate` and `finish` must use `/dr`'s mandatory repository adapter, including when Claude orchestrates. The scout bridge never replaces that publication contract; if the adapter is unavailable, keep drafts private and report persistence withheld.
 
 The repository's native Codex adapter imports the same helper automatically from
 the repository bundle (installed bundle fallback). Its normal `research` command
