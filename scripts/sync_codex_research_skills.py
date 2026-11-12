@@ -19,6 +19,23 @@ SKILLS = ("dr", "concept-family-explorer", "rabbithole")
 MODEL_MAP = {"sonnet": "gpt-6.1-sol", "opus": "gpt-6-astra", "fable": "gpt-6-astra", "haiku": "gpt-6-luna"}
 LIBRARY_REFERENCE = """# Shared research library and completion
 
+For remote research agents, use the `research-library-mongodb` skill and its
+`research_*` MCP tools. Search broad and narrow semantic and keyword channels
+before creating work. Enumerate related concepts, scored and unscored frontier,
+incomplete concepts and queue pages separately; ranked search is not a census.
+MongoDB holds versioned working drafts, pinned source evidence and fenced leases.
+It does not turn an inherited source, peer seed or draft into verified research.
+The same external discovery, scope, independent-origin and full-assertion gates
+below still apply. Submit `research_finalize` only after recording the complete
+commissioned scope; poll `research_publication_status` for its accepted receipt.
+
+When owner-enabled `~/.config/research-library/coordination.json` is present, the
+maintained adapter reserves Mongo concepts on init/resume/research/gate/finish,
+heartbeats its leases and checks them inside transactional projection completion.
+Contention or unavailable coordination fails closed. Existing paused workflows
+and STOP markers remain holds. A missing or disabled configuration leaves the
+local runtime unchanged. Never delete another workflow's reservation to proceed.
+
 All three workflows use `~/.global-ai-hub/research/.library/`. Before web retrieval,
 search `python3 <repo>/.agents/skills/dr/scripts/research_library.py search \"<distinctive concept terms>\" --top 6 --per-source 1 --brief`.
 Read relevant chunks or `get --id <id> --max-chars 16000`; check `lookup --url <url>`
@@ -345,7 +362,7 @@ def build(repo: Path, source_root: Path, canonical_root: Path | None) -> tuple[d
             provenance["sources"].append({"skill": skill, "file": relative, "origin": label, "source_sha256": digest(data), "output_sha256": digest(rendered)})
         outputs[Path(".agents/skills") / skill / "references/codex-runtime.md"] = RUNTIME.encode()
         outputs[Path(".agents/skills") / skill / "references/research-library.md"] = LIBRARY_REFERENCE.encode()
-    for filename in ("codex_dr_run.py", "codex_dr_artifacts.py", "research_gate.py", "research_claims.py", "research_library.py", "research_provenance.py", "research_artifact.py", "research_transaction.py"):
+    for filename in ("codex_dr_run.py", "codex_dr_artifacts.py", "research_gate.py", "research_claims.py", "research_library.py", "research_provenance.py", "research_artifact.py", "research_transaction.py", "research_library_coordination.py"):
         adapter = repo / "scripts" / filename
         if not adapter.is_file():
             raise ValueError(f"missing tracked Codex adapter: {adapter}")

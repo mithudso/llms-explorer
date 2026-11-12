@@ -1,0 +1,307 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Collector leader leases and subscriber handoff recovery",
+  "slug": "collector-leader-leases-and-subscriber-handoff-recovery",
+  "canonical_concept_id": "concept:13ad3691c02d649360993afa371c4f30f63e574cced6673e6a9f762481153958",
+  "canonical_artifact_sha256": "f9a44bcf8f5923d8fbb23e01583e58c25313c180a6be0ec23d8a1f8e8585bc2f",
+  "claims": [
+    {
+      "id": "clm:e32772d424a9419e8d1ff7aa46a22f7db70ef0309d593417f5e167439ae9a2d8",
+      "text": "A collector lease does not by itself prevent an expired owner from continuing work. Process pauses can produce overlapping leaders; Kubernetes client-go explicitly disclaims fencing. (high confidence)",
+      "source_url": "https://github.com/kubernetes/client-go/blob/master/tools/leaderelection/leaderelection.go",
+      "also": [
+        "https://github.com/nijatsdev/redlease",
+        "https://aws.amazon.com/builders-library/leader-election-in-distributed-systems/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:90580155cbe47ca1309f840c59492ef8c03510d99b2a1d06de7e6748464df7ce",
+        "ev:efd4431eb31cdbcc1cb87f24f97ecb487e6a677ce8c5ed9b11e4ce6729ff15ea"
+      ]
+    },
+    {
+      "id": "clm:b504030836bd015824b97631ea0b97d32eb288a815277656ac92fd9f8496ed39",
+      "text": "When client-go ReleaseOnCancel is enabled, all lease-guarded work must finish before cancelling the election context; its source warns that otherwise two processes may act on the critical path. For a graceful collector handoff, drain or terminate guarded work before releasing ownership. (low confidence) (verified as of 2026-11-12)",
+      "source_url": "https://github.com/kubernetes/client-go/blob/master/tools/leaderelection/leaderelection.go",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:07479900391319b468f992d33900ba12116d597d06806fa6855936f7a13e5f85"
+      ]
+    },
+    {
+      "id": "clm:b5dcc4830759094ce7d119245f9baaf6cd43c64c19c76541d6e3111deefc108d",
+      "text": "Recommended handoff invariant: make event processing durable before advancing the recoverable replay checkpoint, and make replayed processing idempotent. This applies Amazon\u2019s durability-before-completion rule to Salesforce\u2019s process-then-commit protocol; it is a design inference, not a Salesforce transaction guarantee. (medium confidence)",
+      "source_url": "https://aws.amazon.com/builders-library/leader-election-in-distributed-systems/",
+      "also": [
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:6e29794fb92e685e46aeb1681a9d75543cfa71db943213c6462663881a71cd67",
+        "ev:cdc0f85796b915d9ec8c7397efa9b665af51b62c90113f33400e169cd09cd7f8"
+      ]
+    },
+    {
+      "id": "clm:110879247b7793ec9fa545349d7614f945d0fc2177393a0a73101dbf05606274",
+      "text": "The redlease implementation warns that asynchronous Redis replication can lose an acknowledged token increment during failover. Its token monotonicity is therefore not a failover-safe guarantee; use a linearizable token authority when that guarantee is required. (low confidence)",
+      "source_url": "https://github.com/nijatsdev/redlease",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:15cc107cfc15b875bf492e9a1b475d0ed0b37121be549ef1df9e3a0945324417",
+        "ev:caf520f571399f7429187cbf04847abf0e2f9cf79d4be1eb085979cf85a7f49b"
+      ]
+    },
+    {
+      "id": "clm:a4f96182e0d4dc4f5d5b4e9f6a24786f5fa8ea306ab1d3634209342f597ae1c1",
+      "text": "To resume a normal Salesforce subscription after handoff, use CUSTOM with the replay ID of the last keepalive or processed event, whichever arrived last; store the opaque ID as bytes. (low confidence)",
+      "source_url": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4308b25f87bbfead6a265033c8b4cc7c2ac5af37332ef5ebc3289598c20abf85"
+      ]
+    },
+    {
+      "id": "clm:6f5c28bf920c6a0c66afee7c1e517632d2f024db7f7628e7975b9c4dcaa1e039",
+      "text": "Kleppmann\u2019s fencing pattern assigns an increasing token on each lock acquisition and requires the storage service to reject writes with older tokens. A collector design can apply this pattern to prevent a resumed former owner from overwriting a newer owner\u2019s state; a lease check in the process alone cannot close the pause-before-write race. (high confidence)",
+      "source_url": "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html",
+      "also": [
+        "https://github.com/nijatsdev/redlease"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2cfdf767da40636d2b4d4fc501ade7bcf069bd6e5ac5a686e4940e0e8d4ddbae",
+        "ev:588685c365a6ffdbde0e095725f2a2cb8147acb7e6eac584044a72718dbeca91"
+      ]
+    },
+    {
+      "id": "clm:5e63163af0193dcc68549b7e285da60e88584db44f8b407e09b25022953fd9bd",
+      "text": "Salesforce documents a normal 72-hour event-retention window, but rare org moves can reset retained streams and make events inaccessible. Replay catch-up requires retained history; EARLIEST retrieves retained events and cannot restore already-purged history. (medium confidence) (verified as of 2026-11-12)",
+      "source_url": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+      "also": [
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3769bffd1b267d86d8c703ac69b3abd479e12bf41428319c1c2fd9d5f6b77c4c",
+        "ev:5ec948f6f071f6d6662dacdb7fc9562ac46c0455c7c534800bdf0fffcf3f938e",
+        "ev:bfb10fc8df18c0293c529bbdfb6dbe976eed7cd2675b0f2046261b006bce7643"
+      ]
+    },
+    {
+      "id": "clm:7d5e8cd1857d80d8186451eb1f58d8d474588ff2d2abf1ba6c8272a0c9c7cd93",
+      "text": "ManagedSubscribe resumes from the last successfully committed Replay ID when the client reconnects with the same subscription ID. Processing precedes committing, and CommitReplayResponse reports success or failure; sending a commit request alone does not establish a persisted checkpoint. (medium confidence) (verified as of 2026-11-12)",
+      "source_url": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+      "also": [
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:16d2ed5d26896377691c6a7bbf70eeed32e1c4909ffcccddb6a507f207cfea95",
+        "ev:6e29794fb92e685e46aeb1681a9d75543cfa71db943213c6462663881a71cd67",
+        "ev:dece6ba8e1584370eacc568ad3bd0b85dcbf2100067923ec89b666b4be8d8af7"
+      ]
+    },
+    {
+      "id": "clm:8cff2b520fa2b8ccc46287066022ce4373025f3e31cb0e539fa090e0214288cc",
+      "text": "Salesforce documents a managed subscription as unique per client and says it cannot be shared with other clients in the same org. Server-side replay storage therefore must not be assumed to provide a general multi-client leader-election or fencing protocol. (medium confidence) (verified as of 2026-11-12)",
+      "source_url": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+      "also": [
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:64c316bdcae98245f984627bb7cae0e8254ee3bbaecc59641d1786a2119f0673",
+        "ev:d60fa80c6628335e807db49ec2da2f37e87e7beef8c8d87ccc2ecb4d61e1a97c"
+      ]
+    },
+    {
+      "id": "clm:3f6f0a52eece589173ca1461d4e96b2bdec3c74d2197fd8fcacd1feecc1c8615",
+      "text": "Do not use an administrative ManagedEventSubscription STOP/RUN cycle as a cursor-preserving handoff: STOP deletes the previously committed Replay ID, and a later restart begins from defaultReplay rather than the former checkpoint. (low confidence) (verified as of 2026-11-12)",
+      "source_url": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2039d485d276d1b75ef6f188a3ed344d32a95c74c23e26fa61b1da4d4c196681"
+      ]
+    },
+    {
+      "id": "clm:10d7c2b23ee3b08e8b59dc2305791e1186abbc3f937f41c162b32c16c7a8bb3f",
+      "text": "With Subscribe, the successor can create a new RPC using CUSTOM and the stored replay_id to resume after that position. Preserve replay IDs as opaque bytes rather than calculating the next ID. Replay options are read from the first FetchRequest; changing position requires a new Subscribe call. (medium confidence) (verified as of 2026-11-12)",
+      "source_url": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+      "also": [
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:15c6a156d12b27a3d0a3aff8ce446eef480235eb789698565dbc80f200b96797",
+        "ev:1b261bd6187df8f3a87e3099aadb6dea27263e1098ee49cbffb8b7f76ac94eca",
+        "ev:8cbedad7368e944f052ec5618dedea9ea9fa74e34d2ad48af0298b2290781203"
+      ]
+    },
+    {
+      "id": "clm:dad217d2542fab6f414d1068ada5d7db6627eac749ef2bd3763ceaec4039f8b7",
+      "text": "For an idle Subscribe stream, Salesforce recommends saving the replay_id from empty keepalive responses for resubscription. As a collector safety inference, advance that checkpoint only after all earlier delivered work is durable, so a crash does not skip pending work. (medium confidence)",
+      "source_url": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+      "also": [
+        "https://aws.amazon.com/builders-library/leader-election-in-distributed-systems/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:a7ed09bc7a378c3c59960ccb0d0d5732d14c43a5c887c3f354abf0b976ad3280",
+        "ev:cdc0f85796b915d9ec8c7397efa9b665af51b62c90113f33400e169cd09cd7f8"
+      ]
+    }
+  ],
+  "narrative": [
+    {
+      "assertionId": "prose:65c5458985e148c9a4d2446dabb56fa2b5d12608f7106157e1bbb7fa52c268d0",
+      "statementSha256": "65c5458985e148c9a4d2446dabb56fa2b5d12608f7106157e1bbb7fa52c268d0",
+      "assertionKind": "summary",
+      "index": 0,
+      "documentSlug": "collector-leader-leases-and-subscriber-handoff-recovery",
+      "documentConcept": "Collector leader leases and subscriber handoff recovery",
+      "canonicalConceptId": "concept:13ad3691c02d649360993afa371c4f30f63e574cced6673e6a9f762481153958",
+      "text": "Collector handoff needs both ownership control and a recoverable processing position. Leases can leave an expired owner running, so protected writes need resource-enforced fencing. Graceful release must follow completion of guarded work. Recovery should make processing durable before reporting completion and tolerate replay through idempotency. Salesforce subscriptions resume from stored replay positions within the retention window. Administrative stopping of a managed subscription deletes its committed position. Redis-backed fencing also needs scrutiny because asynchronous failover can lose token increments.",
+      "sources": [
+        "https://aws.amazon.com/builders-library/leader-election-in-distributed-systems/",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://github.com/kubernetes/client-go/blob/master/tools/leaderelection/leaderelection.go",
+        "https://github.com/nijatsdev/redlease",
+        "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:07479900391319b468f992d33900ba12116d597d06806fa6855936f7a13e5f85",
+        "ev:15c6a156d12b27a3d0a3aff8ce446eef480235eb789698565dbc80f200b96797",
+        "ev:15cc107cfc15b875bf492e9a1b475d0ed0b37121be549ef1df9e3a0945324417",
+        "ev:1b261bd6187df8f3a87e3099aadb6dea27263e1098ee49cbffb8b7f76ac94eca",
+        "ev:2039d485d276d1b75ef6f188a3ed344d32a95c74c23e26fa61b1da4d4c196681",
+        "ev:2cfdf767da40636d2b4d4fc501ade7bcf069bd6e5ac5a686e4940e0e8d4ddbae",
+        "ev:588685c365a6ffdbde0e095725f2a2cb8147acb7e6eac584044a72718dbeca91",
+        "ev:6e29794fb92e685e46aeb1681a9d75543cfa71db943213c6462663881a71cd67",
+        "ev:8cbedad7368e944f052ec5618dedea9ea9fa74e34d2ad48af0298b2290781203",
+        "ev:90580155cbe47ca1309f840c59492ef8c03510d99b2a1d06de7e6748464df7ce",
+        "ev:caf520f571399f7429187cbf04847abf0e2f9cf79d4be1eb085979cf85a7f49b",
+        "ev:cdc0f85796b915d9ec8c7397efa9b665af51b62c90113f33400e169cd09cd7f8",
+        "ev:efd4431eb31cdbcc1cb87f24f97ecb487e6a677ce8c5ed9b11e4ce6729ff15ea"
+      ]
+    },
+    {
+      "assertionId": "prose:7e463d32141cdb3e98f77e86dece853e2313cfb6e509e07155c9d3c5a4cb649e",
+      "statementSha256": "7e463d32141cdb3e98f77e86dece853e2313cfb6e509e07155c9d3c5a4cb649e",
+      "assertionKind": "open_question",
+      "index": 0,
+      "documentSlug": "collector-leader-leases-and-subscriber-handoff-recovery",
+      "documentConcept": "Collector leader leases and subscriber handoff recovery",
+      "canonicalConceptId": "concept:13ad3691c02d649360993afa371c4f30f63e574cced6673e6a9f762481153958",
+      "text": "Which deployment-specific authority will issue ownership tokens, and which resource will atomically enforce them?",
+      "sources": [
+        "https://aws.amazon.com/builders-library/leader-election-in-distributed-systems/",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://github.com/kubernetes/client-go/blob/master/tools/leaderelection/leaderelection.go",
+        "https://github.com/nijatsdev/redlease",
+        "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:8c016c497459836f55c92c9f6894945d80e9806bb14a8db358613b66cdac1f21",
+      "statementSha256": "8c016c497459836f55c92c9f6894945d80e9806bb14a8db358613b66cdac1f21",
+      "assertionKind": "open_question",
+      "index": 1,
+      "documentSlug": "collector-leader-leases-and-subscriber-handoff-recovery",
+      "documentConcept": "Collector leader leases and subscriber handoff recovery",
+      "canonicalConceptId": "concept:13ad3691c02d649360993afa371c4f30f63e574cced6673e6a9f762481153958",
+      "text": "How will the deployed client transfer a managed subscription identity between collector instances without concurrent use?",
+      "sources": [
+        "https://aws.amazon.com/builders-library/leader-election-in-distributed-systems/",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://github.com/kubernetes/client-go/blob/master/tools/leaderelection/leaderelection.go",
+        "https://github.com/nijatsdev/redlease",
+        "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:bc0e761d67b06da08520388f8dd8883d01123f9d8c929f1b01a3fff543dd0b97",
+      "statementSha256": "bc0e761d67b06da08520388f8dd8883d01123f9d8c929f1b01a3fff543dd0b97",
+      "assertionKind": "open_question",
+      "index": 2,
+      "documentSlug": "collector-leader-leases-and-subscriber-handoff-recovery",
+      "documentConcept": "Collector leader leases and subscriber handoff recovery",
+      "canonicalConceptId": "concept:13ad3691c02d649360993afa371c4f30f63e574cced6673e6a9f762481153958",
+      "text": "What mechanism will atomically reject stale-owner writes at the collector\u2019s persistence boundary?",
+      "sources": [
+        "https://aws.amazon.com/builders-library/leader-election-in-distributed-systems/",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://github.com/kubernetes/client-go/blob/master/tools/leaderelection/leaderelection.go",
+        "https://github.com/nijatsdev/redlease",
+        "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:80f40e7268a305a3448556d5a8a1502c7c8c4dd5c7cb32cfffb5913f49c7ffc8",
+      "statementSha256": "80f40e7268a305a3448556d5a8a1502c7c8c4dd5c7cb32cfffb5913f49c7ffc8",
+      "assertionKind": "open_question",
+      "index": 3,
+      "documentSlug": "collector-leader-leases-and-subscriber-handoff-recovery",
+      "documentConcept": "Collector leader leases and subscriber handoff recovery",
+      "canonicalConceptId": "concept:13ad3691c02d649360993afa371c4f30f63e574cced6673e6a9f762481153958",
+      "text": "Does Salesforce support sequential replacement processes using one managed subscription as the same logical client, and what overlap behavior is guaranteed?",
+      "sources": [
+        "https://aws.amazon.com/builders-library/leader-election-in-distributed-systems/",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://github.com/kubernetes/client-go/blob/master/tools/leaderelection/leaderelection.go",
+        "https://github.com/nijatsdev/redlease",
+        "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:c13e9581cc00f02a21cbbc7a7b134cf550bf2515dd94ef3af18010eee91d9aee",
+      "statementSha256": "c13e9581cc00f02a21cbbc7a7b134cf550bf2515dd94ef3af18010eee91d9aee",
+      "assertionKind": "open_question",
+      "index": 4,
+      "documentSlug": "collector-leader-leases-and-subscriber-handoff-recovery",
+      "documentConcept": "Collector leader leases and subscriber handoff recovery",
+      "canonicalConceptId": "concept:13ad3691c02d649360993afa371c4f30f63e574cced6673e6a9f762481153958",
+      "text": "What recovery procedure should run when the saved replay position is no longer available?",
+      "sources": [
+        "https://aws.amazon.com/builders-library/leader-election-in-distributed-systems/",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://github.com/kubernetes/client-go/blob/master/tools/leaderelection/leaderelection.go",
+        "https://github.com/nijatsdev/redlease",
+        "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    }
+  ],
+  "projection_sha256": "00fce238a9e910fd18a1d81f9f418a74c6271c64a30436f4af211c8fb01cbfd9"
+}

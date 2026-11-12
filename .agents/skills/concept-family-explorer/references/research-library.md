@@ -1,5 +1,22 @@
 # Shared research library and completion
 
+For remote research agents, use the `research-library-mongodb` skill and its
+`research_*` MCP tools. Search broad and narrow semantic and keyword channels
+before creating work. Enumerate related concepts, scored and unscored frontier,
+incomplete concepts and queue pages separately; ranked search is not a census.
+MongoDB holds versioned working drafts, pinned source evidence and fenced leases.
+It does not turn an inherited source, peer seed or draft into verified research.
+The same external discovery, scope, independent-origin and full-assertion gates
+below still apply. Submit `research_finalize` only after recording the complete
+commissioned scope; poll `research_publication_status` for its accepted receipt.
+
+When owner-enabled `~/.config/research-library/coordination.json` is present, the
+maintained adapter reserves Mongo concepts on init/resume/research/gate/finish,
+heartbeats its leases and checks them inside transactional projection completion.
+Contention or unavailable coordination fails closed. Existing paused workflows
+and STOP markers remain holds. A missing or disabled configuration leaves the
+local runtime unchanged. Never delete another workflow's reservation to proceed.
+
 All three workflows use `~/.global-ai-hub/research/.library/`. Before web retrieval,
 search `python3 <repo>/.agents/skills/dr/scripts/research_library.py search "<distinctive concept terms>" --top 6 --per-source 1 --brief`.
 Read relevant chunks or `get --id <id> --max-chars 16000`; check `lookup --url <url>`

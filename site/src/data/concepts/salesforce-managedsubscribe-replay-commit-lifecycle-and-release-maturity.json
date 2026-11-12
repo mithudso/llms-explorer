@@ -1,0 +1,391 @@
+{
+  "slug": "salesforce-managedsubscribe-replay-commit-lifecycle-and-release-maturity",
+  "concept": "Salesforce ManagedSubscribe replay-commit lifecycle and release maturity",
+  "generated": "2026-11-12",
+  "summary": "Source-anchored research for Salesforce ManagedSubscribe replay-commit lifecycle and release maturity. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The protocol field used to send a replay commit is `commit_replay_id_request`; the request contains `commit_request_id` and `replay_id`. The official proto defines these names and the independent Postman example uses them. (high confidence)",
+          "source": "https://github.com/forcedotcom/pub-sub-api/blob/main/pubsub_api.proto",
+          "note": null,
+          "claimId": "clm:5dc94b302b4c3d2287a109cac4e0f612c51010239289d1126fbd80a49c74b259",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:28b96ec53cb7efb36a888cf8141c34c62a1e7a765fb4a140d756b02248e3cdac",
+            "ev:47936725acea489348031685b7c45f4d045aca227a530a75c191effb62c55b36",
+            "ev:d7158c9a0f6d0cba0649a6576f2c80b3f735b179839761680dcc4ff7eab6fc9a"
+          ],
+          "also": [
+            "https://medium.com/@sharmarajat1984/grpc-manage-subscription-via-postman-in-action-018e5083d7f7"
+          ]
+        },
+        {
+          "text": "The RPC reference requires a Replay ID commit within 30 minutes of the last ManagedFetchResponse containing CommitReplayResponse after the first response. Treat commit cadence as part of keeping the managed subscription alive. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+          "note": null,
+          "claimId": "clm:248fd997ab377deda415213042162fee1a24cd626f8ccde715f6ad1d36e8a976",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:47712957d379905714eb4e76763450459887822f32d38bd64b3eb324090d3d16"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "For a response containing events, process the events before committing the last processed Replay ID. For an empty response, commit latest_replay_id; Salesforce says this can represent a position beyond the last consumed event and recommends these commits to reduce seeking after restart. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+          "note": null,
+          "claimId": "clm:31744e17ed43e038d899e74de729e363ab6597ae749f64b307826a02c082bd1e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4444e4cac84ee172165ce6d5b71d61fb64f1debac3d7064215b9e9f59663d493",
+            "ev:6f81030d07cf295bc6b12f85ba258efbef276efbd74d8299beb15a770757137d"
+          ],
+          "also": [
+            "https://github.com/forcedotcom/pub-sub-api/blob/main/pubsub_api.proto"
+          ]
+        },
+        {
+          "text": "Softwareinsights says bringing a stopped subscription back with RUN resumes from its committed position. Salesforce’s official guide says stopping via the API deletes the stored Replay ID and restarts from defaultReplay. These positions conflict; use the official lifecycle when designing operational stops. (high confidence)",
+          "source": "https://www.softwareinsights.dev/posts/salesforce-managed-event-subscriptions-external-subscribers/",
+          "note": null,
+          "claimId": "clm:f6f71b58f9cafe3348dcd0070d7edf49717dbd681adcf58b5421ef656b8431e4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1e5c9da074e9562c25fea2aaf4e52ef47fd67ccb949f1d4ab45c43ae82478944",
+            "ev:eb777b54dfde5b37fe111754924f822fefa49cced3a28e0a41a759edb18527da"
+          ],
+          "also": [
+            "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+            "https://developer.salesforce.com/docs/platform/api-metadata/references/meta-types/metadata-managedeventsubscription.html"
+          ]
+        },
+        {
+          "text": "Configuration updates can take minutes to reach Pub/Sub API even when Metadata API or Tooling API already shows them. Salesforce also advises against reusing a deleted managed subscription’s developer name. defaultReplay controls a first start or restart without stored position; errorRecoveryReplay controls recovery when the committed Replay ID is invalid. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+          "note": null,
+          "claimId": "clm:e63d3bddc63a016dac3f8fced39b05400eea1bb01f2a064dcb4fd43c949b10ea",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f8b778a5454c3b40f8548294eb398e2564554bd97d63f12e66878781fc6a3bbc",
+            "ev:fab02eb228cd061b0938ecf7b7dd8f7c9ced75bc916fce448669ac90af0b5d8d"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A CommitReplayResponse reports success or failure and arrives without events. Commit requests and responses do not correspond one to one: the server can coalesce several requests, commit the latest Replay ID, and send one response. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+          "note": null,
+          "claimId": "clm:c4e14121e52cc204837c3aa669fd92d99cc34c942708051e8876c87568885c0a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:758b7d4c7b1bdcb65541f51adb8374a833e821b2e3dda955c8999d25fbb5869b"
+          ]
+        },
+        {
+          "text": "Configure a ManagedEventSubscription through Metadata API or Tooling API and start ManagedSubscribe with its developer name or Tooling API record ID. A managed subscription is unique per client and cannot be shared across clients in the same org. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+          "note": null,
+          "claimId": "clm:fe44fbe3556d0f1da2391d9f4fce93a41ac26908d894625bdf4aa0f9e2c35379",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5bc77c28e8e174e3817d48f1abf81ad8b00fea0af8e0b244b8129a5d39022de5",
+            "ev:85c26a8bd20a4bb45734fce43446009f768934d453289da77066666b24712a1a"
+          ]
+        },
+        {
+          "text": "A failed commit does not establish a new saved position. Salesforce advises validating the Replay ID; for a valid request with a transient failure, a later successful commit after processing the next batch can advance the saved position. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+          "note": null,
+          "claimId": "clm:e5b5e029cb90edca1a9127ef77253b24f37ab53d2556d985253646618d66b3d1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:bf28fd4f33b2077dd0ad05308f2865d20ceb3308aafaf45573058e6fc7176b84"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Changing state from RUN to STOP through Metadata API or Tooling API deletes the previously committed Replay ID. Restart uses defaultReplay rather than the previous position; the guide requires waiting at least 5 minutes after STOP before setting RUN, then allowing the state change to propagate. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+          "note": null,
+          "claimId": "clm:7eb2b35782cc197e5b4f99243aac7ed27c3238bd3949887812b092ed982dd327",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1e5c9da074e9562c25fea2aaf4e52ef47fd67ccb949f1d4ab45c43ae82478944",
+            "ev:9dc1f76846a4c7332f8e7ae389d6b710cde54207aba04fa95d3983eaef703434"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Salesforce still labels Managed Event Subscriptions and the ManagedSubscribe RPC as Beta Services subject to Beta Services Terms; the historical Open Beta announcement is not evidence of general availability. (high confidence) (verified as of 2026-11-12)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+          "note": null,
+          "claimId": "clm:a2b0a7264f67857d6b123f77a30cfa9d932ea28f28f63c024704555e4bf67c75",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b79e8367cfe19395638090e310785cc93ccf4ee663d41a1b46bb91a4cd803690",
+            "ev:d76d98739518b98e77bb78710ac0f6fd144c9a4cb064fe5de9bf91c608255f22"
+          ],
+          "also": [
+            "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+            "https://developer.salesforce.com/docs/platform/api-metadata/references/meta-types/metadata-managedeventsubscription.html"
+          ]
+        },
+        {
+          "text": "Salesforce announced managed subscriptions as an Open Beta for Summer ’24; its announcement distinguishes this from the underlying Pub/Sub API, which went GA in June 2022. (low confidence)",
+          "source": "https://developer.salesforce.com/blogs/2024/05/pub-sub-api-made-easy-via-managed-subscriptions",
+          "note": null,
+          "claimId": "clm:6f70b890e8bc077fded7a24542a38a0ed48effb8e5488d4c048dae9feef90e3c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6bdba778309ad79219b64a71c129fd154fb8a3c79a7c229ae2a36b46e09ff6d8",
+            "ev:a3af4756943d06403d069c47cb9fae90b3b581931d7cf8d2adaf134c042d56c5"
+          ]
+        },
+        {
+          "text": "ManagedSubscribe moves the replay store to Salesforce, but the client still processes events and explicitly commits the last processed Replay ID. Resubscribing with the same managed subscription resumes after the successfully committed position. (high confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+          "note": null,
+          "claimId": "clm:5068b95ac207998c6f649ff0aaf8df0b256189a0157969308167edb65ff158b8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:648fb96ec308513aceb6612766b82907375d8e7f40b1a22f8c3c3f954885e2b0",
+            "ev:d6e5cbed38f4fa77f634ad45aef8c85bd43b2061e893ba7c07c531a515d5fd40",
+            "ev:fcd209a0be393d691babfe0929afd45e7bda2bdd21d9720f7cb2f440a1411d8c"
+          ],
+          "also": [
+            "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+            "https://developer.salesforce.com/blogs/2024/05/pub-sub-api-made-easy-via-managed-subscriptions"
+          ]
+        },
+        {
+          "text": "Salesforce requires waiting at least 5 minutes after changing state to STOP before changing it back to RUN. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/api-metadata/references/meta-types/metadata-managedeventsubscription.html",
+          "note": null,
+          "claimId": "clm:b5a5bffcf2fb1ab5925ff4d4235d3329f411eaf431680055e98b3a8fb97c3440",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6cf68e499c0c7e0e0d85fd3dfd49ca4129b20a15c9802be9badbe27b61949a4a"
+          ]
+        },
+        {
+          "text": "Salesforce documents a maximum of 200 unique managed subscriptions per org. Managed subscriptions retain the same event delivery allocations as ordinary Subscribe subscriptions. (high confidence) (verified as of 2026-11-12)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/allocations.html",
+          "note": null,
+          "claimId": "clm:149fe1af029ee956f1dc5cd355374f4ea4ea77d44189cf46f767a121099bb5fd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1db28c400ba860d62e4dd31fbaff94c5f1eb5f7edd44e99db7544aa6ba466038",
+            "ev:8e85dec2f8d5c80e9eaed725bdc0e8e4106f7f5c7e39349af6963bfa834df2c4",
+            "ev:d313c8abd4566621b235738501d18da47a0588500c3607c5f5d927fcf50297eb"
+          ],
+          "also": [
+            "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+            "https://www.softwareinsights.dev/posts/salesforce-managed-event-subscriptions-external-subscribers/"
+          ]
+        },
+        {
+          "text": "The Wolverine Salesforce Pub/Sub transport maintainers report that an unclean network disconnect can hold the managed-subscription slot for approximately 15 minutes, with reconnect attempts returning ALREADY_EXISTS. Treat that timing as their implementation observation, not a Salesforce service guarantee. (low confidence) (verified as of 2026-11-12)",
+          "source": "https://www.nuget.org/packages/WolverineFxContrib.SalesforcePubSub",
+          "note": null,
+          "claimId": "clm:3b2d21c2bb8ca3f250995eef7740ae6b7c0edcf08d2dcae22f9f53392b45cb61",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e8332f22f762b007ef0c373e1f3ee66f2b983e26eba4c393690107819495c816"
+          ]
+        },
+        {
+          "text": "The Node client’s managed-subscription example explicitly calls `client.commitReplayId` with `subscription.subscriptionId` and `subscription.lastReplayId`; choosing managed replay does not remove the application’s commit call. (low confidence)",
+          "source": "https://github.com/pozil/pub-sub-api-node-client",
+          "note": null,
+          "claimId": "clm:cda092cf21456266b35ecd1574e7c6916bd45ef522ef730513bbe89d163757bf",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e91f100714ebaa94487c15f15de41e28ce6ef752cd10b690ac7c5764f960a211"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "72f29c8c3824cdf27814a544a809cac43be0b2acca223b168688971d89c3520f",
+  "canonicalConceptId": "concept:162b2fdb2b2733b5f3e691ba2cc5ae401c3ce430e1fd22b5c4343b2870b78290",
+  "narrative": [
+    {
+      "assertionId": "prose:c7257f19d7c3b3f290d208be8ef43f38dcae4acbf75e0b32aebcd2cbba8f28fc",
+      "statementSha256": "c7257f19d7c3b3f290d208be8ef43f38dcae4acbf75e0b32aebcd2cbba8f28fc",
+      "assertionKind": "summary",
+      "index": 0,
+      "documentSlug": "salesforce-managedsubscribe-replay-commit-lifecycle-and-release-maturity",
+      "documentConcept": "Salesforce ManagedSubscribe replay-commit lifecycle and release maturity",
+      "canonicalConceptId": "concept:162b2fdb2b2733b5f3e691ba2cc5ae401c3ce430e1fd22b5c4343b2870b78290",
+      "text": "ManagedSubscribe moves the replay checkpoint to Salesforce, while the client remains responsible for explicitly committing its processed position. Resumption follows a successful checkpoint. Administrative stopping resets that position, which differs from an ordinary client disconnect. Commit acknowledgements may combine requests, and empty event batches can supply positions to commit. Current Salesforce references still label this capability Beta. For case alerting, the lifecycle therefore requires deliberate commit handling and a tested stop/restart procedure. An independent implementation reports a prolonged slot hold after network failures; its timing is an observation rather than a service guarantee.",
+      "sources": [
+        "https://developer.salesforce.com/blogs/2024/05/pub-sub-api-made-easy-via-managed-subscriptions",
+        "https://developer.salesforce.com/docs/platform/api-metadata/references/meta-types/metadata-managedeventsubscription.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/allocations.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://github.com/forcedotcom/pub-sub-api/blob/main/pubsub_api.proto",
+        "https://github.com/pozil/pub-sub-api-node-client",
+        "https://medium.com/@sharmarajat1984/grpc-manage-subscription-via-postman-in-action-018e5083d7f7",
+        "https://www.nuget.org/packages/WolverineFxContrib.SalesforcePubSub",
+        "https://www.softwareinsights.dev/posts/salesforce-managed-event-subscriptions-external-subscribers/"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:1e5c9da074e9562c25fea2aaf4e52ef47fd67ccb949f1d4ab45c43ae82478944",
+        "ev:4444e4cac84ee172165ce6d5b71d61fb64f1debac3d7064215b9e9f59663d493",
+        "ev:648fb96ec308513aceb6612766b82907375d8e7f40b1a22f8c3c3f954885e2b0",
+        "ev:6f81030d07cf295bc6b12f85ba258efbef276efbd74d8299beb15a770757137d",
+        "ev:758b7d4c7b1bdcb65541f51adb8374a833e821b2e3dda955c8999d25fbb5869b",
+        "ev:9dc1f76846a4c7332f8e7ae389d6b710cde54207aba04fa95d3983eaef703434",
+        "ev:b79e8367cfe19395638090e310785cc93ccf4ee663d41a1b46bb91a4cd803690",
+        "ev:d6e5cbed38f4fa77f634ad45aef8c85bd43b2061e893ba7c07c531a515d5fd40",
+        "ev:d76d98739518b98e77bb78710ac0f6fd144c9a4cb064fe5de9bf91c608255f22",
+        "ev:e8332f22f762b007ef0c373e1f3ee66f2b983e26eba4c393690107819495c816",
+        "ev:fcd209a0be393d691babfe0929afd45e7bda2bdd21d9720f7cb2f440a1411d8c"
+      ]
+    },
+    {
+      "assertionId": "prose:864ed1f9a8eac1cbf285676cc2bb40f6b3e00706ce1bf3f72e662528467f2fd3",
+      "statementSha256": "864ed1f9a8eac1cbf285676cc2bb40f6b3e00706ce1bf3f72e662528467f2fd3",
+      "assertionKind": "disagreement",
+      "index": 0,
+      "documentSlug": "salesforce-managedsubscribe-replay-commit-lifecycle-and-release-maturity",
+      "documentConcept": "Salesforce ManagedSubscribe replay-commit lifecycle and release maturity",
+      "canonicalConceptId": "concept:162b2fdb2b2733b5f3e691ba2cc5ae401c3ce430e1fd22b5c4343b2870b78290",
+      "text": "Softwareinsights says bringing a stopped subscription back with RUN resumes from its committed position. Salesforce’s official guide says stopping via the API deletes the stored Replay ID and restarts from defaultReplay. These positions conflict; use the official lifecycle when designing operational stops.",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://www.softwareinsights.dev/posts/salesforce-managed-event-subscriptions-external-subscribers/"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:1e5c9da074e9562c25fea2aaf4e52ef47fd67ccb949f1d4ab45c43ae82478944",
+        "ev:eb777b54dfde5b37fe111754924f822fefa49cced3a28e0a41a759edb18527da"
+      ]
+    },
+    {
+      "assertionId": "prose:7bcc8d9fc9a6f63c8c3f6918cb721b1421af5f2d8641758d84476d4964212caa",
+      "statementSha256": "7bcc8d9fc9a6f63c8c3f6918cb721b1421af5f2d8641758d84476d4964212caa",
+      "assertionKind": "open_question",
+      "index": 0,
+      "documentSlug": "salesforce-managedsubscribe-replay-commit-lifecycle-and-release-maturity",
+      "documentConcept": "Salesforce ManagedSubscribe replay-commit lifecycle and release maturity",
+      "canonicalConceptId": "concept:162b2fdb2b2733b5f3e691ba2cc5ae401c3ce430e1fd22b5c4343b2870b78290",
+      "text": "What support and release commitments will Salesforce offer for the target org when adopting this Beta capability?",
+      "sources": [
+        "https://developer.salesforce.com/blogs/2024/05/pub-sub-api-made-easy-via-managed-subscriptions",
+        "https://developer.salesforce.com/docs/platform/api-metadata/references/meta-types/metadata-managedeventsubscription.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/allocations.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://github.com/forcedotcom/pub-sub-api/blob/main/pubsub_api.proto",
+        "https://github.com/pozil/pub-sub-api-node-client",
+        "https://medium.com/@sharmarajat1984/grpc-manage-subscription-via-postman-in-action-018e5083d7f7",
+        "https://www.nuget.org/packages/WolverineFxContrib.SalesforcePubSub",
+        "https://www.softwareinsights.dev/posts/salesforce-managed-event-subscriptions-external-subscribers/"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:b79e8367cfe19395638090e310785cc93ccf4ee663d41a1b46bb91a4cd803690",
+        "ev:d76d98739518b98e77bb78710ac0f6fd144c9a4cb064fe5de9bf91c608255f22"
+      ]
+    },
+    {
+      "assertionId": "prose:b150be1e5442c1abe3032c865b12c2cf9ba801af253b2b324682d8bc6182be5d",
+      "statementSha256": "b150be1e5442c1abe3032c865b12c2cf9ba801af253b2b324682d8bc6182be5d",
+      "assertionKind": "open_question",
+      "index": 1,
+      "documentSlug": "salesforce-managedsubscribe-replay-commit-lifecycle-and-release-maturity",
+      "documentConcept": "Salesforce ManagedSubscribe replay-commit lifecycle and release maturity",
+      "canonicalConceptId": "concept:162b2fdb2b2733b5f3e691ba2cc5ae401c3ce430e1fd22b5c4343b2870b78290",
+      "text": "Does the target org and client reproduce the reported managed-subscription slot hold during a controlled network partition?",
+      "sources": [
+        "https://developer.salesforce.com/blogs/2024/05/pub-sub-api-made-easy-via-managed-subscriptions",
+        "https://developer.salesforce.com/docs/platform/api-metadata/references/meta-types/metadata-managedeventsubscription.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/allocations.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://github.com/forcedotcom/pub-sub-api/blob/main/pubsub_api.proto",
+        "https://github.com/pozil/pub-sub-api-node-client",
+        "https://medium.com/@sharmarajat1984/grpc-manage-subscription-via-postman-in-action-018e5083d7f7",
+        "https://www.nuget.org/packages/WolverineFxContrib.SalesforcePubSub",
+        "https://www.softwareinsights.dev/posts/salesforce-managed-event-subscriptions-external-subscribers/"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:e8332f22f762b007ef0c373e1f3ee66f2b983e26eba4c393690107819495c816"
+      ]
+    },
+    {
+      "assertionId": "prose:cae426b4a4e10e34127e836ebbe063eb14c19eb8d7adfd117076adf9562d7499",
+      "statementSha256": "cae426b4a4e10e34127e836ebbe063eb14c19eb8d7adfd117076adf9562d7499",
+      "assertionKind": "open_question",
+      "index": 2,
+      "documentSlug": "salesforce-managedsubscribe-replay-commit-lifecycle-and-release-maturity",
+      "documentConcept": "Salesforce ManagedSubscribe replay-commit lifecycle and release maturity",
+      "canonicalConceptId": "concept:162b2fdb2b2733b5f3e691ba2cc5ae401c3ce430e1fd22b5c4343b2870b78290",
+      "text": "Which official release records should be consulted for the ManagedSubscribe adoption decision?",
+      "sources": [
+        "https://developer.salesforce.com/blogs/2024/05/pub-sub-api-made-easy-via-managed-subscriptions",
+        "https://developer.salesforce.com/docs/platform/api-metadata/references/meta-types/metadata-managedeventsubscription.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/allocations.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://github.com/forcedotcom/pub-sub-api/blob/main/pubsub_api.proto",
+        "https://github.com/pozil/pub-sub-api-node-client",
+        "https://medium.com/@sharmarajat1984/grpc-manage-subscription-via-postman-in-action-018e5083d7f7",
+        "https://www.nuget.org/packages/WolverineFxContrib.SalesforcePubSub",
+        "https://www.softwareinsights.dev/posts/salesforce-managed-event-subscriptions-external-subscribers/"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:6ab9aec168220e9624aab742994e6488c41761a44909c7927f8e1330647dd41d",
+      "statementSha256": "6ab9aec168220e9624aab742994e6488c41761a44909c7927f8e1330647dd41d",
+      "assertionKind": "open_question",
+      "index": 3,
+      "documentSlug": "salesforce-managedsubscribe-replay-commit-lifecycle-and-release-maturity",
+      "documentConcept": "Salesforce ManagedSubscribe replay-commit lifecycle and release maturity",
+      "canonicalConceptId": "concept:162b2fdb2b2733b5f3e691ba2cc5ae401c3ce430e1fd22b5c4343b2870b78290",
+      "text": "What evidence, if any, would establish a change from the documented Beta status of ManagedSubscribe?",
+      "sources": [
+        "https://developer.salesforce.com/blogs/2024/05/pub-sub-api-made-easy-via-managed-subscriptions",
+        "https://developer.salesforce.com/docs/platform/api-metadata/references/meta-types/metadata-managedeventsubscription.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/allocations.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/managedsubscribe-rpc.html",
+        "https://github.com/forcedotcom/pub-sub-api/blob/main/pubsub_api.proto",
+        "https://github.com/pozil/pub-sub-api-node-client",
+        "https://medium.com/@sharmarajat1984/grpc-manage-subscription-via-postman-in-action-018e5083d7f7",
+        "https://www.nuget.org/packages/WolverineFxContrib.SalesforcePubSub",
+        "https://www.softwareinsights.dev/posts/salesforce-managed-event-subscriptions-external-subscribers/"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:b79e8367cfe19395638090e310785cc93ccf4ee663d41a1b46bb91a4cd803690"
+      ]
+    }
+  ]
+}

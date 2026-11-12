@@ -1,0 +1,288 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Salesforce CDC transaction ordering event identity and deduplication",
+  "slug": "salesforce-cdc-transaction-ordering-event-identity-and-deduplication",
+  "canonical_concept_id": "concept:b84fe192654840efced0ab28a003662f9590f84ab590af59673b814efde1e5c5",
+  "canonical_artifact_sha256": "72f29c8c3824cdf27814a544a809cac43be0b2acca223b168688971d89c3520f",
+  "claims": [
+    {
+      "id": "clm:46bfd0009cc6b793cbb9a28434294921c7395f2248514d47674ee199397ecf4a",
+      "text": "If some objects participating in a transaction are not enabled for CDC, sequence numbers can have gaps; a missing sequence number alone therefore does not prove delivery loss. (low confidence)",
+      "source_url": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3a66d4da8524113452760aba60a21595bbc4511d9d326b712ad06e4a7f818f37"
+      ]
+    },
+    {
+      "id": "clm:9d87ed6ce0fecff36cadec6802739b8c618a2cdbf7f5ab9eac7af0cac1c3a5a0",
+      "text": "Salesforce recommends buffering changes in one transaction and committing them together. Its general-channel recipe commits the prior buffer when the next change event has a different transactionKey; it does not provide a quiet-stream flush rule in these steps. (low confidence)",
+      "source_url": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:15662e9a43d3d4bd96ca4d8bf892404129c94aa8efecb802d97376ca3af6ed7f"
+      ]
+    },
+    {
+      "id": "clm:29ffd6e0ef1eb40148ca9cbe7bbdc55ac1d5c4d5435d362ce18d5d7c18e4ed30",
+      "text": "CDC event-bus order follows the order of committed Salesforce transactions; sequenceNumber orders changes within a transaction. Preserve that ordering when applying Case changes. (low confidence)",
+      "source_url": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-subscribe-delivery.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:614f5522c8a8bd070b1f08ce38b80b1e1a5e41c37fd4d28665177d510639103c",
+        "ev:af6b5d567d6f38d0babbf8abddae0059d8709622cbd9c5e4f046845bca36276f"
+      ]
+    },
+    {
+      "id": "clm:7b8049d27e4632d8f231887b28a707dbd16f88df61c9fe8cc2f41df48b3fba90",
+      "text": "Confluent documents a concrete duplicate-delivery scenario: its Salesforce CDC connector can repeat events after an unexpected restart because it resumes from the last periodically recorded replayID. This is connector behavior, not proof that every Salesforce client duplicates under the same conditions. (low confidence)",
+      "source_url": "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:fe399576639927578a8164e31b38c7b47c4878c332bd7d5452dc9b09bd5fd090"
+      ]
+    },
+    {
+      "id": "clm:13da5fc43b2674fb74c04394ab39e41223ea18df49c4ac0424a4717e6b8640c6",
+      "text": "The transactionKey groups changes from one Salesforce transaction; sequenceNumber orders changes within that transaction and starts at one. A transaction can emit multiple changes, so transactionKey alone cannot distinguish its individual changes. (high confidence)",
+      "source_url": "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf",
+      "also": [
+        "https://jsbclabs.com/blog/change-data-capture-is-not-a-business-event-contract",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-subscribe-delivery.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0f63035699f01c772afc868ca4dd3cea77831d3547101f801164c43ae9969f51",
+        "ev:76889e1274ba859ca842e9c3626ccb3e8f102e21d3cfdb24bbdb05cebe0b2ca6"
+      ]
+    },
+    {
+      "id": "clm:7f043dc2c0dea257adbdc1d2084c5b1782df22ea244d97af7593503998d1c7ab",
+      "text": "A replay_id is a stream-position cursor and can be reused across maintenance such as an org migration. The platform-event id field is absent from change events, so that platform-event identity mechanism cannot be assumed for CDC. (low confidence)",
+      "source_url": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:47ea33aa1ca8bba6185af36bc0d2bad105ce4e26d225a81060e519ba5daab17a"
+      ]
+    },
+    {
+      "id": "clm:0942516a24fc1069071e4b99db25efea6a130f4a35d58a28dbef04c327d4db62",
+      "text": "A crash after applying an event but before persisting its checkpoint can cause duplicate processing after restart. Confluent documents this failure mode for its Salesforce CDC connector, and JSBC Labs recommends idempotent handlers. (high confidence)",
+      "source_url": "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+      "also": [
+        "https://jsbclabs.com/blog/change-data-capture-is-not-a-business-event-contract"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0fe3ce552780fcdd690d138550ef0ef096d170022cd146ace2ae776b8f1be5d5",
+        "ev:fe399576639927578a8164e31b38c7b47c4878c332bd7d5452dc9b09bd5fd090"
+      ]
+    },
+    {
+      "id": "clm:fe9ee460f75eaf94e2bed56b7695745d344e1f22e5e1d62104ad2f71def10b33",
+      "text": "JSBC Labs recommends durable business writes before checkpoint advancement and an inbox when the writes cannot share a transaction. For CDC, adapt any replay-based inbox identity to account for Salesforce\u2019s documented duplicate ReplayId messages. (high confidence)",
+      "source_url": "https://jsbclabs.com/blog/change-data-capture-is-not-a-business-event-contract",
+      "also": [
+        "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4b4569539ef3333ce193f34fc8bf376271c203986b346cd6edf0987c78fe9b77",
+        "ev:511e4ed875afacf5a6d53483036a9dde3b97be7d12bcced17b66e4ac2c015dfb"
+      ]
+    },
+    {
+      "id": "clm:3f2506e9f66c06a4cd1ebda97a1973b675cb066e4e861539948c3a4a68bb0de7",
+      "text": "MindBlaze advises against assuming CDC events arrive in commit order; Salesforce\u2019s CDC guide explicitly documents commit-ordered storage and replay-ID-ordered delivery. The downstream reordering caveat remains useful, but the broad transport claim conflicts with the primary guide. (high confidence)",
+      "source_url": "https://mindblaze.ai/blog/salesforce-pub-sub-api/",
+      "also": [
+        "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf",
+        "https://jsbclabs.com/blog/change-data-capture-is-not-a-business-event-contract"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0b0a88f20caa2dfc316373a00ffa23b1a2147b1961f83ce08666619bb31743f5",
+        "ev:1a6cc71d137042edbbd2785b84accd28bb4d5384717f586b5339cfbd8bb16b0d",
+        "ev:4474c101854cf830baae5db2ea046815fe043398d2a3de0d19bb1e7449baa494"
+      ]
+    },
+    {
+      "id": "clm:e875b94bfb4d9015451f48de33407c42e82f0c3f6819ca4acdd28754c4f41daa",
+      "text": "Salesforce stores CDC changes in the order of the corresponding transaction commits and delivers them in replay-ID order. This transport order does not guarantee the completion order of parallel downstream work. (high confidence)",
+      "source_url": "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf",
+      "also": [
+        "https://jsbclabs.com/blog/change-data-capture-is-not-a-business-event-contract"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0b0a88f20caa2dfc316373a00ffa23b1a2147b1961f83ce08666619bb31743f5",
+        "ev:1a6cc71d137042edbbd2785b84accd28bb4d5384717f586b5339cfbd8bb16b0d"
+      ]
+    },
+    {
+      "id": "clm:5d61db6aab617bf9dff69cdac6ec2a2a3c2b63d79e4f1d72887445fb202a5bf8",
+      "text": "Enrichment can split an originally grouped CDC event into separate messages with duplicate ReplayId values and one record ID each. A ReplayId-only deduplication rule can therefore suppress distinct record changes. (low confidence)",
+      "source_url": "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:19b932c5fbd8bb91b1216f3a6235c395d924ae7c26ed1f7f61a0e44c0725e535"
+      ]
+    },
+    {
+      "id": "clm:eea4b3a10adb2ef834c6a762bd2edac0f3088c2c58b25eb4d3295d2bdaacf661",
+      "text": "commitNumber is diagnostic metadata. Salesforce does not guarantee its uniqueness across database instances or its uniqueness or sequential behavior after an org migrates to another instance. (low confidence)",
+      "source_url": "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:e51bf1216a7490ef768894d17aeb99a723fcc7333316b5dfb2b87ab5270c6f20"
+      ]
+    },
+    {
+      "id": "clm:558212341f9f1a0b9fba7872ce42301f207aaee3d79ca504d2c009e16ea7f175",
+      "text": "Design inference for Case alerting: use transactionKey plus sequenceNumber as a candidate change identity within an org-scoped consumer ledger, and make alert creation idempotent against repeated delivery. This is a derived design recommendation, not an official guarantee of a universal CDC event UUID or end-to-end exactly-once delivery. (medium confidence)",
+      "source_url": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-subscribe-delivery.html",
+      "also": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:37fc03d44f83f702b9232b77517f99745cdef4f466f62239e55b932bee167c4e",
+        "ev:883dddafb141b12cf28160fa9e2d24cdf6f86cf1a945d7d47c436283903da5f8",
+        "ev:facdba5e7f948500cfb7edce2f3ac7898d5766721ce5963640bf2568f5d660d0"
+      ]
+    }
+  ],
+  "narrative": [
+    {
+      "assertionId": "prose:3028a6ad4506b771ea25f7394af7b9830e0277c2b79d1e4f9758a5b46f36260c",
+      "statementSha256": "3028a6ad4506b771ea25f7394af7b9830e0277c2b79d1e4f9758a5b46f36260c",
+      "assertionKind": "summary",
+      "index": 0,
+      "documentSlug": "salesforce-cdc-transaction-ordering-event-identity-and-deduplication",
+      "documentConcept": "Salesforce CDC transaction ordering event identity and deduplication",
+      "canonicalConceptId": "concept:b84fe192654840efced0ab28a003662f9590f84ab590af59673b814efde1e5c5",
+      "text": "CDC exposes transaction groups and within-transaction sequence metadata. Salesforce documents commit-ordered storage and replay-ID-ordered delivery, while parallel downstream work can finish out of order. For case alerting, distinguish transaction grouping, individual record changes and replay positions. A transaction can contain multiple changes, enriched messages can share ReplayId, and replay IDs can repeat during maintenance. Consumers need durable, idempotent processing because a crash between business writes and checkpoint storage can replay work. Buffering a transaction can prevent partial downstream application. Outside guidance contains conflicting ordering claims, recorded here as attributed positions.",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-subscribe-delivery.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://jsbclabs.com/blog/change-data-capture-is-not-a-business-event-contract",
+        "https://mindblaze.ai/blog/salesforce-pub-sub-api/",
+        "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:0b0a88f20caa2dfc316373a00ffa23b1a2147b1961f83ce08666619bb31743f5",
+        "ev:0f63035699f01c772afc868ca4dd3cea77831d3547101f801164c43ae9969f51",
+        "ev:0fe3ce552780fcdd690d138550ef0ef096d170022cd146ace2ae776b8f1be5d5",
+        "ev:15662e9a43d3d4bd96ca4d8bf892404129c94aa8efecb802d97376ca3af6ed7f",
+        "ev:19b932c5fbd8bb91b1216f3a6235c395d924ae7c26ed1f7f61a0e44c0725e535",
+        "ev:1a6cc71d137042edbbd2785b84accd28bb4d5384717f586b5339cfbd8bb16b0d",
+        "ev:4474c101854cf830baae5db2ea046815fe043398d2a3de0d19bb1e7449baa494",
+        "ev:47ea33aa1ca8bba6185af36bc0d2bad105ce4e26d225a81060e519ba5daab17a",
+        "ev:76889e1274ba859ca842e9c3626ccb3e8f102e21d3cfdb24bbdb05cebe0b2ca6",
+        "ev:fe399576639927578a8164e31b38c7b47c4878c332bd7d5452dc9b09bd5fd090"
+      ]
+    },
+    {
+      "assertionId": "prose:760b9c1b5e03e9ea93b9b6854a45be8e41f84348bd0c2517fac8773b91a78090",
+      "statementSha256": "760b9c1b5e03e9ea93b9b6854a45be8e41f84348bd0c2517fac8773b91a78090",
+      "assertionKind": "open_question",
+      "index": 0,
+      "documentSlug": "salesforce-cdc-transaction-ordering-event-identity-and-deduplication",
+      "documentConcept": "Salesforce CDC transaction ordering event identity and deduplication",
+      "canonicalConceptId": "concept:b84fe192654840efced0ab28a003662f9590f84ab590af59673b814efde1e5c5",
+      "text": "Which durable deduplication key preserves separate enriched record messages while recognizing replays across every configured channel?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-subscribe-delivery.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://jsbclabs.com/blog/change-data-capture-is-not-a-business-event-contract",
+        "https://mindblaze.ai/blog/salesforce-pub-sub-api/",
+        "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:19b932c5fbd8bb91b1216f3a6235c395d924ae7c26ed1f7f61a0e44c0725e535",
+        "ev:47ea33aa1ca8bba6185af36bc0d2bad105ce4e26d225a81060e519ba5daab17a"
+      ]
+    },
+    {
+      "assertionId": "prose:499c1ec9ab269bd226dd3a684a2a9f4cc19cdf8489b57101e8b11e66f6cead4a",
+      "statementSha256": "499c1ec9ab269bd226dd3a684a2a9f4cc19cdf8489b57101e8b11e66f6cead4a",
+      "assertionKind": "open_question",
+      "index": 1,
+      "documentSlug": "salesforce-cdc-transaction-ordering-event-identity-and-deduplication",
+      "documentConcept": "Salesforce CDC transaction ordering event identity and deduplication",
+      "canonicalConceptId": "concept:b84fe192654840efced0ab28a003662f9590f84ab590af59673b814efde1e5c5",
+      "text": "How should a quiet final transaction be flushed when no later transaction arrives to trigger the documented boundary rule?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-subscribe-delivery.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://jsbclabs.com/blog/change-data-capture-is-not-a-business-event-contract",
+        "https://mindblaze.ai/blog/salesforce-pub-sub-api/",
+        "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:15662e9a43d3d4bd96ca4d8bf892404129c94aa8efecb802d97376ca3af6ed7f"
+      ]
+    },
+    {
+      "assertionId": "prose:3562aa38516ec8015454d3a892b9e4a232986cb94425683bed6edd14b502cc51",
+      "statementSha256": "3562aa38516ec8015454d3a892b9e4a232986cb94425683bed6edd14b502cc51",
+      "assertionKind": "open_question",
+      "index": 2,
+      "documentSlug": "salesforce-cdc-transaction-ordering-event-identity-and-deduplication",
+      "documentConcept": "Salesforce CDC transaction ordering event identity and deduplication",
+      "canonicalConceptId": "concept:b84fe192654840efced0ab28a003662f9590f84ab590af59673b814efde1e5c5",
+      "text": "How should the application flush a buffered final transaction when the stream becomes quiet?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-subscribe-delivery.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://jsbclabs.com/blog/change-data-capture-is-not-a-business-event-contract",
+        "https://mindblaze.ai/blog/salesforce-pub-sub-api/",
+        "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:387fe2c05c78e78b19a7548b282838207ffc298e3b9c03d9f44beb174247a134",
+      "statementSha256": "387fe2c05c78e78b19a7548b282838207ffc298e3b9c03d9f44beb174247a134",
+      "assertionKind": "open_question",
+      "index": 3,
+      "documentSlug": "salesforce-cdc-transaction-ordering-event-identity-and-deduplication",
+      "documentConcept": "Salesforce CDC transaction ordering event identity and deduplication",
+      "canonicalConceptId": "concept:b84fe192654840efced0ab28a003662f9590f84ab590af59673b814efde1e5c5",
+      "text": "Does the proposed org-scoped transaction-and-sequence ledger distinguish every notification emitted by the chosen Case channel configuration?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-subscribe-delivery.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://jsbclabs.com/blog/change-data-capture-is-not-a-business-event-contract",
+        "https://mindblaze.ai/blog/salesforce-pub-sub-api/",
+        "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_change_data_capture.pdf"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    }
+  ],
+  "projection_sha256": "a7a62e4485a81dfccac531e408839cc5693b2476fd57d59b3796852e7445ccc9"
+}

@@ -513,6 +513,9 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
 
 def _transactional_finalize(shared, manifest: dict, claims: dict[str, dict], status: str,
                        repo: Path | None = None) -> dict:
+    checkpoint = getattr(shared, "_research_library_lease_checkpoint", None)
+    if callable(checkpoint):
+        checkpoint()
     if not claims:
         return {"ok": True, "skipped": "no recorded claims", "packs": [], "trees": []}
     canonical = load_module("canonical_research_artifact", Path(__file__).with_name("research_artifact.py"))
@@ -535,6 +538,9 @@ def _transactional_finalize(shared, manifest: dict, claims: dict[str, dict], sta
                                          "validation": artifact["validation"]}
         receipt["transaction"] = str(transaction.root / "journal.json")
         transaction.write(shared.run_dir(manifest["slug"]) / "artifacts/receipt.json", json.dumps(receipt, indent=2) + "\n")
+        # A lost distributed fence rolls back every projection in this journal.
+        if callable(checkpoint):
+            checkpoint()
         transaction.commit()
         return receipt
     except BaseException:

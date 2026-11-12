@@ -1,0 +1,373 @@
+{
+  "slug": "salesforce-cdc-replay-persistence-retention-and-gap-recovery",
+  "concept": "Salesforce CDC replay persistence retention and gap recovery",
+  "generated": "2026-11-12",
+  "summary": "Source-anchored research for Salesforce CDC replay persistence retention and gap recovery. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "An empty FetchResponse can contain an advanced replay_id. Salesforce recommends saving each such position and using the last received keepalive or processed-event position for CUSTOM replay. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+          "note": null,
+          "claimId": "clm:daeb8c34559a2646560fe3bad8da84fbd5b8c6a9061f0faa0b5b55db91c1f120",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:52bf8323fc5a7ba10f82463a884132d001b3fe0cc4589a0d38ab40449f6b47a5",
+            "ev:7358f0b85e4589801f4323cb20e4fe0d37ba8884a86e706145f81def5b8b8ae4"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Salesforce documents a 72-hour retention window for CDC events. Events can sometimes remain longer because purging starts late, but storage beyond that window is not guaranteed. Retention is a bounded recovery window, not an archive. (high confidence) (verified as of 2026-11-12)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+          "note": null,
+          "claimId": "clm:0553bf84218830f7ebaf6ff37a300f19c82f10eb4835ddb8a20305a3ab38028e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2ec710006c0f7fbb8424702de48849b6a3afba7a0741497ab28efa989be1b553",
+            "ev:5ec948f6f071f6d6662dacdb7fc9562ac46c0455c7c534800bdf0fffcf3f938e"
+          ],
+          "also": [
+            "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+            "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html"
+          ]
+        },
+        {
+          "text": "Rare org moves can reset the retained event stream and make retained events inaccessible. Recovery planning must account for this exception even when the outage is shorter than the nominal retention window. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+          "note": null,
+          "claimId": "clm:6ab4a65671dca6120cfd8d32ff0a106f41b208716352afd74a2b4b77a4bec860",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3769bffd1b267d86d8c703ac69b3abd479e12bf41428319c1c2fd9d5f6b77c4c"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "OSO’s Salesforce Kafka Connector documents explicit expired-cursor choices: resync performs incremental Bulk recovery from a buffered watermark, latest accepts downtime loss, and fail preserves the offset for operator intervention. These are connector-specific policies, not automatic Salesforce recovery guarantees. (low confidence) (verified as of 2026-11-12)",
+          "source": "https://salesforcekafkaconnector.com/concepts/offsets-and-recovery/",
+          "note": null,
+          "claimId": "clm:a00477dd75607401384a82efc2753a014ca24d26a52eec29c9a0e4af56091b3b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7a300d578561a4835f755cf21901466e320e0f8c9c73b2dec5b8bfa9070cc9b3",
+            "ev:9358aef5cf1edf030bd4780b32c976f05e136a93e35b4f7ee311714102810196",
+            "ev:9e1e192717730146cbeb3298ab42538aa453d13fb2a890b3ef8e82d67450e152"
+          ]
+        },
+        {
+          "text": "Salesforce warns that rare asynchronous persistence failures can leave CDC events undelivered and unrecoverable. A saved replay cursor cannot recover an event that was never persisted; reconciliation remains necessary for consumers that need accurate current state. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+          "note": null,
+          "claimId": "clm:e0ed32607cff4594833645fdfb15b5dc23fb975b632b0e0c22f05df4c7541897",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a643371aa2cef2a159778c88cf1da880b66be94d30720b3f2b70442c340aa41b"
+          ]
+        },
+        {
+          "text": "LATEST starts at the stream tip. EARLIEST starts at the earliest retained events and is the documented fallback after an outage longer than three days invalidates a saved position. EARLIEST cannot recover events already purged. (high confidence) (verified as of 2026-11-12)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+          "note": null,
+          "claimId": "clm:cffeaf725496ca0feac089d9632d6ef757ba8fa2bd3735086727e6996dca9d9e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e1d5ce2e3645b71e923ddbd20225e3f2810e336f7fdb01776e7c5161569a4928",
+            "ev:e7741541b7337c8d507af28d8d18185aa764a043a33521fb6bf794740747743a"
+          ],
+          "also": [
+            "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Persist a replay cursor durably after processing. With Pub/Sub CUSTOM replay, provide the last processed event or last keepalive cursor, whichever arrived last, and preserve the cursor as bytes rather than assuming it is numeric. (high confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+          "note": null,
+          "claimId": "clm:a57fcfdf5153d2670e2415bbeb08490d62c5846153c04b6b8a179ec76289bf0f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:24381f22957f97757f9bc15b18d48b705e95209dbd2a638b1b3936254b5eb776",
+            "ev:b272faecf654eeac575e454c370e83f6a4337adb344c7bf334e9efe56d87da2b"
+          ],
+          "also": [
+            "https://www.ampersand.ai/blog/change-data-capture-for-salesforce-api-integration-real-time-webhooks-without-the-plumbing"
+          ]
+        },
+        {
+          "text": "Gap events provide affected record IDs rather than record data. Salesforce recommends retrieving current records, marking them dirty during reconciliation, and deferring further changes for dirty records until reconciliation finishes. Merged gaps require reconciling all IDs in recordIds. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+          "note": null,
+          "claimId": "clm:b2bbe34c075f55f288e30a22f7b9b129784826a90b156f53f1dfd15d57b13176",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:505ec986ed9b103fc8699955391279241ed2aab299bf336767d80d4ec2093f97",
+            "ev:be4ab88d669ed452997dd9cf44952840d7f22bfe2244eda42990f2e99ff5c597"
+          ]
+        },
+        {
+          "text": "Recovery design implication: after an outage beyond retention, replay must be combined with authoritative state reconciliation when a complete case replica is required. EARLIEST supplies retained changes only. The documented entity resynchronization procedure is a model for repairing current state, rather than reconstructing every historical transition. (high confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+          "note": null,
+          "claimId": "clm:8cfbb4ee117e1265eb71e2963c16b38593bb9e6364583ae6f453e8bc0ec2e14a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:953ad1dab5f743e7f6436dde2652ef4ce6244f60c31480c087b1ddc7da8f7b43",
+            "ev:bfb10fc8df18c0293c529bbdfb6dbe976eed7cd2675b0f2046261b006bce7643",
+            "ev:e1d5ce2e3645b71e923ddbd20225e3f2810e336f7fdb01776e7c5161569a4928"
+          ],
+          "also": [
+            "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+            "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Treat replay positions as opaque cursors: consecutive events need not have contiguous Replay IDs, and clients must not calculate another event’s Replay ID from a saved one. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+          "note": null,
+          "claimId": "clm:baa15d879e0e7166a0114b66474f22aecdf0e7a61217402466af92ccbe813970",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:15c6a156d12b27a3d0a3aff8ce446eef480235eb789698565dbc80f200b96797"
+          ]
+        },
+        {
+          "text": "A gap event identifies affected records without carrying their record data. Reconcile each affected record through a Salesforce API read; Salesforce’s suggested approach marks it dirty and suppresses later changes until reconciliation completes. (high confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+          "note": null,
+          "claimId": "clm:643a9b059a0d34def7d49df28585cd9816f836e93857395aafddcb6b5b1d32e5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:505ec986ed9b103fc8699955391279241ed2aab299bf336767d80d4ec2093f97",
+            "ev:be4ab88d669ed452997dd9cf44952840d7f22bfe2244eda42990f2e99ff5c597"
+          ],
+          "also": [
+            "https://salesforcekafkaconnector.com/concepts/offsets-and-recovery/"
+          ]
+        },
+        {
+          "text": "An overflow event provides no usable affected-record IDs. Salesforce’s documented recovery approach stops the subscription, saves the overflow Replay ID, resynchronizes the entity including deletions, and resumes after the saved cursor to catch changes made during synchronization. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+          "note": null,
+          "claimId": "clm:4444331c55b814610bb57a37e0c4f1f8e22e937e82337cb9cadf4957a7326c3b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b485cd9c185676b35f36b0745d29d7632f809500253295954fad4b7e87cb413a"
+          ]
+        },
+        {
+          "text": "EARLIEST retrieves the events that are still retained; LATEST starts at the stream tip. Selecting either preset after cursor expiration does not reconstruct events already purged from the retention window. (high confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+          "note": null,
+          "claimId": "clm:7a4b03c8344e4f011ad1d14fd1177a78bc66db6d521da0eb6f64ed8a8c3441fd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7ae840bf4e7a28ef5466158fbc968da2db85fa38d5bed877fef4513cc1e90869",
+            "ev:e7741541b7337c8d507af28d8d18185aa764a043a33521fb6bf794740747743a"
+          ],
+          "also": [
+            "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html"
+          ]
+        },
+        {
+          "text": "For client-managed replay, persist the last processed event position and resume with CUSTOM after it. Store replay IDs as opaque bytes; do not calculate new IDs or assume consecutive IDs are contiguous. (high confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+          "note": null,
+          "claimId": "clm:e268099e80b8d75a40419abffa14e17af73966583333fc56a5bd776b37ec5e44",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:15c6a156d12b27a3d0a3aff8ce446eef480235eb789698565dbc80f200b96797",
+            "ev:7358f0b85e4589801f4323cb20e4fe0d37ba8884a86e706145f81def5b8b8ae4",
+            "ev:c8379a033c364c21706a9faca31bf78b59680553c1a9930eca8db1c70010c865"
+          ],
+          "also": [
+            "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html"
+          ]
+        },
+        {
+          "text": "Replay has additional durability limits: retained streams can rarely reset after an org moves to another instance. Salesforce also warns that rare CDC persistence failures can make some messages undeliverable and unrecoverable. (high confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+          "note": null,
+          "claimId": "clm:9e19b859a0e1d792b66d713674d36754f3e4096bf91e501646f6bec1ff03ef27",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3769bffd1b267d86d8c703ac69b3abd479e12bf41428319c1c2fd9d5f6b77c4c",
+            "ev:a643371aa2cef2a159778c88cf1da880b66be94d30720b3f2b70442c340aa41b"
+          ],
+          "also": [
+            "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html"
+          ]
+        },
+        {
+          "text": "A transaction with more than 100,000 changes produces normal events for the first 100,000 changes and an overflow event per entity type for the remainder. GAP_OVERFLOW identifies overflow, whose header does not supply affected record IDs. (low confidence) (verified as of 2026-11-12)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+          "note": null,
+          "claimId": "clm:bc6ca5a44cee1682cfa86cf5b3fef76883022187e545072bf67ab41bd4f0f82d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4b2bacdf4f46479681f1309c4edda002b8d2ebd4398721a396e033efc9995f0f"
+          ]
+        },
+        {
+          "text": "Overflow deletion reconciliation can compare local records with a complete live-record synchronization, or query isDeleted=true for soft-deleted records still in the Recycle Bin. That soft-delete query is scoped to Recycle Bin contents. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+          "note": null,
+          "claimId": "clm:d0ffd764e55698ffee87bbdc8613dd3256a5ce8241fc601fdb22bc283162200c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8a1a9d26a5f463c3f603f9c8feeaa51d351d8f96a8395b9ea3d3ef7cd3ae989b"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "72f29c8c3824cdf27814a544a809cac43be0b2acca223b168688971d89c3520f",
+  "canonicalConceptId": "concept:885850da4e18cc213a7616242dbbe79b6a12d116061b0323df6f4c062a7bc8f7",
+  "narrative": [
+    {
+      "assertionId": "prose:33a74e5ba069506444c7023e8557eea9686c46d14ece75361db40d10f7a452d8",
+      "statementSha256": "33a74e5ba069506444c7023e8557eea9686c46d14ece75361db40d10f7a452d8",
+      "assertionKind": "summary",
+      "index": 0,
+      "documentSlug": "salesforce-cdc-replay-persistence-retention-and-gap-recovery",
+      "documentConcept": "Salesforce CDC replay persistence retention and gap recovery",
+      "canonicalConceptId": "concept:885850da4e18cc213a7616242dbbe79b6a12d116061b0323df6f4c062a7bc8f7",
+      "text": "CDC replay lets a case-alerting consumer resume from a durable cursor within Salesforce’s documented retention window. Recovery also requires record reconciliation: gap events omit record data, overflow events require broader repair, and expired cursors cannot restore purged history. A current-state rebuild and a controlled return to streaming are distinct from recovering every historical alert. Rare stream resets and persistence failures further limit replay guarantees.",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://salesforcekafkaconnector.com/concepts/offsets-and-recovery/",
+        "https://www.ampersand.ai/blog/change-data-capture-for-salesforce-api-integration-real-time-webhooks-without-the-plumbing"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:2ec710006c0f7fbb8424702de48849b6a3afba7a0741497ab28efa989be1b553",
+        "ev:3769bffd1b267d86d8c703ac69b3abd479e12bf41428319c1c2fd9d5f6b77c4c",
+        "ev:505ec986ed9b103fc8699955391279241ed2aab299bf336767d80d4ec2093f97",
+        "ev:52bf8323fc5a7ba10f82463a884132d001b3fe0cc4589a0d38ab40449f6b47a5",
+        "ev:5ec948f6f071f6d6662dacdb7fc9562ac46c0455c7c534800bdf0fffcf3f938e",
+        "ev:7358f0b85e4589801f4323cb20e4fe0d37ba8884a86e706145f81def5b8b8ae4",
+        "ev:a643371aa2cef2a159778c88cf1da880b66be94d30720b3f2b70442c340aa41b",
+        "ev:b485cd9c185676b35f36b0745d29d7632f809500253295954fad4b7e87cb413a",
+        "ev:be4ab88d669ed452997dd9cf44952840d7f22bfe2244eda42990f2e99ff5c597",
+        "ev:bfb10fc8df18c0293c529bbdfb6dbe976eed7cd2675b0f2046261b006bce7643",
+        "ev:e1d5ce2e3645b71e923ddbd20225e3f2810e336f7fdb01776e7c5161569a4928"
+      ]
+    },
+    {
+      "assertionId": "prose:336f63a632552812483a6ef149b92a7a223136daadc0ab016e02da6c87ebf850",
+      "statementSha256": "336f63a632552812483a6ef149b92a7a223136daadc0ab016e02da6c87ebf850",
+      "assertionKind": "open_question",
+      "index": 0,
+      "documentSlug": "salesforce-cdc-replay-persistence-retention-and-gap-recovery",
+      "documentConcept": "Salesforce CDC replay persistence retention and gap recovery",
+      "canonicalConceptId": "concept:885850da4e18cc213a7616242dbbe79b6a12d116061b0323df6f4c062a7bc8f7",
+      "text": "What should case alerting do after reconciliation when the historical transitions needed to reconstruct past alerts are unavailable?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://salesforcekafkaconnector.com/concepts/offsets-and-recovery/",
+        "https://www.ampersand.ai/blog/change-data-capture-for-salesforce-api-integration-real-time-webhooks-without-the-plumbing"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:b485cd9c185676b35f36b0745d29d7632f809500253295954fad4b7e87cb413a",
+        "ev:bfb10fc8df18c0293c529bbdfb6dbe976eed7cd2675b0f2046261b006bce7643",
+        "ev:e1d5ce2e3645b71e923ddbd20225e3f2810e336f7fdb01776e7c5161569a4928",
+        "ev:e7741541b7337c8d507af28d8d18185aa764a043a33521fb6bf794740747743a"
+      ]
+    },
+    {
+      "assertionId": "prose:c6f21ecc4c50f84717683f6538a3b2ff44f6c8a3e8656bfee00f106c0e55454f",
+      "statementSha256": "c6f21ecc4c50f84717683f6538a3b2ff44f6c8a3e8656bfee00f106c0e55454f",
+      "assertionKind": "open_question",
+      "index": 1,
+      "documentSlug": "salesforce-cdc-replay-persistence-retention-and-gap-recovery",
+      "documentConcept": "Salesforce CDC replay persistence retention and gap recovery",
+      "canonicalConceptId": "concept:885850da4e18cc213a7616242dbbe79b6a12d116061b0323df6f4c062a7bc8f7",
+      "text": "How should the application couple durable processing and cursor persistence so a crash cannot advance its checkpoint beyond completed work?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://salesforcekafkaconnector.com/concepts/offsets-and-recovery/",
+        "https://www.ampersand.ai/blog/change-data-capture-for-salesforce-api-integration-real-time-webhooks-without-the-plumbing"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:2a689516d934da044c9b90a17cc7e41ba43fdf3dc6f30bf3fb7f56dd7fedac41",
+      "statementSha256": "2a689516d934da044c9b90a17cc7e41ba43fdf3dc6f30bf3fb7f56dd7fedac41",
+      "assertionKind": "open_question",
+      "index": 2,
+      "documentSlug": "salesforce-cdc-replay-persistence-retention-and-gap-recovery",
+      "documentConcept": "Salesforce CDC replay persistence retention and gap recovery",
+      "canonicalConceptId": "concept:885850da4e18cc213a7616242dbbe79b6a12d116061b0323df6f4c062a7bc8f7",
+      "text": "Which application checkpoint and case-state update mechanism will make crash recovery safe?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://salesforcekafkaconnector.com/concepts/offsets-and-recovery/",
+        "https://www.ampersand.ai/blog/change-data-capture-for-salesforce-api-integration-real-time-webhooks-without-the-plumbing"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:e5555364cd9e269221d673f48a500459da22ebe185964c6f127614ada3b2bf57",
+      "statementSha256": "e5555364cd9e269221d673f48a500459da22ebe185964c6f127614ada3b2bf57",
+      "assertionKind": "open_question",
+      "index": 3,
+      "documentSlug": "salesforce-cdc-replay-persistence-retention-and-gap-recovery",
+      "documentConcept": "Salesforce CDC replay persistence retention and gap recovery",
+      "canonicalConceptId": "concept:885850da4e18cc213a7616242dbbe79b6a12d116061b0323df6f4c062a7bc8f7",
+      "text": "Which authoritative reconciliation procedure will this deployment use after an outage beyond retention, including for hard-deleted cases?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://salesforcekafkaconnector.com/concepts/offsets-and-recovery/",
+        "https://www.ampersand.ai/blog/change-data-capture-for-salesforce-api-integration-real-time-webhooks-without-the-plumbing"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:953ad1dab5f743e7f6436dde2652ef4ce6244f60c31480c087b1ddc7da8f7b43",
+        "ev:e1d5ce2e3645b71e923ddbd20225e3f2810e336f7fdb01776e7c5161569a4928"
+      ]
+    }
+  ]
+}
