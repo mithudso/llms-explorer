@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from skill_registry.catalog import Catalog
@@ -55,6 +57,107 @@ def test_cycles_do_not_prevent_alias_coverage(skill, roots, tmp_path):
     status = Catalog(tmp_path / "state", roots).refresh()
     assert status["counts"]["skills"] == 1
     assert not status["partial"]
+
+
+def test_discovery_large_regular_file_fanout_uses_directory_entry_metadata(tmp_path, monkeypatch):
+    root = tmp_path / "plugins"
+    fanout = root / "runtime"
+    fanout.mkdir(parents=True)
+    for index in range(4096):
+        (fanout / f"asset-{index:04}.bin").write_bytes(b"runtime asset")
+    guide = root / "skills/example/SKILL.md"
+    guide.parent.mkdir(parents=True)
+    guide.write_text("---\nname: example\ndescription: Example workflow\n---\n")
+    catalog = Catalog(tmp_path / "state", [{"path": str(root), "label": "Plugin"}])
+    original_stat = Path.stat
+    probes = []
+
+    def guarded_stat(path, *args, **kwargs):
+        if path.parent == fanout:
+            probes.append(path.name)
+            pytest.fail("Discovery must not stat unrelated regular runtime files")
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", guarded_stat)
+    found, warnings, adapter = catalog._discover()
+    assert [item["path"] for item in found] == [str(guide)]
+    assert not probes and not warnings and adapter == "standalone-bounded"
+
+
+def test_discovery_resolves_only_roots_and_symlink_directories(tmp_path, monkeypatch):
+    root = tmp_path / "skills"
+    guide = root / "ordinary/deep/example/SKILL.md"
+    guide.parent.mkdir(parents=True)
+    guide.write_text("Guide")
+    alias = root / "alias"
+    alias.symlink_to(guide.parent, target_is_directory=True)
+    (guide.parent / "cycle").symlink_to(root, target_is_directory=True)
+    catalog = Catalog(tmp_path / "state", [{"path": str(root)}])
+    original_resolve = Path.resolve
+    resolutions = []
+
+    def record_resolve(path, *args, **kwargs):
+        resolutions.append(path)
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", record_resolve)
+    found, warnings, _ = catalog._discover()
+    assert {item["path"] for item in found} == {str(guide), str(alias / "SKILL.md")}
+    assert not warnings
+    assert root in resolutions and alias in resolutions
+    assert not any(path in resolutions for path in (root / "ordinary", root / "ordinary/deep", guide.parent))
+
+
+def test_scandir_discovery_limits_preserve_partial_warning_semantics(tmp_path, monkeypatch):
+    import skill_registry.catalog as module
+
+    root = tmp_path / "skills"
+    (root / "ordinary/deep").mkdir(parents=True)
+    catalog = Catalog(tmp_path / "state", [{"path": str(root)}])
+    monkeypatch.setattr(module, "MAX_DEPTH", 1)
+    found, warnings, _ = catalog._discover()
+    assert not found
+    assert warnings == [f"Discovery limit reached at {root / 'ordinary/deep'}"]
+    monkeypatch.setattr(module, "MAX_DEPTH", 32)
+    monkeypatch.setattr(module, "MAX_DIRS", 1)
+    found, warnings, _ = catalog._discover()
+    assert not found
+    assert warnings == [f"Discovery limit reached at {root / 'ordinary'}"]
+
+
+def test_scandir_partial_read_preserves_previously_known_aliases(skill, roots, tmp_path, monkeypatch):
+    import skill_registry.catalog as module
+
+    blocked = skill.parent / "blocked"
+    blocked.mkdir()
+    (blocked / "SKILL.md").write_text("---\nname: blocked\ndescription: Keep prior source\n---\n")
+    catalog = Catalog(tmp_path / "state", roots)
+    assert catalog.refresh()["counts"]["skills"] == 2
+    original_scandir = module.os.scandir
+
+    def failing_scandir(path):
+        if Path(path) == blocked:
+            raise PermissionError("temporary discovery failure")
+        return original_scandir(path)
+
+    monkeypatch.setattr(module.os, "scandir", failing_scandir)
+    result = catalog.refresh()
+    assert result["partial"] and result["warnings"] == [f"{blocked}: PermissionError"]
+    assert result["counts"] == {"skills": 2, "installations": 2, "invalid_skills": 0}
+
+
+def test_scandir_preserves_file_symlink_installations(tmp_path):
+    source = tmp_path / "canonical/definition.md"
+    source.parent.mkdir()
+    source.write_text("---\nname: linked\ndescription: Source file alias\n---\n")
+    root = tmp_path / "skills"
+    for name in ("one", "two"):
+        alias = root / name / "SKILL.md"
+        alias.parent.mkdir(parents=True)
+        alias.symlink_to(source)
+    result = Catalog(tmp_path / "state", [{"path": str(root)}]).refresh()
+    assert not result["partial"]
+    assert result["counts"] == {"skills": 1, "installations": 2, "invalid_skills": 0}
 
 
 def test_lookup_preserves_explicit_disable_without_enabling_sources(skill, roots, tmp_path, monkeypatch):

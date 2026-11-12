@@ -150,25 +150,34 @@ class Catalog:
             base = Path(root["path"]).expanduser().absolute()
             if not base.exists():
                 continue
-            def walk(path, depth=0, ancestors=frozenset()):
+            def walk(path, depth=0, ancestors=frozenset(), resolved=None):
                 nonlocal visited
                 try:
-                    target = path.resolve(strict=True)
+                    # Ordinary child directories cannot add a symlink component
+                    # to an already resolved parent. Resolve only roots and links;
+                    # repeated full-path lstat chains dominate large plugin trees.
+                    target = resolved if resolved is not None else path.resolve(strict=True)
                     if target in ancestors:
                         return
                     if depth > MAX_DEPTH or visited >= MAX_DIRS:
                         warnings.append(f"Discovery limit reached at {path}")
                         return
                     visited += 1
-                    for item in sorted(path.iterdir()):
-                        if item.name in SKIP or item.name.startswith(".skillsx-"):
+                    descendants = ancestors | {target}
+                    with os.scandir(path) as stream:
+                        entries = sorted(stream, key=lambda entry: entry.name)
+                    for entry in entries:
+                        if entry.name in SKIP or entry.name.startswith(".skillsx-"):
                             continue
-                        if item.name == "SKILL.md" and item.is_file():
+                        if entry.name == "SKILL.md" and entry.is_file():
+                            item = path / entry.name
                             found.append({"path": str(item), "label": root.get("label", "Configured"),
                                           "writable": bool(root.get("writable", True)),
                                           "root": str(base)})
-                        elif item.is_dir():
-                            walk(item, depth + 1, ancestors | {target})
+                        elif entry.is_dir(follow_symlinks=False):
+                            walk(path / entry.name, depth + 1, descendants, target / entry.name)
+                        elif entry.is_symlink() and entry.is_dir():
+                            walk(path / entry.name, depth + 1, descendants)
                 except (OSError, RuntimeError) as exc:
                     warnings.append(f"{path}: {type(exc).__name__}")
 
