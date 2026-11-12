@@ -82,7 +82,7 @@ export interface PackRelated {
 export interface PackNarrative {
   assertionId: string;
   statementSha256: string;
-  assertionKind: "summary";
+  assertionKind: "summary" | "disagreement" | "open_question";
   index: number;
   documentSlug: string;
   documentConcept: string;
