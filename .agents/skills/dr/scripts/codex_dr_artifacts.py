@@ -84,6 +84,48 @@ def pack_identity_matches(old_name, name: str, slug: str, nodes: list[dict]) -> 
                for node in nodes)
 
 
+def canonical_narrative(doc: dict) -> list[dict]:
+    """Project all bound auxiliary rows, without qualifying producer prose."""
+    if "auxiliary_assertions" not in doc:
+        return []  # Legacy documents may contain unjudged summary text.
+    assertions = doc["auxiliary_assertions"]
+    if not isinstance(assertions, list):
+        raise TypeError("compiled narrative lacks its canonical auxiliary judgments")
+    if not assertions:
+        if doc.get("summary", "").strip() or doc.get("disagreements") or doc.get("open_questions"):
+            raise ValueError("compiled narrative lacks its canonical auxiliary judgments")
+        return []
+    if (not isinstance(assertions[0], dict) or not isinstance(assertions[0].get("concept_slug"), str)
+            or not assertions[0]["concept_slug"]):
+        raise ValueError("compiled narrative differs from its canonical auxiliary judgment")
+    gate = load_module("compiled_auxiliary_contract", Path(__file__).with_name("research_gate.py"))
+    expected = gate.auxiliary_rows(assertions[0]["concept_slug"], doc)
+    if len(assertions) != len(expected):
+        raise ValueError("compiled narrative lacks complete canonical auxiliary coverage")
+    narrative = []
+    for assertion, row in zip(assertions, expected):
+        if (not isinstance(assertion, dict) or type(assertion.get("index")) is not int
+                or any(assertion.get(key) != value for key, value in row.items())
+                or assertion.get("validation_status") not in ("SUPPORTED", "NO-FACTUAL-ASSERTION")
+                or not isinstance(assertion.get("evidence_ids"), list)
+                or any(not isinstance(value, str) or not value for value in assertion["evidence_ids"])
+                or len(set(assertion["evidence_ids"])) != len(assertion["evidence_ids"])
+                or (assertion["validation_status"] == "SUPPORTED" and not assertion["evidence_ids"])
+                or (assertion["validation_status"] == "NO-FACTUAL-ASSERTION" and assertion["evidence_ids"])):
+            raise ValueError("compiled narrative differs from its canonical auxiliary judgment")
+        if not row["sources"] or any(not url.startswith(("https://", "http://")) for url in row["sources"]):
+            raise ValueError("compiled narrative requires original HTTP source URLs")
+        narrative.append({
+            "assertionId": assertion["claim_id"], "statementSha256": assertion["claim_sha256"],
+            "assertionKind": assertion["assertion_kind"], "index": assertion["index"],
+            "documentSlug": assertion["concept_slug"], "documentConcept": doc["concept"],
+            "canonicalConceptId": doc.get("canonical_concept_id"),
+            "text": assertion["text"], "sources": list(assertion["sources"]),
+            "validationStatus": assertion["validation_status"], "evidenceIds": list(assertion["evidence_ids"]),
+        })
+    return narrative
+
+
 def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], status: str,
                    artifact_sha: str | None = None, concept_id: str | None = None) -> None:
     """Use the existing compiler with trusted rows; no lossy text re-harvest."""
@@ -93,25 +135,11 @@ def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], statu
         # Only the auxiliary assertions from the verified canonical artifact
         # qualify prose. A summary or producer-supplied proposal flag alone does not.
         if artifact_sha:
-            for assertion in doc.get("auxiliary_assertions", []):
-                if assertion["assertion_kind"] != "summary":
-                    continue
-                verdict = assertion["validation_status"]
-                evidence = assertion["evidence_ids"]
-                if (assertion["text"] != doc.get("summary")
-                        or verdict not in ("SUPPORTED", "NO-FACTUAL-ASSERTION")
-                        or (verdict == "SUPPORTED" and not evidence)
-                        or (verdict == "NO-FACTUAL-ASSERTION" and evidence)):
-                    raise ValueError("compiled narrative differs from its canonical auxiliary judgment")
-                narrative.append({
-                    "assertionId": assertion["claim_id"],
-                    "statementSha256": assertion["claim_sha256"],
-                    "assertionKind": assertion["assertion_kind"], "index": assertion["index"],
-                    "documentSlug": assertion["concept_slug"], "documentConcept": doc["concept"],
-                    "canonicalConceptId": doc.get("canonical_concept_id"),
-                    "text": assertion["text"], "sources": list(assertion["sources"]),
-                    "validationStatus": verdict, "evidenceIds": list(evidence),
-                })
+            narrative.extend(canonical_narrative(doc))
+    identities = [row["assertionId"] for row in narrative]
+    if len(identities) != len(set(identities)):
+        raise ValueError("compiled narrative contains duplicate canonical auxiliary identities")
+    for doc in docs:
         for claim in doc["claims"]:
             if claim.get("validation_status") == "NO-FACTUAL-ASSERTION":
                 raise ValueError("nonfactual auxiliary prose cannot be compiled as a claim")
