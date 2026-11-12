@@ -150,25 +150,34 @@ class Catalog:
             base = Path(root["path"]).expanduser().absolute()
             if not base.exists():
                 continue
-            def walk(path, depth=0, ancestors=frozenset()):
+            def walk(path, depth=0, ancestors=frozenset(), resolved=None):
                 nonlocal visited
                 try:
-                    target = path.resolve(strict=True)
+                    # Ordinary child directories cannot add a symlink component
+                    # to an already resolved parent. Resolve only roots and links;
+                    # repeated full-path lstat chains dominate large plugin trees.
+                    target = resolved if resolved is not None else path.resolve(strict=True)
                     if target in ancestors:
                         return
                     if depth > MAX_DEPTH or visited >= MAX_DIRS:
                         warnings.append(f"Discovery limit reached at {path}")
                         return
                     visited += 1
-                    for item in sorted(path.iterdir()):
-                        if item.name in SKIP or item.name.startswith(".skillsx-"):
+                    descendants = ancestors | {target}
+                    with os.scandir(path) as stream:
+                        entries = sorted(stream, key=lambda entry: entry.name)
+                    for entry in entries:
+                        if entry.name in SKIP or entry.name.startswith(".skillsx-"):
                             continue
-                        if item.name == "SKILL.md" and item.is_file():
+                        if entry.name == "SKILL.md" and entry.is_file():
+                            item = path / entry.name
                             found.append({"path": str(item), "label": root.get("label", "Configured"),
                                           "writable": bool(root.get("writable", True)),
                                           "root": str(base)})
-                        elif item.is_dir():
-                            walk(item, depth + 1, ancestors | {target})
+                        elif entry.is_dir(follow_symlinks=False):
+                            walk(path / entry.name, depth + 1, descendants, target / entry.name)
+                        elif entry.is_symlink() and entry.is_dir():
+                            walk(path / entry.name, depth + 1, descendants)
                 except (OSError, RuntimeError) as exc:
                     warnings.append(f"{path}: {type(exc).__name__}")
 
@@ -243,7 +252,7 @@ class Catalog:
                 "index": "SQLite FTS5 lexical; no embeddings or legacy indexer",
                 "authority": "Live source files; catalog is derived"}
 
-    def _row(self, db, sid: str) -> dict:
+    def _row(self, db, sid: str, *, disabled: set[str] | None = None) -> dict:
         row = db.execute("SELECT * FROM skills WHERE id=?", (sid,)).fetchone()
         if row is None:
             raise KeyError("No such indexed skill")
@@ -254,7 +263,7 @@ class Catalog:
         result["description"] = result["description"][:1200]
         result["installations"] = [dict(r) for r in db.execute(
             "SELECT path,label,writable,root FROM aliases WHERE skill_id=? ORDER BY path", (sid,))]
-        disabled = _codex_disabled()
+        disabled = _codex_disabled() if disabled is None else disabled
         for installation in result["installations"]:
             installation["codex_activation"] = (
                 "explicitly-disabled" if installation["path"] in disabled or result["path"] in disabled
