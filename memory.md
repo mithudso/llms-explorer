@@ -853,3 +853,11 @@ Remaining: research, original-source authority audits, exact-span semantic gates
 - Stele outbox:6242245a,56a03c7a. Shared site-origin.json maps the legacy Cloudflare SITE_URL to llmsx.org; no deployment settings or secrets were changed.
 - Packaging audit found private llms-txt blocked normal public installation. LLMSX0.2.8 now keeps the renderer in optional corpus/dev extras; public base/TUI paths install normally. Anonymous [tui] wheel install with Git config disabled and actual installed context/guide commands passes. Real exact-source Codex project skill install matches12files and is cleaned.
 - Remaining: final regressions, independent claims/desktop/mobile checks, commit/push/PR/CI/merge, production verification and clean task checkout. Delta:0.22.129 to0.22.131; prompt112.
+
+## Atlas IP access-list checkpoint - 2026-11-12T05:06:05.808050+00:00
+
+Version: 1.0.0. The bounded source-defined question has independent whole-question acceptance and all 29 current native v4 assertions accepted (28 SUPPORTED, one NO-FACTUAL-ASSERTION). Its 27 stored facts have exact canonical/reader/download parity and eight matching site/hub pack members. Existing fields, queue bytes, held work and prior accepted scopes remain preserved. Source delivery and live acceptance are separate gates; broader MongoDB research and Voyage AI frontier expansion remain in progress.
+
+## Atlas complete assertion projection - 2026-11-12T05:59:33.125260+00:00
+
+Version: 1.0.1. The first publication candidate had exact parity for its 27 structured facts but omitted the accepted CLI documentation disagreement from its narrative export. The repaired candidate now preserves all 29 canonical assertion identities: 27 unchanged structured facts plus the summary and the attributed disagreement. Both narrative assertions retain exact text, ordered sources, evidence IDs and verdicts. The eight site/hub pack members match; original November 11 dates, canonical identity, existing node fields, prior scopes and queue bytes are unchanged. Independent whole-question acceptance and current native gate receipts are retained; no research, gate, source, semantic or native finalization rerun occurred. Paired source delivery and live acceptance remain separate pending gates.
