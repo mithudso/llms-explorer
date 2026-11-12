@@ -1963,3 +1963,9 @@ Scope: validate factual auxiliary prose; preserve canonical evidence with option
   - Fully research and resolve all open MongoDB concept-tree areas, validate everything, then expand the frontier including Voyage AI.
 - Authorized continuation:
   - Repair only the accepted Atlas projection from its unchanged canonical artifact after the complete-assertion compiler fix reached main. Preserve original dates, all 27 facts, existing nodes, holds, queues and paused services.
+
+## Prompt — 2026-11-12 — Salesforce Pub/Sub case alerting (TASK-1517)
+
+- User request: Run the full-suite skill on Salesforce Pub/Sub case alerting.
+- Seed: https://developer.salesforce.com/docs/service/service-presence-developer-guide/guide/omnichannel-external-routing-subscribe-to-change-data-capture-event-notificat.html
+- Authorized scope: public-source concept-family research, source-bound skill and llms artifacts, independent claim gates, and a cited ESRE integration assessment. Preserve service and embedding pauses; no Salesforce org changes or customer-case access.

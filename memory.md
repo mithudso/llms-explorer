@@ -1,5 +1,9 @@
 # Memory
 
+## Salesforce Pub/Sub research checkpoint — 2026-11-12
+
+TASK-1517 is active. The full-suite plan has 30 scored candidates, 19 selected concepts and 11 deliberate skips, with source-sharing cohorts of 6/6/7. Preliminary scouting covers all 19 concepts. Native source-bound research is running through the repository adapter; no factual publication, skill installation, saturation or completed full-suite claim is made by this checkpoint. Runtime source bodies and attempts remain private. Embeddings and shared services remain paused. See docs/research/salesforce-pubsub-full-suite-2026-11-12/README.md and plan.json.
+
 ## v0.22.196 — 2026-11-11 repository SKO audit and scoped delivery
 
 Version:0.22.196. Delta:v0.22.195 to v0.22.196; prompt150; all-skill maintenance TASK-1372; PR340.
