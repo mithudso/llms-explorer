@@ -20,6 +20,30 @@ def ratio(numerator, denominator):
     return format(d, "f")
 
 
+def fleet_example(amounts):
+    charges = [Decimal(amount) for amount in amounts]
+    require(
+        all(Decimal(0) <= charge <= Decimal(30) for charge in charges),
+        "every modeled component charge is between 0 and 30",
+    )
+    total = sum(charges, Decimal(0))
+    bound = Decimal(30) * len(charges)
+    require(total <= bound, "modeled fleet component bound")
+    require(
+        Fraction(total) == sum((Fraction(x) for x in charges), Fraction(0)),
+        "fleet-sum Fraction replay",
+    )
+    require(
+        Fraction(bound) == Fraction(30) * len(charges), "fleet-bound Fraction replay"
+    )
+    return {
+        "N": len(charges),
+        "charges": [format(x, "f") for x in charges],
+        "sum": format(total, "f"),
+        "upper_bound": format(bound, "f"),
+    }
+
+
 def main():
     with localcontext() as context:
         context.prec = 40
@@ -38,6 +62,16 @@ def main():
         )
         component_sum = Decimal(700) + Decimal(1000)
         require(component_sum == Decimal(1700), "reported component addition")
+        fleet_examples = [
+            fleet_example(charges)
+            for charges in ([], ["30"], ["30", "30"], ["8", "15", "21", "26", "30"])
+        ]
+        try:
+            fleet_example(["31"])
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError("out-of-bound input must be rejected")
         result = {
             "schema": "conditional-pricing-arithmetic/v1",
             "kind": "firsthand synthetic calculation; not vendor benchmark or measured spend",
@@ -45,6 +79,13 @@ def main():
             "independent_fraction_replay": "passed",
             "independent_origin_credit": 0,
             "actual_invoice_or_TCO_measurement": False,
+            "fleet_component_bound": {
+                "formula": "sum(c_i) <= 30N",
+                "premises": "N is a nonnegative integer and each included component charge c_i satisfies 0 <= c_i <= 30 for the same period, currency and charge scope.",
+                "deduction": "Add the N inequalities c_i <= 30: sum(c_i) <= sum(30) = 30N. This is a conditional algebraic derivation; finite executable examples are illustrations, not an empirical proof of a universal statement.",
+                "examples": fleet_examples,
+                "out_of_bound_input_rejected": True,
+            },
             "assumptions": {
                 "periods_and_charge_scope": "Amounts are comparable only if their periods, currency, geography, applicable terms and included charge components match.",
                 "fleet": "Each Flex cluster charge component is assumed at a 30 currency-unit cap; one shared cluster is assumed to cost 57 for the same period and charge scope; aggregate workload must fit. Other service charges are excluded.",
@@ -59,7 +100,9 @@ def main():
                 "two_flex_at_cap": "60",
                 "illustrative_730h_at_008": format(hourly, "f"),
                 "difference_from_5694": format(hourly - Decimal("56.94"), "f"),
-                "reported3000_to160_cash_change_percent": ratio("284000", "3000"),
+                "reported3000_to160_cash_change_percent": ratio(
+                    str((Decimal(3000) - Decimal(160)) * 100), "3000"
+                ),
                 "reported700_plus1000": format(component_sum, "f"),
                 "component_share_using3000_baseline_percent": ratio("170000", "3000"),
             },

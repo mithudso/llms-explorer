@@ -18,6 +18,19 @@ Fraction independently.
 | Reported cash amounts | 3000 → 160 | 94.666666…% lower, approximately 95%. The actual post reports over 3000, so 3000 is an illustrative baseline. Availability, staffing, tax and service scopes are not matched |
 | Reported component sum/share | 700 + 1000, divided by 3000 | 1700 and 56.666666…%, approximately 57%. With a total strictly above 3000, the exact share is below 56.666666…% |
 
+For any nonnegative integer N, assume that each included Flex cluster-charge
+component c_i satisfies 0 ≤ c_i ≤ 30 for the same period, currency and charge
+scope. Adding the N inequalities gives:
+
+`sum(c_i) ≤ sum(30) = 30N`.
+
+Equality requires every included component to reach the cap. This is a
+conditional algebraic bound on the stated component; it does not cap an entire
+Atlas invoice. The executable checks illustrative fleets, replays their sums
+and bounds with Fraction, and rejects a component above the assumed cap.
+Those finite examples do not constitute an empirical proof of a universal
+statement; the general result follows by adding the component inequalities.
+
 Primary documents must separately establish the applicability of vendor inputs.
 MongoDB’s Flex cost guide reports an 8–30 monthly cluster charge range and its
 pricing page displays a 56.94 monthly starting headline and 0.08 hourly amount.
