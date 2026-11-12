@@ -97,7 +97,7 @@ def extract_urls(text: str) -> list[str]:
 
 
 def iter_documents(root: str | Path) -> Iterator[dict]:
-    """Yield one facts rendering per pack, falling back to the full rendering.
+    """Yield facts, full, or a v3 single-file rendering, in that order.
 
     A recorded ``SUPPORTED`` status is metadata, never independent proof that a
     current rendering is qualified. Every document starts as ``unreviewed``.
@@ -109,7 +109,7 @@ def iter_documents(root: str | Path) -> Iterator[dict]:
         if manifest_result is None:
             continue
         manifest, manifest_sha = manifest_result
-        for filename in ("llms-facts.txt", "llms-full.txt"):
+        for filename in ("llms-facts.txt", "llms-full.txt", "llms.txt"):
             path = pack / filename
             if path.is_file() and _contained(path, root_path):
                 break
