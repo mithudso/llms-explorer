@@ -875,3 +875,7 @@ Version: 1.0.1. The first publication candidate had exact parity for its 27 stru
 ## MongoDB Oplog retention sizing under burst writes publication v1.0.0
 
 Publish 23 structured facts and 4 complete auxiliary assertions after independent whole-question acceptance. Preserve their exact identities, ordered citations, evidence, verdicts, temporal applicability and original research dates. All other scopes, holds, queues and paused services remain intact. Paired source/default and live/API acceptance have separate receipts.
+
+## MongoDB Infrastructure-as-code alert configuration publication v1.0.0
+
+Publish 17 structured facts and 2 complete auxiliary assertions after independent whole-question acceptance. Preserve their exact identities, ordered citations, evidence, verdicts, temporal applicability and original research dates. All other scopes, holds, queues and paused services remain intact. Paired source/default and live/API acceptance have separate receipts.
