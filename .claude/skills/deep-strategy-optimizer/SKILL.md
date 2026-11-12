@@ -1,17 +1,7 @@
 ---
 name: deep-strategy-optimizer
 description: >-
-  Audit-and-fix convergence optimizer for trading strategies, indicators, strategy cards and their
-  backtests, one pass per evaluation method (273 passes, 9 families: data integrity,
-  out-of-sample, multiple testing, risk metrics, robustness, costs and execution, regimes,
-  indicator quality, reproducibility). Classifies strategy vs indicator, skips inapplicable
-  passes, applies Medium+ fixes, verifies with the project's tests, loops to convergence. Opt-in
-  `--promote` runs a gated champion-challenger climb; "no promotion" is normal. TRIGGER: "run
-  dso"; "optimize this strategy"; "evaluate this indicator"; "audit this backtest"; "is this
-  signal real"; "make this strategy more profitable"; "why does this fail out of sample". SKIP:
-  code quality with no backtest semantics to code-deep-optimizer; prose to document-critique;
-  prompts to prompt-deep-optimizer; SKILL.md to skill-optimizer; SQL to deep-query-optimizer; how
-  markets work to trading-and-investing; live order routing to the owning codebase.
+  Audit trading strategies, indicators, cards and the backtests behind their claims. TRIGGER: "run dso", "audit this backtest", "is this signal real", "optimize this strategy", "evaluate this indicator", "why does it fail out of sample". Uses 273 method passes in 9 families: integrity, out-of-sample, multiple testing, risk, robustness, costs, regimes, indicator quality and reproducibility. Classify applicability, fix Medium+, verify with project tests and loop; --promote is opt-in, gated and may decline every candidate. SKIP: code quality without strategy semantics → code-deep-optimizer; prose → writing-expert (references/document-critique.md); prompts → prompt-deep-optimizer; SKILL.md → skill-optimizer; SQL → deep-query-optimizer; market education → trading-and-investing; live order routing → the owning codebase.
 whenToUse:
   - "run dso on <strategy or indicator>"
   - "audit this backtest for lookahead and cost bugs"
@@ -23,8 +13,11 @@ related_skills: [code-deep-optimizer, trading-and-investing, deep-optimizer]
 origin: local
 model: claude-opus-5-5
 effort: xhigh
-version: "2.0.0"
-updated: "2026-11-07"
+version: "2.1.1"
+updated: "2026-11-11"
+category: developer
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 > **Output rules:** Skip preamble and recaps. When delivering changes, output diffs/edits directly —
@@ -108,6 +101,8 @@ verify commands before the first run (§ Verify gate).
 | `--margin=X` | promotion margin on the holdout score (§ Promotion track) |
 | `--cross-model` | cross-model exit gate (default OFF) per `references/shared/cross-model-gate.md` |
 
+`--read-only`/`--report` suppress all writes and the promotion track, even with `--promote`. `--no-verify` disables promotion because the full-suite veto cannot be established; label the defect review UNVERIFIED. Do not run simulations, search, live orders or research collection without the scope needed for that action.
+
 ## Stage 0 — Detect, classify, and filter
 
 ### 0.1 What you were given
@@ -171,7 +166,7 @@ lacks, and which this skill cannot run, is Medium.
 | Canonical | Here | Example |
 | --- | --- | --- |
 | Blocking/Critical | **Critical** | A reported number is wrong or unsupported: one-bar lookahead, a cost omitted or double-counted, equity that does not reconcile, a hit rate tested against 0.5 instead of its base rate, a figure no result file contains, a card default that is not the code's default |
-| High/Major | **High** | The number is right but means much less than claimed: single-split evidence presented as robust, comparison to zero when N configurations were searched, a result below the evidence floor reported as an improvement, a degenerate twin inflating breadth |
+| High/Major | **High** | The number is right but means much less than claimed: single-split evidence presented as stable, comparison to zero when N configurations were searched, a result below the evidence floor reported as an improvement, a degenerate twin inflating breadth |
 | Medium | **Medium** | Reduces trust or reproducibility without invalidating: missing perturbation check, no benchmark comparison, undocumented failure mode, non-deterministic run |
 | Low | Low | Subjective polish — skip |
 | Nit | Nit | Formatting — skip |
@@ -292,7 +287,7 @@ whose pass does not apply to the target kind passes vacuously and is logged `vet
 
 **Refuse to run when the split cannot carry a verdict:** require at least **8 usable CV blocks**,
 at least **5** held out; otherwise report `promotion: declined (holdout too small: N blocks)` and
-run the defect track only. Warm-up shrinks the block set (OV-13), and splitting halves the trade
+run the defect track only. The shared promotion contract additionally requires at least 30 independent working cases and 30 independent holdout cases (50 holdout cases before a gain is more than directional). Where the score unit is a CV block, count independent blocks, not correlated bars; 8 usable blocks with 5 held out supports exploratory diagnostics only and cannot promote. Warm-up shrinks the block set (OV-13), and splitting halves the trade
 count, so check ST-23 against each split.
 
 **The contract's three multiple-comparison corrections apply:** rounds are capped at

@@ -66,7 +66,7 @@ If the skill ships MCP tools or a large deferred-tool surface, hand the deep aud
 
 ## Registration still runs
 
-Registry registration is a kept capability, so **Step 7 runs in `--meta`** and is **not** a dry run. `--meta` changes the description and version, which is exactly what the router indexes, so the rebuild matters here as much as in a full run. The rebuild is suppressed only when `--no-sync` was passed or the run exited with High findings remaining (override: `--sync-anyway`); both are orthogonal to `--meta`. Under `--no-sync` or a withheld rebuild, the routing verify still runs read-only and reports `stale` or `unroutable` without retrying.
+Registry registration is a kept capability, so **Step 7 runs in `--meta`** and is **not** a dry run. `--meta` changes the description and version, which is exactly what the router indexes, so the rebuild matters here as much as in a full run. Apply the complete Step 7 gate in `sync-protocol.md`: withhold the rebuild under `--no-sync`, residual High findings, an existing service/index pause, or a write outside authorized ownership and scope. `--sync-anyway` overrides only residual High findings; it grants no authority and does not lift pauses. These gates also apply in `--meta`. Under `--no-sync` or a withheld rebuild, the routing verify still runs read-only and reports `stale` or `unroutable` without retrying.
 
 ## Report shape
 

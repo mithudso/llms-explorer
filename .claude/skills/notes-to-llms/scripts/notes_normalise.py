@@ -234,18 +234,36 @@ def _iter_inputs(paths: list[Path]) -> list[Path]:
     files: list[Path] = []
     for p in paths:
         if p.is_dir():
-            files.extend(sorted(q for q in p.rglob("*") if q.is_file()))
-        elif p.is_file():
+            files.extend(sorted(q for q in p.rglob("*") if q.is_file() or q.is_symlink()))
+        else:
             files.append(p)
-    return [f for f in files if not any(part.startswith(".") for part in f.parts)]
+    return files
 
 
-def _relpath(path: Path, roots: list[Path]) -> str:
+def _source_identity(path: Path, roots: list[Path], *, namespace: bool) -> tuple[str, str]:
+    """Display path and root-qualified input identity, without following an alias."""
+    for root in roots:
+        try:
+            relative = path.absolute().relative_to(root.absolute()).as_posix()
+        except ValueError:
+            continue
+        identity = hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:8]
+        qualified = f"{root.name}-{identity}/{relative}"
+        return (qualified if namespace else relative), qualified
+    return path.name, "unscoped/" + path.name
+
+
+def _relpath(path: Path, roots: list[Path], *, namespace: bool = False) -> str:
     for root in roots:
         try:
             rel = path.resolve().relative_to(root.resolve())
         except ValueError:
             continue
+        if namespace:
+            # Different selected roots can both contain notes.md. Keep their
+            # sources distinct without embedding an operator's absolute path.
+            identity = hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:8]
+            return f"{root.name}-{identity}/{rel.as_posix()}"
         return rel.as_posix()
     return path.name
 
@@ -254,7 +272,8 @@ def normalise(
     inputs: list[Path], *, project: str, base_url: str | None = None
 ) -> tuple[list[dict], dict]:
     """(pages, report). A page is ``{url, path, title, text, headings, ...}``."""
-    roots = [p for p in inputs if p.is_dir()] or [p.parent for p in inputs]
+    roots = list(dict.fromkeys(p if p.is_dir() else p.parent for p in inputs))
+    namespace = len({p.resolve() for p in roots}) > 1
     pages: list[dict] = []
     report = {
         "project": project,
@@ -264,24 +283,48 @@ def normalise(
         "skipped_unreadable": [],
         "pages_without_headings": [],
         "duplicate_anchors": [],
+        "source_statuses": [],
     }
     by_hash: dict[str, str] = {}
+    explicit_files = {p.absolute() for p in inputs if not p.is_dir()}
 
     for path in _iter_inputs(inputs):
+        display, source_id = _source_identity(path, roots, namespace=namespace)
+        status = {"source_id": source_id, "path": display}
+        report["source_statuses"].append(status)
+        if not any(path.resolve().is_relative_to(root.resolve()) for root in roots):
+            status.update(status="outside-root", reason="symlink target outside input roots")
+            report["skipped_unreadable"].append(
+                {"path": display, "reason": status["reason"]}
+            )
+            continue
+        if not path.is_file():
+            status.update(status="unreadable", reason="missing or non-file input")
+            report["skipped_unreadable"].append({"path": display, "reason": status["reason"]})
+            continue
+        # Exclude hidden descendants of a walked root, not hidden ancestors of
+        # the root the caller explicitly selected. Keep their disposition visible.
+        relative = next((path.absolute().relative_to(root.absolute()) for root in roots
+                         if path.absolute().is_relative_to(root.absolute())), Path(path.name))
+        if path.absolute() not in explicit_files and any(part.startswith(".") for part in relative.parts):
+            status.update(status="excluded-hidden", reason="hidden descendant of selected root")
+            continue
         suffix = path.suffix.lower()
         if suffix not in TEXT_SUFFIXES and suffix not in HTML_SUFFIXES:
+            status.update(status="unsupported", reason=f"unsupported suffix {suffix or '(none)'}")
             report["skipped_unreadable"].append(
                 {
-                    "path": _relpath(path, roots),
-                    "reason": f"unsupported suffix {suffix or '(none)'}",
+                    "path": display,
+                    "reason": status["reason"],
                 }
             )
             continue
         report["files_seen"] += 1
         raw = _read(path)
         if raw is None:
+            status.update(status="unreadable", reason="unreadable")
             report["skipped_unreadable"].append(
-                {"path": _relpath(path, roots), "reason": "unreadable"}
+                {"path": display, "reason": status["reason"]}
             )
             continue
 
@@ -290,16 +333,18 @@ def normalise(
         text = unicodedata.normalize("NFC", text.replace("\r\n", "\n"))
         text = setext_to_atx(text).strip()
 
-        rel = _relpath(path, roots)
+        rel = _relpath(path, roots, namespace=namespace)
         if len(text) < MIN_PAGE_CHARS:
             report["dropped_empty_pages"] += 1
+            status.update(status="empty", reason=f"normalized text shorter than {MIN_PAGE_CHARS} characters")
             continue
 
         digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
         if digest in by_hash:
             report["dropped_duplicates"] += 1
+            status.update(status="duplicate", duplicate_of=by_hash[digest], sha256=digest)
             continue
-        by_hash[digest] = rel
+        by_hash[digest] = source_id
 
         headings = _headings(text)
         if not headings:
@@ -309,6 +354,7 @@ def normalise(
                 report["duplicate_anchors"].append({"path": rel, "anchor": h["anchor"]})
 
         base = base_url.rstrip("/") if base_url else f"/{project}"
+        status.update(status="kept", source_url=f"{base}/{rel}", sha256=digest)
         pages.append(
             {
                 "url": f"{base}/{rel}",
@@ -322,6 +368,7 @@ def normalise(
         )
 
     report["pages"] = len(pages)
+    report["input_files"] = len(report["source_statuses"])
     report["headings"] = sum(len(p["headings"]) for p in pages)
     return pages, report
 

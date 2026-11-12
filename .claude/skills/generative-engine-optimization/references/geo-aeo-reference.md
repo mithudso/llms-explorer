@@ -207,9 +207,7 @@ Practical cadence: review and update key citation-target pages at least quarterl
 | Anthropic irony | Anthropic publishes its own llms.txt but does not state its crawlers read others' |
 | Recommendation | Negligible cost to add; zero evidence of citation benefit today |
 
-Do not present llms.txt as a working citation signal. Present it as a low-cost
-future-proofing step that may matter if adoption grows — and explicitly note no
-major provider currently reads it.
+Treat the cited non-adoption observations as dated study results, not a universal current claim. Distinguish provider retrieval, directed-agent access and citation benefit: a directed agent fetching a file does not establish search-engine uptake or a measured citation lift, and an old provider-support study does not establish present-day non-use. Verify present-day claims against readable primary documentation or a current study; otherwise retain the original date, sample and uncertainty.
 
 **Update 2026-08-30 (from document-formats/references/llms-txt*.md).** Spec is now v2 (llmstxt.org, modified 2026-08-10): subpath
 files scope to their path, discovery via `Link: rel="describedby"` / `rel="alternate" type="text/markdown"`,

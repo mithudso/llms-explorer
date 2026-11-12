@@ -151,7 +151,7 @@ C3 counterexample covers it. The one Low (M1) is recorded but not fixed.
 -  return out;
 +  return results.filter((r) => r.status === "fulfilled").map((r) => r.value);
  }
- 
+
  export function summarize(items) {
 ```
 

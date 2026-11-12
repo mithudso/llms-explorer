@@ -9,7 +9,7 @@
 Paths are on this estate: hub `~/.global-ai-hub` (scripts run as
 `cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python scripts/<x>.py`), mirrors and
 exports under `~/.claude/skills/web-text-mirror/text-mirror/`, the script
-`PY="python3 ~/.claude/skills/llms-concept-abstractor/scripts/concept_abstract.py"`.
+`lca()` function defined in §6.
 
 ## 1. Scope kinds → files
 
@@ -30,6 +30,8 @@ exports under `~/.claude/skills/web-text-mirror/text-mirror/`, the script
 Every reader emits the same unit shape (`id, type, text, source_url, anchor, heading_path,
 keywords, origin, source_kind`), so mixed scopes are fine in one harvest. IDs are
 `s<NN>u<NNNNNN>` — `s` numbers the input file, which is how the report attributes hits.
+
+Directory and glob expansion checks resolved containment before opening a discovered file and deduplicates real file identities. An outside symlink is excluded, never read. `input_statuses` in the harvest/semantic report records admitted inputs, duplicate-of links and rejected/missing/unreadable sources with scoped IDs. An empty or rejected source remains a coverage gap; it does not authorize a wider crawl.
 
 ## 2. Discovering scope
 
@@ -83,7 +85,7 @@ run on every pack; pass 3 is the model.
    marks conflicts. It never *finds* units; it judges the ones passes 1–2 found. That keeps
    the model's reading bounded by the pool, not by the corpus.
 
-Ollama: `semantic` checks `GET /api/tags` first; `--restart-ollama` does `pkill -f "ollama
+Ollama: never run the optional restart without explicit authorization for the shared service. `semantic` checks `GET /api/tags` first; `--restart-ollama` does `pkill -f "ollama
 serve"` → `open -a Ollama` / `brew services restart ollama` / `ollama serve` and waits ≤ 40 s.
 Env: `OLLAMA_HOST`, `HUB_EMBED_MODEL`, `LCA_EMBED_CACHE` override the defaults.
 
@@ -95,7 +97,7 @@ Env: `OLLAMA_HOST`, `HUB_EMBED_MODEL`, `LCA_EMBED_CACHE` override the defaults.
 | semantic pass adds hundreds / adds nothing | `--z 3.5` / `--z 2.5`; read `z_bands_in_scope` before choosing; on a very broad concept the centroid dominates — check `centroid_from_pool_top` and lower `--centroid-top`; on a single-source scope the concept IS the scope mean, z compresses to < 2.5 and 0 adds is the correct answer (report `hint`) |
 | textbook/OCR: figure labels, captions, page headers in the pool | prefilter drops `label-fragment` (< 40 chars, no punctuation, passage) and `figure-caption` (Fig./Plate/Table …); what survives is Step 5's `facts` bucket to drop |
 | two weak terms admitting off-topic units (e.g. "great vessels" + "blood vascular system") | without a core term the corroborating terms must sum to ≥ 1.0 (rule since v1.2.1); lower a leaking term's `weight` |
-| ollama unreachable | `semantic --restart-ollama`; check `curl localhost:11434/api/tags`; never ship keyword-only without saying so |
+| ollama unreachable | report the unavailable stage; restart only with explicit authorization; never claim semantic verification from keyword-only output |
 | contrast-term pages flood the pool (batch API in a caching pack) | keep the core rule on; lower the contrast term's `weight` to 0.5; drop units in Step 5 |
 | too few units, concept clearly present | more `synonym`/`variant`/`part` terms from `candidates`; `--no-require-core` for round 0 only; add `all_units.jsonl` or the raw `.md` |
 | zero-hit terms you are sure exist | check spelling variants in `aka`; the pattern needs a word boundary — `cache_control` matches, `cache-control` needs an `aka` |
@@ -126,34 +128,31 @@ Env: `OLLAMA_HOST`, `HUB_EMBED_MODEL`, `LCA_EMBED_CACHE` override the defaults.
 ## 6. Commands cheat-sheet
 
 ```bash
-lca() { python3 ~/.claude/skills/llms-concept-abstractor/scripts/concept_abstract.py "$@"; }   # a function, not a string: zsh does not word-split $PY
-PY=lca
+lca() { python3 ~/.claude/skills/llms-concept-abstractor/scripts/concept_abstract.py "$@"; }
 M=~/.claude/skills/web-text-mirror/text-mirror
 OUT=~/.global-ai-hub/llms-concepts/<slug>.llms
 
 # round 0 (bare name) → read candidates
-$PY harvest --lexicon lexicon.json --out $OUT --from $M/<host>.llms/llms-facts.txt ...
+lca harvest --lexicon lexicon.json --out $OUT --from $M/<host>.llms/llms-facts.txt ...
 python3 -c "import json;r=json.load(open('$OUT/harvest-report.json'));print(r['kept_units'],r['zero_hit_terms']);print([c['token'] for c in r['candidates'][:40]])"
 
 # leakage check
-$PY view $OUT --facet facts --min-score 0.6 --limit 40
+lca view $OUT --facet facts --min-score 0.6 --limit 40
 
 # final harvest, then the semantic pass over the same scope (reads/annotates pool.jsonl)
-$PY harvest --lexicon lexicon.json --out $OUT --from <files...>
-$PY semantic --lexicon lexicon.json --out $OUT --from <files...> [--z 3.0] [--restart-ollama]
+lca harvest --lexicon lexicon.json --out $OUT --from <files...>
+lca semantic --lexicon lexicon.json --out $OUT --from <files...> [--z 3.0] [--restart-ollama]
 python3 -c "import json;r=json.load(open('$OUT/semantic-report.json'));print(r['z_bands_in_scope'],r['added'],len(r['keyword_suspects']))"
-
-
 # classification pass
-$PY view $OUT --min-score 0 --width 140 > view.txt        # read in pages
+lca view $OUT --min-score 0 --width 140 > view.txt        # read in pages
 # → write classified.jsonl
 
 # compile + stats + probe
-$PY compile --out $OUT --lexicon lexicon.json --classified classified.jsonl --concept "<name>" --summary "..." --budget-tokens 8000
-$PY stats $OUT
-$PY split --out $OUT --groups groups.json --lexicon $OUT/lexicon.json    # only when full > 60k tokens
-$PY probe $OUT --questions bank.jsonl --semantic
-$PY query $OUT "how does the cache TTL work" --top 5
+lca compile --private --out $OUT --lexicon lexicon.json --classified classified.jsonl --concept "<name>" --summary "..." --budget-tokens 8000
+lca stats $OUT
+lca split --private --out $OUT --groups groups.json --lexicon $OUT/lexicon.json    # only when full > 60k tokens
+lca probe $OUT --questions bank.jsonl --semantic
+lca query $OUT "how does the cache TTL work" --top 5
 
 # index (optional)
 cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python scripts/docset_indexer.py index $OUT/units.jsonl --units --name concept__<slug>

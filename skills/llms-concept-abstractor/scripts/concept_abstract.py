@@ -56,6 +56,7 @@ Classified (classified.jsonl, written by the model, all fields optional but id)
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import re
 import sys
@@ -63,7 +64,7 @@ from collections import Counter, OrderedDict, defaultdict
 from datetime import date
 from pathlib import Path
 
-VERSION = "1.4.1"
+VERSION = "1.5.1"
 CHARS_PER_TOKEN = 4
 CORE_WEIGHT = 0.7   # relations at/above this weight can qualify a unit on their own
 
@@ -386,38 +387,81 @@ def read_pages(path: Path, prefix: str, base_url: str | None = None):
                         _TICK_RE.findall(text), "text", kind)
 
 
-def iter_inputs(paths: list[str], base_url: str | None = None):
-    """Expand files/dirs/globs; pick a reader per file shape."""
-    files: list[Path] = []
-    for p in paths:
-        pp = Path(p).expanduser()
-        if any(ch in p for ch in "*?["):
-            files += sorted(Path().glob(p)) if not pp.is_absolute() else sorted(pp.parent.glob(pp.name))
+def iter_inputs(paths: list[str], base_url: str | None = None, *, ledger: list | None = None):
+    """Expand only declared roots; account for omissions and deduplicate real files.
+
+    A directory/glob authorizes its resolved root, not an outside file reached
+    through a descendant symlink. Explicit files authorize their parent root.
+    """
+    ledger = ledger if ledger is not None else []
+    candidates: list[tuple[Path, Path, int]] = []
+    approved = []
+    for number, p in enumerate(paths, 1):
+        raw = str(p)
+        pp = Path(raw).expanduser()
+        if glob.has_magic(raw):
+            parts = pp.parts
+            root = Path(pp.anchor) if pp.is_absolute() else Path()
+            for part in parts[1:] if pp.is_absolute() else parts:
+                if glob.has_magic(part):
+                    break
+                root /= part
+            files = sorted(Path(f) for f in glob.glob(str(pp), recursive=True))
         elif pp.is_dir():
+            root = pp
             if (pp / "units.jsonl").exists():
-                files.append(pp / "units.jsonl")
+                files = [pp / "units.jsonl"]
             elif (pp / "all_units.jsonl").exists():
-                files.append(pp / "all_units.jsonl")
+                files = [pp / "all_units.jsonl"]
             elif (pp / "llms-facts.txt").exists():
-                files.append(pp / "llms-facts.txt")
+                files = [pp / "llms-facts.txt"]
             else:
-                files += sorted(x for x in pp.rglob("*") if x.suffix in (".md", ".txt", ".jsonl"))
-        elif pp.is_file():
-            files.append(pp)
+                files = sorted(x for x in pp.rglob("*") if x.suffix in (".md", ".txt", ".jsonl"))
         else:
-            print(f"warn: missing input {p}", file=sys.stderr)
-    seen = set()
-    for k, f in enumerate(files, 1):
-        if f in seen:
+            root, files = pp.parent, [pp]
+        approved.append(root.resolve())
+        if not files:
+            ledger.append({"source_id": f"input-{number}", "path": pp.name,
+                           "status": "missing", "reason": "input matched no files"})
+        candidates.extend((f, root, number) for f in files)
+    seen = {}
+    for k, (f, root, number) in enumerate(candidates, 1):
+        try:
+            relative = f.absolute().relative_to(root.absolute()).as_posix()
+        except ValueError:
+            relative = f.name
+        entry = {"source_id": f"input-{number}/{relative}", "path": relative}
+        ledger.append(entry)
+        resolved = f.resolve()
+        if not any(resolved.is_relative_to(root) for root in approved):
+            entry.update(status="outside-root", reason="symlink target outside approved roots")
+            print(f"warn: {entry['source_id']}: {entry['reason']}", file=sys.stderr)
             continue
-        seen.add(f)
+        if not resolved.is_file():
+            entry.update(status="unreadable", reason="missing or non-file input")
+            print(f"warn: {entry['source_id']}: {entry['reason']}", file=sys.stderr)
+            continue
+        if resolved in seen:
+            entry.update(status="duplicate", duplicate_of=seen[resolved])
+            continue
+        seen[resolved] = entry["source_id"]
+        entry["status"] = "kept"
         prefix = f"s{k:02d}u"
-        if f.suffix == ".jsonl":
-            yield f, read_units_jsonl(f, prefix)
-        elif f.name.startswith("llms-facts"):
-            yield f, read_facts_txt(f, prefix)
+        if resolved.suffix == ".jsonl":
+            reader = read_units_jsonl(resolved, prefix)
+        elif resolved.name.startswith("llms-facts"):
+            reader = read_facts_txt(resolved, prefix)
         else:
-            yield f, read_pages(f, prefix, base_url)
+            reader = read_pages(resolved, prefix, base_url)
+
+        def guarded_rows(rows=reader, record=entry):
+            try:
+                yield from rows
+            except OSError as exc:
+                record.update(status="unreadable", reason=type(exc).__name__)
+                print(f"warn: {record['source_id']}: {record['reason']}", file=sys.stderr)
+
+        yield resolved, guarded_rows()
 
 
 # --------------------------------------------------------------------------- #
@@ -466,7 +510,8 @@ def harvest(args) -> None:
     prefiltered: Counter = Counter()
     prev: dict | None = None
     pending_next: list[dict] = []
-    for f, units in iter_inputs(args.__dict__["from"], args.base_url):
+    input_statuses = []
+    for f, units in iter_inputs(args.__dict__["from"], args.base_url, ledger=input_statuses):
         files_seen.append(str(f))
         for u in units:
             scanned += 1
@@ -564,7 +609,8 @@ def harvest(args) -> None:
     zero = [t["term"] for t in lex["terms"] if term_hits[t["term"]] == 0]
     report = {
         "concept": lex["concept"], "slug": lex["slug"], "version": VERSION,
-        "generated": date.today().isoformat(), "inputs": files_seen, "scanned_units": scanned,
+        "generated": date.today().isoformat(), "inputs": files_seen, "input_statuses": input_statuses,
+        "scanned_units": scanned,
         "kept_units": len(pool), "min_score": args.min_score,
         "prefiltered": dict(prefiltered),
         "terms": [{"term": t["term"], "relation": t["relation"], "weight": t["weight"],
@@ -671,6 +717,7 @@ def _apply_classified(pool: list[dict], path: Path | None) -> tuple[list[dict], 
     if not path or not Path(path).exists():
         return [r for r in pool if r.get("keep", True)], {}
     by_id = {r["id"]: r for r in pool}
+    source_text = {r["id"]: r["text"] for r in pool}
     dropped = 0
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -687,8 +734,14 @@ def _apply_classified(pool: list[dict], path: Path | None) -> tuple[list[dict], 
             r["facet"] = c["facet"]
         if c.get("relation") in RELATION_ORDER:
             r["relation"] = c["relation"]
-        if c.get("text_fix"):
-            r["text"] = c["text_fix"]          # a trimmed quote, never a rewritten claim
+        if "text_fix" in c:
+            trimmed = c["text_fix"]
+            if (not isinstance(trimmed, str) or not trimmed.strip()
+                    or trimmed not in source_text[r["id"]]):
+                raise ValueError(
+                    f"classified {r['id']}: text_fix must be a non-empty contiguous source substring"
+                )
+            r["text"] = trimmed
         if c.get("note"):
             r["note"] = c["note"]
         if c.get("conflict"):
@@ -699,6 +752,29 @@ def _apply_classified(pool: list[dict], path: Path | None) -> tuple[list[dict], 
             dropped += 1
     kept = [r for r in pool if r.get("keep", True)]
     return kept, conflicts
+
+
+_CLIP_URL_RE = re.compile(r"https?://\S+")
+
+
+def clip_text(text: str, limit: int) -> str:
+    """Cut `text` to at most `limit` characters without splitting a URL.
+
+    A URL that straddles the cut is dropped whole: the text ends before it (and before a
+    dangling "Sources:" label or separator), so a cited URL is either complete or absent.
+    """
+    if len(text) <= limit:
+        return text
+    cut = limit
+    for m in _CLIP_URL_RE.finditer(text):
+        if m.start() >= limit:
+            break
+        if m.end() > limit:
+            cut = m.start()
+            break
+    head = text[:cut].rstrip()
+    head = re.sub(r"\s*(?:Sources?:|[;,:\-\u2014(\[])\s*$", "", head).rstrip()
+    return head
 
 
 def _src(r: dict) -> str:
@@ -827,7 +903,7 @@ def compile_pack(args) -> None:
     if args.summary:
         summary = args.summary
     elif top_def:
-        summary = re.sub(r"\s+", " ", top_def["text"])[:400] + f" (from {_host(top_def['source_url'])})"
+        summary = clip_text(re.sub(r"\s+", " ", top_def["text"]), 400) + f" (from {_host(top_def['source_url'])})"
     else:
         summary = (f"Everything the scanned sources say about {concept}: {len(kept)} source-anchored "
                    f"units across {len(hosts)} sources, grouped by facet.")
@@ -872,7 +948,7 @@ def compile_pack(args) -> None:
             continue
         full += [f"## {title}", ""]
         if rights == "extractive":
-            rows = [dict(r, text=r["text"][:600]) for r in rows]
+            rows = [dict(r, text=clip_text(r["text"], 600)) for r in rows]
         full += [_line(r) for r in rows]
         full.append("")
     if conflicts:
@@ -904,40 +980,52 @@ def compile_pack(args) -> None:
     small = [f"# {concept} — concept pack (small)", "", f"> {summary}", "",
              f"<!-- generated by llms-concept-abstractor v{VERSION} · generated {generated} · budgeted to "
              f"≈{args.budget_tokens} tokens; the full catalogue is {link('llms-full.txt')} -->", ""]
-    used = sum(len(l) + 1 for l in small)
-    queues = {f: list(by_facet[f]) for f in FACETS if by_facet.get(f)}
+    if budget <= 0:
+        raise ValueError("small budget is too small: --budget-tokens must be positive")
+
+    def render_small(selection):
+        rendered = list(small)
+        for facet, title in FACETS.items():
+            if not selection.get(facet):
+                continue
+            rendered += [f"## {title}", ""]
+            rendered += [_line(row, False) for row in selection[facet]]
+            more = len(by_facet[facet]) - len(selection[facet])
+            if more:
+                rendered.append(f"_{more} more {title.lower()} units in {link('llms-full.txt')}#{slugify(title)}_")
+            rendered.append("")
+        return "\n".join(rendered).rstrip() + "\n"
+
+    queues = {facet: list(by_facet[facet]) for facet in FACETS if by_facet.get(facet)}
     picked: dict[str, list[dict]] = defaultdict(list)
-    # definitions first, then round-robin by facet so every facet is represented
-    for r in queues.get("definition", [])[:3]:
-        picked["definition"].append(r)
-        used += len(_line(r, False)) + 1
-        queues["definition"].remove(r)
-    exhausted = False
-    while not exhausted:
-        exhausted = True
-        for f, q in queues.items():
-            if not q:
-                continue
-            r = q.pop(0)
-            ln = _line(r, False)
-            if used + len(ln) + 1 > budget:
-                q.insert(0, r)
-                continue
-            picked[f].append(r)
-            used += len(ln) + 1
-            exhausted = False
-        if used >= budget:
-            break
-    for f, title in FACETS.items():
-        if not picked.get(f):
-            continue
-        small += [f"## {title}", ""]
-        small += [_line(r, False) for r in picked[f]]
-        more = len(by_facet[f]) - len(picked[f])
-        if more > 0:      # a prose pointer, not a unit line — facts linting counts only `- [type]` rows
-            small.append(f"_{more} more {title.lower()} units in {link('llms-full.txt')}#{slugify(title)}_")
-        small.append("")
-    small_text = "\n".join(small).rstrip() + "\n"
+    # One complete unit per nonempty facet is the minimum coverage contract.
+    for facet, queue in queues.items():
+        picked[facet].append(queue.pop(0))
+        # A final short row can cost less than the omission notice it
+        # removes. Prefer complete coverage when that uses no more space.
+        complete = list(by_facet[facet])
+        if len(render_small({facet: complete})) <= len(render_small({facet: picked[facet]})):
+            picked[facet] = complete
+            queues[facet].clear()
+    minimum = len(render_small(picked))
+    if minimum > budget:
+        raise ValueError(
+            f"small budget is too small: mandatory coverage needs {minimum} characters, "
+            f"requested {budget}; increase --budget-tokens or supply a source-contiguous text_fix"
+        )
+    # Prefer up to three definitions, then consider the remaining rows round-robin.
+    optional = [("definition", row) for row in queues.get("definition", [])[:2]]
+    if "definition" in queues:
+        queues["definition"] = queues["definition"][2:]
+    while any(queues.values()):
+        for facet, queue in queues.items():
+            if queue:
+                optional.append((facet, queue.pop(0)))
+    for facet, row in optional:
+        picked[facet].append(row)
+        if len(render_small(picked)) > budget:
+            picked[facet].pop()
+    small_text = render_small(picked)
 
     # --- llms-facts.txt (topical-compatible grammar)
     facts = [f"# {concept} — facts", "",
@@ -985,7 +1073,7 @@ def compile_pack(args) -> None:
         line = f"- **{t['term']}** · {t['relation']}"
         aka = [s for s in t["surfaces"][1:]]
         if d:
-            line += " — " + re.sub(r"\s+", " ", d["text"])[:300]
+            line += " — " + clip_text(re.sub(r"\s+", " ", d["text"]), 300)
         if aka:
             line += " · aka: " + ", ".join(aka)
         if t.get("note"):
@@ -1078,6 +1166,8 @@ def compile_pack(args) -> None:
         "kind": "concept", "concept": concept, "slug": slug, "version": VERSION,
         "generated": generated, "summary": summary, "rights": rights,
         "budget_tokens": args.budget_tokens, "base_url": args.base_url,
+        "small_budget": {"estimator": "characters / 4", "rendered_characters": len(small_text),
+                         "rendered_bytes": len(small_text.encode("utf-8")), "minimum_characters": minimum},
         "inputs": report.get("inputs", []), "scanned_units": report.get("scanned_units"),
         "harvested_units": len(pool), "kept_units": len(kept),
         "dropped_by_classification": len(pool) - len(kept) - lead_ins,
@@ -1096,6 +1186,12 @@ def compile_pack(args) -> None:
     print(f"compile: {len(kept)} units → {out} · full ≈{files['llms-full.txt']['tokens']} tok · "
           f"small ≈{files['llms-small.txt']['tokens']} tok · {len(hosts)} sources · "
           f"{len(zero)} zero-hit terms · {len(conflicts)} conflicts")
+    # shared website completion hook
+    hub = Path(os.environ.get("HUB_DIR", str(Path.home() / ".global-ai-hub"))).expanduser()
+    if not getattr(args, "private", False) and (hub / "research/.site-sync.json").is_file():
+        sys.path.insert(0, str(hub / "scripts"))
+        from research_site_hook import refresh
+        refresh(out, hub)
 
 
 
@@ -1224,17 +1320,13 @@ class VecCache:
         if meta.exists():
             self.dim = json.loads(meta.read_text()).get("dim", 0)
         if self.vec_path.exists() and self.dim:
-            rows_bytes = self.vec_path.stat().st_size // (self.dim * 4)
-            if rows_bytes != len(self.keys):
-                # self-heal: keep the aligned prefix, drop the tail of whichever file is longer
-                n = min(rows_bytes, len(self.keys))
-                print(f"embcache: keys={len(self.keys)} rows={rows_bytes} misaligned — trimming to {n}",
-                      file=sys.stderr)
-                with self._locked():
-                    with self.vec_path.open("r+b") as fh:
-                        fh.truncate(n * self.dim * 4)
-                    self.keys = self.keys[:n]
-                    self.key_path.write_text("\n".join(self.keys) + ("\n" if self.keys else ""))
+            size = self.vec_path.stat().st_size
+            rows_bytes, remainder = divmod(size, self.dim * 4)
+            if rows_bytes != len(self.keys) or remainder:
+                raise RuntimeError(
+                    f"embcache misaligned: keys={len(self.keys)} rows={rows_bytes} "
+                    f"partial-row-bytes={remainder}; preserve {self.dir} and recover a separate candidate"
+                )
         self.index = {k: i for i, k in enumerate(self.keys)}
         if self.vec_path.exists() and self.dim and self.keys:
             if _np is not None:
@@ -1280,6 +1372,13 @@ class VecCache:
                 with self._locked():
                     self._load()              # another process may have appended meanwhile
                     fresh = [(v, k) for v, k in zip(new_vecs, new_keys) if k not in self.index]
+                    dimensions = {len(v) for v in new_vecs}
+                    if (len(dimensions) != 1 or 0 in dimensions
+                            or (self.dim and dimensions != {self.dim})):
+                        raise RuntimeError(
+                            f"embcache dimension mismatch: stored={self.dim}, received={sorted(dimensions)}; "
+                            "no vectors appended"
+                        )
                     if not self.dim:
                         self.dim = len(new_vecs[0])
                         (self.dir / "meta.json").write_text(json.dumps({"model": model, "dim": self.dim}))
@@ -1346,7 +1445,8 @@ def semantic(args) -> None:
     seen: dict[str, int] = {}
     _, excl = compile_lexicon(lex)
     excluded = 0
-    for f, it in iter_inputs(args.__dict__["from"], args.base_url):
+    input_statuses = []
+    for f, it in iter_inputs(args.__dict__["from"], args.base_url, ledger=input_statuses):
         for u in it:
             k = _norm(u["text"])
             if k in seen or len(u["text"]) < 25:
@@ -1504,7 +1604,8 @@ def semantic(args) -> None:
     sem_report = {
         "concept": concept, "model": args.model, "generated": date.today().isoformat(),
         "hint": hint,
-        "scope_units": len(units), "excluded_by_lexicon": excluded, "z_floor": args.z, "z_bands_in_scope": bands,
+        "scope_units": len(units), "input_statuses": input_statuses,
+        "excluded_by_lexicon": excluded, "z_floor": args.z, "z_bands_in_scope": bands,
         "queries": qtexts, "centroid_from_pool_top": args.centroid_top if centroid is not None else 0,
         "added": len(added), "added_by_facet": dict(Counter(r["facet"] for r in added)),
         "added_z_bands": {f"z>={b}": sum(1 for r in added if r["semantic_z"] >= b) for b in (3.0, 3.5, 4.0, 5.0)},
@@ -1622,7 +1723,7 @@ def split_pack(args) -> None:
                               budget_tokens=args.budget_tokens, summary=g.get("summary"),
                               rights=parent_manifest.get("rights", "extractive"), base_url=None,
                               keep_lead_ins=True,   # parent already applied the lead-in rule
-                              max_related=args.max_related)
+                              max_related=args.max_related, private=getattr(args, "private", False))
         compile_pack(cargs)
         cm = json.loads((cdir / "manifest.json").read_text())
         cm["parent"] = parent_manifest.get("slug")
@@ -1766,6 +1867,8 @@ def main(argv=None) -> int:
     c.add_argument("--summary", default=None)
     c.add_argument("--rights", choices=("extractive", "quote"), default="extractive")
     c.add_argument("--base-url", default=None)
+    c.add_argument("--private", action="store_true",
+                   help="do not refresh a bound public research site after compiling")
     c.add_argument("--max-related", type=int, default=20,
                    help="related-concept lines in the index before the tail points at the vocabulary")
     c.add_argument("--keep-lead-ins", action="store_true",
@@ -1781,6 +1884,8 @@ def main(argv=None) -> int:
     sp.add_argument("--budget-tokens", type=int, default=8000)
     sp.add_argument("--min-units", type=int, default=20)
     sp.add_argument("--max-related", type=int, default=20)
+    sp.add_argument("--private", action="store_true",
+                    help="keep child compilation from refreshing a bound public research site")
     sp.set_defaults(func=split_pack)
     s = sub.add_parser("stats", help="manifest or pool statistics")
     s.add_argument("dir")

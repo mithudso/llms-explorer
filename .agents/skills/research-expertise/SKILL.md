@@ -5,6 +5,7 @@ description: 'Retrieve existing source-qualified research with the Research Expe
   source hashes, qualifications and freshness. SKIP: new research -> dr; skill lookup and private release management -> skill-registry.'
 metadata:
   version: 1.2.0
+  changelog_ref: references/CHANGELOG.md
 version: 1.2.0
 category: custom
 model: gpt-6.1-sol
@@ -23,6 +24,7 @@ related_skills:
 - skill-registry
 updated: '2026-11-11'
 ---
+
 
 # Research expertise
 

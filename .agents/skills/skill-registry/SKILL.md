@@ -22,7 +22,10 @@ related_skills:
 - skill-optimizer
 - dr
 updated: '2026-11-11'
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
+
 
 # Skill Registry
 

@@ -1,3 +1,7 @@
+2026-11-11 final SKO TASK-1372: A–P and bounded independent rechecks recorded; exploratory predicted triggers; scoped operational exit DEGRADED. Raw dissent and focused correction receipts remain in the repository review ledger. No measured activation, semantic refresh or empirical promotion. Mapping freshness remains BLOCKED/operator action for separately authorized research; historical verification dates are preserved.
+
+2026-11-11 v2.12.1 — bounded blind-review repairs; offline regression evidence recorded; final fresh recheck pending.
+2026-11-11 sko 2.11.0->2.12.0 — content/routing audit and evaluation evidence; predicted results only; blind acceptance pending.
 2026-10-15 v2.10.1->v2.10.2 — peer deferral seeded by agent-deep-optimizer v1.0.0: one when-not-to-use line routing whole subagent definition files to /ado (pdo keeps bare instruction blocks and the bounded Group 1+4 sub-audit); related_skills gains agent-deep-optimizer. Additive only; no pass run.
 # prompt-deep-optimizer — archived changelog
 

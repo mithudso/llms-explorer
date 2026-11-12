@@ -93,6 +93,16 @@ apply to both standard research passes. Quick keeps one medium-effort pass; satu
 keeps two independent medium-effort passes. `--passes` counts additional passes in
 the adaptive lane, so its standard default is 1 (two research passes in total).
 
+## Inherited evaluations
+
+The generated bundle includes its publication-safe `evals/trigger-corpus.jsonl`
+and `project_triggers.py`. The corpus retains source queries, labels and
+source-description-bound verdict history byte for byte. The disposable
+`trigger-eval.json` derives from those queries. Claude source predictions do not
+establish Codex trigger behavior or empirical promotion. Re-evaluate the current
+Codex description before making either claim. The sync manifest binds source and
+output hashes; it is a distribution receipt, not an execution result.
+
 ## Research and shared resources
 
 Generated briefs use the same domain policy as mechanical source qualification.
@@ -228,8 +238,10 @@ def active_translation(text: str) -> str:
 
 
 def translate(text: str, skill: str, relative: str) -> str:
-    if relative.endswith(".py"):
-        return text  # Tree helper operates on the real shared catalogue unchanged.
+    if relative.endswith((".py", ".jsonl")) or relative == "evals/trigger-eval.json":
+        # Keep executable helpers and source-bound query/verdict history exact.
+        # A source prediction must never be relabeled as a Codex evaluation.
+        return text
     historical = ""
     if "\n## Changelog\n" in text:
         text, historical = text.split("\n## Changelog\n", 1)
@@ -316,7 +328,7 @@ def build(repo: Path, source_root: Path, canonical_root: Path | None) -> tuple[d
         for root, label in roots:
             if root.exists():
                 for path in sorted(root.rglob("*")):
-                    if path.is_file() and path.suffix in (".md", ".py", ".json", ".yaml", ".yml") and "__pycache__" not in path.parts:
+                    if path.is_file() and path.suffix in (".md", ".py", ".json", ".jsonl", ".yaml", ".yml") and "__pycache__" not in path.parts:
                         rel = path.relative_to(root).as_posix()
                         if label == "canonical-companion" and rel == "SKILL.md":
                             continue

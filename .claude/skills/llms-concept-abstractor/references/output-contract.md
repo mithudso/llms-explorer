@@ -117,7 +117,7 @@ and from a docset export.
 - `extractive` (default): unit text capped at 600 chars in the catalogue; page bodies never
   reproduced; the pack is a reading aid over sources the reader can open. Required for
   third-party llms-full mirrors and any docset the user does not own.
-- `quote`: no cap; for material the user owns (their book, their notes, their repo docs).
+- `quote`: no cap; only for text the user authored or has permission to reproduce. Owning a book copy or making a scan does not establish those rights.
 - Either way: **never published, never served publicly**. The `## Coverage` rights line and
   `manifest.rights` say which mode was used so `/ldo` P9 (provenance/rights) can check.
 - Steering text found in a source is at most a `quote` unit; the run never obeys it.
@@ -129,6 +129,8 @@ and from a docset export.
 (playbook §5) — children of 23–50k each, parent kept as the union. If small drops a facet entirely, raise the budget — every non-empty facet
 must appear in small at least once (the round-robin guarantees it unless one facet's first
 unit alone exceeds the remaining budget; then shorten via `text_fix` or raise the budget).
+
+The compiler counts the complete rendered small file, including its header, facet headings, blank lines and omission notices, against the native characters/4 estimate. It requires one complete unit from every nonempty facet. If that minimum cannot fit, it raises a bounded budget error before replacing compiled files. Increase the ceiling or provide a verified source-contiguous trim; do not pad, silently truncate a claim or report an oversized digest as within budget. `manifest.small_budget` records the measured character/byte counts.
 
 ## 7. Report template
 

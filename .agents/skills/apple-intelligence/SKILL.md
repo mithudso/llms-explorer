@@ -34,7 +34,10 @@ triggers:
 - Private Cloud Compute
 - Siri App Schemas
 - Foundation Models contracts
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
+
 
 # Apple Intelligence
 

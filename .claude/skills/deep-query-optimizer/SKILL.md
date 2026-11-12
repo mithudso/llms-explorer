@@ -1,8 +1,22 @@
 ---
 name: deep-query-optimizer
-description: "SQL member of the deep-optimizer family: a multi-pass review-and-fix optimizer for a SQL query or file. Detects the dialect (Postgres/MySQL/SQLite/SQL Server), audits sargability, indexes, joins and N+1, predicates, pagination, subqueries/CTEs and the EXPLAIN plan; severity-rates findings; applies every Medium+ rewrite; and given a DB connection, verifies via EXPLAIN/EXPLAIN ANALYZE that the plan improved and the result set is unchanged, backing out regressions and looping to convergence. Recommends index DDL. TRIGGER: \"optimize this SQL\", \"run dqo\", \"tune this query\", \"why is this query slow\", \"what index for this query\", full-scan/N+1/deep-paging SQL. SKIP: evals -> deep-eval-optimizer; MongoDB/MQL \u2192 deep-mongodb-mql-query-optimizer (/dmqo); warehouse/dbt or SQL schema modeling \u2192 da-data-engineering-platform; ORM or app-layer N+1 in code \u2192 code-deep-optimizer; one-shot advice with no query \u2192 software-engineering-patterns; prose \u2192 ddo; prompts \u2192 prompt-deep-optimizer."
-version: 1.1.1
-updated: '2026-11-07'
+description: >-
+  Review and tune a concrete SQL query or file while preserving its results. TRIGGER: "optimize this SQL", "run dqo", "tune this query", "why is this SQL slow", "what index serves this query". Covers Postgres/MySQL/SQLite/SQL Server, sargability, indexes, joins/N+1, predicates, pagination, CTEs and EXPLAIN. Apply Medium+ only in permitted write mode; verify plans and result semantics when a safe connection exists, back out regressions, recommend index DDL. SKIP: evals → deep-eval-optimizer; MongoDB/MQL → deep-mongodb-mql-query-optimizer; warehouse/dbt/schema modeling → da-data-engineering-platform; ORM/app N+1 → code-deep-optimizer; advice without a query → software-engineering-patterns; prose → ddo; prompts → prompt-deep-optimizer.
+version: "1.2.1"
+updated: "2026-11-11"
+model: claude-opus-5-5
+effort: xhigh
+category: developer
+whenToUse:
+  - "Optimize this PostgreSQL query without changing its results"
+  - "Explain why this SQL query scans the entire table"
+  - "Tune pagination in this SQL file"
+related_skills:
+  - deep-mongodb-mql-query-optimizer
+  - code-deep-optimizer
+  - da-data-engineering-platform
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # Deep Query Optimizer (`/dqo`)
@@ -13,12 +27,21 @@ connection is available — **verify** the rewrite via `EXPLAIN`/`EXPLAIN ANALYZ
 improved AND result set unchanged), then loop to convergence (≤3 iterations). This is an
 apply-and-verify member of the deep-optimizer family; it shares the canonical contract in
 `references/shared/convergence-and-severity.md` and the exit gate in
-`cross-model-gate.md`.
+`references/shared/cross-model-gate.md`.
 
 The defining family split applies: when the artifact is **checkable** (a live connection
 exists), `/dqo` applies fixes and verifies them against real plans; when it is **not**
 (no connection), it stops at a severity-ranked findings list with predicted impact marked
 `[UNVERIFIED]`.
+
+## Look for llms files first
+
+Before reading the SQL query repository raw, look for its llms files and open them by size. If you have the repo, step 4 sets the order.
+1. Look for the subject's `llms.txt`, its hub llms map, and memory-central keyword-index rows for the target terms.
+2. Run `wc -c` first (or read `x-markdown-tokens` on a remote). Read a file whole only when it fits. Otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, grep the code before you open an llms file. The code is the authority. Use maps to find the right file and verify every fact against its `path:line`.
+5. Index and llms hits are leads. Confirm them with Read before you act.
 
 ## Flags
 
@@ -34,7 +57,9 @@ exists), `/dqo` applies fixes and verifies them against real plans; when it is *
 | `--dry-run` / `--no-promote` | Run the empirical loop but report the would-be promotion without persisting the champion query. |
 | `--structural-only` | Skip empirical mode; run only the structural convergence loop. |
 
-`--annotate` and `--read-only` never modify the original and run exactly one iteration.
+`--read-only` takes precedence over every other flag: write no query, annotation, report, checkpoint, telemetry or champion state; print proposals only and run one iteration. `--annotate` also runs one iteration and writes only its separate annotation file when read-only is absent.
+
+`--minimal` is a compatibility partial-review mode: report every deferred Medium finding and `Unfixed: N High / M Medium`; report `mode: --minimal (bar: Blocking/High)` and exit `TRIAGE-PARTIAL` while findings remain (`TRIAGE-CLEAN` otherwise), never CLEAN or CONVERGED. A caller requesting convergence must use the full Medium+ mode.
 
 ## Step 1 — Resolve the target
 
@@ -88,9 +113,9 @@ Apply every **Blocking/High/Medium** rewrite (Blocking/High only in `--minimal`)
 ## Step 5 — Verify (apply-and-verify mode only)
 
 For each applied rewrite, against the live connection:
-1. **Result equivalence** — run original vs rewritten on a bounded sample (or `EXCEPT`/`MINUS` both ways, or compare ordered row-count + checksum). Any difference → back out (Blocking).
+1. **Result equivalence** — establish P1 semantic equivalence, then compare the original and rewrite on representative, isolated data. Preserve duplicate multiplicity (use `EXCEPT ALL` where supported or explicit row-frequency comparison), NULL behavior and required order. A checksum or bounded sample is supporting evidence, not a proof over unseen rows; report that limit. Any difference → back out (Blocking).
 2. **Plan improvement** — `EXPLAIN [ANALYZE]` before/after; confirm the targeted scan/sort/join cost dropped (e.g., seq scan → index scan, spill removed). If the plan is worse or unchanged, back out the rewrite and re-record the finding as `[verified-no-gain]`.
-3. Only `SELECT` queries are run; never execute DML/DDL to "verify." `ANALYZE` is used only on read queries.
+3. Execute only statements proven read-only on a disposable copy/replica with a read-only transaction and explicit statement/lock timeouts. Reject data-modifying CTEs, `SELECT INTO`, locking reads (`FOR UPDATE`/`FOR SHARE`), and side-effect or unknown functions. For example, `WITH x AS (DELETE FROM orders RETURNING *) SELECT * FROM x` is not read-only. `EXPLAIN ANALYZE` executes its statement: use plain `EXPLAIN` or critique-only mode if safety or resource bounds cannot be established. Never execute DML/DDL to verify.
 
 Skip Step 5 in critique-only mode — mark all impact `[UNVERIFIED]` and present predicted (not measured) gains.
 
@@ -98,7 +123,7 @@ Skip Step 5 in critique-only mode — mark all impact `[UNVERIFIED]` and present
 
 Re-run P1–P11 (not P0) on the rewritten query. Stop on any exit condition in
 `convergence-and-severity.md` (clean / no-progress / cycling / cap). Cap 3 iterations.
-Optional `--cross-model` exit gate per `cross-model-gate.md`.
+Optional `--cross-model` exit gate per `references/shared/cross-model-gate.md`.
 
 ## Step 7 — Output
 

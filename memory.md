@@ -1,31 +1,41 @@
 # Memory
 
-## v0.22.193 — 2026-11-11 all-skill SKO fan-out in progress
+## v0.22.196 — 2026-11-11 repository SKO audit and scoped delivery
 
-Version:0.22.193. Delta:v0.22.192 to v0.22.193; prompt147; TASK-1372.
+Version:0.22.196. Delta:v0.22.195 to v0.22.196; prompt150; all-skill maintenance TASK-1372; PR340.
 
-The user requested /sko on every skill through agent fan-out. This isolated run
-freezes repository SKO2.24.1 and its references. Three source owners cover eleven
-skills each; the parent covers SKO, four unique Codex skills and the Hermes source
-bundle. The inventory identifies39 reusable sources,18legacy distributions and
-3generated Codex overlays. Four archived copies and3intentional malformed eval
-fixtures remain preserved. A private inventory separately accounts for138generated
-research-reference cards and22local distribution copies; their source facts are
-not rewritten or published by this skill-maintenance task.
+The frozen SKO2.24.1 run covers39 reusable sources with disjoint author fan-out,
+independent initial review and bounded rechecks. The70 final tracked SKILL.md
+entries include18 complete legacy distributions,3 Codex overlays,4 preserved
+archives and6 intentional fixture copies. Preserve138 private generated research
+cards and22 local copies; those factual bodies were excluded from workflow
+optimization and were not published or re-researched.
 
-Author work fixes confirmed routing, ownership, safety and executable defects.
-Fresh-context blind reviewers grade final sources and scenarios without prior
-findings or expected-output labels. Trigger activation remains predicted; no
-Claude activation harness or native target workflow is represented as measured.
-Existing research/index/model pauses remain in effect. Global installed copies
-and their independently owned wrappers are preserved. Semantic registry rebuild
-is withheld; a file or lexical check does not establish semantic routing.
+Raw bounded dissent remains in the review ledger. Focused corrections address14
+post-repair artifact findings plus two DEO calibration/fixture issues without claiming a
+third full SKO convergence gate. Current results cover780 independently predicted
+trigger queries and388 assertions across142 cases:78 static and310 predicted.
+All39 exploratory trigger thresholds pass. This does not establish measured
+activation, native workflow success, empirical promotion or universal factual
+recertification. Ten load-bearing bodies retain justified soft-budget overages
+below the estimated hard ceiling.
 
-Reports: docs/reviews/sko-all-skills-2026-11-11/. Source and eval work is active;
-remaining gates are fresh review, combined regressions, owning mirror generation,
-privacy, final-head CI, merge and safe synchronization. Stele MCP returned
-Transport closed during follow-up bookkeeping; private continuation retains the
-pending graph updates without using a substitute write path.
+Local verification passes392 core tests plus15 subtests,70 optimizer-helper tests
+plus23 subtests,30 capture/task tests plus9 subtests,49 actual-distribution tests
+plus4 subtests, and14 projector/sync tests plus2 subtests. Source integrity checks
+pass39 targets and117 Python AST parses. Full-tree publication privacy is clean
+across18,573 files with27 denylist terms; final staged hooks also apply.
+
+Operational exit remains DEGRADED. Global installed copies/wrappers, existing
+embedding/research/model pauses and historical verification dates are preserved.
+Read-only keyword metadata checks have explicit bounds. Registry refresh and
+semantic intent probes are withheld. Stele MCP recovered and pending lessons and
+continuation context were restored through the MCP tools.
+
+Final source hashes, raw reviews, focused corrections and limitations are under
+docs/reviews/sko-all-skills-2026-11-11/. PR340 records final-head checks and remote
+merge identity; tracker completion follows verified remote content and safe local
+synchronization. Private preimages and scoped telemetry remain recoverable.
 
 ## v0.22.192 — 2026-11-11 public resource description
 

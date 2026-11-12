@@ -2,11 +2,24 @@
 name: devops-linux-internals
 description: >-
   Linux kernel & OS-internals sub-hub (devops family). TRIGGER: Linux kernel architecture, boot/init, memory & NUMA, storage & filesystems, virtualization/KVM, io_uring async I/O, cgroups v2 & namespaces, sandboxing & confinement, immutable/atomic Linux, Linux privilege model (LSM/SELinux/capabilities); Thunderbolt/USB4 eGPU on Linux ('fallen off the bus'/Xid 79, PCIe hotplug BAR windows, NVIDIA open modules/GSP on Blackwell, bolt/IOMMU, PCIe ASPM/AER/D3cold, eGPU hot-unplug, TB firmware/regression, PCIe link retrain, eGPU power/PSU/thermals, hybrid iGPU+eGPU, TB5/OCuLink topologies, NUC BIOS, eGPU benchmarking, suspend/resume, health monitoring/recovery, idle power, remote recovery, reproducible setup). SKIP: sysadmin/systemd/packaging/shell/host-networking → devops-linux-admin; containers/k8s/CI-CD/IaC → devops-containers-cicd; logging/tracing/metrics/eBPF/perf → devops-observability; LLM serving/runtime/model choice on an eGPU → ai-llm-model-layer; Mac eGPU → mac-egpu-compute.
-version: "1.2.0"
-updated: "2026-09-25"
+version: "1.3.1"
+updated: "2026-11-11"
 origin: local
-model: claude-opus-4-8
+model: claude-opus-5-5
 effort: high
+whenToUse:
+  - "Diagnose an NVIDIA Linux eGPU that reports Xid 79 or fallen off the bus."
+  - "Explain Linux cgroups v2, namespaces and kernel isolation."
+  - "Investigate PCIe BAR allocation or Thunderbolt authorization on Linux."
+related_skills:
+  - "devops-linux-admin"
+  - "devops-containers-cicd"
+  - "devops-observability"
+  - "ai-llm-model-layer"
+  - "mac-egpu-compute"
+category: custom
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # devops-linux-internals
@@ -14,6 +27,15 @@ effort: high
 Linux kernel & OS-internals sub-hub (devops family).
 
 This hub routes to on-demand reference files under `references/`. See each spoke for depth.
+
+## Look for llms files first
+
+Before reading the Linux subsystem or source repository raw, locate its llms files. If the repo is available, step 4 sets the order.
+1. Check the subject's `llms.txt`, its docs site's `/llms.txt`, or matching packs under `~/.global-ai-hub/skills.llms/` and `~/.global-ai-hub/llms-concepts/`; use available hub keyword/search tools as discovery leads.
+2. Run `wc -c` first (or inspect a remote size header). Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
+5. Index and llms hits are leads. Confirm them against readable source text before acting.
 
 ## Sub-skill routing table
 
@@ -53,7 +75,7 @@ This hub routes to on-demand reference files under `references/`. See each spoke
 
 ## Routing rule: eGPU overlap with ai-llm-model-layer
 
-Both hubs carry Linux eGPU material. Kernel, PCIe, driver, Thunderbolt/USB4 and boot mechanics (fallen off the bus, BAR/bridge windows, NVIDIA open modules/GSP, bolt/IOMMU, ASPM/AER/D3cold, hot-unplug, firmware hygiene) stay here. LLM-serving, runtime-choice, quantization and model-picking questions for a Linux eGPU go to `ai-llm-model-layer` (its `references/linux-egpu-blackwell-llm.md`). The CUDA build/install stack spoke above is the boundary: build and driver-floor problems here, which model or runtime to run there. The Blackwell sm_120 LLM inference stack (CUDA/driver floors, llama.cpp, Ollama, PyTorch and vLLM matrix, tunnel cost in load time) lives in `ai-llm-model-layer` as `references/blackwell-sm120-llm-inference-stack-linux.md`.
+Both hubs carry Linux eGPU material. Kernel, PCIe, driver, Thunderbolt/USB4 and boot mechanics (fallen off the bus, BAR/bridge windows, NVIDIA open modules/GSP, bolt/IOMMU, ASPM/AER/D3cold, hot-unplug, firmware hygiene) stay here. LLM-serving, runtime-choice, quantization and model-picking questions for a Linux eGPU go to `ai-llm-model-layer` (its `references/linux-egpu-blackwell-llm.md`). Kernel-module build and driver-floor problems stay here; LLM runtime builds, model choice and serving stay in `ai-llm-model-layer`. The Blackwell sm_120 LLM inference stack (CUDA/driver floors, llama.cpp, Ollama, PyTorch and vLLM matrix, tunnel cost in load time) lives in `ai-llm-model-layer` as `references/blackwell-sm120-llm-inference-stack-linux.md`.
 
 <!-- cross-hub-map -->
 ## Cross-hub map — where every devops topic lives

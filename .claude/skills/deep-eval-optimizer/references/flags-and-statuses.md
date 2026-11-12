@@ -19,6 +19,5 @@
 | `evals-created` | Missing evals generated and verified |
 | `benchmark-passed` | `--run` executed and all assertions passed >= 90% threshold |
 | `benchmark-failed` | `--run` executed and assertions failed pass bar |
-| `clean` | Audit found 0 Medium+ findings |
-
+| `clean` | Read-only audit found 0 Medium+ findings; not an executed benchmark |
 | `EXECUTOR_UNAVAILABLE` | The requested real execution harness or evidence is unavailable; no pass rate or convergence is claimed. |

@@ -39,7 +39,7 @@ Missing results (including a file missing under `--read-only` or `--meta`) mean 
 
 **Index discovery** (Step 1.7), one line: `index-discovery: colliders n, referrers n, copies n (verified v, lead only l)` or `index-discovery: degraded (<reason>)`.
 
-**Location sync table** (Step 6.7), required in every run. Lead with a `NEWER COPY OVERWRITTEN: <path> v<x> updated <date>; backup <path>` line for each copy that was newer than canonical.
+**Location sync table** (Step 6.7), required in every run. Emit `NEWER COPY OVERWRITTEN: <path> v<x> updated <date>; backup <path>` only after an actual authorized overwrite of a newer copy and verification of its backup. For every preserved newer copy, report `preserved divergence` and its actual unchanged hash. Never imply an overwrite or invent a backup.
 
 | Location | Kind | Before-hash | Action | After-hash |
 |---|---|---|---|---|

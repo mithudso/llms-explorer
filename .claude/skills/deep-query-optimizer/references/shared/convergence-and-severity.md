@@ -132,6 +132,7 @@ permitted.
 | --- | --- | --- | --- | --- |
 | `code-deep-optimizer` | `--quick` | Critical only | C1, C3, S1 (3 of 18) | Stage 0 activation ceremony, advisory track, empirical mode, blind re-audit gate, verify-gate bisect loop |
 | `ddo` | `--quick` | Blocking only | 3, 6 (Blocking), 10.5 (flagged claims), 11.5, 12 (Blocking) | Full domain/intent routing, structure/tone/voice, full sourcing sweep, convergence loop, blind exit audit. Keep pre-write preservation and conflict checks; shared finalization still runs. |
+| `deep-query-optimizer` | `--minimal` | Blocking/High only | P0-P11 | Medium fixes; retain equivalence and read-only execution gates; report TRIAGE-PARTIAL/TRIAGE-CLEAN and unresolved totals, never convergence |
 
 ## Guardrails carried by every optimizer
 
@@ -245,18 +246,13 @@ the run's report rather than per-lookup. A corpus with no matching index (a one-
 every table row's roots) is read and searched with ordinary tools — no fallback note needed, since
 no index claim was ever made for it.
 
-**Keep the index warm.** Any write this run makes to a file under `gen-prose-index.mjs`'s corpus
-roots (`~/.claude/skills`, `~/.claude/skill-consolidation`, and the mdb-context-hub `docs/` and
-repo-root markdown) leaves `tam_search_prose` stale for that file until re-embedded. After Step
-7/Step 5's writes land (and after Pass O's peer writes, if any), run `node
-scripts/gen-prose-index.mjs --embed` from the mdb-context-hub repo root — the embed is incremental
-and keyed by `srcHash(model+chunk)`, so re-running it after a small edit only re-embeds the changed
-chunks, not the whole corpus. This is best-effort and non-blocking: an embed failure (Ollama down,
-script missing) never blocks or fails the run; report `index: refreshed | stale (<reason>)` in the
-summary next to the sync-verification line, mirroring how Step 7 reports `registered` /`stale`/
-`missing`. A target outside the corpus roots (e.g. a customer context file) has nothing to refresh
-here — route new material for that corpus through its owning tool (`mdb_tam_corpus_*`) instead, if
-one exists; otherwise note `index: n/a (outside corpus roots)`.
+**Keep index work scoped.** Read an existing index when it is available. A missing
+or stale index is a reported evidence gap, not permission to start a daemon,
+re-embed the corpus or rebuild a different index. Preserve any user pause.
+Only a separately authorized indexing run may refresh embeddings. Optimizer
+post-sync steps may observe an already running daemon and report its state;
+they must not launch one. A target outside the corpus roots is reported as
+`index: n/a (outside corpus roots)`.
 
 ## Telemetry
 

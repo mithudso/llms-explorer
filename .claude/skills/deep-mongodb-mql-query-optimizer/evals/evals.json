@@ -1,0 +1,88 @@
+{
+  "skill_name": "deep-mongodb-mql-query-optimizer",
+  "version": "1.0.0",
+  "description": "Behavioral regression cases for the documented workflow and scope boundaries.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "equal-exclusive-range",
+      "prompt": "Optimize db.items.find({x:{$gte:5,$lt:5}}). x is a scalar number; no connection is available.",
+      "expected_output": "Preserve the empty interval, report the inconsistency, and do not rewrite it to equality or invent measured gains.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "empty preserved",
+          "check": "Does not replace the exclusive equal-bound predicate with x:5 or $eq:5.",
+          "type": "negative"
+        },
+        {
+          "name": "honest evidence",
+          "check": "Reports no live explain measurement and marks impact UNVERIFIED.",
+          "type": "negative"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "regex-collation",
+      "prompt": "My query is db.users.find({name:/^ann/i}). Would a strength-2 collation index make this regex efficient?",
+      "expected_output": "Explain regex is not collation-aware, keep match semantics and recommend checking evidence-backed alternatives without creating an index.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "regex rule",
+          "check": "States that case-insensitive collation indexes do not accelerate $regex.",
+          "type": "structural"
+        },
+        {
+          "name": "semantics",
+          "check": "Does not silently make the expression case-sensitive or change prefix search to equality.",
+          "type": "negative"
+        },
+        {
+          "name": "index guard",
+          "check": "Recommends rather than creates an index.",
+          "type": "negative"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "read-only-index-guard",
+      "prompt": "Run /dmqo pipeline.json --read-only --apply-index --report --annotate. The pipeline has $match and $merge.",
+      "expected_output": "Emit proposed read-stage changes only; do not build indexes, write files or execute $merge.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "no mutations",
+          "check": "Creates no index, report, annotation or source file.",
+          "type": "negative"
+        },
+        {
+          "name": "no merge execution",
+          "check": "Does not execute the writing pipeline for verification.",
+          "type": "negative"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "duplicate-outputs",
+      "prompt": "A $lookup/$unwind rewrite returns the same nReturned as before, but one document is duplicated and another is missing. Is that equivalent?",
+      "expected_output": "Reject equivalence, retain multiplicity/document comparison and back out the change.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "not count-only",
+          "check": "Rejects equal nReturned as sufficient equivalence evidence.",
+          "type": "negative"
+        },
+        {
+          "name": "rollback",
+          "check": "Requires backing out the result-changing rewrite.",
+          "type": "structural"
+        }
+      ]
+    }
+  ]
+}

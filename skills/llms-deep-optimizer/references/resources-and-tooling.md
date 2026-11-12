@@ -2,8 +2,8 @@
 
 <!-- llms-deep-optimizer · references/resources-and-tooling.md · 2026-08-30 -->
 
-Everything the passes call, read or cite, with what each is for. Paths are on this estate
-(M5 = `~/.global-ai-hub` sole writer; other boxes receive by rsync).
+The bundled linter runs independently. The hub tools and paths below describe optional
+integrations on the author's estate; other installations need not provide them.
 
 **Contents**
 1. MCP servers and tools
@@ -44,16 +44,20 @@ BLOCKED; `web-text-mirror` remains the zero-credit fallback.
 
 ## 2. Hub scripts (CLI)
 
-All run from `~/.global-ai-hub` with `PYTHONPATH=scripts .venv/bin/python`.
+The optional hub commands run from `~/.global-ai-hub` with `PYTHONPATH=scripts .venv/bin/python` when installed.
+
+The bundle carries `scripts/llms_lint.py`, `_ldo_v3.py`, and a standalone full-file parser. Run `python3 scripts/llms_lint.py check <path> --json` from the skill directory. It needs only Python's standard library. It checks v3 single files and sitemaps, but does not automatically prove source completeness, all resource targets, or thin-family size. Verify those separately. Without optional hub mirror helpers, anchor resolution reports N/A; do not treat it as passed.
+
+The hub commands below are optional integrations, not prerequisites for the bundled linter. Use them only when installed and authorized. Missing tools are unavailable, not clean results.
 
 | Script | Command shapes | Role |
 |---|---|---|
-| `scripts/llms_lint.py` | `detect F` · `check F [--kind K] [--check-links] [--fix] [--json]` · `full F` · `facts F [--mirror M]` · `hygiene F --fix` | every deterministic pass (P0 P1 P2 P3-det P5 P6 P7 P9-det P14); JSON findings `{pass, attr, severity, line, msg, fix}` |
+| `scripts/llms_lint.py` | `detect F` · `check F [--kind K] [--check-links] [--fix] [--json]` · `full F` · `facts F [--mirror M]` · `hygiene F --fix` | bundled deterministic checks; JSON findings `{pass, attr, severity, line, msg, fix}` |
 | `scripts/docset_refine/__main__.py` | `export <mirror.md> [--title T] [--summary S]` · `family <m1> <m2>… --name N --summary S --out llms.txt [--base-url U]` · `topical --from F… --subject S --out DIR [--summary] [--base-url] [--no-embed] [--register]` · `units <mirror> [--force]` · `all <mirror>` | the generator; P3/P4/P10/P15 fixes are inputs to it; `topical` is build mode |
 | `scripts/docset_refine/export_llms.py` | `run()`, `build_index/full/small/facts`, `family()`, `_family_link()`, `GRAMMAR_NOTE`, `SMALL_MAX_CHARS`, `CHARS_PER_TOKEN` | export internals the lint reuses (same constants, same grammar) |
 | `scripts/docset_refine/clean.py` `extract.py` `units.py` `polish.py` `render.py` | module API | residue table (P6), deterministic extractors and unit schema (P7), LLM units (P8 regen) |
 | `scripts/llms_acquire.py` | `acquire URL` · `probe URL` · `split_llms_full(text)` · `parse_llms_index(text)` | grammar parsing (P0 P6), ladder acquisition for missing members |
-| `scripts/docset_indexer.py` | `index <mirror> [--layer raw|facts]` · `query <docset> "q" [--layer]` · `keyword <docset> "q" [--layer] [--top N]` · `keyword-index <docset>` · `dump <docset>` · `list [--all]` | vector + FTS5 keyword layers (P11) |
+| `scripts/docset_indexer.py` | `index <mirror> [--name KEY] [--model MODEL]` · `index <units.jsonl> --units --name KEY` · `query <docset> "q" [--layer]` · `keyword <docset> "q" [--layer] [--top N]` · `keyword-index <docset>` · `dump <docset>` · `list [--all]` | vector + FTS5 keyword layers (P11) |
 | `scripts/llms_serve.py` | `serve` (launchd) · module `render_root()`, `index_json()` | hub root `/llms.txt`, per-docset and per-mirror routes, headers (P13) |
 | `scripts/llms_full_catalog.py` | `list_entries(status, query, min_pages)` · `read_entry(key, page=)` · `export_mirror(key, out)` · `download_all` · `compile_catalog` | the 608-file third-party mirror behind `hub_llms_full_*` |
 | `scripts/pipeline_manager.py` | `run` · `status` · `add URL` · `retry-failed` | the `mirror → refine → index` pipeline that regenerates exports; `/ldo` never runs it, it queues |
@@ -92,7 +96,7 @@ Headers emitted: `Content-Type: text/markdown; charset=utf-8`, `X-Markdown-Token
 | `~/.global-ai-hub/docs/superpowers/specs/2026-08-30-docset-reference-extraction-design.md` | the refine pipeline design |
 | `~/.global-ai-hub/docs/superpowers/specs/2026-08-30-conceptual-llms-txt-family.md` | the concept axis: `llms-concepts.txt`, concept pages, topic packs — what a topical file instantiates |
 | `~/.global-ai-hub/llms-topical/<slug>.llms/` | topical exports, served at `/t/<slug>/…` |
-| `~/.claude/skill-consolidation/convergence-and-severity.md` | the family contract (severity, exits, guardrails, telemetry) |
+| `references/shared/convergence-and-severity.md` | the family contract (severity, exits, guardrails, telemetry) |
 | `~/.claude/skill-consolidation/evals/llms/<key>.eval.jsonl` | persisted P12 questions + verdicts |
 | `~/.claude/skill-consolidation/backups/<key>-<ts>/` | pre-write snapshots + `run-stub.jsonl` checkpoint |
 | `~/.claude/skill-consolidation/optimizer-telemetry.jsonl` | one row per run (family schema; `kind` = `llms`) |

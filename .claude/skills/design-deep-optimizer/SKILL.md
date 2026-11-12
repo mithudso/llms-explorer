@@ -1,9 +1,10 @@
 ---
 name: design-deep-optimizer
-description: "Multi-stage design & image critique-and-fix optimizer for graphic/brand & UI/UX screens; sibling of code-deep-optimizer/document-critique. Ingests a screenshot, URL, code (HTML/CSS), or spec and runs an 11-pass critique (hierarchy, gestalt, typography, color, usability heuristics/Laws of UX, WCAG, trust, brand-parity, hallucination guard) over the frontend-ui spokes; severity-rates Blocker\u2192Nit and, for code-backed designs, applies Medium+ fixes to convergence (axe/contrast verified). Image/URL/spec inputs get critique-only findings. TRIGGER: \"critique/optimize this design|mockup|UI|screen|landing page|brand asset\", \"/deso\", \"review this screenshot's design\", \"run a design critique\", \"improve this UI's visual design\". SKIP: evals -> deep-eval-optimizer; producing a NEW design (web-design / ui-ux-pro-max); one narrow question (the matching frontend-ui spoke); prose (document-critique); code logic (code-deep-optimizer); photographic or AI-generated-image critique."
+description: >-
+  Audit existing graphic/brand assets and visual design in screenshots or editable components. TRIGGER: "critique this brand asset", "review this screenshot visually", "run deso", "improve typography and spacing". Run 11 critique passes; editable code gets Medium+ repairs with rendered checks, while images, external URLs and specs get findings only. SKIP: full interface workflows, navigation, interaction and accessibility audits → ui-deep-optimizer; new designs or one narrow visual question → frontend-ui; prose → writing-expert (references/document-critique.md); code logic → code-deep-optimizer; eval suites → deep-eval-optimizer. Photographic or generated-art aesthetic critique is outside this skill.
 origin: local
-version: 1.3.2
-updated: '2026-11-09'
+version: "1.4.1"
+updated: "2026-11-11"
 category: developer
 tags:
 - design-critique
@@ -14,12 +15,9 @@ tags:
 - visual-design
 - verify-gate
 related_skills:
-- visual-design-principles-and-critique
-- usability-heuristics-laws-of-ux
-- computational-aesthetics-ui-metrics
-- vision-model-design-critique
-- misc-catch-all
 - frontend-ui
+- ui-deep-optimizer
+- misc-catch-all
 - code-deep-optimizer
 - writing-expert
 whenToUse:
@@ -29,14 +27,15 @@ whenToUse:
 - improve this HTML/CSS component's design until it's clean
 - "is this design any good \u2014 hierarchy, spacing, contrast, trust?"
 whenNotToUse:
-- produce a NEW design from scratch (use web-design / ui-ux-pro-max)
+- produce a NEW design from scratch (use frontend-ui, references/web-design.md)
 - one narrow design question (use the matching frontend-ui spoke directly)
 - prose or documentation review (use document-critique / ddo)
 - code logic/security/perf review (use code-deep-optimizer)
 - aesthetic critique of a photograph or AI-generated image (out of scope)
 metadata:
-  changelog: "2026-06-23 v1.1.0->1.2.0 \u2014 Empirical mode now default-on (gated auto-promote + persist) per \xA7 Default policy in the shared contract \u2014 for code-backed designs with held-out metrics + must-pass checks the gate auto-runs and persists the champion across runs (prior archived for rollback); mandatory holdout rotation/budget/noise vs reusable-holdout overfitting; honest guarantee = monotonically non-decreasing on the held-out metric, not \"better every run\"; opt out --dry-run/--no-promote/--structural-only; image/URL/spec inputs stay critique-only. Per operator request.\n2026-06-23 v1.0.1->1.1.0 \u2014 added Empirical mode (champion\u2013challenger held-out loop) section citing the new shared contract references/shared/champion-challenger.md; calibration: score = held-out a11y/aesthetic metric (axe pass rate, contrast pass count, computational-aesthetic score), must-pass veto = WCAG AA contrast on all text + no axe criticals + brand-token parity. Per operator\
-    \ request.\n2026-06-16 v1.0.0 \u2014 created via concept-family-explorer Phase B + skill-creator. Orchestrates\nthe 6 visual-design knowledge spokes built in the same run. Input-adaptive: auto-fix\nconvergence loop for code-backed designs, critique-only for image/URL/spec. Pending\nskill-optimizer pass.\n"
+  changelog_ref: references/CHANGELOG.md
+model: claude-opus-5-5
+effort: xhigh
 ---
 
 # Design Deep Optimizer
@@ -55,9 +54,9 @@ re-render verify gate.
    auto-edited, so the skill is **input-adaptive** (§ Stage 0): the full apply→verify→re-critique
    loop runs only for **editable code-backed** designs; **image / URL / spec** inputs get a
    critique-only findings report. Promising "auto-fix" on a screenshot would be a lie — don't.
-2. **Its primary sensor is a vision model, which is noisy.** VLM design critique recalls only
-   ~21% of issues a human expert finds and hallucinates elements that aren't there
-   (`vision-model-design-critique`). So this skill carries a **hallucination guard + self-consistency
+2. **Its primary sensor is a vision model, which is noisy.** VLM design critique recalls
+   only a subset of expert-detected issues and hallucinates elements that aren't there
+   (the local P9 procedure in `references/passes.md`). So this skill carries a **hallucination guard + self-consistency
    pass** (P9) the text siblings don't need, and labels vision-derived findings as a **triage aid,
    not ground truth.**
 
@@ -65,13 +64,21 @@ For loop mechanics, the 7 exit conditions, the canonical severity ladder, and sh
 **cites** `references/shared/convergence-and-severity.md` rather than restating them —
 this file keeps only the design-specific calibration.
 
+## Look for llms files first
+
+Before reading the editable design repository (skip repository discovery for image-only inputs) raw, look for its llms files and open them by size. If you have the repo, step 4 sets the order.
+1. Look for the subject's `llms.txt`, its hub llms map, and memory-central keyword-index rows for the target terms.
+2. Run `wc -c` first (or read `x-markdown-tokens` on a remote). Read a file whole only when it fits. Otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, grep the code before you open an llms file. The code is the authority. Use maps to find the right file and verify every fact against its `path:line`.
+5. Index and llms hits are leads. Confirm them with Read before you act.
+
 ## When not to use (read this first)
 
 - **Producing a NEW design** (generate a landing page, pick a palette, lay out a dashboard) →
-  `frontend-ui` (references/web-design.md) / `ui-ux-pro-max`. This skill critiques what exists; it doesn't author.
+  `frontend-ui` (references/web-design.md or references/ui-ux-pro-max.md). This skill critiques what exists; it doesn't author.
 - **A single narrow question** answerable by one spoke ("what's a good font pairing?",
-  "compute this contrast ratio") → that spoke directly (`ui-ux-pro-max`,
-  `computational-aesthetics-ui-metrics`). The 11-pass loop is overkill for one lookup.
+  "compute this contrast ratio") → that spoke directly (`frontend-ui` (references/ui-ux-pro-max.md or references/computational-aesthetics-ui-metrics.md)). The 11-pass loop is overkill for one lookup.
 - **Prose or documentation** → writing-expert (references/document-critique.md) / `ddo`.
 - **Code logic / security / performance** → `code-deep-optimizer` (it composes: cdo for the code,
   deso for the rendered design).
@@ -96,7 +103,7 @@ If no target is given, ask once: "Give me a screenshot, URL, code path, or spec 
 | --- | --- |
 | (default) | input-adaptive: apply+verify+converge for code; critique-only otherwise |
 | `--read-only` / `--report` | findings + prescribed fixes only, never write (forces critique-only even for code) |
-| `--annotate` | inline review comments on the code instead of rewrites |
+| `--annotate` | inline review comments on the code instead of rewrites; --read-only/--report wins and emits proposed comments only |
 | `--context=<text>` | supply intent/audience/brand so Pass 0 isn't guessing |
 | `--max-iter=N` | hard ceiling on the convergence loop (code mode) |
 | `--budget-minutes=N` | canonical budget contract |
@@ -117,7 +124,7 @@ that opens the report.
 | Input | Sensor | Editability |
 | --- | --- | --- |
 | **Code** (HTML/CSS/JSX/component source) | render to a screenshot (headless browser) **and** keep the source | **EDITABLE** → auto-fix loop |
-| **Image** (PNG/JPG upload) | vision model via `vision-model-design-critique` (describe-then-judge, Set-of-Mark element grounding, structured findings) | READ-ONLY |
+| **Image** (PNG/JPG upload) | vision model via the local P9 procedure in `references/passes.md` (describe-then-judge, Set-of-Mark element grounding, structured findings) | READ-ONLY |
 | **Live URL** | browser/firecrawl screenshot (+ optional DOM/CSS fetch) | READ-ONLY (EDITABLE only if the URL maps to code in the repo) |
 | **Design spec** (text brief) | text-only against the principles; no vision model | READ-ONLY |
 
@@ -147,32 +154,34 @@ selector) · concrete fix.** A finding without a locatable region or a concrete 
 ## Multi-stage passes (11 passes in 4 parallel bundles + guard + synthesis)
 
 **Dispatch rule.** Run the four bundles as a **parallel agent fan-out** in one batch; **collect all
-findings before any write.** Then run P9 (it re-runs the visual passes, so it follows them) and P10
+findings before any write.** P9 is excluded from the initial bundles. After all four bundles return, run P9 (it re-runs the visual passes) and P10
 (synthesis). Sequential execution is the fallback with no Agent tool. Each pass emits a row even
 when `N/A` (e.g., heuristics/WCAG on a non-interactive brand asset). Per-pass detect→rate→fix
 checklists and the spoke each pass draws on live in `references/passes.md` — read it before the
 first run.
 
-**Bundle A: Composition & visual** (`visual-design-principles-and-critique`)
+**Bundle A: Composition & visual** (`frontend-ui` (references/visual-design-principles-and-critique.md))
 - **P0 Intent & context**: what is this, for whom, what brand/constraints; sets what "good" means. Use `--context` if supplied; otherwise infer and state the assumption.
 - **P1 Visual hierarchy & composition**: focal point, scanning path (Z/F/Gutenberg), gestalt grouping, C.R.A.P., balance, scale, white space. The squint/blur test.
-- **P2 Typography & legibility**: type hierarchy, pairing, measure, rhythm (`visual-design-principles-and-critique` P2). **Micro-typography & type-craft defects** — widows/orphans/runts, rag/rivers/bad breaks, kerning/tracking ("keming"), baseline-grid rhythm, H&J/justified gaps, hanging punctuation, glyph crimes (curly vs straight quotes, en/em dashes, faux small caps, old-style/tabular figures, faux bold/italic), and "type crimes" (faux condensed/stretched, ransom-note mixing) — now have a dedicated DETECT→RATE→FIX catalog: `frontend-ui/references/micro-typography-craft.md` (frontend-ui hub). Load it for the typography pass.
+- **P2 Typography & legibility**: type hierarchy, pairing, measure, rhythm (`frontend-ui` (references/visual-design-principles-and-critique.md) P2). **Micro-typography & type-craft defects** — widows/orphans/runts, rag/rivers/bad breaks, kerning/tracking ("keming"), baseline-grid rhythm, H&J/justified gaps, hanging punctuation, glyph crimes (curly vs straight quotes, en/em dashes, faux small caps, old-style/tabular figures, faux bold/italic), and "type crimes" (faux condensed/stretched, ransom-note mixing) — now have a dedicated DETECT→RATE→FIX catalog: `frontend-ui/references/micro-typography-craft.md` (frontend-ui hub). Load it for the typography pass.
 - **P3 Color & contrast**: harmony, palette discipline, semantic color; WCAG contrast math (→ `frontend-ui` (references/accessibility-ux-reviewer.md)).
 
 **Bundle B: Interaction & accessibility** (UI screens; mostly `N/A` for static brand assets)
-- **P4 Usability heuristics & Laws of UX**: Nielsen's 10 + Laws of UX (Hick/Fitts/Jakob/…) → `usability-heuristics-laws-of-ux`.
+- **P4 Usability heuristics & Laws of UX**: Nielsen's 10 + Laws of UX (Hick/Fitts/Jakob/…) → `frontend-ui` (references/usability-heuristics-laws-of-ux.md).
 - **P5 Accessibility (WCAG 2.2)**: contrast, target size, focus order, alt text, semantics → `frontend-ui` (references/accessibility-ux-reviewer.md).
 
 **Bundle C: Affect & objective signal**
 - **P6 Affective / first-impression / trust**: does it feel right, trustworthy, on-tone; Norman's 3 levels, brand personality → `misc-catch-all` (references/emotional-design-and-visual-trust.md).
-- **P7 Objective metrics**: visual complexity, colorfulness, balance/symmetry, white-space ratio, contrast ratios, axe (code/URL) → `computational-aesthetics-ui-metrics`. **Corroborates** subjective findings with numbers; never the sole basis for a finding (these explain only ~half of human aesthetic judgment).
+- **P7 Objective metrics**: visual complexity, colorfulness, balance/symmetry, white-space ratio, contrast ratios, axe (code/URL) → `frontend-ui` (references/computational-aesthetics-ui-metrics.md). **Corroborates** subjective findings with numbers; never the sole basis for a finding (these explain only ~half of human aesthetic judgment).
 
-**Bundle D: Brand & guard**
+**Bundle D: Brand**
 - **P8 Brand / design-system / spec-parity**: consistency with the stated brand, design system/tokens, or the supplied spec.
-- **P9 Adversarial / hallucination guard**: re-run the visual passes (P1/P6/P8) under `vision-model-design-critique` self-consistency: **keep only findings corroborated across runs; drop any element the model can't reliably re-locate.** This is the reliability backbone — every vision finding earns its place or is dropped/flagged low-confidence.
+**After all bundles:**
+
+- **P9 Adversarial / hallucination guard**: re-run the visual passes (P1/P6/P8) under the local P9 procedure in `references/passes.md` self-consistency: **keep only findings corroborated across runs; drop any element the model can't reliably re-locate.** This is the reliability backbone — every vision finding earns its place or is dropped/flagged low-confidence.
 
 **P10 — Synthesis**: dedup across passes, keep the higher severity, rank, group by region, and
-add a **"what's working"** section (balanced critique per `visual-design-critique-methodology` —
+add a **"what's working"** section (balanced critique per `frontend-ui` (references/visual-design-critique-methodology.md) —
 a crit that only lists faults is a worse crit).
 
 ## Convergence (input-adaptive)
@@ -182,7 +191,7 @@ guardrails. Two modes, chosen by the Stage 0 flag:
 
 - **EDITABLE (code-backed).** The true optimizer loop: passes → apply every Medium+ fix to the
   source → **re-render** → re-critique → repeat until 0 Medium+ or a canonical exit. **Iteration
-  cap 5 (3 small-profile:** a single component with no build surface). Reuse
+  cap 3**, raised to 5 only if Medium+ findings dropped at least 50% in the prior iteration; an explicit `--max-iter` is a hard ceiling of at most 5. Reuse
   `convergence_check.py` with `<file>.iter<N>` pre-write copies for the no-progress / stable-rewrite
   / instability verdicts — never self-estimate.
 - **READ-ONLY (image / URL / spec).** There is nothing to re-render, so there is no edit loop.
@@ -195,8 +204,8 @@ guardrails. Two modes, chosen by the Stage 0 flag:
 The empirical analogue of cdo's build/lint/test gate — design correctness is checked by rendering
 and measuring, not by judgment alone.
 
-- **EDITABLE:** after each apply, **re-render** the code and re-run the objective checks
-  (`computational-aesthetics-ui-metrics`: contrast math, axe, layout metrics). A check that was
+- **EDITABLE:** before a CLEAN claim require an independent final review on the final source and current captures, without prior findings. Missing rendering, checks or an independent reviewer produces NEEDS_EVIDENCE, never CLEAN. After each apply, **re-render** the code and re-run the objective checks
+  (`frontend-ui` (references/computational-aesthetics-ui-metrics.md): contrast math, axe, layout metrics). A check that was
   green and is now red (e.g., a "fix" pushed contrast below AA, or shifted the focal point) is a
   **regression** → revert that fix (record a `BLOCKED (verify-gate regression)` row, unsatisfied for
   convergence) and try a non-breaking variant within the iteration. Run only conventional renders;
@@ -210,7 +219,7 @@ and measuring, not by judgment alone.
 Inherited from the contract, design-specialized:
 
 - **Vision-honesty rule**: label every vision-derived finding as a triage aid; attach a
-  confidence; and never present a VLM critique as exhaustive (~21% expert-issue recall). Missing a
+  confidence; and never present a VLM critique as exhaustive (recall varies by model, task and evidence). Missing a
   problem is the expected failure mode; say so.
 - **Hallucination guard**: a finding about an element the model can't reliably re-locate across P9
   runs is dropped or flagged low-confidence, never shipped as Medium+.
@@ -253,7 +262,7 @@ Calibration:
 2. Overall assessment (2–3 sentences: does it achieve its intent).
 3. Severity-ranked findings table — `Severity | Lens | Region | Finding | Recommended fix | Confidence`.
 4. "What's working" (P10).
-5. Vision-reliability caveat line (triage-aid, ~21% recall, model limits: text-in-image, fine spatial reasoning).
+5. Vision-reliability caveat line (triage-aid, limited recall, model limits: text-in-image, fine spatial reasoning).
 
 ## Telemetry
 
@@ -267,6 +276,6 @@ Append telemetry rows per the canonical telemetry schema in
 - Presenting a vision-model critique as complete or authoritative — it isn't; flag confidence and recall limits.
 - Shipping a finding about an element you hallucinated — P9 exists to catch exactly this.
 - Collapsing the 11 passes into one "general design feedback" blob.
-- A findings list with no "what's working" — unbalanced crit is worse crit (`visual-design-critique-methodology`).
+- A findings list with no "what's working" — unbalanced crit is worse crit (`frontend-ui` (references/visual-design-critique-methodology.md)).
 - Letting the objective metrics (P7) override human/principle judgment — they corroborate, they don't rule.
 - Running the code-mode loop past the cap without checking whether findings are closing.

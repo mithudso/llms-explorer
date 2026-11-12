@@ -14,19 +14,19 @@ There is no create/update call and no per-skill push. `~/.global-ai-hub` indexes
 
 ### The shadowing trap (read this before trusting a rebuild)
 
-`~/.global-ai-hub/skills/` is searched **before** `~/.claude/skills/`, and the first `name` seen wins. If a stale twin of the target sits in the hub root, every rebuild re-indexes *that* file and the canonical copy under `~/.claude/skills/` is never read. The failure is silent and total: the build prints a normal entry count, exits 0, and the registry keeps serving the old description no matter how many times you rebuild.
+Verify root order against the current collector. In the legacy collector described here, the hub root precedes the Claude root and plugin cache. An earlier same-name source can keep serving an older description even after a successful rebuild. Resolve real paths: two symlink aliases can name one file. Do not assume that a previous machine's root layout still applies.
 
 Before Step 7's rebuild, confirm the copy you edited is the one that will be indexed:
 
 ```bash
-for p in ~/.global-ai-hub/skills/<id>/SKILL.md ~/.claude/skills/<id>/SKILL.md; do
-  [ -f "$p" ] && printf '%s v=%s %s\n' "$p" \
+{ printf '%s\n' ~/.global-ai-hub/skills/<id>/SKILL.md ~/.claude/skills/<id>/SKILL.md; find ~/.claude/plugins/cache -path "*/skills/<id>/SKILL.md" 2>/dev/null; } | while read -r p; do
+  [ -f "$p" ] && printf '%s -> %s v=%s %s\n' "$p" "$(realpath "$p")" \
     "$(grep -m1 '^version:' "$p" | cut -d' ' -f2)" "$(shasum -a256 "$p" | cut -c1-12)"
 done
 ```
 
-Two hits with different hashes ⇒ Step 1's duplicate guard should already have filed this **High**. Mirror the canonical copy into the hub root (back it up first) before rebuilding, or the rebuild is theatre. Observed live 2026-09-09 on this skill: two rebuilds, exit 0 both times, description unchanged in the index, because a v2.16.1 twin in the hub root was shadowing the edited v2.17.0 file.
-| Rebuild | `cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router build` |
+Two lines with the same real path name one file. A divergent, actively indexed source that shadows the selected source is a High finding. Report its owner and winning root. Step 6.7 may synchronize it only within the user's scope, after an unchanged-preimage check. Otherwise preserve it and report the routing limit. Repository distributions, overlays and historical snapshots are classified separately; their existence alone is not a High finding. Deleting a copy stays with `skill-tree-architect`.
+| Rebuild | `cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router build --prune` |
 | Read | `hub_route(task, kinds="skill", top=N)` — returns `score`, `ref`, `description`, `origin` |
 | Read (CLI, MCP not connected) | `PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router route "<task>" --top 5 --kinds skill` |
 
@@ -34,42 +34,56 @@ Consequences worth stating plainly, because they delete machinery older protocol
 
 - **One rebuild covers every skill written this run.** The target and all Pass O peers are re-indexed by the same command; there is no per-peer sync loop.
 - **No fallback chain.** There is one write path. A rebuild either runs or it doesn't.
-- **No durability caveat.** Nothing regenerates the registry from a separate mirror, so a rebuild cannot be silently undone by a later batch job.
+- **Verify the result.** A successful rebuild does not prove that the selected source won collection or that later automation will preserve it. Record the actual source and compare stored descriptions.
 - **A legacy `context.md` + `manifest.yaml` pair is never indexed.** The glob matches `SKILL.md` only. Optimizing such a target is valid; reporting it as registered is not.
+
+## Duplicate-copy guard (Step 1.5 mechanics)
+
+Every copy of the target on disk, deduplicated by real path, with git worktrees, run backups, the eval shadow dir, and `node_modules` pruned; covers the plugin cache. No shell globs, so it behaves the same under zsh and bash:
+
+```bash
+for root in ~/.claude/skills ~/.global-ai-hub/skills ~/.claude/plugins/cache; do
+  [ -d "$root" ] && find -L "$root" -maxdepth 6 \
+    \( -path '*/.claude/worktrees' -o -path '*/backups' -o -path '*/eval-shadow' -o -name node_modules \) -prune \
+    -o -type f -name SKILL.md -path "*/<id>/SKILL.md" -print 2>/dev/null
+done | xargs -n1 realpath 2>/dev/null | sort -u
+```
+
+Also inspect the explicitly selected repository's skill roots and its generator manifests. Classify each real path by owner and loading role. An active indexed shadow with different content is High; an intentional distribution, generated overlay or historical snapshot is reported with its role. A path's depth alone does not prove that every runtime ignores it. Preserve other worktrees and plugin-managed sources. See `location-sync.md` for permitted writes.
 
 ## Sub-steps
 
-**7.0 Outcome changelog line.** A write outside the convergence loop, exempt from Step 6's SHA/parse checks (which ran before it): append one run-outcome line to the target's frontmatter `metadata.changelog`, capped at the **5 most recent entries** — drop the oldest rather than letting the list grow, since this block loads on every invocation. Format: `<date> sko vX->vY — Pass H n/10->n/10 pos, n/10->n/10 neg; <counts> fixed`. One line, not a paragraph. Run a one-line frontmatter re-parse check after the write.
+**7.0 Outcome changelog line.** Prepend one outcome line to the file named by `metadata.changelog_ref` (default `references/CHANGELOG.md`). Preserve its preimage before writing. If a metadata key must be added, parse the frontmatter again. Recompute the final write-set hashes after this step; a post-verification changelog write is not exempt from the final manifest. Skip writes under `--read-only`. Record prediction, measurement and operational limits without claiming an unrun gate passed.
 
 **1. Rebuild the index.**
 
 ```bash
-cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router build
+cd ~/.global-ai-hub && PYTHONPATH=scripts .venv/bin/python -m semantic_ops.router build --prune
 ```
 
-Runs unless the caller passed `--no-sync` or the run exited with High findings remaining (override `--sync-anyway`). The command is idempotent and covers the target plus every Pass O peer in one pass. Record its exit status.
+Run only within the authorized index scope and service permissions. Withhold it for `--no-sync`, an existing indexing pause or residual High findings. `--sync-anyway` overrides only the High-findings gate. It does not authorize embeddings, a service restart or writes outside the requested scope. Record either the actual exit status or the precise withheld reason.
 
 **2. Verify routing.** Read-only; **always runs**, even under `--no-sync`. For the target and each Pass O peer, record one verdict:
 
 | Verdict | Test | Meaning |
 | --- | --- | --- |
 | `indexed` | **Some** row under the skill's `ref` carries the file's current description, and the `ref` appears in `hub_route("<its own top intent phrase>", kinds="skill", top=5)` | Registered and findable |
-| `stale` | `ref` exists but **no** row carries the current description | The rebuild did not re-embed this entry |
+| `stale` | No row exists for `ref`, or **no** existing row carries the current description | The entry is missing or its indexed description is outdated |
 | `unroutable` | A current row exists, but the skill does not surface for its own top intent phrase | Routing defect, not a sync failure |
 
 **Compare the stored text, never the file mtimes.** A rebuild touches `registry.db` whether or not any given entry was re-embedded, so an mtime comparison reports `indexed` for an entry that was silently skipped.
 
 ```bash
 sqlite3 ~/.global-ai-hub/registry.db \
-  "select substr(text,1,200) from chunks where ref='skill:<id>';"
+  "select text from chunks where ref='skill:<id>';"
 ```
 
-Diff the returned rows against the file's `description` frontmatter; the verdict is `indexed` if any one of them matches.
+Compare the complete parsed `description` with the complete stored description, not a preview. If the stored text has a name/header prefix, compare the exact description payload after that prefix; do not use a partial substring. A text match alone is insufficient: the own-intent routing probe must also pass for `indexed`.
 
 Two build behaviors make this necessary:
 
 - **A degraded build still exits 0.** When an embedding backend times out, `semantic_ops.router build` prints `embed_core WARN: http://<host>:11434: timed out`, indexes what it can, and returns success. Treat any `embed_core WARN` on stderr as a prediction that some entry will verify `stale`.
-- **Rows accumulate; nothing is deleted.** Each row's id is a content hash of its description, so an edited description is added as a *new* row while the old one stays and keeps competing in routing. Expect two rows per edited skill and confirm the newer one outranks the older. Surplus rows are a tree-wide registry-hygiene problem (19 refs carrying 20 surplus rows as of 2026-09-09) — report the count for the target and hand the cleanup to `skill-tree-architect`; never delete rows from here.
+- **Old rows are pruned, not left to compete.** Each row's id is a content hash of its description, so an edited description adds a new row. `build --prune` (added 2026-10-05) then deletes the superseded row once the current one is stored, and deletes rows whose origin file no longer resolves. Expect exactly one row per ref after a successful rebuild; more than one means the prune was skipped or the embed backend failed. Never delete rows by hand.
 
 Handling:
 

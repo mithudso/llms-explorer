@@ -38,8 +38,27 @@ CRED_PATTERNS = [
     (r"\bAKIA[0-9A-Z]{16}", "aws access key id"),
 ]
 TAG = re.compile(r"\[(src:|asserted|stale:|conflict:|unresolved)")
-SPEC_TXT = {"llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt"}
+SPEC_TXT = {"llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "llms-sitemap.txt"}
 CAPS = {"llms.txt": 2000, "llms-small.txt": 8000}
+
+
+def sections(text):
+    """H2 bodies outside fenced code, used only for shape and count checks."""
+    result = {}
+    current = None
+    fenced = False
+    for line in text.splitlines():
+        if line.lstrip().startswith(("```", "~~~")):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if line.startswith("## "):
+            current = line[3:].strip().lower()
+            result.setdefault(current, [])
+        elif current is not None:
+            result[current].append(line)
+    return result
 
 
 def claim_lines(path):
@@ -85,6 +104,38 @@ def main():
     fails = []
 
     idx = open(os.path.join(out, "llms.txt"), errors="replace").read()
+    index_sections = sections(idx)
+    single = (bool(re.search(r"^>.*\bMode:\s*single-file\b", idx[:4000], re.M))
+              or {"facts", "sitemap"}.issubset(index_sections))
+    required = {"llms.txt"} if single else SPEC_TXT
+    missing = sorted(name for name in required if not os.path.isfile(os.path.join(out, name)))
+    if missing:
+        print("FAILS:", ", ".join("missing:" + name for name in missing))
+        return 1
+    print(f"shape: {'single-file' if single else 'family'} (detailed format/source audit remains /ldo)")
+    if single:
+        siblings = sorted(os.path.basename(f) for f in docs
+                          if os.path.basename(f).startswith("llms-") and f.endswith(".txt"))
+        if siblings:
+            fails.append("single-siblings")
+            print("FAIL single-file output has family siblings:", ", ".join(siblings))
+        for name in ("facts", "sitemap", "resources"):
+            if name not in index_sections:
+                fails.append("single-missing:" + name)
+        entries = [line for line in index_sections.get("sitemap", []) if line.startswith("- ")]
+        if len(entries) > 200:
+            fails.append("single-sitemap-cap")
+    else:
+        sitemap = open(os.path.join(out, "llms-sitemap.txt"), errors="replace").read()
+        sitemap_sections = sections(sitemap)
+        if not ({"files", "pages"} & sitemap_sections.keys()) or "resources" not in sitemap_sections:
+            fails.append("sitemap-sections")
+        declared = re.search(r"^>.*\bEntries:\s*(\d+)", sitemap, re.M)
+        if declared:
+            count = sum(line.startswith("- ") for name in ("files", "pages")
+                        for line in sitemap_sections.get(name, []))
+            if int(declared.group(1)) != count:
+                fails.append("sitemap-count")
     man = json.load(open(os.path.join(out, "manifest.json")))
     # constants read from the pack, never hardcoded
     m = re.search(r"·\s*(\d+)\s*claims tagged stale", idx)
@@ -105,7 +156,8 @@ def main():
             fails.append(f"header:{os.path.basename(f)}")
 
     print("\n=== 2. caps ===")
-    for name, cap in CAPS.items():
+    caps = {"llms.txt": 32000} if single else CAPS
+    for name, cap in caps.items():
         p = os.path.join(out, name)
         if not os.path.exists(p):
             print(f"  FAIL {name} missing")
@@ -153,10 +205,12 @@ def main():
     print(f"  OK   {len(paths)} distinct paths carded")
 
     print("\n=== 7. freshness header matches the facts file ===")
-    facts = open(os.path.join(out, "llms-facts.txt"), errors="replace").read()
+    facts = ("\n".join(index_sections.get("facts", [])) if single
+             else open(os.path.join(out, "llms-facts.txt"), errors="replace").read())
+    facts_location = "llms.txt ## Facts" if single else "llms-facts.txt"
     actual = facts.count("[stale:")
     ok = (hdr_stale == actual)
-    print(f"  {'OK  ' if ok else 'FAIL'} header={hdr_stale} llms-facts.txt={actual}")
+    print(f"  {'OK  ' if ok else 'FAIL'} header={hdr_stale} {facts_location}={actual}")
     if not ok:
         fails.append("stale-count")
     if man.get("claims_tagged_stale") not in (None, actual):
@@ -189,7 +243,11 @@ def main():
           f"{sorted(o for o in others if o.lower() in PRODUCT_HOMONYMS)}")
 
     print("\n=== 9. credential shapes ===")
-    hits = [(os.path.basename(f), lbl) for f in docs for pat, lbl in CRED_PATTERNS
+    # JSON sidecars contain card text and provenance too. A clean Markdown view
+    # must not hide a credential that survives in artifacts.json or manifest.json.
+    emitted_text = sorted(set(docs + glob.glob(os.path.join(out, "*.json"))
+                              + glob.glob(os.path.join(out, "*.jsonl"))))
+    hits = [(os.path.basename(f), lbl) for f in emitted_text for pat, lbl in CRED_PATTERNS
             if re.search(pat, open(f, errors="replace").read())]
     print(f"  {'OK  ' if not hits else 'FAIL'} {len(hits)} hit(s)")
     for h in hits:

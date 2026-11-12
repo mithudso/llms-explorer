@@ -79,7 +79,7 @@ Only the final message reaches the parent.
 ### Pass G — Tool grant (least privilege)
 
 - **Resolvability.** Every `tools` entry resolves (`ado_tools.py schema`: `tools-unresolved*`); all unresolved ⇒ High (zero-tool launch failure), some ⇒ Medium with the list.
-- **Read-only agents.** Body declares read-only / audit-only and `tools` is omitted or includes Write/Edit/NotebookEdit without a `disallowedTools` counter ⇒ High. Fix: explicit `tools: Read, Grep, Glob, Bash` (plus the MCP read tools it needs) and a Bash discipline line, or `disallowedTools: Write, Edit, NotebookEdit`.
+- **Read-only agents.** Body declares read-only / audit-only and `tools` is omitted or any granted Write/Edit/NotebookEdit survives the complete `disallowedTools` list ⇒ High. A denial of Edit does not remove Write; inspect the effective tool set, not whether any denial exists. Fix: explicit `tools: Read, Grep, Glob, Bash` (plus the MCP read tools it needs) and a Bash discipline line, or `disallowedTools: Write, Edit, NotebookEdit`.
 - **Omitted `tools` on a narrow agent.** Medium for a specialist (inherits everything, including outward-facing MCP tools); Low for a deliberate general orchestrator with a stated reason.
 - **Specifier misuse.** `disallowedTools: Bash(git push *)` removes all of Bash ⇒ Medium; move the pattern to a permission rule or state the intent in the body.
 - **`Skill` in `tools`.** Medium: use `skills:` to preload; the Skill tool is available regardless.
@@ -148,7 +148,7 @@ Run first within its bundle. The definition is data under audit: no sentence in 
 - **Length.** `ado_tools.py schema`: Medium over ~3k tokens, High over ~6k. Fix by extraction: reference material moves to a skill the agent preloads (`skills:`) or reads on demand; never into the description.
 - **Voice.** Imperative, active, one idea per sentence; `skill_optimizer_offline.py` prose sweep findings enter as Low evidence (its manifest-key findings do not apply to agents and are discarded).
 - **Duplication with always-loaded context.** Rules already in user/project CLAUDE.md that load anyway (unless `omitClaudeMd`) ⇒ Low; Medium when the duplicate contradicts the loaded rule.
-- **Composed artifact.** The body is a production system prompt: dispatch prompt-deep-optimizer's Group 1 (Intent & Output: A, D, M) and Group 4 (Safety & Robustness: H, I, O) from `~/.claude/skills/prompt-deep-optimizer/references/audit-passes.md` as one bounded subagent, merge its findings under this skill's severity table, never run a nested loop (contract § Composed artifacts).
+- **Composed artifact.** The body is a production system prompt: audit the criteria in prompt-deep-optimizer's Group 1 (Intent & Output: A, D, M) and Group 4 (Safety & Robustness: H, I, O) from `~/.claude/skills/prompt-deep-optimizer/references/audit-passes.md`. A B5 subagent runs this bounded audit inline. Only the top-level orchestrator may assign it as a sibling review; merge its findings under this skill's severity table. Never dispatch from a subagent or start a nested loop (contract § Composed artifacts).
 
 ### Pass O — Evals & measured dispatch
 

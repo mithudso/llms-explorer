@@ -2,7 +2,7 @@
 
 verified-as-of: 2026-10-05 — volatile sections (re-verify via deep-research every 90 days): Section 1 tier-table benchmark claims, 3.1 DSPy stats, 3.6 MIPROv2 modes, 3.7 GEPA, 3.10 Assertions status, Section 7 tool matrix, Section 8 recent developments. Re-verified 2026-10-05 against arXiv abstracts, the DSPy repo/releases (3.4.0), PyPI, and vendor docs. NOT re-verified: dollar-cost figures in the tier tables and 3.3/3.6 (~$0.50, ~$5), PromptWizard's "<30 examples" threshold, the Anthropic Console prompt improver, and Sections 2, 4, 5 (stable background; stamp 2026-06-11 or earlier).
 
-Comprehensive reference for prompt optimization algorithms, practical techniques, and management systems. Compiled from primary research papers, documentation, and 2025-2026 state-of-the-art surveys.
+Comprehensive reference for prompt optimization algorithms, practical techniques, and management systems. Compiled from primary research papers, documentation, and 2025-2026 research surveys.
 
 ## How to use this context
 
@@ -21,7 +21,7 @@ Algorithms are ranked by optimization power, generality, and production readines
 
 ### Tier 1 — Production-grade, broadly applicable
 
-| Rank | Algorithm | Paradigm | Best improvement | Cost | Key strength |
+| Rank | Algorithm | Method | Best improvement | Cost | Key strength |
 |------|-----------|----------|-----------------|------|--------------|
 | 1 | **MIPROv2** | Bayesian joint instruction+demo search | Up to +13% accuracy over baselines (5 of 7 programs, Llama-3-8B; [arXiv:2406.11695](https://arxiv.org/abs/2406.11695)) | ~$5/50 examples | Joint optimization with auto-mode presets |
 | 2 | **GEPA** | Reflective Pareto evolution | >10pp over MIPROv2; +6pp avg over GRPO ([arXiv:2507.19457](https://arxiv.org/abs/2507.19457)) | High | Rich textual feedback, Pareto diversity |
@@ -30,7 +30,7 @@ Algorithms are ranked by optimization power, generality, and production readines
 
 ### Tier 2 — Strong for specific use cases
 
-| Rank | Algorithm | Paradigm | Best improvement | Cost | Key strength |
+| Rank | Algorithm | Method | Best improvement | Cost | Key strength |
 |------|-----------|----------|-----------------|------|--------------|
 | 5 | **EvoPrompt** | Evolutionary (GA/DE) | Up to +25% on BBH | Moderate | Population diversity, broad task coverage |
 | 6 | **SIMBA** | Stochastic introspective mini-batch | Superior to MIPROv2 on capable LMs | Medium-High | Self-reflective failure analysis |
@@ -40,7 +40,7 @@ Algorithms are ranked by optimization power, generality, and production readines
 
 ### Tier 3 — Baselines and building blocks
 
-| Rank | Algorithm | Paradigm | Best improvement | Cost | Key strength |
+| Rank | Algorithm | Method | Best improvement | Cost | Key strength |
 |------|-----------|----------|-----------------|------|--------------|
 | 10 | **BootstrapFewShotWithRandomSearch** | Random search over demo sets | Better than single bootstrap | Low-Medium | Simple, deterministic improvement |
 | 11 | **COPRO** | Coordinate ascent on instructions | Moderate | Medium | Instruction-only optimization |
@@ -376,11 +376,11 @@ Alternates prompt optimization and weight optimization (fine-tuning): prompt →
 
 **Layered recovery architecture:**
 1. **Output validation** — Schema validators (Pydantic, JSON Schema) catch structural failures. Failed outputs route to sanitation agent.
-2. **Prompt reformulation** — Maintain multiple templates per task. On failure, retry with alternative formulation leveraging LLM nondeterminism.
+2. **Prompt reformulation** — Maintain multiple templates per task. On failure, retry with alternative formulation using LLM nondeterminism.
 3. **Chain-of-responsibility** — Primary agent → recovery agent (simplified templates) → rule-based fallback → human escalation.
 4. **State checkpointing** — Save state after successful steps for rollback without full restart.
 
-**VIGIL (2025):** State-of-the-art sibling agent architecture. Ingests behavioral logs, maintains "EmoBank" tracking behavior with decay, derives structured diagnoses, generates guarded prompt updates preserving core identity and code proposals based on log evidence. Demonstrated meta-level self-repair when own diagnostic tool failed.
+**VIGIL (2025):** Current sibling agent architecture. Ingests behavioral logs, maintains "EmoBank" tracking behavior with decay, derives structured diagnoses, generates guarded prompt updates preserving core identity and code proposals based on log evidence. Demonstrated meta-level self-repair when own diagnostic tool failed.
 
 **Best practices:** Circuit breakers prevent infinite loops. Log all recovery attempts. Verify state after actions. Set clear escalation thresholds.
 

@@ -1,3 +1,7 @@
+2026-11-11 final SKO TASK-1372: A–P and bounded independent rechecks recorded; exploratory predicted triggers; scoped operational exit DEGRADED. Raw dissent and focused correction receipts remain in the repository review ledger. No measured activation, semantic refresh or empirical promotion.
+
+2026-11-11 v1.1.1 — bounded blind-review repairs; offline regression evidence recorded; final fresh recheck pending.
+2026-11-11 sko 1.0.0->1.1.0 — content/routing audit and evaluation evidence; predicted results only; blind acceptance pending.
 # agent-deep-optimizer changelog
 
 Newest first. Lives in `references/` so the frontmatter stays free of non-executing bulk (skill-optimizer Pass J.1). This file records changes to agent-deep-optimizer itself; per-run outcomes on a target go to that run's `run-stub.jsonl` (Step 7.0), not here.

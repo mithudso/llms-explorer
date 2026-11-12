@@ -1,20 +1,12 @@
 ---
 description: >-
-  Exhaustively cover a subject end to end: map its full concept family, research every
-  worthwhile gap to saturation, and compile per-concept plus rollup llms-family files (the
-  llms.txt/-full/-small/-facts/-vocabulary set) with keyword (FTS5) and semantic (embedding)
-  indexes, plus the produced skills, registered in every reachable concept tree (file and
-  MCP). A cheap Haiku-low frontrunner scout pre-checks domains for llms.txt/llms-full.txt,
-  seeding /dr + concept-family-explorer's warm-start cache. TRIGGER: "do a full suite on X",
-  "/full-suite X", "fully exhaust X", "give me everything on X". SKIP: one named concept, no
-  family mapping → /dr; concept map only, no llms packs → concept-family-explorer; fix one
-  existing llms file → llms-deep-optimizer; abstract one concept from docs you hold →
-  llms-concept-abstractor; cited report, no artifacts → deep-research; rebalance tree, no new
-  research → skill-tree-architect; audit or fix this skill itself → skill-optimizer.
+  Orchestrate a subject's concept-family research, per-concept llms-family packs and a categorical rollup; report research and index completion separately.
+  TRIGGER: "/full-suite X", "do a full suite on X", "concept map plus skills and llms packs", "fully exhaust X with artifacts".
+  SKIP: one named topic → dr; family gaps without llms packs → concept-family-explorer; one existing llms file or corpus concept extraction → llms-txt-tooling (references/llms-deep-optimizer/llms-deep-optimizer.md; references/llms-concept-abstractor/llms-concept-abstractor.md); cited report only → deep-research; tree rebalance only → skill-tree-architect; audit this skill → skill-optimizer.
 name: full-suite
-version: "1.1.0"
-updated: "2026-09-01"
-model: claude-opus-5
+version: "1.2.1"
+updated: "2026-11-11"
+model: claude-opus-5-5
 effort: xhigh
 category: meta
 tags: [orchestration, concept-mapping, llms-txt, skill-building, saturation, research]
@@ -31,11 +23,11 @@ keywords:
   - do a full suite on
 related_skills:
   - concept-family-explorer
-  - deep-research
-  - llms-concept-abstractor
-  - llms-deep-optimizer
+  - dr
+  - llms-txt-tooling
   - skill-optimizer
   - skill-tree-architect
+  - research-scout
 whenToUse:
   - "Do a full suite on <subject>"
   - "Fully exhaust <subject> — concepts, skills, and llms files"
@@ -46,7 +38,9 @@ whenNotToUse:
   - "You only want the concept map, no llms packs (use concept-family-explorer direct)"
   - "One existing llms file needs auditing/fixing (use llms-deep-optimizer)"
   - "You want to abstract one concept out of docs you already hold (use llms-concept-abstractor)"
-  - "Neither web research nor the concept-tree MCP is reachable — nothing here can saturate or register without at least one"
+  - "Neither readable source evidence nor a usable current inventory is available — report access gaps and incomplete stages"
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # full-suite (`/full-suite`)
@@ -70,9 +64,16 @@ research step; never duplicates its mechanics.
 
 Never reimplement Steps 1–2's algorithm here — `concept-family-explorer`'s framing, gap-scoring,
 saturation, and stop-conditions are the authority (cite `references/saturation-and-loop-control.md`
-under that skill; do not restate). Never reimplement Step 2's research mechanics — `/dr`'s
-Phase 0–5 (including its own llms.txt-v2-first-check, added at the same time as this skill) is
-the authority.
+under that skill; do not restate). Never reimplement Step 2's research mechanics — `/dr`'s current research, evidence and completion phases are the authority.
+
+## Look for llms files first
+
+Before reading the subject domain and delegate source material raw, locate its llms files. If the repo is available, step 4 sets the order.
+1. Check the subject's `llms.txt`, its docs site's `/llms.txt`, or matching packs under `~/.global-ai-hub/skills.llms/` and `~/.global-ai-hub/llms-concepts/`; use available hub keyword/search tools as discovery leads.
+2. Run `wc -c` first (or inspect a remote size header). Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
+5. Index and llms hits are leads. Confirm them against readable source text before acting.
 
 ## Guard
 
@@ -129,25 +130,14 @@ at all.
    reasonable, but 4/12 false negatives — every one from stopping at a literal-path 404 instead
    of the apex/redirect fallback above (the prompt patch here is that trial's direct fix, not a
    hypothetical). Because Step 0's output only seeds caches and never gates Step 2, a residual
-   false negative here costs at most the seed it would have provided — `/dr`'s own llms.txt-
-   first check (added the same time as this skill) still runs for real on every concept
-   regardless of what the scout found.
-4. **Seed the existing warm-start caches — no new plumbing.** For every URL the scout returns,
-   call `tam_save_url({url, title, description, tags: ["frontrunner-scout", "<concept-slug>"]})`
-   (no `verified:` tag — the scout didn't verify anything; `/dr`'s Phase 1 step 4 warm-start
-   still re-grades and still must fetch it this run to cite it, exactly as it would any other
-   unverified library hit). If the scout captured a site's `llms.txt`/`llms-full.txt` body
-   directly, write it to `~/.claude/skill-consolidation/mirrors/<host>.md` so `/dr`'s Phase 1
-   step 6 local-mirror-first check finds it fresh. `tam` MCP unavailable → skip the URL-library
-   save silently (mirror write still happens; it's a plain file); a scout agent failure → skip
-   that concept's seed, continue the rest, note it in the report. Never block Step 1/2 on a
-   scout failure.
+   false negative here costs at most the seed it would have provided — `/dr`'s independent source discovery and evidence checks still run for every concept regardless of the scout result.
+4. **Keep private candidate handoffs.** Use `research-scout`'s `references/handoff.md` and helper to save the selected exact concept/parent names, URLs, access labels and provenance in its private scout root. Its `scout.json` is authoritative; validate it and render the handoff. Do not call retired `tam_save_url` APIs or invent mirror/cache conventions. `/dr` and CFE consume validated bounded seeds through `research-scout/references/consumer.md`, then independently reacquire readable sources and apply their existing freshness, origin and evidence gates. A scout failure skips only that concept's seed and is reported; it never blocks family research.
 5. Report the scout's domain-hit rate (how many of N concepts had a fast path) — this is
    informational only; it does not gate anything below.
 
 ## Step 1 — Plan (delegate)
 
-Reuse the `--dryRun` result from Step 0.2 rather than a second call. If `--no-scout` skipped
+Reuse the `--dryRun` result from Step 0.1 rather than a second call. If `--no-scout` skipped
 Step 0, run `concept-family-explorer --dryRun` here instead.
 
 ## Step 2 — Exhaust the family (delegate)
@@ -163,10 +153,14 @@ batch-syncs (Step 9c). Full-suite adds nothing here and must not re-run any of i
 Collect from CFE's report: the list of concepts actually researched this run (HAVE-now,
 excluding pre-existing HAVE/STALE it left untouched) — this list is Step 3's input.
 
+## Service and indexing boundaries
+
+Respect active STOP markers, held research and standing service/indexing pauses. An explicit pause takes precedence over this workflow's default indexing stage. Do not start or unpause a model, embedding service or indexer to satisfy a delegate. Compile permitted artifacts and report each keyword/semantic index as completed, deferred or blocked with its reason; never claim a requested full suite complete while a required stage is deferred.
+
 ## Step 3 — Compile per-concept llms packs (delegate, new composition)
 
 **Preflight (dependency resolvability).** Resolve-check `llms-concept-abstractor` before invoking
-it (`tam_search_skills` / the available-skills listing / the hub manifests) — the same guard
+it (the available-skills listing / the hub manifests) — the same guard
 Pass O requires for any delegate call. Unresolvable in a given environment (e.g. a fresh install
 that hasn't synced the global skill set yet) → do not fail the run: skip Steps 3–4 entirely,
 note `llms-family packs: blocked (llms-concept-abstractor not installed)` in the Step 5 report,
@@ -185,16 +179,17 @@ For each concept from Step 2's researched list, run:
 before scanning, exactly as it already does. `--index` builds the FTS5 keyword layer and the
 embedding-based semantic layer at compile time (`/lca`'s own Step 3b/Step 8 mechanics — cite,
 don't restate). `--register` queues the concept in the tree if the earlier `/dr`/CFE pass
-somehow left it unqueued (usually a no-op; `/dr`'s Phase 5 already did this).
+somehow left it unqueued (usually a no-op; `/dr`'s completion gate already does this).
 
-A concept with no resolvable scope (rare — `/dr` wrote a skill from sources that left no local
-mirror trace, e.g. answered entirely from `tam_recommend_urls` hits that were never mirrored)
+A concept with no resolvable scope (for example, source URLs were retained but no readable local scope was saved)
 is not an error: skip its pack, note it in the report as "skill only, no pack (no local scope
 to abstract from)". Never widen scope to compensate — that is `/lca`'s own anti-drift rule.
 
 ## Step 4 — Roll up the family (delegate)
 
-Once every concept from Step 3 has a pack (or was explicitly skipped), run:
+If no permitted pack exists because CFE completed no concepts or every pack was skipped/blocked, do not invoke `/ldo` or supply an empty `--members` value. Report `rollup: not built` with the reason and zero member count. Do not infer a scope or widen it to manufacture members.
+
+If at least one permitted pack exists and every Step 3 concept has a pack or a reported skip, run:
 
 ```
 /ldo --family --members <pack1>/llms.txt,<pack2>/llms.txt,...
@@ -210,7 +205,7 @@ not per-file here.
 
 ```
 # /full-suite report — <subject>
-Scout: N concepts scouted, M with a fast-path llms.txt hit, seeds written (URL-library / mirror counts)
+Scout: N concepts scouted, M with a fast-path llms.txt hit, private handoff paths and retained/blocked lead counts
 Exhaustion (CFE): exit status · concepts researched · rounds · budget used vs cap
 Per-concept packs (/lca): N built, M skipped (reason) · index counts (keyword + semantic)
 Rollup (/ldo --family): path · members count · pass table summary

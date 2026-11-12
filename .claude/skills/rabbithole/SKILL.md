@@ -1,25 +1,14 @@
 ---
 description: >-
-  Narrow inverse of concept-family-explorer: take ONE already-named concept and exhaust it
-  completely — drill straight down through its mechanism, sub-parts, edge cases, failure
-  modes, primary sources, and expert disagreements — running repeated deepening passes
-  until a pass adds no meaningfully new information. CFE asks "what am I missing AROUND
-  this subject" (breadth); this skill asks "what am I missing INSIDE this one concept"
-  (depth). TRIGGER: /rabbithole, "deepen my understanding of X", "exhaust X completely",
-  "go as deep as possible on X", "rabbithole on X", "don't stop until there's nothing left
-  to learn about X". SKIP: subject is a family/domain, not one concept →
-  concept-family-explorer; concept already named and just needs one research pass, no
-  exhaustion loop → /dr; abstracting a concept's mentions OUT of an existing docset/corpus
-  you already hold → llms-concept-abstractor; reorganizing the skill tree →
-  skill-tree-architect.
+  Deepen ONE named concept through its mechanism, parts, limits, failure modes, history, primary sources and expert disagreements; repeat measured deepening passes to the stated stop condition.
+  TRIGGER: "/rabbithole", "deepen my understanding of X", "exhaust X completely", "go as deep as possible on X".
+  SKIP: family/domain gaps → concept-family-explorer; one ordinary research pass → dr; extract concept mentions from an existing corpus → llms-txt-tooling (references/llms-concept-abstractor/llms-concept-abstractor.md); reorganize existing skill tree → skill-tree-architect.
 name: rabbithole
-version: "1.3.1"
-updated: "2026-11-07"
+version: "1.4.1"
+updated: "2026-11-11"
 model: claude-sonnet-5-5
 effort: max
 category: meta
-metadata:
-  delta: "Require all-claim evidence integrity, explicit conflicts, bounded repairs and projection/installed parity before publication."
 tags: [concept-depth, exhaustive-research, saturation, orchestration]
 keywords:
   - deepen
@@ -47,7 +36,18 @@ whenNotToUse:
   - "one ordinary research pass is enough, no exhaustion loop wanted (use /dr)"
   - "the concept's mentions already sit inside a corpus you hold and you want them pulled out (use llms-concept-abstractor)"
   - "you want the skill tree reorganized, not a concept researched (use skill-tree-architect)"
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
+
+## Look for llms files first
+
+Before reading the single concept and its source corpus raw, locate its llms files. If the repo is available, step 4 sets the order.
+1. Check the subject's `llms.txt`, its docs site's `/llms.txt`, or matching packs under `~/.global-ai-hub/skills.llms/` and `~/.global-ai-hub/llms-concepts/`; use available hub keyword/search tools as discovery leads.
+2. Run `wc -c` first (or inspect a remote size header). Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
+5. Index and llms hits are leads. Confirm them against readable source text before acting.
 
 ## Evidence required before publication
 
@@ -93,8 +93,6 @@ coverage labels do not establish support.
   negation or version conflicts, stale snapshot hashes and dropped output citations.
   Verify canonical, installed and runtime-specific skill copies with their sync check;
   equal version numbers alone do not establish parity. Report loaded state separately.
-
-
 
 # Rabbithole (`/rabbithole`, "deepen")
 
@@ -216,19 +214,27 @@ Otherwise return to Step 3.
 
 ### Step 6 — Compile the dossier
 
-Write the final claim list as a structured dossier: definition, mechanism (with the
-sub-parts a Step 3 pass surfaced), history/evolution, edge cases and failure modes,
-disagreements (side by side, never averaged — same non-negotiable as `llms-concept-abstractor`),
-primary sources cited per claim. If the concept sits in the concept tree, this dossier is
-what backs its node's depth (as opposed to CFE's breadth-only stub); write it back via the
-same concept-tree tools CFE uses, tagged as a depth-pass rather than a coverage pass so CFE
-doesn't re-count it as a sibling gap filled.
+Write the final claim list as a structured dossier: definition, mechanism, history, edge cases, failure modes and disagreements side by side, with primary sources bound per atomic claim. Use one owned `/dr` run for the final accumulated claims, including every new depth-pass assertion; a gate receipt for Pass 0 alone does not cover later additions.
+
+Follow `/dr`'s mandatory repository adapter contract and claim schema. Reuse the owned run; if one does not exist, initialize it through that adapter before recording. Then perform this concrete finalization sequence:
+
+1. Record the complete final structured claims and evidence snapshots through `dr_run.py concept-done <slug> <final-claims.json>`. Preserve immutable claim IDs and every bound source passage.
+2. Render with `dr_run.py render <slug>` and the resolved hub/standalone/output arguments owned by `/dr`. Scan for injection and preserve the existing output-binding checks.
+3. Gate every new or changed assertion through the adapter. A failed or stale binding withholds publication; repair only the failed pairs within the established bounded-repair rule.
+4. Finish through the adapter so the canonical tree and reader/context/facts projections refresh together. Do not write the concept tree directly as a substitute. A failed refresh leaves persistence unfinished.
+
+```sh
+python3 "${LLMS_EXPLORER_REPO:-$HOME/dev/llms-explorer}/scripts/codex_dr_run.py" gate <slug>
+python3 "${LLMS_EXPLORER_REPO:-$HOME/dev/llms-explorer}/scripts/codex_dr_run.py" finish <slug> --status COMPLETED --minutes <n> --agents <n> --stop-reason "depth gate and projections complete"
+```
+
+Use `COMPLETED` only after the final evidence and projection gates pass. A budget stop remains `BUDGET_EXHAUSTED`; a boundary-breach stop uses supported runtime status `BLOCKED` and hands adjacent concepts to CFE. Keep the depth/saturation verdict separate: `SATURATED-DEPTH` is not a substitute for persistence completion. Report the runtime status, exact accepted artifact path, final gate and projection-refresh outcome independently.
 
 ### Step 7 — Handoffs and report
 
 Report per-pass new-information rate (the declining curve), total passes run, saturation
 verdict (`SATURATED-DEPTH` / `BUDGET_EXHAUSTED` / `BOUNDARY-BREACH → handed to CFE`), the
-compiled dossier's location, and any sibling/adjacent concepts surfaced along the way as a
+compiled dossier's location, the separate final claim-gate/persistence status, and any sibling/adjacent concepts surfaced along the way as a
 handoff list for `concept-family-explorer` — this skill never chases them itself.
 
 ## Quality rules

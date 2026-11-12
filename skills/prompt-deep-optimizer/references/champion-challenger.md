@@ -19,7 +19,7 @@ Compose the two loops: run the structural loop first to get a clean, well-formed
 | `working set` | cases used to surface failures and choose edits | the ONLY split you may inspect when deciding a change |
 | `holdout` | untouched cases | never read to choose an edit; only to gate promotion |
 | `must-pass checks` | hard binary invariants (safety refusals, output schema/format, required disclaimers) | any regression vetoes promotion regardless of score |
-| `[budget]` | round cap and/or wall-clock/cost | per the Budget contract in `~/.claude/skill-consolidation/convergence-and-severity.md` |
+| `[budget]` | round cap and/or wall-clock/cost | per the Budget contract in `references/shared/convergence-and-severity.md` |
 | `target` | score that ends the run early when reached | optional |
 | `experiment log` | per-round record | append-only |
 
@@ -27,7 +27,7 @@ Compose the two loops: run the structural loop first to get a clean, well-formed
 
 - **Never select an edit using the holdout.** Choosing a change because it fixes a holdout case is the cardinal sin — it turns the holdout into training data and the reported gain becomes overfit noise. Pick edits only from working-set failures.
 - **Minimum sizes — concrete, not "large enough".** Holdout **≥ 30 cases** to run at all; **≥ 50** before reporting any gain as more than directional; below 30, run in `--dry-run` and label every number exploratory. Working set ≥ 30 as well. A one-case win on a five-case holdout is noise, and "keep it large enough that the margin exceeds eval noise" is circular advice — these are the numbers.
-- **Margin floor from the holdout itself.** `[margin]` must exceed one case's worth of score: with `n` holdout cases and a pass-rate metric, one case is `1/n`, so `[margin] ≥ 2/n`. On a 30-case holdout that is ≥ 6.7 points. A margin smaller than the metric's own resolution cannot distinguish a real gain from a single flipped case.
+- **Margin floor from the holdout itself.** `[margin]` must exceed one case's worth of score: with `n` holdout cases and a pass-rate metric, one case is `1/n`, so `[margin] ≥ 2/n`. On a 30-case holdout that is ≥ 6.7 points. `--margin` defaults to this floor when unset; an explicit smaller value runs as `--dry-run`. A margin smaller than the metric's own resolution cannot distinguish a real gain from a single flipped case.
 - **Freeze the holdout for the whole run.** Don't add or remove holdout cases mid-run; it breaks score comparability across rounds. Grow the eval set *between* runs, not within one.
 - If only one labeled set exists, split it deterministically (e.g. 60/40 working/holdout) and record the split seed so the run is reproducible. When the set is large enough, hold back a third slice as the **confirmation set** below.
 

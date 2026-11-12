@@ -1,7 +1,9 @@
+2026-11-11 final SKO TASK-1372: A–P and bounded independent rechecks recorded; exploratory predicted triggers; scoped operational exit DEGRADED. Raw dissent and focused correction receipts remain in the repository review ledger. No measured activation, semantic refresh or empirical promotion.
+
 # skill-tree-architect — changelog
 
-Full version history. `SKILL.md` frontmatter `metadata.changelog` keeps only the most recent
-entries (capped at 5 per the sko sync protocol); this file is the durable record.
+- 2026-11-11 /sko 1.4.0 → 1.5.0: full A-P source audit; scoped eval corpus and behavior cases; static/predicted evidence only. Copy and registry finalization belongs to the enclosing run.
+Full version history. `SKILL.md` points here through `metadata.changelog_ref`; version history stays out of the always-loaded frontmatter.
 
 - **2026-07-20 v1.3.0 → v1.4.0:** sko full-profile optimization run (four fix rounds, incl.
   blind-gate remediation: snapshot-not-git recovery claim corrected, crossroute invocation
@@ -36,3 +38,8 @@ entries (capped at 5 per the sko sync protocol); this file is the durable record
   (adjudicate, targeted queries); CQ-corpus probe replay in Phase 4.
 - **v1.0.0:** initial: whole-tree ANALYZE / PLAN / APPLY / VERIFY orchestrator over the
   skill-consolidation toolchain.
+
+- Full history: references/CHANGELOG.md
+- 2026-07-20 sko v1.3.0->v1.4.0 — Pass H 10/10->10/10 pos, 0/10->0/10 neg (predicted); 32 Medium fixed across 4 fix rounds + 2 blind gates
+- 2026-07-20 v1.3.0->v1.4.0 — sko full-profile run: description tightened (TRIGGER at char 250, terse anchors); script SKIP targets rephrased as direct-run tools; meta-validate hard-gate list corrected; cap tiers relabeled by severity+cause; single-cap --desc-cap semantics + standalone desc sweep; Phase-1 tool-failure rule; Phase-3 explicit-go + failure rail; healthy-tree exit; apply detail extracted to references/apply-procedure.md; model/effort keys added
+- 2026-06-28 v1.2.0->v1.3.0 — Phase 3 step 9 + Phase 4 step 1 gate: regenerate the consolidated SKILLS-INDEX (node gen-skills-index.mjs) after the tree mutates, then --check it in VERIFY, so the cross-family index never drifts after a rebalance

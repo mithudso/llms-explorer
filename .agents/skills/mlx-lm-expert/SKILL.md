@@ -51,7 +51,10 @@ triggers:
 - MLX-LM stream_generate
 - MLX-LM cancellation
 - MLX-LM native versus external training
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
+
 
 
 

@@ -1,20 +1,10 @@
 ---
 name: prompt-deep-optimizer
 description: >-
-  Optimize a production system prompt, agent instruction block, tool-call template, or workflow
-  scaffold that lives in code and runs repeatedly. Runs a 16-pass audit, applies every Medium+
-  fix, loops to convergence, and outputs the drop-in rewrite plus a named algorithm pick (APE,
-  OPRO, MIPROv2, GEPA, ProTeGi, TextGrad, EvoPrompt) or "structural-only" without training data.
-  TRIGGER: "optimize this system prompt"; "run pdo"; "harden the tool-call template we ship";
-  inconsistent prompt output; audit a prompt for injection holes; which prompt optimization
-  algorithm; champion-challenger held-out loop on a prompt. SKIP: one-off or exploratory prompts
-  under ~600 tokens → prompt-helper-optimizer (/ph, /phe); machine-generated or DSPy-compiled
-  prompts; skill files → skill-optimizer; prose documents → ddo, writing-expert
-  (references/document-critique.md); plan and run a whole task → p; eval suites, cost of running a
-  prompt → misc-catch-all (deep-eval-optimizer /deo, prompt-cost-estimator).
+  Optimize production system prompts, instruction blocks and tool templates that live in code and run repeatedly. Audit 16 domains, fix Medium+ findings, verify intent and recommend an optimization algorithm or structural-only mode. TRIGGER: "optimize this system prompt", "run pdo", "harden our tool template", "fix inconsistent production prompt output", "choose an algorithm for this production prompt", "evaluate a prompt champion against a holdout". SKIP: one-off or exploratory prompts under about 600 tokens → prompt-helper-optimizer; whole subagent definitions → agent-deep-optimizer; SKILL.md → skill-optimizer; prose → writing-expert (references/document-critique.md); whole task execution → p; eval suites → deep-eval-optimizer; prompt cost/model choice → misc-catch-all (references/prompt-cost-estimator/prompt-cost-estimator.md). Machine-generated or DSPy-compiled targets receive algorithm advice only.
 category: developer
-version: 2.11.0
-updated: "2026-11-09"
+version: "2.12.1"
+updated: "2026-11-11"
 model: claude-opus-5-5
 effort: xhigh
 whenToUse:
@@ -63,7 +53,7 @@ Iteratively optimizes prompts in code that run repeatedly: system prompts, agent
 
 **Key distinction:** prompt in code = production software: correct, unambiguous, efficient, reliable under repeated execution w/ variable inputs. 16 audit domains in 5 parallel-dispatch bundles, every Medium+ fix applied, loop until zero Critical/High/Medium findings or a documented exit fires.
 
-**Why `model: claude-opus-5` + `effort: xhigh`:** one iteration holds 16 pass results, the findings table, and the 5-field intent checklist at once, and Step 6a judges *behavioral* equivalence, not textual similarity; cheaper tiers do that inconsistently. Cost is bounded by `references/operations.md` § Budget and caps, not by the tier.
+**Why the flagship tier + `effort: xhigh`:** one iteration holds 16 pass results, the findings table, and the 5-field intent checklist at once, and Step 6a judges *behavioral* equivalence, not textual similarity; cheaper tiers do that inconsistently. Cost is bounded by `references/operations.md` § Budget and caps, not by the tier.
 
 **Algorithm awareness:** structural optimization (audit → rewrite → re-audit) always; Pass P + the Step 6c table name a learned algorithm when training data exists, else `structural-only`. With eval cases plus must-pass checks, **Empirical mode** climbs champion–challenger on an untouched holdout after the structural loop.
 
@@ -79,6 +69,15 @@ Terms used below (stable prefix, edit-distance, intent drift, fragment) are defi
 A run missing any applicable criterion above failed. Two runs never reach Step 6: a run halted at Step 1a emits only the halt message; a run short-circuited at Step 1a.3 (machine-generated target) emits only 6b items 7 and 8.
 
 ---
+
+## Look for llms files first
+
+Before reading the production prompt repository (pasted text is already the direct input) raw, look for its llms files and open them by size. If you have the repo, step 4 sets the order.
+1. Look for the subject's `llms.txt`, its hub llms map, and memory-central keyword-index rows for the target terms.
+2. Run `wc -c` first (or read `x-markdown-tokens` on a remote). Read a file whole only when it fits. Otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, grep the code before you open an llms file. The code is the authority. Use maps to find the right file and verify every fact against its `path:line`.
+5. Index and llms hits are leads. Confirm them with Read before you act.
 
 ## When not to use (read first)
 
@@ -121,7 +120,7 @@ If no prompt is provided, ask once: "Paste the prompt to optimize, or give me a 
 
 ### When driven by an outer loop
 
-An orchestrating agent (prompt-optimizer-loop, convergence-loop-runner) invokes once and trusts the reported Status; pdo owns the loop (Step 5) and orchestrators never re-derive exit conditions or caps (cite `references/shared/convergence-and-severity.md`). `--max-iter=N` replaces the Step 5 ceiling (`--max-iter=1` = one diagnose + triage + rewrite round; **clamped 1–10**, reported as `max-iter clamped 25→10`); `--budget-minutes=N` overrides the default budget (Step 5 cond. 7). Variant registration belongs to the orchestrator's save stage (Step 6b item 10).
+An orchestrating agent (prompt-optimizer-loop, convergence-loop-runner) invokes once and trusts the reported Status; pdo owns the loop (Step 5) and orchestrators never re-derive exit conditions or caps (cite `references/shared/convergence-and-severity.md`). `--max-iter=N` replaces the Step 5 ceiling (`--max-iter=1` = one diagnose + triage + rewrite round; **clamped 1–5**, reported as `max-iter clamped 25→5`); `--budget-minutes=N` overrides the default budget (Step 5 cond. 7). Variant registration belongs to the orchestrator's save stage (Step 6b item 10).
 
 ---
 
@@ -197,7 +196,7 @@ Record the answer. Fragment mode suppresses passes A (Intent), D (Output contrac
 ### 1c. Record baseline
 
 Record before analyzing:
-- `baseline.sha256`: `shasum -a 256` of the ingested prompt text, computed once per run. It is the `artifact_sha256` the streaming checkpoint records (the contract's checkpoint schema); Step 5's resume rule matches it against the current file to skip completed iterations.
+- `baseline.sha256`: `shasum -a 256` of the ingested prompt text, computed once per run as the original-source identity. Each streaming checkpoint separately records the current saved candidate's SHA-256 as `artifact_sha256`; never reuse the baseline hash for a rewritten candidate. On resume, verify the original source still matches baseline and the saved candidate matches the checkpoint before skipping completed work. Changed source or candidate invalidates dependent evidence.
 - The token estimate from 1a.3 (baseline for the final token delta).
 - Whether it contains dynamic slots (`{{var}}`, `{slot}`, `${var}`, f-strings, etc.)
 - Whether it is a system prompt, user turn, tool description, or multi-turn template
@@ -208,7 +207,11 @@ Record before analyzing:
 
 **Composed-artifact scoping:** embedded few-shot prose is in scope; whole prose documents are not (route them to ddo, or writing-expert references/document-critique.md). Per the contract's Composed-artifacts rule, the outer artifact type selects the owning optimizer and an embedded artifact gets a bounded pass-bundle sub-dispatch, never a nested loop.
 
-### 1d. Semantic-index-first ingest
+### 1d. Dependency freshness
+
+Check the review stamp in the cited convergence contract. A stamp older than 90 days produces a BLOCKED/operator-action row; do not refresh it without re-verification or start a research detour. The current outstanding action is recorded in `references/operator-actions.md`.
+
+### 1e. Semantic-index-first ingest
 
 Any prior-art lookup goes to the semantic index before raw `grep`, per § Semantic-index integration in `references/shared/convergence-and-severity.md` (cite that section; do not restate its tool table). Today the only consumer is Step 6b item 10's duplicate check on library prompts; none of the 16 passes performs cross-artifact research. pdo only reads the index: it writes the target under `--write` alone, and the caller's separate embed refresh (that section) re-warms the corpus afterward.
 
@@ -293,6 +296,7 @@ Apply **every** Critical/High/Medium finding in a single rewrite. Each iteration
 - **Voice preserved**: rewrite for correctness and efficiency, not style.
 - **Intent preserved**: change only how the prompt does its job. Never add behaviors the original didn't intend, except deltas justified by an Applied Medium+ finding or a pre-approved Pass E/O default insert; Step 6a lists each delta citing its Changes-made row.
 - **Never invent content**: when a fix needs content the original lacks, emit a `BLOCKED` row instead of guessing. Example: Pass A finds no stated goal → do NOT invent one; flag `BLOCKED: original prompt lacks an explicit goal; rewrite preserves the implied intent <X> but should be reviewed.` BLOCKED rows appear in the Changes-made table with `Status: BLOCKED` and do not satisfy the finding for convergence. The Pass E clarifying-question fallback and the Pass O fallback-chain pattern are pre-approved inserts: apply them as `Applied` rows.
+- **Redact every displayed or exported surface:** original, rewrite, diffs, findings, examples, manifests and saved variants. Keep an unredacted preimage only in the authorized private local snapshot. See `references/output-spec.md` for the common boundary.
 - **Redact secrets and PII before the final rewrite.** Run `pdo_tools.py scan` on the candidate first; do not rely on reading it. The scan reports type and line for API keys, passwords, OAuth tokens, JWT-shaped values, personal emails, phone numbers, and SSNs, never the value. Replace each hit with `[REDACTED: <type>]`. The scan is a floor, not a ceiling: an account ID or internal hostname it does not match still gets redacted. Add the Step 6 footer note:
   > `Redacted N secret/PII value(s) from the rewrite — restore the original values before deployment.`
 - **Never silently skip a pass**; record `N/A` or `partial` with the reason.
@@ -310,7 +314,7 @@ Re-run all applicable passes on the new prompt after each rewrite. Stop on **any
 4. **Stable rewrite:** **edit-distance** (insertions + deletions + substitutions, UTF-8 chars of the longer prompt) between iteration N and N−1 is **less than 2%** of the longer prompt's character count. Write each iteration's candidate to a scratch file (the target on disk is never the candidate), save it into the run's backup dir as `<basename>.iter<N>` with `pdo_tools.py backup <target-path> --run-id <id> --iter N --from <scratch-file>`, then run `python3 ~/.claude/skill-consolidation/convergence_check.py <prev-file> <curr-file> --prev-medium N --curr-medium N` (never estimate) against that copy. Report `Status: OSCILLATING (stable-rewrite)`.
 
    **Script absent or non-zero:** never estimate. Fall back to `pdo_tools.py editdist <prev-file> <curr-file>` (same ratio); if that is also unavailable, mark the Edit-dist column `N/A (no edit-distance surface)`, record `degraded: condition 4 cannot fire`, and continue under the other conditions.
-5. **Iteration cap:** **5 iterations max**, **3 under `profile: small`**. The small-profile raise to 5 is evaluated **once**, at the iteration-3 boundary, on the iteration 2→3 Medium+ delta: fell ≥50% → cap 5 for the rest of the run; otherwise this iteration is the last. `--max-iter=N` replaces the ceiling, clamped 1–10 (`references/operations.md` § Budget and caps). Report `Status: CAPPED`.
+5. **Iteration cap:** **5 iterations max**, **3 under `profile: small`**. The small-profile raise to 5 is evaluated **once**, at the iteration-3 boundary, on the iteration 2→3 Medium+ delta: fell ≥50% → cap 5 for the rest of the run; otherwise this iteration is the last. `--max-iter=N` replaces the ceiling, clamped 1–5 (`references/operations.md` § Budget and caps). Report `Status: CAPPED`.
 6. **Drift-deadlock** (pdo-specific, from Step 6a's re-do limit; not a contract exit): three drift failures in the same iteration. Report `Status: DRIFT_DEADLOCK`.
 7. **Budget expired:** **active by default at 20 minutes**, a registered pdo deviation from the contract's flag-only budget (`references/operations.md` § Budget and caps and § Exit-condition notes). Check elapsed wall time (one `date` call) at each iteration boundary; on expiry finish the current rewrite (never stop mid-write), then report `Status: BUDGET_EXHAUSTED` with wall time. `--budget-minutes=N` overrides; `--budget-minutes=0` disables tracking and is stated as `budget: disabled by flag`.
 
@@ -358,7 +362,7 @@ Step 6 runs on every invocation that reached Step 2 (halted and short-circuited 
 
 1. **Intent-preservation check** (5-field checklist, finding-justified deltas, 6a0 result + grade).
 2. **Behavioral smoke test** (per-input table, evidence grade per row, or explicit N/A reason).
-3. **Original prompt** verbatim (unified diff above ~1,500 tokens; omitted only when the reader already holds the file, and say so).
+3. **Original prompt** as a redacted display copy (unified diff of redacted versions above ~1,500 tokens; omitted only when the reader already holds the file, and say so).
 4. **Final optimized prompt**: drop-in ready, complete, redacted; best-of-pool on non-clean exits.
 5. **Iteration log** (Step 5 table).
 6. **Changes-made table**, cumulative, with Status column.

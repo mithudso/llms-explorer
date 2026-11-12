@@ -18,7 +18,7 @@ fixes:
 
 ### Implementing features & improvements (`--implement-features` / `--auto-improve`)
 
-When `--implement-features` (or `--auto-improve`) is provided, cdo overrides the report-only constraint for the features it identifies: after the structural loop exits `CLEAN` or `CONVERGED`, it implements each evidence-grounded feature in its own verified round. Full procedure, ordering, and bounds: `references/implement-features.md`.
+When `--implement-features` (or `--auto-improve`) is provided, cdo overrides the report-only constraint for the features it identifies: after the structural loop exits `CLEAN` with zero unresolved Medium+ and successful current verification, it implements each evidence-grounded feature in its own verified round. Full procedure, ordering, and bounds: `references/implement-features.md`.
 
 ## Dispatch (agent fan-out)
 

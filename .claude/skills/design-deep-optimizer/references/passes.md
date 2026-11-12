@@ -31,7 +31,7 @@ justify a change, and do not deflate a Blocker because the fix is inconvenient.
 ---
 
 ## Bundle A — Composition & visual
-*Spoke: `visual-design-principles-and-critique`*
+*Spoke: `frontend-ui` (references/visual-design-principles-and-critique.md)*
 
 ### P0 — Intent & context
 
@@ -113,20 +113,21 @@ readability."
 **DETECT**
 - Harmony and palette discipline: how many hues, and is each earning its place?
 - Semantic consistency: does one colour mean one thing throughout (danger, success, interactive)?
-- **Contrast math** — compute it, do not eyeball it. WCAG 2.2: 4.5:1 for normal body text,
-  3:1 for large text (≥ 24px, or ≥ 19px bold), 3:1 for meaningful non-text and UI component
+- **Applicability and exceptions first** — establish the required text/control information and actual rendered state before rating a WCAG failure. Inactive controls, incidental/decorative text and logotypes can be exempt; ordinary branded body text is not exempt. Record the criterion, applicable exception and evidence. A screenshot alone cannot prove hidden interactive states.
+- **Contrast math** — use reliable computed/composited colors, do not eyeball it or round a failing ratio up. WCAG 2.2: 4.5:1 for ordinary active body text,
+  3:1 for large text (at least 18pt regular or 14pt bold), 3:1 for meaningful non-text and UI component
   boundaries. Delegate the math to `frontend-ui/references/accessibility-ux-reviewer.md`.
 - Colour as sole information carrier (fails for colour-blind users).
 - Behaviour in dark mode, if applicable.
 
 **RATE**
-- Body text below 4.5:1 → **Blocker**
-- Interactive element or its focus indicator below 3:1 → **Blocker**
+- Applicable ordinary active body text below 4.5:1, after exception analysis → **Blocker**; large text uses its applicable 3:1 threshold
+- Required non-text control/focus information below its applicable 3:1 threshold, after criterion and exception analysis → **Blocker**; do not apply the ratio indiscriminately to all control pixels
 - Colour as the only signal for state → **High**
 - Semantic inconsistency (the same hue means two things) → **Medium**
 - Palette sprawl → **Medium**
 
-**FIX** — Supply the replacement value and its measured ratio: "`#767676` on `#FFFFFF` = 4.54:1,
+**FIX** — Repair only a confirmed applicable failure. An exempt inactive label or logotype does not receive a WCAG failure or mandatory contrast repair solely from its ratio. Supply the replacement value and its measured ratio: "`#767676` on `#FFFFFF` = 4.54:1,
 replacing `#999999` at 2.85:1."
 
 ---
@@ -136,7 +137,7 @@ replacing `#999999` at 2.85:1."
 Mostly `N/A` for static brand assets. Emit the `N/A` row; do not silently skip.
 
 ### P4 — Usability heuristics & Laws of UX
-*Spoke: `usability-heuristics-laws-of-ux`*
+*Spoke: `frontend-ui` (references/usability-heuristics-laws-of-ux.md)*
 
 **DETECT — Nielsen's 10**, each as its own check:
 1. Visibility of system status
@@ -213,7 +214,7 @@ stated 'friendly' tone; use the 12px radius and the rounded face already in the 
 "feels cold."
 
 ### P7 — Objective metrics
-*Spoke: `computational-aesthetics-ui-metrics`*
+*Spoke: `frontend-ui` (references/computational-aesthetics-ui-metrics.md)*
 
 **DETECT** — Compute, do not estimate:
 - Visual complexity (edge density, element count)
@@ -255,7 +256,7 @@ vs 0.30–0.45 typical for this layout class; corroborates the P1 density findin
 **FIX** — Name the token: "use `color.brand.primary` (`#1B4D3E`), not `#1C4E3F`."
 
 ### P9 — Adversarial / hallucination guard
-*Spoke: `vision-model-design-critique`*
+*Procedure: local; defined below.*
 
 **The reliability backbone.** Vision models locate confidently and wrongly; this pass is what
 separates a finding from a plausible sentence.
@@ -286,7 +287,7 @@ shows the filter ran and had an effect.
 - Group by region so a fixer works one area at a time rather than jumping around.
 - Rank by severity, then by blast radius within severity.
 
-**The "what's working" section is required.** Per `visual-design-critique-methodology`, a
+**The "what's working" section is required.** Per `frontend-ui` (references/visual-design-critique-methodology.md), a
 critique that lists only faults is a worse critique: it gives no signal about what to preserve,
 and a fixer who does not know what is load-bearing will break it while fixing something else.
 Name at least two things that work and why.
@@ -305,13 +306,13 @@ Then: what's working · dropped-by-P9 count · per-pass coverage scorecard (incl
 
 | Pass | Spoke |
 | --- | --- |
-| P0, P1 | `visual-design-principles-and-critique` |
-| P2 | `visual-design-principles-and-critique` + `frontend-ui/references/micro-typography-craft.md` |
-| P3 | `visual-design-principles-and-critique` + `frontend-ui/references/accessibility-ux-reviewer.md` |
-| P4 | `usability-heuristics-laws-of-ux` |
+| P0, P1 | `frontend-ui` (references/visual-design-principles-and-critique.md) |
+| P2 | `frontend-ui` (references/visual-design-principles-and-critique.md) + `frontend-ui/references/micro-typography-craft.md` |
+| P3 | `frontend-ui` (references/visual-design-principles-and-critique.md) + `frontend-ui/references/accessibility-ux-reviewer.md` |
+| P4 | `frontend-ui` (references/usability-heuristics-laws-of-ux.md) |
 | P5 | `frontend-ui/references/accessibility-ux-reviewer.md` |
 | P6 | `misc-catch-all/references/emotional-design-and-visual-trust.md` |
-| P7 | `computational-aesthetics-ui-metrics` |
+| P7 | `frontend-ui` (references/computational-aesthetics-ui-metrics.md) |
 | P8 | the supplied brand, design system, or spec |
-| P9 | `vision-model-design-critique` |
-| P10 | `visual-design-critique-methodology` |
+| P9 | Local hallucination guard defined above |
+| P10 | `frontend-ui` (references/visual-design-critique-methodology.md) |

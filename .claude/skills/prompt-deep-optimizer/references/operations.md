@@ -37,7 +37,7 @@ Canonical source for every count in this skill; it restates the shared contract 
 |---|---|---|
 | Passes | 16 (A–P) | Every pass emits a row each iteration, `N/A` and `partial` included. `partial` counts as active. |
 | Groups | 5 (3 under `profile: small`) | Parallel-dispatch bundles. Group 5 carries 4 passes because 16 does not divide by 5. |
-| Iteration cap | 5 (3 under `profile: small`) | Step 5 condition 5. `--max-iter=N` replaces it, clamped 1–10. |
+| Iteration cap | 5 (3 under `profile: small`) | Step 5 condition 5. `--max-iter=N` replaces it, clamped 1–5. |
 | Cap raise | 3 → 5 | Small profile only. Evaluated **once**, at the iteration-3 boundary: if Medium+ findings fell by ≥50% from iteration 2 to 3, the cap is 5 for the rest of the run. |
 | Default budget | 20 minutes wall clock | Step 5 condition 7 runs **by default** (registered deviation, see § Exit-condition notes). `--budget-minutes=N` overrides; `--budget-minutes=0` disables. |
 | Subagent round-trips | 1 per group per iteration | No mid-iteration retry. A second consecutive error escalates that group to sequential. |
@@ -57,7 +57,7 @@ Resolve conflicts by this table, never by guessing a precedence.
 | `--dry-run` or `--no-promote` + `--write` | `--write` writes the structural loop's shipped candidate only; the champion is never persisted; the write-back footer says so. |
 | `--margin=<n>` below `2/n_holdout` | Runs as `--dry-run`; every number is labeled exploratory. |
 | `--max-iter=1` + Step 6a0 dissent | No extra iteration is available; exit `BLIND-AUDIT-DISSENT` listing the findings. |
-| `--max-iter=N` outside 1–10 | Clamped; `max-iter clamped N→M` in the Summary line. |
+| `--max-iter=N` outside 1–5 | Clamped; `max-iter clamped N→M` in the Summary line. |
 | `--budget-minutes=0` + `--max-iter` | Caps alone bound the run; `budget: disabled by flag`. |
 | `--write` + inline or variable target, or any Critical/High `BLOCKED` at exit | `--write` refused; the rewrite is reported with the reason. |
 | `--cross-model` without a completed Step 4 redaction | Gate skipped: `cross-model gate: skipped (content not cleared for cross-model egress)`. |
@@ -83,4 +83,4 @@ All deviations are pdo-local; the contract file is not edited.
 
 ### Verified acceptance dependency
 
-A CLEAN or NO_CHANGE selfcheck needs the current example_plan and acceptance object defined in output-spec.md section 6f. It loads the shared stdlib skill-consolidation/evidence_gate.py from the sibling skill library. An unavailable helper or proof prevents certification. Keep a non-clean exit with the missing evidence disclosed. Non-clean historical manifests remain compatible.
+A CLEAN or NO_CHANGE selfcheck needs the current example_plan and acceptance object defined in output-spec.md section 6f. It loads the bundled stdlib `scripts/evidence_gate.py` beside `pdo_tools.py`; the contract is `references/shared/evidence-contract.md`. An unavailable helper or proof prevents certification. Keep a non-clean exit with the missing evidence disclosed. Non-clean historical manifests remain compatible.

@@ -4,6 +4,8 @@ The 12 analytical passes run by `deep-eval-optimizer` (`/deo`) to audit, grade, 
 
 ---
 
+Advanced diagnostics below are optional, not prerequisites for a static suite audit. Before selecting syscall tracing, gradient attribution, semantic-boundary mining, Shapley evaluation or sequential trials, verify compatible tools, authorization, reference data and a declared measurement contract. Do not fabricate observations or introduce probes into a customer workspace. Selected methods without prerequisites are UNAVAILABLE; report their gaps. Plain token-frequency entropy is a text heuristic, not attention-gradient or saliency evidence.
+
 ### Pass A — Prompt Realism & Ecological Validity
 Audits user prompt authenticity.
 - **Defects:** Robotic, overly-specified, or synthetic prompts ("Please execute the foo skill using standard parameters").
@@ -44,11 +46,11 @@ Audits reproducibility and stability across repeated execution trials.
 
 ### Pass F — Leakage & Tautology (Answer Contamination)
 Audits prompt independence from internal skill implementation and system prompt instructions.
-- **Defects:** Prompt explicitly states the skill name ("use the foo-bar skill to...") or quotes internal system prompt rules verbatim, priming self-attention heads.
+- **Defects:** A task prompt quotes internal answers or rules that a real user would not know. Explicit skill names are valid in manual-invocation and routing cases; record that intent rather than deleting useful coverage.
 - **Fix:** Apply the Natural User Persona Transform: frame prompt purely in terms of user intent, symptoms, and pain points; remove internal nomenclature.
 - **N-Gram Gating Invariant:** Enforce $\mathcal{C}_4(p, S) \le 0.05$ and $\mathcal{C}_6(p, S) = 0$ (zero 6-gram matches between prompt and skill).
 - **Attention Gradient Saliency Decontamination:** Measure Integrated Gradients path integrals $\text{IG}_i(y_t)$ across prompt embeddings. Compute prompt attention entropy $H(\mathbf{p}) = -\sum p_i \ln p_i$. Enforce leakage score $\mathcal{L}_{\text{leak}} = 1 - \frac{H(\mathbf{p})}{\ln(N)} \le 0.40$; mask or neutralize any token exhibiting outlier attribution spikes ($z \ge 3.0$).
-- **Gauss-Legendre Integrated Gradients:** Compute token attributions along straight-line paths via Gauss-Legendre quadrature roots $t_k \in [-1, 1]$ over $m=20$ interpolation steps. Verify the Completeness Axiom ($|\sum \text{IG}_i - \Delta F| / |\Delta F| \le 0.05$) to mathematically guarantee zero uncaptured answer leakage.
+- **Gauss-Legendre Integrated Gradients:** Compute token attributions along straight-line paths via Gauss-Legendre quadrature roots $t_k \in [-1, 1]$ over $m=20$ interpolation steps. Verify the Completeness Axiom ($|\sum \text{IG}_i - \Delta F| / |\Delta F| \le 0.05$) to check numerical attribution completeness. Completeness does not prove the absence of answer leakage.
 - **Severity:** Medium if skill name is leaked; High if prompt spoon-feeds the exact algorithm.
 
 ### Pass G — Input Fixture Integrity & Isolation
@@ -79,7 +81,7 @@ Audits evaluation runtime expense and context bloat.
 Audits generalization safeguards and regression protection.
 - **Defects:** Description or skill instructions tuned to pass exact eval queries while failing slight paraphrases.
 - **Fix:** Establish a 60/40 train/validation split; hold out validation queries during prompt/description rewrites. Enforce Champion-Challenger Canary Invariants: zero regressions allowed on the frozen golden regression suite ($\forall t \in \mathcal{G}_{\text{golden}}, \text{Pass}(v_{\text{challenger}}, t) \ge \text{Pass}(v_{\text{champion}}, t)$).
-- **Bayesian Sequential Canary Early Stopping:** Implement Wald's Sequential Probability Ratio Test (SPRT) with cumulative log-likelihood ratio $\Lambda_m = S_m \ln(p_1/p_0) + (m - S_m) \ln((1-p_1)/(1-p_0))$. Terminate and abort failing candidate skills dynamically when $\Lambda_m \le \ln(\beta / (1 - \alpha))$, achieving up to 90% compute cost savings.
+- **Bayesian Sequential Canary Early Stopping:** Implement Wald's Sequential Probability Ratio Test (SPRT) with cumulative log-likelihood ratio $\Lambda_m = S_m \ln(p_1/p_0) + (m - S_m) \ln((1-p_1)/(1-p_0))$. Terminate and abort failing candidate skills dynamically when $\Lambda_m \le \ln(\beta / (1 - \alpha))$, with null/alternative hypotheses and error bounds fixed before the run. Report observed cost only; do not promise a saving.
 - **Wald Martingale Linear Boundaries:** Precompute exact integer decision boundaries $S_m \ge \lceil s \cdot m + h_1 \rceil$ (promote) and $S_m \le \lfloor s \cdot m + h_0 \rfloor$ (abort) derived from Doob's Optional Stopping Theorem, ensuring false promotion probability remains strictly bounded by $\alpha$.
 
 ### Pass L — Format & Schema Compliance
@@ -87,4 +89,3 @@ Audits structural JSON schema compliance.
 - **Defects:** Missing `id`, `name`, `prompt`, `expected_output`, or `assertions` arrays; malformed JSON.
 - **Fix:** Repair schema to conform strictly to canonical `evals.schema.json` and `trigger-eval.schema.json` specifications.
 - **Severity:** High if file fails JSON parse or misses required top-level keys.
-

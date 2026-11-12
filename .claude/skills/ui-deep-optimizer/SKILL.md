@@ -11,13 +11,28 @@ description: >-
   code-deep-optimizer; prompt authoring use prompt-deep-optimizer; skill authoring
   use skill-optimizer.
 metadata:
+  changelog_ref: references/CHANGELOG.md
   category: developer
   whenToUse: Run ui-deep-optimizer on this dashboard; audit and fix this interface until no Medium findings remain; review and repair checkout workflows, hierarchy and accessibility together
-  version: '1.0.1'
-  delta: '1.0.0 to 1.0.1; verified read-only, research-selection and evidence-role guards'
-  updated: '2026-11-09'
-  effort: high
+  version: '1.1.0'
+  delta: '1.0.1 to 1.1.0; routing metadata and portable acceptance dependencies'
+  updated: '2026-11-11'
+  effort: xhigh
   related_skills: deep-optimizer, frontend-ui, design-deep-optimizer, code-deep-optimizer
+version: "1.1.0"
+updated: "2026-11-11"
+model: claude-opus-5-5
+effort: xhigh
+category: developer
+whenToUse:
+  - "Audit and repair this existing checkout interface until no Medium findings remain"
+  - "Review app workflows, visual hierarchy and accessibility together"
+  - "Run ui-deep-optimizer on this dashboard"
+related_skills:
+  - deep-optimizer
+  - frontend-ui
+  - design-deep-optimizer
+  - code-deep-optimizer
 ---
 
 # UI Deep Optimizer
@@ -37,7 +52,7 @@ before creating the ledger. Examples and evaluation cases are in
 
 ## 1. Establish scope and evidence
 
-1. Read the target repository's instructions and available llms index before code.
+1. Read the target repository's instructions, then search its code for the scoped interface. Use available llms maps for orientation after the source lookup.
    Find existing product requirements, journeys, design tokens and supported devices.
    Check the size of the repository llms.txt index before reading it. Read it whole
    only below 10KB; otherwise query relevant rows. Treat it as an orientation map,

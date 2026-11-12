@@ -1,6 +1,6 @@
 # Prompt-deep-optimizer audit passes (A–P)
 
-Per-pass definitions for 16 evaluation domains, grouped into 5 parallel-dispatch bundles. Extracted from `SKILL.md` (Step 2) to stay under Pass J token budget. Step 2 dispatch reads this file to build subagent bundles; each subagent gets **only its group's passes**. Grouping rationale, dispatch rules, small-artifact profile, subagent-budget rules, skip-protocol table stay inline in `SKILL.md` Step 2 — control flow, not reference.
+Per-pass definitions for 16 evaluation domains, grouped into 5 parallel-dispatch bundles. Extracted from `SKILL.md` (Step 2) to stay under Pass J token budget. Step 2 dispatch reads this file to build subagent bundles; each subagent gets **only its group's passes**. Grouping rationale, dispatch rules, small-artifact profile, and subagent-budget rules stay inline in `SKILL.md` Step 2 (control flow, not reference); the skip-protocol table lives here, below.
 
 Group → passes: **Group 1 — Intent & Output** (A, D, M); **Group 2 — Context & Inputs** (B, C, N); **Group 3 — Process & Tools** (E, F, G); **Group 4 — Safety & Robustness** (H, I, O); **Group 5 — Structure, Model & Algorithm** (J, K, L, P).
 
@@ -59,6 +59,13 @@ Group → passes: **Group 1 — Intent & Output** (A, D, M); **Group 2 — Conte
 - Stop conditions explicit
 
 **Pass G — Examples / few-shot** (flag conditions, not quality adjectives — every bullet states what fires a finding)
+
+**Example-selection preflight, before the first rewrite.** Identify the primary task of the prompt being optimized. Plan one end-to-end example of that task and up to two relevant negative or edge cases. For an authoring prompt, the primary example demonstrates authoring, validating and delivering the requested artifact; examples of the artifact's later runtime behavior do not cover authoring itself. Those runtime branches may serve as relevant edge cases.
+
+Record `task_kind` (`authoring` or `other`) and an `examples` list. Each row declares `role` (`primary` or `edge`), a distinct `input_class`, `covers` (`authoring` for the primary example of an authoring task), and a concrete `summary`. Run `pdo_tools.py examples --plan <file>` before rewriting and after each rewrite. The helper checks declared roles and counts; the auditor must check that the actual examples match those declarations.
+
+When repairing coverage, replace or merge an existing example before adding one. Recheck primary-task coverage, redundancy and the count ceiling together in the same rewrite. Do not repair a missing authoring example by appending a fourth common-path example. Additional distinct edge cases remain allowed by the existing count-ceiling rule. The regression fixture in `evals/example-plans.json` preserves the owner's UI optimizer authoring prompt and both repair paths.
+
 - **Common path uncovered** — flag Medium when the prompt states a primary task and no example demonstrates it end to end.
 - **Missing negative example** — flag Medium when the prompt names a failure mode ("don't", "never", "avoid") and no example shows the wrong output being declined or corrected.
 - **Missing edge case** — flag Medium when the prompt names a boundary (empty input, missing field, ambiguous request, over-length input) with no example covering it.
@@ -135,7 +142,7 @@ Mark `N/A` or `partial` when precondition unmet. Always emit row in findings tab
 | K | Target model unknown | `partial (model unknown, running on Claude defaults)` |
 | L | No variants, no production traffic | `N/A (no eval surface)` |
 | N | No dynamic slots | `N/A (static prompt)` |
-| O | Free-text output, no schema | `partial (unstructured output)` — emit one Medium finding (`output is free-text with no validation hook — consider a "re-read and confirm the output addresses the stated goal" self-check step`) ONLY IF no case-insensitive match for `re-?read`, `double-?check`, `self-?check`, `verify (the |your )?(output\|answer\|result)`, `confirm (that )?the (output\|answer)`, `before (responding\|answering), (check\|ensure)`, or a schema/regex validation clause. On a match, mark `N/A (self-check present: "<matched phrase>")` and quote the phrase. |
+| O | Free-text output, no schema | `partial (unstructured output)` — emit one Medium finding (`output is free-text with no validation hook — consider a "re-read and confirm the output addresses the stated goal" self-check step`) ONLY IF no case-insensitive match for `re-?read`, `double-?check`, `self-?check`, `verify (the \|your )?(output\|answer\|result)`, `confirm (that )?the (output\|answer)`, `before (responding\|answering), (check\|ensure)`, or a schema/regex validation clause. On a match, mark `N/A (self-check present: "<matched phrase>")` and quote the phrase. |
 
 **Skip-reason priority:** multiple conditions on same pass → list both, more specific first. E.g., `N/A (fragment mode; no eval surface)`.
 

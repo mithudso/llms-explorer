@@ -1,23 +1,13 @@
 ---
 description: >-
-  Generate/parse/edit/convert document & data-file formats in Python & Node. TRIGGER: PDF
-  (pdf-lib, pypdf, ReportLab, text/tables); Word (docx-js, TOC); Excel (openpyxl/pandas, charts);
-  PowerPoint (PptxGenJS/python-pptx); CSV/TSV (encoding/BOM, injection); advanced JSON (streaming,
-  Ajv/Zod, JSON Patch); draw.io; Markdown/CommonMark/GFM (remark, MDX, Pandoc); write/recreate
-  llms.txt + llms-full.txt (spec v2); ai.txt opt-out; robots.txt / RFC 9309 (syntax, precedence,
-  crawl-delay, parsers) + the Content-Signal AI-preference extension; agents.md +
-  /.well-known/ucp; static llms.txt vs live NLWeb/WebMCP; RSL (XML AI-content licensing, the
-  robots.txt License: directive, pay-per-crawl). SKIP: analytical/ETL tabular work → da-* hubs;
-  extract FROM aging docs/live DOM → content-ingestion-extraction; in-browser markdown render →
-  chrome-extension-expert; llms.txt for AI-search citations → generative-engine-optimization;
-  one-off pandoc → document-conversion; EU TDM law → eu-ai-act-tdm-opt-out.
+  Generate/parse/edit/convert document & data-file formats in Python & Node. TRIGGER: PDF (pdf-lib, pypdf, ReportLab, text/tables); Word (docx-js, TOC); Excel (openpyxl/pandas, charts); PowerPoint (PptxGenJS/python-pptx); CSV/TSV (encoding/BOM, injection); advanced JSON (streaming, Ajv/Zod, JSON Patch); draw.io; Markdown/CommonMark/GFM (remark, MDX, Pandoc); write/recreate llms.txt + llms-full.txt (spec v2); ai.txt opt-out; robots.txt / RFC 9309 (syntax, precedence, crawl-delay, parsers) + Content-Signal extension; agents.md + /.well-known/ucp; static llms.txt vs live NLWeb/WebMCP; RSL (XML AI licensing, pay-per-crawl). SKIP: evals -> deep-eval-optimizer; tabular ETL -> da-data-engineering-platform; aging docs/live DOM extraction -> content-ingestion-extraction; in-browser markdown render -> chrome-extension-expert; llms.txt for AI search -> generative-engine-optimization; one-off pandoc -> document-conversion; EU TDM law -> eu-ai-act-tdm-opt-out.
 name: document-formats
 title: "Document & File Formats"
 category: developer
-version: "1.6.1"
-updated: "2026-09-02"
-model: claude-sonnet-5
-effort: medium
+version: "1.8.1"
+updated: "2026-11-11"
+model: claude-opus-5-5
+effort: high
 tags: [pdf, docx, xlsx, pptx, csv, json, drawio, markdown, mdx, pandoc, llms-txt, ai-txt, robots-txt, content-signals, document-generation, file-formats, hub, rsl]
 keywords:
   - PDF generation pdf-lib pypdf ReportLab WeasyPrint HTML-to-PDF
@@ -60,8 +50,10 @@ related_skills:
   - content-ingestion-extraction
   - technical-writing-craft
   - chrome-extension-expert
-  - misc-catch-all
+  - generative-engine-optimization
   - web-text-mirror
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # Document & File Formats
@@ -77,6 +69,19 @@ libraries that manipulate them. When the real question is the *analysis* of the 
 of content from messy sources, or the *prose quality* of a written document, defer to the sibling hubs
 named in the cross-hub map.
 
+## Look for llms files first
+
+Before reading the relevant format specification or library documentation raw, locate its llms files. If the repo is available, step 4 sets the order.
+1. Check the subject's `llms.txt`, its docs site's `/llms.txt`, or matching packs under `~/.global-ai-hub/skills.llms/` and `~/.global-ai-hub/llms-concepts/`; use available hub keyword/search tools as discovery leads.
+2. Run `wc -c` first (or inspect a remote size header). Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
+5. Index and llms hits are leads. Confirm them against readable source text before acting.
+
+## Office operation dependencies
+
+For DOCX helper workflows or XLSX formula recalculation, first read [office-support.md](references/office-support.md). Resolve the current installed documents/spreadsheets provider and its verified owner-relative assets/runtime. If unavailable, preserve the artifact as a draft and report the blocked operation; no verification-complete claim is permitted.
+
 ## Routing detail
 
 Deferrals the description cannot carry within its 1000-character cap (they mirror `whenNotToUse`):
@@ -88,7 +93,7 @@ MongoDB BSON schema design → `mongodb-expert`; crawling a site into a Markdown
 
 ## Sub-skill routing table
 
-This hub provides 28 on-demand reference files (7 absorbed format skills + 16 Markdown/markup and agent-discovery references, 9 of them the llms.txt / ai.txt / robots.txt / agent-commerce family). When a task matches a row, **Read the listed `references/` file** before answering — do not rely on this table alone for depth.
+This hub provides 28 on-demand reference files for office/data formats, Markdown/markup and agent-discovery standards. When a task matches a row, **Read the listed `references/` file** before answering — do not rely on this table alone for depth.
 
 | Sub-topic | When to load | Reference file |
 | --- | --- | --- |
@@ -97,7 +102,6 @@ This hub provides 28 on-demand reference files (7 absorbed format skills + 16 Ma
 | `xlsx` | Create, read, edit, fix Excel .xlsx (openpyxl + pandas); formulas, formatting, charts; clean/restructure messy tabular data | `references/xlsx.md` |
 | `pptx` | Create, read, edit PowerPoint .pptx (PptxGenJS + python-pptx); slide masters/layouts/templates; charts/tables; pptx→PDF | `references/pptx.md` |
 | `csv` | Parse, generate, validate, convert, stream CSV/TSV; encoding (BOM/UTF-8/1252); formula-injection (CWE-1236); csvkit/qsv/miller/DuckDB | `references/csv.md` |
-| `document-conversion` | pandoc / poppler (pdftotext) — convert PDFs, Word docs, EPUBs into LLM-readable Markdown | `references/document-conversion.md` |
 | `json-advanced` | Streaming parsers; JSON Schema (Ajv/Zod/TypeBox); JSON Patch (RFC 6902); JSONPath; MessagePack/CBOR/BSON; NDJSON; JSON5/JSONC | `references/json-advanced.md` |
 | `drawio-diagrams` | Programmatic .drawio creation/parse/transform; mxGraphModel/mxCell XML; export SVG/PNG/PDF; drawpyo/maxGraph; CI/CD diagram gen | `references/drawio-diagrams.md` |
 | `markdown-authoring` | Write correct/portable Markdown; CommonMark 0.31.2 vs GFM vs Pandoc/Obsidian/MDX flavors; core syntax + GFM extensions (tables, task lists, footnotes, strikethrough), frontmatter (YAML/TOML), GitHub alerts `> [!NOTE]`, math `$…$`; portability cheat-sheet | `references/markdown-authoring.md` |

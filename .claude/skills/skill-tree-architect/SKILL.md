@@ -26,17 +26,13 @@ whenNotToUse:
   - "decide which NEW skills to build for a domain (use concept-family-explorer)"
   - "structural lint of a single skill (run meta-validate.mjs directly)"
   - "optimize a prompt (use prompt-deep-optimizer / phe)"
-version: 1.4.0
+version: 1.5.0
 category: meta
-updated: 2026-07-20
-model: claude-opus-5
+updated: '2026-11-11'
+model: claude-opus-5-5
 effort: xhigh
 metadata:
-  changelog:
-    - "Full history: references/CHANGELOG.md"
-    - "2026-07-20 sko v1.3.0->v1.4.0 — Pass H 10/10->10/10 pos, 0/10->0/10 neg (predicted); 32 Medium fixed across 4 fix rounds + 2 blind gates"
-    - "2026-07-20 v1.3.0->v1.4.0 — sko full-profile run: description tightened (TRIGGER at char 250, terse anchors); script SKIP targets rephrased as direct-run tools; meta-validate hard-gate list corrected; cap tiers relabeled by severity+cause; single-cap --desc-cap semantics + standalone desc sweep; Phase-1 tool-failure rule; Phase-3 explicit-go + failure rail; healthy-tree exit; apply detail extracted to references/apply-procedure.md; model/effort keys added"
-    - "2026-06-28 v1.2.0->v1.3.0 — Phase 3 step 9 + Phase 4 step 1 gate: regenerate the consolidated SKILLS-INDEX (node gen-skills-index.mjs) after the tree mutates, then --check it in VERIFY, so the cross-family index never drifts after a rebalance"
+  changelog_ref: references/CHANGELOG.md
 keywords:
   - skill tree
   - hub and spoke
@@ -88,6 +84,15 @@ cap-balance audit, and sequences every tool around it. Mutating phases follow th
 contract at `~/.claude/skill-consolidation/convergence-and-severity.md` (snapshots, telemetry,
 exit statuses, budget: cite it, never restate it).
 
+## Look for llms files first
+
+Before reading the source store raw, check its llms map by size. For a local repo, step 4 sets the order.
+1. Look for the subject's `llms.txt`, then its hub docset map and memory-central keyword rows. Use only stores within the authorized source scope.
+2. Run `wc -c` first (or inspect `x-markdown-tokens` remotely). Read a file whole only when it fits; otherwise search it.
+3. Prefer `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map.
+4. If you have the repo, grep the code first. Use maps to locate a file and verify every actionable claim against its `path:line`.
+5. Index and llms hits are leads. Confirm each against the source before acting.
+
 ## Phase 1 — ANALYZE (read-only; always safe)
 
 Run the whole block (all four analytics) and read them together; none mutates anything:
@@ -104,12 +109,11 @@ for p in sorted(pathlib.Path.home().glob(".claude/skills/*/SKILL.md")):
         d = yaml.safe_load(p.read_text().split("\n---\n")[0].lstrip("-\n"))
         n = len(str(d.get("description", ""))) if isinstance(d, dict) else 0
     except Exception: print(p.parent.name, "PARSE-ERR"); continue
-    if n > 1000: print(p.parent.name, n, "HIGH" if n > 1536 else "MEDIUM")'
+    if n > 1000: print(p.parent.name, n, "HIGH")'
 ```
 
 - `audit-placement.mjs` is the analytic this skill owns: per-hub description length vs the
-  **two-tier cap** (>1000 chars = Medium, the Glean import cap, single definition: sko Pass M;
-  >1536 = High, harness listing truncation), spoke counts, **misplaced spokes** (a spoke whose
+  **1000-character hard cap** (>1000 = High, the Glean import cap in sko Pass M; >1536 also incurs harness listing truncation), spoke counts, **misplaced spokes** (a spoke whose
   trigger vocabulary fits a sibling hub better than its current owner; heuristic), and homeless
   best-fit. The tool checks ONE cap per run (`--desc-cap`, default 1536): run it at 1000 and
   derive the >1536 tier from each entry's `descLen` in the JSON output (or run it twice).
@@ -147,7 +151,7 @@ Produce a ranked plan. Tag every item **safe-auto** or **review-required**:
 | --- | --- | --- |
 | Dangling referent (`referents.mjs --status`) | `referents.mjs --repair --apply` | safe-auto (idempotent, ledgered) |
 | Hub description **>1536** (High: harness listing truncation) | split by sub-domain, OR compress prose **keeping every spoke keyword** | review-required |
-| Hub description **>1000** (Medium; def: sko Pass M) | compress prose **keeping every spoke keyword** | review-required |
+| Hub description **>1000** (High; def: sko Pass M) | compress prose **keeping every spoke keyword** | review-required |
 | Standalone skill desc >1000 / >1536 (Phase-1 sweep) | hand each to **skill-optimizer** (its Pass M owns the rewrite) | safe-auto to file; review-required to edit |
 | PARSE-ERR from the standalone sweep | hand to **skill-optimizer** (strict-YAML frontmatter fix; these files evade the hub-only meta-validate loop) | safe-auto to file |
 | Misplaced spoke, margin **≥ 0.25** (`audit-placement.mjs` suggestedScore − ownerScore) | re-file via the full `crossroute.mjs` sequence (apply-procedure §2b) | review-required |
@@ -166,8 +170,7 @@ tree-health baseline with "no action required" and stop; APPLY and VERIFY do not
 ## Phase 3 — APPLY (explicit go only; the step-1 snapshot is the recovery rail)
 
 **Explicit go** means the operator has confirmed the ranked Phase-2 plan: safe-auto items may
-proceed on a blanket confirmation; every review-required item needs per-item approval. No
-confirmation, no mutation.
+proceed on a blanket confirmation; every review-required item needs per-item approval. Existing explicit instructions that approve the concrete plan satisfy this gate; do not ask for the same approval again. Without authorization for an item, do not mutate it.
 
 **Failure rail:** on any step error after a write has landed, stop. Restore from the step-1
 snapshot (canonical contract, "Pre-write snapshot & rollback") and reverse this run's

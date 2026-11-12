@@ -8,7 +8,9 @@ different vocabularies, and had begun to drift. This file is the single canonica
 with the ladder and exit conditions below. Cite this file; do not silently diverge from it.
 
 > Historical mapping-table check: 2026-06-11. Re-check on a tier rename or when
-> the owning workflow requires a current review. This date is not a fresh verification.
+> the owning workflow requires a current review, including its 90-day freshness gate.
+> This date is not a fresh verification. Emit a BLOCKED/operator-action row when
+> that gate is due; do not replace this stamp without re-verifying the claims.
 > Retired catalog APIs do not authorize registry writes. Follow the invoking
 > optimizer's current registry, ownership and service-pause gates.
 
@@ -245,7 +247,14 @@ the run's report rather than per-lookup. A corpus with no matching index (a one-
 every table row's roots) is read and searched with ordinary tools — no fallback note needed, since
 no index claim was ever made for it.
 
-**Keep the index warm.** Any write this run makes to a file under `gen-prose-index.mjs`'s corpus
+**Workflow-specific indexing.** For `skill-optimizer`, Step 7.6 in
+`post-sync-steps.md` replaces this paragraph: observe its owning daemon, perform
+no per-run prose refresh, and never start or force the indexer. For another
+workflow, the legacy procedure below applies only when its current owner still
+specifies this index and explicitly authorizes the work. Respect every existing
+service pause and ownership boundary.
+
+**Legacy incremental index.** Any write this run makes to a file under `gen-prose-index.mjs`'s corpus
 roots (`~/.claude/skills`, `~/.claude/skill-consolidation`, and the mdb-context-hub `docs/` and
 repo-root markdown) leaves `tam_search_prose` stale for that file until re-embedded. After Step
 7/Step 5's writes land (and after Pass O's peer writes, if any), run `node

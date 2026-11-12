@@ -17,6 +17,7 @@ metadata:
     - context
     - mcp
     - recovery
+  changelog_ref: references/CHANGELOG.md
 category: custom
 effort: high
 whenToUse:
@@ -33,6 +34,7 @@ related_skills:
 - dr
 updated: '2026-11-11'
 ---
+
 
 # Hermes Operations Skill
 

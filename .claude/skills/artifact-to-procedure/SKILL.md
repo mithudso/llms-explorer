@@ -1,19 +1,27 @@
 ---
 name: artifact-to-procedure
 description: >-
-  Distill any completed artifact, session, or solved problem into a reusable skill, playbook,
-  or procedure — validated to work on a fresh case without the original. TRIGGER: user says
-  "turn this into a skill/playbook/procedure", "extract the method from this", "make this
-  reusable", "capture this workflow", "document what we did so we can repeat it"; or presents
-  completed work implying future reuse, not just documentation or summary. SKIP: building a
-  new skill from scratch with no completed artifact → skill-creator; saving personal session
-  notes for continuity → remember; documenting an API, codebase, or project structure →
-  technical-writing-craft; distilling a doc into a deduped reference list of facts/concepts,
-  not a reusable method → document-distiller.
-model: claude-opus-5
+  Extract a reusable procedure from a completed artifact, session or solved problem, retaining
+  evidence and testing transfer to a second case. TRIGGER: "turn this into a skill", "extract
+  the method", "capture this workflow", "make what we did reusable". SKIP: a new skill with no
+  completed artifact → skill-creator; organizing continuity notes → note-organizer; API or
+  project documentation → technical-writing-craft; a one-document fact inventory →
+  llms-txt-tooling (references/document-distiller.md).
+model: claude-opus-5-5
 effort: high
-version: 1.1.1
-updated: 2026-07-04
+version: 1.2.1
+updated: '2026-11-11'
+category: meta
+whenToUse:
+- turn this completed workflow into a reusable procedure
+- extract the method from this solved problem
+- capture what we did as a skill and test it on a second case
+related_skills:
+- skill-creator
+- note-organizer
+- technical-writing-craft
+metadata:
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # Artifact-to-Procedure Extraction
@@ -30,10 +38,19 @@ If the artifact is not already in the conversation context, ask the user to shar
 the key steps taken before proceeding. If the artifact is ambiguous or it's unclear what problem
 it solved, ask exactly one targeted question before proceeding.
 
+## Look for llms files first
+
+Before reading the source store raw, check its llms map by size. For a local repo, step 4 sets the order.
+1. Look for the subject's `llms.txt`, then its hub docset map and memory-central keyword rows. Use only stores within the authorized source scope.
+2. Run `wc -c` first (or inspect `x-markdown-tokens` remotely). Read a file whole only when it fits; otherwise search it.
+3. Prefer `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map.
+4. If you have the repo, grep the code first. Use maps to locate a file and verify every actionable claim against its `path:line`.
+5. Index and llms hits are leads. Confirm each against the source before acting.
+
 ## When not to use
 
 - Artifact is an open-ended discussion with no observable, repeatable outcome (brainstorming, Q&A)
-- User wants personal continuity notes, not a reusable method → `remember`
+- User wants personal continuity notes, not a reusable method → `note-organizer`
 - Goal is building a new skill from scratch, not extracting one from a completed session → `skill-creator`
 - Artifact documents an API, codebase, or project structure → `technical-writing-craft`
 - Artifact is already a well-formed procedure or checklist

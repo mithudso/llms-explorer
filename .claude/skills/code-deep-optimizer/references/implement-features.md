@@ -14,9 +14,11 @@ features only. Pre-existing behavior keeps the zero-regression bar.
 - The feature phase runs **once, after the structural convergence loop exits**, and after the
   empirical loop when that loop ran. It never runs inside a loop iteration, so its additions
   never enter the Medium+ exit math.
-- It runs only when the structural loop exited `CLEAN` or `CONVERGED`. On any other exit, skip it
+- It runs only when the structural loop exited `CLEAN` with zero unresolved Medium+ and successful current verification. On any other exit, skip it
   and report `implement-features: skipped (loop exited <status>)`. Adding features on top of
   unresolved Medium+ defects or an unstable loop compounds risk.
+- Run the detected verify gate on the structural candidate before checking feature-entry eligibility, even under `--no-verify`; this entry check is part of the forced feature verification. Missing or failing verification skips feature work.
+- `CONVERGED` means no progress with remaining findings; it never permits the feature phase. Recheck unresolved totals and current verification after empirical mode before adding behavior.
 - It is outside the champion–challenger loop. Empirical mode's must-pass veto requires the public
   API to stay unchanged, and a feature addition fails that veto by design.
 

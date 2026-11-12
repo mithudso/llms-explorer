@@ -2,6 +2,36 @@
 
 Every run reports eval results. A run without them cannot exit `converged`. It exits `EVALS-MISSING`. This gate reuses Pass F (evals exist), Pass H (trigger eval) and the `deep-eval-optimizer` hand-off. It adds no parallel harness.
 
+## Functional file schema
+
+Use an object with `skill_name` and an `evals` array. A top-level case array is
+not this format. Start with the shape below, then author at least 2–3 distinct,
+realistic cases. Use unique IDs, authorized fixture paths, and assertions whose
+level is explicit. `expected_output` is an author reference; withhold it from the
+blind judge. An empty `files` array means the case needs no input fixture.
+
+```json
+{
+  "skill_name": "example-skill",
+  "evals": [
+    {
+      "id": 1,
+      "name": "missing-input",
+      "prompt": "Turn my completed migration into a reusable procedure, but I have not supplied its artifacts.",
+      "expected_output": "Identify the missing source artifact before making claims about the completed migration.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "source-required",
+          "type": "negative",
+          "check": "Does not invent migration steps or claim it inspected an absent artifact."
+        }
+      ]
+    }
+  ]
+}
+```
+
 ## What runs, in order
 
 1. **Ensure files exist.**

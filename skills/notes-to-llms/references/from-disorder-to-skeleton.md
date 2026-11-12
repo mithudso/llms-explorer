@@ -21,9 +21,11 @@ Three fields in the report change what you do next:
 
 | Report field | What it means | What you do |
 |---|---|---|
-| `pages_without_headings` | those pages contribute **no** resolvable anchor | their units carry the bare page URL, no `#`. If they hold more than ~20 % of your units, add headings to the sources first — otherwise `P7 R3` is a High you cannot fix later |
+| `pages_without_headings` | those pages have no heading fragment; bare page URLs remain valid | omit the fragment and report the loss of navigation precision. Restore real source headings when that precision matters; never invent `#top`. The P7 R3 20% threshold applies only to present fragments that fail resolution, not to headingless units with bare URLs |
 | `duplicate_anchors` | two headings share one slug | a unit pointing there is ambiguous, not broken. Rename one heading in the source, or accept it and say so |
 | `skipped_unreadable` | a file was not read at all | convert it, or name it in the report. Never let it pass silently |
+
+`report.source_statuses` is the complete per-input disposition ledger. It records a root-qualified `source_id`, display path, status and reason; duplicate rows point to the kept row's `source_id` through `duplicate_of`. Use it to name every empty, duplicate, unsupported, unreadable, outside-root or hidden exclusion in `Left out`. Aggregate counts cannot replace that list.
 
 ## 2. Units: one claim, one line, one source
 

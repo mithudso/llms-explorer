@@ -1,10 +1,24 @@
 ---
 name: research-scout
-description: Scouts web source leads for LLMS-Explorer's pending research queue and proposes source-backed frontier concepts. Use Antigravity or another fast lookup agent before /dr or concept-family-explorer; saves private, resumable JSON handoffs. Does not perform full research, approve claims, or update the concept tree.
+description: >-
+  Find web source leads and frontier proposals for LLMS-Explorer's pending research queue; save private resumable handoffs.
+  TRIGGER: "scout sources before /dr", "find source leads for queued concepts", "resume this scout batch", "propose frontier candidates".
+  SKIP: verified research or expert-skill creation → dr; family inventory, CVS and accepted gap selection → concept-family-explorer; exhaustive one-concept research → rabbithole.
+whenToUse:
+  - "Scout sources for the next four queued MongoDB concepts."
+  - "Resume this scout run and record its remaining access gaps."
+  - "Find source-backed frontier proposals for this parent concept."
+related_skills:
+  - "dr"
+  - "concept-family-explorer"
+  - "rabbithole"
+version: "1.2.1"
+updated: "2026-11-11"
+model: claude-sonnet-5-5
+effort: medium
+category: meta
 metadata:
-  version: "1.1.0"
-  updated: "2026-10-29"
-  delta: "1.0.0 to 1.1.0: bounded consumer seeds and headless worker bridges; schema stays 1.0.0."
+  changelog_ref: references/CHANGELOG.md
 ---
 
 # Research scout
@@ -13,6 +27,15 @@ Find useful pages quickly so `/dr` and `concept-family-explorer` can spend their
 time reading and reasoning. Your output is **unverified leads**, even when you
 can read a page. Do not produce claims files, CVS scores, accepted concept nodes,
 queue checkmarks, completion receipts, or saturation verdicts.
+
+## Look for llms files first
+
+Before reading the selected research domain and queue raw, locate its llms files. If the repo is available, step 4 sets the order.
+1. Check the subject's `llms.txt`, its docs site's `/llms.txt`, or matching packs under `~/.global-ai-hub/skills.llms/` and `~/.global-ai-hub/llms-concepts/`; use available hub keyword/search tools as discovery leads.
+2. Run `wc -c` first (or inspect a remote size header). Read a file whole only when it fits; otherwise search it.
+3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
+4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
+5. Index and llms hits are leads. Confirm them against readable source text before acting.
 
 ## Start or resume
 
