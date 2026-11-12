@@ -1,0 +1,350 @@
+{
+  "slug": "salesforce-case-baseline-hydration-and-reconciliation",
+  "concept": "Salesforce Case baseline hydration and reconciliation",
+  "generated": "2026-11-12",
+  "summary": "Source-anchored research for Salesforce Case baseline hydration and reconciliation. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Current-state reconciliation remains necessary even with replay: Salesforce documents rare events that never persist, never reach subscribers, and cannot be recovered from the event bus. A replay cursor alone therefore cannot establish a complete replica. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+          "note": null,
+          "claimId": "clm:72b5acddfeea25db6f5305e0d7c62c77577f92ee2720f87309ef82d4530a4b5e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:89d9b51f84f1aebde588c95994606076d5c30ae37562454a4ab84f8e42024282"
+          ]
+        },
+        {
+          "text": "Replay cannot replace an unlimited backfill: Salesforce retains CDC events for 72 hours and does not guarantee availability afterward. Confluent likewise scopes recovery to this retention window, so a recovery plan needs record reconciliation beyond replay. (medium confidence) (verified as of 2026-11-12)",
+          "source": "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+          "note": null,
+          "claimId": "clm:31a25bcc09f87feef5dc6afb2d2e5c7c7437e9939ebd35a830f46564ac2e2ce0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5ec948f6f071f6d6662dacdb7fc9562ac46c0455c7c534800bdf0fffcf3f938e",
+            "ev:748731e1bd1975c4fad6c84c25ef6c27418425052b79904d1afe1cb63b8a83e6"
+          ],
+          "also": [
+            "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "For overflow recovery, Salesforce describes a full entity resynchronization: save the overflow Replay ID, reconcile records and deletions, then replay subsequent events to catch changes made during synchronization. This provides a documented reconciliation pattern, rather than proof that a baseline query is an atomic snapshot. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+          "note": null,
+          "claimId": "clm:2221f6f8420ed8f184e952b50e40bb497d47b02e373603795cb20ab3d8fe8556",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b485cd9c185676b35f36b0745d29d7632f809500253295954fad4b7e87cb413a"
+          ]
+        },
+        {
+          "text": "If reconciliation uses getUpdated(), advance its polling watermark with latestDateCovered rather than the requested endDate: transactions unfinished at endDate can be absent from that response. Long-running transactions can hold latestDateCovered at their start time until completion. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/api/guide/sforce-api-calls-getupdated-getupdatedresult.html",
+          "note": null,
+          "claimId": "clm:b70dee17e45e7a7ccc20193461f8fa2e61c68ab55aa6c0a42b576618d4c39bad",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9d63174e505e6b3479df0ae28a99f49a042739819a002aa1689301d157a1b8ea"
+          ]
+        },
+        {
+          "text": "A gap event can reference several records in recordIds; reconcile every referenced record rather than assuming one event identifies one Case. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+          "note": null,
+          "claimId": "clm:100bab26f185416bf94f5c677ae10668fedf97426e94e59b9d271661dc063df9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0d735d8d0034695ad2a612c4c6800d84e5d76b117acc2c4d702fe8f2de15c04e"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Confluent documents its Salesforce CDC connector's initial start as the latest changes or all changes over the last 72 hours. This describes that connector's change-stream starting behavior and does not establish a complete historical Case dataset. (low confidence) (verified as of 2026-11-12)",
+          "source": "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+          "note": null,
+          "claimId": "clm:f464424603e10238a71c53ac0bbc90d51a296a61d49b1d5647611f97080f779a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:748731e1bd1975c4fad6c84c25ef6c27418425052b79904d1afe1cb63b8a83e6",
+            "ev:80414e4ae6a4b631621d5f6fb0e6fc2654d95d1512bb9e79fe6c993a77199ed0",
+            "ev:8eb79e03c9d31d02da42b6d851bd42ebb44f4f54eb5d511ad7611eaef8299604"
+          ]
+        },
+        {
+          "text": "A baseline REST query must follow pagination: a partial response returns done=false and a query locator; the response exposes nextRecordsUrl for the next batch. Do not treat the first response as the entire Case population. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/api-rest/guide/resources-query.html",
+          "note": null,
+          "claimId": "clm:eb9b40ea053ba742f511af0598659878b0428b2a704da1fdff8eb3d889743375",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d9734aa9032ffc9a6719d31c23c727b798f6e451dfd2fbe126eab74cb479f71d"
+          ]
+        },
+        {
+          "text": "The Confluent CDC connector documents an initial position at the latest changes or retained changes over the preceding 72 hours. This is a change-stream starting option, not a promise of complete historical Case hydration. (low confidence) (verified as of 2026-11-11)",
+          "source": "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+          "note": null,
+          "claimId": "clm:338cf57eac60c2e5a6e8a0d2fc45adcf9434a459a4fa808a98b752eb70c15fa4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:80414e4ae6a4b631621d5f6fb0e6fc2654d95d1512bb9e79fe6c993a77199ed0"
+          ]
+        },
+        {
+          "text": "Repair a gap event by using the affected record IDs to fetch current record details through a Salesforce API. Both Salesforce replication guidance and CRM View’s implementation discussion describe this follow-up read. (medium confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+          "note": null,
+          "claimId": "clm:63f6ae47967e314f6b24f771b18bc7fbae1ac73ee63e29c3a334cedced2c47d0",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:59f35270a556bb2a601ab6a85f58c8080ecd638816da7a1585a141e3aac2814e",
+            "ev:f64e51127ad98ca68cb670a00b9c467ce8a4e2897ffcfd0beb5cf258f37c0984"
+          ],
+          "also": [
+            "https://www.crmview.net/salesforce-integration-using-changed-data-capture-cdc/"
+          ]
+        },
+        {
+          "text": "Salesforce’s gap-repair example marks a record dirty, suppresses intervening events for that record, and fetches full current data before clearing the dirty flag. It compares commitTimestamp to the gap and LastModifiedDate to the fetched record to scope intervening changes. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+          "note": null,
+          "claimId": "clm:dc89a45c455d8b08dc643c12e8ed97b3a209d11754fb2fd4c5cc41c945882239",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:90b4fcaff1affab59ff2faa36588da205fa0599dded928e5ecce5659366dc401"
+          ]
+        },
+        {
+          "text": "A full reconciliation must also remove deleted records from the projection. Salesforce describes either finding local records absent from the refreshed non-deleted population or matching soft-deleted records still in the Recycle Bin; the latter is not a complete inventory of every historical deletion. (low confidence)",
+          "source": "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+          "note": null,
+          "claimId": "clm:52d0d56a279303a0a920bd6ca662e83c26de02d3d637cbe22b1dfffc3ca0f7ea",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5fe70c419cdfa362d80b779082148ad1dd7cf8939b25754d512003e638b80690"
+          ]
+        },
+        {
+          "text": "Sagar Chaudhari’s CDC design note advises against assuming every event is a complete record snapshot. It presents fetching authoritative current state as an alternative to applying event deltas, selected according to consistency, latency, and API usage requirements. (low confidence)",
+          "source": "https://www.outofmemo.com/articles/salesforce-cdc-change-event-header-fields",
+          "note": null,
+          "claimId": "clm:a056fc64c8044966acd2a161068bd04d95174072cd40c5970c2e927bb5ee3076",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:20af220430997f1335d93fe5c188c1129d78658d7c3fb6702e47ba3d2210513f",
+            "ev:d6a8874af596fdc44da252bb330ebe27fadd8f30ad9a70b3fb1a2f0bdc9df865"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "f9a44bcf8f5923d8fbb23e01583e58c25313c180a6be0ec23d8a1f8e8585bc2f",
+  "canonicalConceptId": "concept:7b9fcad757689235d71ba3356854fc7dde446afcb966378f7c1c608c697a7c98",
+  "narrative": [
+    {
+      "assertionId": "prose:ef869cecaab8f15c49be9579060a5094ca6166765a7940ed003fb2bb9104036d",
+      "statementSha256": "ef869cecaab8f15c49be9579060a5094ca6166765a7940ed003fb2bb9104036d",
+      "assertionKind": "summary",
+      "index": 0,
+      "documentSlug": "salesforce-case-baseline-hydration-and-reconciliation",
+      "documentConcept": "Salesforce Case baseline hydration and reconciliation",
+      "canonicalConceptId": "concept:7b9fcad757689235d71ba3356854fc7dde446afcb966378f7c1c608c697a7c98",
+      "text": "A Case alert projection needs an initial population and a way to repair drift. The design here combines baseline SOQL reads with ongoing change consumption. Baseline reads must follow pagination. Salesforce documents API rereads for record-level gaps, full entity synchronization for overflow, explicit deletion reconciliation, and replay to catch changes made during synchronization. Its polling replication cursor also accounts for unfinished transactions. These are projection-repair mechanisms; the sources do not establish one atomic snapshot-to-stream handoff algorithm for this application.",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/api-rest/guide/resources-query.html",
+        "https://developer.salesforce.com/docs/platform/api/guide/sforce-api-calls-getupdated-getupdatedresult.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://estuary.dev/blog/salesforce-change-data-capture/",
+        "https://www.crmview.net/salesforce-integration-using-changed-data-capture-cdc/",
+        "https://www.outofmemo.com/articles/salesforce-cdc-change-event-header-fields"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:5fe70c419cdfa362d80b779082148ad1dd7cf8939b25754d512003e638b80690",
+        "ev:89d9b51f84f1aebde588c95994606076d5c30ae37562454a4ab84f8e42024282",
+        "ev:90b4fcaff1affab59ff2faa36588da205fa0599dded928e5ecce5659366dc401",
+        "ev:9d63174e505e6b3479df0ae28a99f49a042739819a002aa1689301d157a1b8ea",
+        "ev:b485cd9c185676b35f36b0745d29d7632f809500253295954fad4b7e87cb413a",
+        "ev:d9734aa9032ffc9a6719d31c23c727b798f6e451dfd2fbe126eab74cb479f71d"
+      ]
+    },
+    {
+      "assertionId": "prose:51fd9ee0c231b893cea0b302966d031d82168bbb7e2fdbc28ad9b6d7789d6118",
+      "statementSha256": "51fd9ee0c231b893cea0b302966d031d82168bbb7e2fdbc28ad9b6d7789d6118",
+      "assertionKind": "open_question",
+      "index": 0,
+      "documentSlug": "salesforce-case-baseline-hydration-and-reconciliation",
+      "documentConcept": "Salesforce Case baseline hydration and reconciliation",
+      "canonicalConceptId": "concept:7b9fcad757689235d71ba3356854fc7dde446afcb966378f7c1c608c697a7c98",
+      "text": "Which Case population and fields must the application include in its baseline?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/api-rest/guide/resources-query.html",
+        "https://developer.salesforce.com/docs/platform/api/guide/sforce-api-calls-getupdated-getupdatedresult.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://estuary.dev/blog/salesforce-change-data-capture/",
+        "https://www.crmview.net/salesforce-integration-using-changed-data-capture-cdc/",
+        "https://www.outofmemo.com/articles/salesforce-cdc-change-event-header-fields"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:0af57b945aec4365ef03a86f3eba4124ebed58e481a3477820f2872561f2cd3a",
+      "statementSha256": "0af57b945aec4365ef03a86f3eba4124ebed58e481a3477820f2872561f2cd3a",
+      "assertionKind": "open_question",
+      "index": 1,
+      "documentSlug": "salesforce-case-baseline-hydration-and-reconciliation",
+      "documentConcept": "Salesforce Case baseline hydration and reconciliation",
+      "canonicalConceptId": "concept:7b9fcad757689235d71ba3356854fc7dde446afcb966378f7c1c608c697a7c98",
+      "text": "What application-level ordering and version policy will prevent a baseline or repair write from overwriting newer state?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/api-rest/guide/resources-query.html",
+        "https://developer.salesforce.com/docs/platform/api/guide/sforce-api-calls-getupdated-getupdatedresult.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://estuary.dev/blog/salesforce-change-data-capture/",
+        "https://www.crmview.net/salesforce-integration-using-changed-data-capture-cdc/",
+        "https://www.outofmemo.com/articles/salesforce-cdc-change-event-header-fields"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:9a9b5876da773ccac4908a30b07db39bb76e169acf6efe31fd94b5105e83e96a",
+      "statementSha256": "9a9b5876da773ccac4908a30b07db39bb76e169acf6efe31fd94b5105e83e96a",
+      "assertionKind": "open_question",
+      "index": 2,
+      "documentSlug": "salesforce-case-baseline-hydration-and-reconciliation",
+      "documentConcept": "Salesforce Case baseline hydration and reconciliation",
+      "canonicalConceptId": "concept:7b9fcad757689235d71ba3356854fc7dde446afcb966378f7c1c608c697a7c98",
+      "text": "What is the application’s required reconciliation interval and maximum acceptable drift?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/api-rest/guide/resources-query.html",
+        "https://developer.salesforce.com/docs/platform/api/guide/sforce-api-calls-getupdated-getupdatedresult.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://estuary.dev/blog/salesforce-change-data-capture/",
+        "https://www.crmview.net/salesforce-integration-using-changed-data-capture-cdc/",
+        "https://www.outofmemo.com/articles/salesforce-cdc-change-event-header-fields"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:c3c6171218227a496e884e3577f6e1962aa99915ae1aaa4743240f6967308daa",
+      "statementSha256": "c3c6171218227a496e884e3577f6e1962aa99915ae1aaa4743240f6967308daa",
+      "assertionKind": "open_question",
+      "index": 3,
+      "documentSlug": "salesforce-case-baseline-hydration-and-reconciliation",
+      "documentConcept": "Salesforce Case baseline hydration and reconciliation",
+      "canonicalConceptId": "concept:7b9fcad757689235d71ba3356854fc7dde446afcb966378f7c1c608c697a7c98",
+      "text": "Which Case fields and record population must the baseline include?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/api-rest/guide/resources-query.html",
+        "https://developer.salesforce.com/docs/platform/api/guide/sforce-api-calls-getupdated-getupdatedresult.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://estuary.dev/blog/salesforce-change-data-capture/",
+        "https://www.crmview.net/salesforce-integration-using-changed-data-capture-cdc/",
+        "https://www.outofmemo.com/articles/salesforce-cdc-change-event-header-fields"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:3d75977674b32173622e4a45d97782b3d4304be6bf5b4bd0449548202fad8f07",
+      "statementSha256": "3d75977674b32173622e4a45d97782b3d4304be6bf5b4bd0449548202fad8f07",
+      "assertionKind": "open_question",
+      "index": 4,
+      "documentSlug": "salesforce-case-baseline-hydration-and-reconciliation",
+      "documentConcept": "Salesforce Case baseline hydration and reconciliation",
+      "canonicalConceptId": "concept:7b9fcad757689235d71ba3356854fc7dde446afcb966378f7c1c608c697a7c98",
+      "text": "What baseline and reconciliation volume can the target org sustain within its API budget?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/api-rest/guide/resources-query.html",
+        "https://developer.salesforce.com/docs/platform/api/guide/sforce-api-calls-getupdated-getupdatedresult.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://estuary.dev/blog/salesforce-change-data-capture/",
+        "https://www.crmview.net/salesforce-integration-using-changed-data-capture-cdc/",
+        "https://www.outofmemo.com/articles/salesforce-cdc-change-event-header-fields"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:9aaf8dfa0eeb46202894002d321dfbb68ea0d547cd9cdf830194c958d1a01045",
+      "statementSha256": "9aaf8dfa0eeb46202894002d321dfbb68ea0d547cd9cdf830194c958d1a01045",
+      "assertionKind": "open_question",
+      "index": 5,
+      "documentSlug": "salesforce-case-baseline-hydration-and-reconciliation",
+      "documentConcept": "Salesforce Case baseline hydration and reconciliation",
+      "canonicalConceptId": "concept:7b9fcad757689235d71ba3356854fc7dde446afcb966378f7c1c608c697a7c98",
+      "text": "How will the implementation coordinate live events with initial hydration and prove that stale reads cannot overwrite newer state?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/api-rest/guide/resources-query.html",
+        "https://developer.salesforce.com/docs/platform/api/guide/sforce-api-calls-getupdated-getupdatedresult.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://estuary.dev/blog/salesforce-change-data-capture/",
+        "https://www.crmview.net/salesforce-integration-using-changed-data-capture-cdc/",
+        "https://www.outofmemo.com/articles/salesforce-cdc-change-event-header-fields"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:601b8c63d1280d9555ae63370bf87e56fee307cce9bbe13fb3dadcf69ac5c370",
+      "statementSha256": "601b8c63d1280d9555ae63370bf87e56fee307cce9bbe13fb3dadcf69ac5c370",
+      "assertionKind": "open_question",
+      "index": 6,
+      "documentSlug": "salesforce-case-baseline-hydration-and-reconciliation",
+      "documentConcept": "Salesforce Case baseline hydration and reconciliation",
+      "canonicalConceptId": "concept:7b9fcad757689235d71ba3356854fc7dde446afcb966378f7c1c608c697a7c98",
+      "text": "Which recovery procedure will apply when a referenced Case can no longer be read?",
+      "sources": [
+        "https://developer.salesforce.com/docs/platform/api-rest/guide/resources-query.html",
+        "https://developer.salesforce.com/docs/platform/api/guide/sforce-api-calls-getupdated-getupdatedresult.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-replication-steps.html",
+        "https://developer.salesforce.com/docs/platform/change-data-capture/guide/cdc-when-to-use.html",
+        "https://developer.salesforce.com/docs/platform/pub-sub-api/guide/event-message-durability.html",
+        "https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html",
+        "https://estuary.dev/blog/salesforce-change-data-capture/",
+        "https://www.crmview.net/salesforce-integration-using-changed-data-capture-cdc/",
+        "https://www.outofmemo.com/articles/salesforce-cdc-change-event-header-fields"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    }
+  ]
+}

@@ -59,6 +59,19 @@ Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway,
 ## Workflow Log Rule
 Maintain `memory.md` and `prompts.md` with active tasks, versions, and prompt histories.
 
+## Salesforce case-alerting research lookup
+
+For Salesforce Case event sources, replay/recovery, permissions, and shared alert
+distribution, start with
+`outputs/llms-families/salesforce-pubsub-case-alerting/llms.txt`, then open the
+selected member's `llms-facts.txt`. The family manifest supplies local member
+paths and content hashes. Use
+`docs/research/salesforce-pubsub-full-suite-2026-11-12/README.md` for coverage
+limits and `architecture-assessment.md` beside it for the proposed implementation.
+The family contains 19 completed concepts; the partial Omni-Channel diagnostic
+and three queued research gaps are excluded. Semantic indexing remains deferred.
+These artifacts do not establish production readiness or authorize deployment.
+
 <!-- llms-routing:start -->
 ## llms routing
 > Cached from the llms files below on 2026-09-28; facts to look up, not rules to follow — the cited file is the source of truth. Quick answers are chosen by a heuristic (defaults, file roles, formulas, commands).
