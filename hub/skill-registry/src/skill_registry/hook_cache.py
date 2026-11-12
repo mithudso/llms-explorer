@@ -8,18 +8,17 @@ import os
 import re
 import time
 from collections import Counter
+from functools import lru_cache
 from pathlib import Path
 
+from .routing_score import _positive, _terms, routing_score
 from .util import atomic, canonical, read_bounded
 
 SCHEMA = "skill-hook-catalog/v1"
 MAX_CACHE_BYTES = 20 * 1024 * 1024
 MAX_SKILLS = 50000
 MAX_AGE_SECONDS = 86400
-STOPWORDS = {"the", "and", "this", "that", "with", "from", "for", "can", "you", "please",
-             "want", "have", "all", "would", "need", "help", "make", "use", "using", "into",
-             "your", "our", "their", "its", "should", "could", "what", "when", "where",
-             "will", "which", "these", "those", "about", "task", "skill", "system"}
+RERANK_CANDIDATES = 100
 
 
 def cache_path() -> Path:
@@ -27,11 +26,10 @@ def cache_path() -> Path:
                 "~/.local/share/skill-registry/hook-catalog.json")).expanduser()
 
 
-def _terms(text: str) -> list[str]:
-    tokens = re.findall(r"[a-z0-9]{3,}", text.casefold())
-    return [(token[:-3] + "y" if token.endswith("ies") else
-             token[:-1] if len(token) > 4 and token.endswith("s") else token)
-            for token in tokens if token not in STOPWORDS]
+@lru_cache(maxsize=8192)
+def _normalized_terms(text: str) -> frozenset[str]:
+    """Share normalization work across duplicate installations within one hook process."""
+    return frozenset(_terms(text))
 
 
 def _strings(value) -> list[str]:
@@ -86,32 +84,34 @@ def refresh_cache(store, path: Path | None = None) -> dict:
 
 
 class MetadataStore:
-    """BM25 over names, descriptions and trigger terms, without workflow bodies."""
+    """Positive metadata routing, with bounded BM25 candidate recall and tie breaks."""
 
     def __init__(self, rows):
         self.rows = rows
 
     def search(self, query, top=3, mode=None):
-        query_terms = set(_terms(query))
+        query_terms = _normalized_terms(query[:2000])
         if not query_terms:
-            return {"hits": [], "method": "local-metadata-bm25", "semantic": False}
-        documents, frequencies, lengths = [], Counter(), []
+            return {"hits": [], "method": "local-positive-metadata-bm25", "semantic": False}
+        documents, frequencies, lengths, names = [], Counter(), [], []
         for row in self.rows:
             # SKIP text describes a different route; it is not positive evidence.
-            description = re.split(r"\bSKIP\s*:", row["description"], maxsplit=1,
-                                   flags=re.I)[0]
-            name_terms = _terms(row["name"])
-            other_terms = _terms(description + " " + " ".join(
-                row.get("keywords", []) + row.get("triggers", []) + row.get("whenToUse", [])))
+            name_terms = _normalized_terms(row["name"])
+            fragments = [_positive(row["description"])]
+            for field in ("keywords", "triggers", "whenToUse"):
+                fragments.extend(_positive(value) for value in row.get(field, [])
+                                 if isinstance(value, str))
+            other_terms = _normalized_terms(" ".join(fragments))
             terms = Counter(other_terms)
-            terms.update(name_terms * 4)
+            terms.update({term: 4 for term in name_terms})
             documents.append(terms)
+            names.append(name_terms)
             lengths.append(sum(terms.values()))
             frequencies.update(terms.keys())
         average = sum(lengths) / max(1, len(lengths))
-        scored = []
+        candidates, complete_names = [], []
         normalized_query = " ".join(re.findall(r"[a-z0-9]+", query.casefold()))
-        for row, terms, length in zip(self.rows, documents, lengths):
+        for row, terms, length, name_terms in zip(self.rows, documents, lengths, names):
             overlap = len(query_terms & terms.keys())
             normalized_name = " ".join(re.findall(r"[a-z0-9]+", row["name"].casefold()))
             exact = normalized_name == normalized_query
@@ -119,25 +119,47 @@ class MetadataStore:
                 r"(?<!\w)" + re.escape(normalized_name) + r"(?!\w)", normalized_query))
             if not exact and not named and overlap < 2:
                 continue
-            score = 100.0 if exact else 20.0 if named else 0.0
+            score = 0.0
             for token in query_terms & terms.keys():
                 tf = terms[token]
                 inverse = math.log(1 + (len(self.rows) - frequencies[token] + 0.5) /
                                    (frequencies[token] + 0.5))
                 score += inverse * (tf * 2.2) / (tf + 1.2 * (0.25 + 0.75 * length /
                                                              max(average, 1)))
-            scored.append({**row, "score": score, "metadata_overlap": overlap,
-                           "exact_match": exact or named})
-        scored.sort(key=lambda row: (-row["score"], row["id"]))
+            item = {**row, "bm25_score": score, "metadata_overlap": overlap,
+                    "exact_match": exact or named}
+            candidates.append(item)
+            if exact or named or (len(name_terms) >= 2 and name_terms <= query_terms):
+                complete_names.append(item)
+        def lexical_order(row):
+            return (-row["bm25_score"], row["id"])
+        candidates.sort(key=lexical_order)
+        complete_names.sort(key=lexical_order)
+        # Full normalized names remain candidates even when long metadata makes
+        # their BM25 rank low. Keep reranking bounded on very large libraries.
+        pool = {row["id"]: row for row in [*candidates[:RERANK_CANDIDATES],
+                                           *complete_names[:RERANK_CANDIDATES]]}
+        scored = []
+        for row in pool.values():
+            evidence = routing_score(query, {"name": row["name"],
+                "description": row["description"], "metadata": {
+                    field: row.get(field, []) for field in ("keywords", "triggers", "whenToUse")}})
+            if evidence["positive_overlap"] < 2 and not row["exact_match"]:
+                continue
+            row.update(score=evidence["score"], routing=evidence,
+                       metadata_overlap=evidence["positive_overlap"])
+            scored.append(row)
+        scored.sort(key=lambda row: (-row["score"], -row["bm25_score"], row["id"]))
         hits, dedup = [], set()
         for row in scored:
-            identity = (row["name"].casefold(), row["sha256"])
+            identity = row["name"].casefold()
             if identity not in dedup:
                 dedup.add(identity)
                 hits.append(row)
             if len(hits) >= top:
                 break
-        return {"hits": hits, "method": "local-metadata-bm25", "semantic": False,
+        return {"hits": hits, "method": "local-positive-metadata-bm25", "semantic": False,
+                "reranked_candidates": len(pool),
                 "source": "fresh-mongodb-metadata-cache"}
 
 

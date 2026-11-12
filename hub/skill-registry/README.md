@@ -203,6 +203,7 @@ or the administrator's explicit `resource_roots` configuration. Shared library
 roots and untrusted `Resource directory:` redirects publish guide-only receipts.
 Excluded credentials, caches, symlinks and oversized files are accounted for.
 Generated run logs, worker output, transcripts and raw-state dumps are excluded.
+Generated database, vector-index and skill-index cache files are excluded too.
 Source scripts, deliberate evaluation fixtures, final Markdown reports and
 portable templates remain eligible resources.
 An exclusion is never presented as a complete portable resource bundle.
@@ -242,7 +243,12 @@ cache and reports `ingest-incomplete` instead of replacing it with partial data.
 The store provisions a Voyage `autoEmbed` vector index on `search_text` and an
 Atlas Search text index. Atlas maintains document and query embeddings. Search
 fuses exact-name, weighted text relevance and semantic ranks, then groups
-identical guide hashes. Every response reports the channels that actually ran;
+identical guide hashes. A bounded positive-metadata score favors the skill that
+owns the requested intent. It uses names, descriptions and trigger metadata,
+excludes `SKIP` deferrals, and leaves semantic-only paraphrases in the candidate
+pool. Current BSON eligibility is checked after both indexed searches and again
+before results are returned, so stale index flags cannot route disabled entries.
+Every response reports the channels that actually ran;
 a degraded keyword-only result is not semantic-search success. Index readiness
 and a successful semantic query are separate acceptance checks. See MongoDB's
 [automated embedding documentation](https://www.mongodb.com/docs/vector-search/crud-embeddings/automated-embedding/)
@@ -286,8 +292,10 @@ does not load or execute a skill. Malformed input, missing access, timeouts and
 unrelated results produce no output and exit successfully. The child-process
 deadline defaults to three seconds (`SKILL_HOOK_TIMEOUT`, capped at five).
 
-The hook first uses a fresh, metadata-only cache from the MongoDB catalog. This
-provides quick local BM25 routing over names, descriptions and trigger terms.
+The hook first uses a fresh, metadata-only cache from the MongoDB catalog. It
+uses BM25 to recall a bounded candidate pool, then ranks positive routing
+metadata and returns at most one candidate per skill name. Greetings and weak
+overlaps abstain. Full MCP search retains distinct canonical source variants.
 It does not cache or install skill workflows or supporting resources. The cache
 expires after 24 hours and uses owner-only file permissions. Override its path
 with `SKILL_HOOK_CACHE`. `mongo watch --refresh-hook-cache` refreshes it at startup

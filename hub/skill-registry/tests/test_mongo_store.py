@@ -263,7 +263,10 @@ def test_hybrid_search_uses_native_text_embedding_rrf_and_dedup(store):
     vector = store.collection.pipelines[0][0]["$vectorSearch"]
     assert vector["query"] == {"text": "example"} and vector["model"] == "voyage-4"
     assert vector["filter"] == {"managed_by": MANAGED_BY, "active": True, "searchable": True}
+    assert store.collection.pipelines[0][1] == {"$match": vector["filter"]}
     assert store.collection.pipelines[1][0]["$search"]["index"] == LEXICAL_INDEX
+    assert store.collection.pipelines[1][1] == {"$match": vector["filter"]}
+    assert "$limit" in store.collection.pipelines[1][2]
 
 
 def test_semantic_failure_is_explicit_and_never_leaks_driver_credentials(store):
@@ -276,6 +279,45 @@ def test_semantic_failure_is_explicit_and_never_leaks_driver_credentials(store):
     assert result["hits"][0]["match_kind"] == "exact"
     semantic = store.search("unmatched query", mode="semantic")
     assert semantic["degraded"] and semantic["hits"] == []
+
+
+@pytest.mark.parametrize("field,value", [
+    ("searchable", False), ("active", False), ("managed_by", "another-owner"),
+    ("searchable", "true"), ("active", None),
+])
+def test_stale_index_results_cannot_restore_disabled_inactive_or_foreign_skills(store, field, value):
+    result = create(store)
+    stale = copy.deepcopy(store.collection.docs[result["id"]])
+    stale[field] = value
+    store.collection.responses = {"semantic": [stale], "lexical": [stale]}
+    found = store.search("a paraphrase without exact name")
+    assert found["hits"] == [] and found["results"] == []
+
+
+def test_positive_routing_metadata_boosts_optimizer_over_creator_skip_mentions(store):
+    creator = create(store, "skill-creator")
+    optimizer = create(store, "skill-optimizer")
+    creator_doc = store.collection.docs[creator["id"]]
+    optimizer_doc = store.collection.docs[optimizer["id"]]
+    creator_doc["description"] = "Create new skills. SKIP: optimize an existing skill."
+    optimizer_doc["description"] = "Optimize an existing skill and improve its quality."
+    optimizer_doc["metadata"]["triggers"] = ["optimize an existing skill"]
+    store.collection.responses = {"semantic": [creator_doc, optimizer_doc],
+                                  "lexical": [creator_doc, optimizer_doc]}
+    result = store.search("optimize an existing skill")
+    assert result["hits"][0]["id"] == optimizer["id"]
+    assert result["hits"][0]["routing"]["score"] > result["hits"][1]["routing"]["score"]
+    assert result["diagnostics"]["positive_metadata_weight"] == 0.04
+
+
+def test_unmatched_paraphrases_preserve_dense_ordering(store):
+    first = create(store, "alpha")
+    second = create(store, "beta")
+    store.collection.responses = {"semantic": [store.collection.docs[first["id"]],
+                                               store.collection.docs[second["id"]]]}
+    result = store.search("seafaring cartography", mode="semantic")
+    assert [row["id"] for row in result["hits"]] == [first["id"], second["id"]]
+    assert all(row["routing"]["score"] == 0 for row in result["hits"])
 
 
 @pytest.mark.parametrize("path", ["../secret", "/etc/passwd", "a/../b", "a\\b", "a//b", ".env"])
@@ -560,3 +602,36 @@ def test_ingestion_records_operational_exclusions_without_reading_or_copying_art
     assert any(row["reason"].startswith("operational-") for row in doc["exclusions"])
     assert all(b"PRIVATE OPERATIONAL TRACE" not in chunk["data"]
                for chunk in store.resources.docs.values())
+
+
+@pytest.mark.parametrize("path", [
+    "SKILLS-EMBEDDINGS.json", "skills-index.JSON", "references/facts.db",
+    "references/facts.db-wal", "references/facts.db-shm", "references/catalog.sqlite3",
+    "references/catalog.sqlite-journal", "references/data.wal", "references/vectors.faiss",
+    "references/vectors.hnsw", "references/vectors.ann", "references/index.lmdb",
+])
+def test_derived_databases_and_index_caches_are_not_distributed(path):
+    assert _excluded(PurePosixPath(path)).startswith("derived-")
+
+
+@pytest.mark.parametrize("path", [
+    "fixtures/facts.db", "testdata/vectors.faiss", "fixtures/SKILLS-EMBEDDINGS.json",
+    "schemas/catalog.sql", "schemas/catalog.schema.json", "examples/create_index.py",
+    "scripts/query_facts.py", "assets/reference.pptx",
+])
+def test_database_cache_exclusions_preserve_explicit_fixtures_and_source_examples(path):
+    assert _excluded(PurePosixPath(path)) is None
+
+
+def test_cache_projection_never_changes_original_frozen_files(store, roots, skill, tmp_path):
+    frozen = skill / "SKILLS-EMBEDDINGS.json"
+    facts = skill / "facts.db"
+    frozen.write_bytes(b'[{"embedding":[0.25,0.5]}]')
+    facts.write_bytes(b"PRIVATE DERIVED DATABASE")
+    before = {path: path.read_bytes() for path in (frozen, facts)}
+    result = store.ingest(Catalog(tmp_path / "catalog", roots))
+    assert result["ingested"] == 1
+    doc = next(iter(store.collection.docs.values()))
+    assert all(entry["path"] not in {"facts.db", "SKILLS-EMBEDDINGS.json"}
+               for entry in doc["resources"])
+    assert all(path.read_bytes() == value for path, value in before.items())

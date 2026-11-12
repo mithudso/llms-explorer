@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from skill_registry.hook_cache import load_cache, refresh_cache
+from skill_registry.hook_cache import SCHEMA, MetadataStore, load_cache, refresh_cache
 
 
 def row(identity, name, description, **extras):
@@ -83,3 +83,61 @@ def test_real_hook_uses_local_metadata_cache_with_no_credentials(tmp_path):
     assert "mongodb-query-tuning" in json.loads(result.stdout)[
         "hookSpecificOutput"]["additionalContext"]
     assert time.monotonic() - started < 2
+
+
+def test_positive_routing_beats_generic_metadata_and_deduplicates_names():
+    rows = [
+        row("a", "prompt-helper", "Optimize Prism caches and write useful prompts. "
+            "Prism caches optimize Prism caches. Generic prompt editing guidance."),
+        row("b", "prism-cache-optimizer", "Audit and improve Prism cache efficiency."),
+        row("c", "prism-cache-optimizer", "A second installation of the cache optimizer."),
+        row("d", "prism-cache-audit", "Inspect Prism cache hit rates and memory costs."),
+    ]
+    store = MetadataStore(rows)
+    result = store.search("Optimize all of my Prism caches")
+    assert result["hits"][0]["name"] == "prism-cache-optimizer"
+    assert len({hit["name"] for hit in result["hits"]}) == len(result["hits"])
+    assert result["reranked_candidates"] <= 200
+
+
+def test_documents_inflection_and_specific_positive_names_beat_generic_search():
+    store = MetadataStore([
+        row("a", "Search", "Find official Prism vector API documentation. "
+            "Search official Prism vector API documentation and official documentation."),
+        row("b", "prism-api-migration", "Migrate Prism API vector clients to newer versions."),
+        row("c", "prism-docs", "Use official Prism sources for API and vector documentation."),
+    ])
+    assert store.search("Find official Prism vector API documentation")["hits"][0][
+        "name"] == "prism-docs"
+
+
+def test_shared_stopwords_silence_greetings_and_skip_when_is_negative_evidence():
+    store = MetadataStore([
+        row("a", "status-helper", "Explain how you are doing today and summarize the status."),
+        row("b", "prompt-helper", "Improve prompts. SKIP when: Prism cache optimization."),
+        row("c", "prism-cache-optimizer", "Audit Prism cache optimization."),
+    ])
+    assert store.search("How are you today?")["hits"] == []
+    assert store.search("Please show me how you are doing")["hits"] == []
+    hits = store.search("Optimize Prism caches")["hits"]
+    assert hits[0]["name"] == "prism-cache-optimizer"
+    assert "prompt-helper" not in {hit["name"] for hit in hits}
+
+
+def test_fresh_subprocess_routes_large_metadata_catalog_within_hook_deadline(tmp_path):
+    path = tmp_path / "large-routing.json"
+    rows = [{"id": f"noise-{i}", "name": f"unrelated-workflow-{i}",
+             "description": "Maintain fictional shipping schedules and warehouse inventory. " * 12,
+             "sha256": f"{i:064x}", "release_sha256": "f" * 64}
+            for i in range(2662)]
+    rows.append(row("a", "prism-runtime-quality", "Review Prism runtime performance and test quality."))
+    path.write_text(json.dumps({"schema": SCHEMA, "generated_at": time.time(), "skills": rows}))
+    env = {key: value for key, value in os.environ.items()
+           if key not in {"MONGODB_URI2", "SKILL_REGISTRY_ENV_FILE", "SKILL_MCP_URL"}}
+    result = subprocess.run([sys.executable, "-m", "skill_registry.prompt_hook"],
+        input=b'{"prompt":"Review Prism runtime performance and test quality"}',
+        capture_output=True, timeout=4.5, env={**env, "SKILL_HOOK_CACHE": str(path),
+                                            "SKILL_HOOK_TIMEOUT": "3"})
+    assert result.returncode == 0 and result.stderr == b""
+    assert "prism-runtime-quality" in json.loads(result.stdout)[
+        "hookSpecificOutput"]["additionalContext"]
