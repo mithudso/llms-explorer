@@ -40,7 +40,13 @@ def install(args) -> dict:
     backup = state / "installation-backups"
     env_file = args.env_file.expanduser().resolve(strict=True)
     python = str(Path(sys.executable).absolute())
-    environment = {"SKILL_REGISTRY_ENV_FILE": str(env_file)}
+    # launchd does not load the user's shell profile. The installed Codex CLI
+    # uses /usr/bin/env node, so plugin evidence needs the stable Node locations.
+    executable_path = os.pathsep.join(dict.fromkeys([
+        str(Path(python).parent), str(home / ".local/bin"), "/opt/homebrew/bin",
+        "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin",
+    ]))
+    environment = {"SKILL_REGISTRY_ENV_FILE": str(env_file), "PATH": executable_path}
     jobs = {
         "com.llms-explorer.skills-mcp": [python, "-m", "skill_registry.mongo_mcp",
             "--transport", "streamable-http", "--host", "127.0.0.1", "--port", str(args.port)],

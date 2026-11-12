@@ -44,6 +44,9 @@ def test_install_preserves_other_hooks_and_reconciles_owned_command(tmp_path, mo
     jobs = tmp_path / "Library/LaunchAgents"
     sync = plistlib.loads((jobs / "com.llms-explorer.skills-sync.plist").read_bytes())
     assert "--refresh-hook-cache" in sync["ProgramArguments"]
-    assert sync["EnvironmentVariables"] == {"SKILL_REGISTRY_ENV_FILE": str(env)}
+    assert sync["EnvironmentVariables"]["SKILL_REGISTRY_ENV_FILE"] == str(env)
+    executable_path = sync["EnvironmentVariables"]["PATH"].split(":")
+    assert str(tmp_path / ".local/bin") in executable_path
+    assert "/opt/homebrew/bin" in executable_path and "/usr/bin" in executable_path
     assert "MONGODB_URI2" not in json.dumps(sync)
     assert (tmp_path / ".local/share/skill-registry").stat().st_mode & 0o777 == 0o700
