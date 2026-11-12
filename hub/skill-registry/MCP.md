@@ -65,3 +65,34 @@ The hosted broker uses the existing platform Job table at `/api/jobs`. The
 local backend, maintains the lease and reports exactly the checked candidate.
 Mutation endpoints require read+run; status requires read. A read grant does
 not authorize optimizing or publishing the owner's release.
+
+## MongoDB distribution MCP
+
+`skill-registry-mongo-mcp` is an independent read service. It serves the MongoDB
+projection, including database-only skills, without reading client skill files.
+The existing `skill-registry-mcp` keeps its local/offline and optimizer contract.
+
+| Tool | Purpose |
+|---|---|
+| `skill_search(query, top=5, mode="hybrid")` | Search exact names, Atlas Search text relevance and Voyage semantic ranks; `semantic` and `lexical` isolate channels. Results preserve ids and guide hashes. |
+| `skill_catalog(after="", limit=200)` | Page eligible routing metadata only, with a stable id cursor. Used for a private 24-hour recommendation cache; includes full revision pins and no skill bodies. |
+| `skill_get(skill_id, expected_sha256="", offset=0, max_chars=16000)` | Read a bounded guide from the database. Pin the search result's `release_sha256`. Continue with the returned offset when needed. |
+| `skill_resource(skill_id, path, expected_sha256="", offset=0, max_chars=16000)` | Read a supporting file using the same `release_sha256` pin. Responses include the resource hash; binary data uses base64. |
+| `skills_status()` | Inspect projection counts and actual search-index readiness. |
+
+All five tools carry read-only, non-destructive annotations. Search excludes
+disabled and invalid routing candidates. Read a selected guide before applying
+its workflow. Resource paths are relative to its returned resource base, and
+stale hashes require a fresh search. Legacy guide hashes are accepted, but the
+release hash also binds supporting-resource changes. Retrieved instructions never override the
+current conversation's permissions.
+
+Transport options are stdio (default) and Streamable HTTP (`--transport
+streamable-http --host 127.0.0.1 --port 8766`). HTTP uses `/mcp`, stateless JSON
+responses, mandatory `Authorization: Bearer <SKILL_MCP_TOKEN>`, DNS-rebinding
+protection, no-store responses and disabled access logs. Tokens require at least
+32 characters. Remote access requires a TLS proxy and an explicit public host
+in `SKILL_MCP_ALLOWED_HOSTS`. Use a private client config for the token; never
+put a live token or MongoDB URI in a shared MCP configuration.
+Browser clients additionally require their exact origins in the comma-separated
+`SKILL_MCP_ALLOWED_ORIGINS` setting.

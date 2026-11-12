@@ -9,12 +9,14 @@ from pathlib import Path
 from .bundles import MAX_ARCHIVE_BYTES, build_bundle, install_bundle
 from .catalog import Catalog
 from .client import Remote, token_from_environment
+from .environment import load_environment
 from .jobs import OPTIMIZERS, Jobs
 from .util import atomic, read_bounded, validate_workspace
 
 
 class Service:
     def __init__(self, state: Path | None = None, config: dict | None = None):
+        load_environment()
         self.state = Path(state or os.environ.get("SKILL_REGISTRY_HOME", "~/.local/share/skill-registry")).expanduser()
         if config is None:
             path = Path(os.environ.get("SKILL_REGISTRY_CONFIG", "~/.config/skill-registry/config.json")).expanduser()
@@ -24,6 +26,11 @@ class Service:
         self.config = config
         self.catalog = Catalog(self.state, config.get("roots"))
         self.jobs = Jobs(self.state)
+
+    def mongo(self):
+        """Open the separately authorized MongoDB distribution projection lazily."""
+        from .mongo_store import MongoStore
+        return MongoStore()
 
     def remote(self) -> Remote:
         return Remote(os.environ.get("SKILL_REGISTRY_URL", self.config.get("remote_url", "")),

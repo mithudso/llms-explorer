@@ -171,3 +171,139 @@ release owner may optimize that hosted release. A team read grant does not grant
 optimization or publication. The source release remains immutable. Local worker
 workspace/receipt state is retained if network reporting fails; a private
 recovery record may hold a lease until the outcome is reported.
+
+## MongoDB distribution and Voyage skill search
+
+Install `uv sync --all-extras` in this package. The MongoDB projection is separate
+from the existing local catalog and hosted release API. It uses the connection
+in `MONGODB_URI2` and defaults to `ESRE-TAM.skills`. Skill source files remain
+authoritative. The ingest receipt accounts for invalid guides and excluded
+resources; a searchable guide does not establish that every resource is portable.
+Explicitly disabled installations remain disabled. Database-created skills can
+also exist entirely in the distribution store.
+
+Use a private environment file, outside Git, for runtime settings:
+
+```dotenv
+MONGODB_URI2=<private MongoDB connection string>
+SKILL_MCP_TOKEN=<random bearer token of at least 32 characters>
+SKILL_MCP_ALLOWED_HOSTS=127.0.0.1:*,localhost:*,skills.example.com
+```
+
+`--env-file` and `SKILL_REGISTRY_ENV_FILE` load only the named file. They never
+search a working directory or execute shell expressions. Existing process
+environment values take precedence. Restrict file permissions to its owner.
+
+```sh
+skill-registry --env-file /private/runtime.env mongo provision --wait 60
+skill-registry --env-file /private/runtime.env mongo ingest
+skill-registry --env-file /private/runtime.env mongo status
+skill-registry --env-file /private/runtime.env mongo cache-hook
+skill-registry --env-file /private/runtime.env mongo search 'diagnose slow MongoDB queries' --top 5
+skill-registry --env-file /private/runtime.env mongo search 'query plan diagnosis' --mode semantic
+skill-registry --env-file /private/runtime.env mongo load SKILL_ID --sha256 RELEASE_SHA256
+skill-registry --env-file /private/runtime.env mongo resource SKILL_ID references/check.md --sha256 RELEASE_SHA256
+skill-registry --env-file /private/runtime.env mongo watch --interval 60 --refresh-hook-cache
+```
+
+Use configured catalog roots to include the desired project skills. `mongo watch`
+refreshes the source inventory and ingests changes each interval. It retries
+transient database failures, preserves the last projection, and exits promptly
+on SIGINT/SIGTERM. Its JSON receipts belong in private runtime logs.
+
+The store provisions a Voyage `autoEmbed` vector index on `search_text` and an
+Atlas Search text index. Atlas maintains document and query embeddings. Search
+fuses exact-name, weighted text relevance and semantic ranks, then groups
+identical guide hashes. Every response reports the channels that actually ran;
+a degraded keyword-only result is not semantic-search success. Index readiness
+and a successful semantic query are separate acceptance checks. See MongoDB's
+[automated embedding documentation](https://www.mongodb.com/docs/vector-search/crud-embeddings/automated-embedding/)
+for current deployment and feature requirements.
+
+The separate MongoDB MCP process exposes five read tools and no optimizer,
+ingestion, publication or arbitrary-database operations:
+
+```sh
+skill-registry-mongo-mcp --env-file /private/runtime.env
+skill-registry-mongo-mcp --env-file /private/runtime.env --transport streamable-http --port 8766
+```
+
+HTTP listens on loopback by default, at `/mcp`, and requires the bearer token
+before parsing MCP requests. Place it behind a TLS tunnel or reverse proxy for
+remote clients. Add that proxy's public hostname to `SKILL_MCP_ALLOWED_HOSTS`.
+Binding beyond loopback additionally requires `--allow-remote`; it does not
+provide TLS itself. Clients need only the MCP URL and bearer token. They load
+skills and supporting resources directly from MongoDB through MCP and need no
+local skill installation or MongoDB credentials. Treat the bearer token as a
+private, full read grant to this skill corpus.
+Browser clients that send an `Origin` header also need their exact origins in
+`SKILL_MCP_ALLOWED_ORIGINS` (comma-separated). Do not use wildcard origins.
+
+For quiet prompt recommendations, give the hook a separate private client file:
+
+```dotenv
+SKILL_MCP_URL=https://skills.example.com/mcp
+SKILL_MCP_TOKEN=<the same private bearer token>
+```
+
+Register `skill-registry-prompt-hook --env-file /private/client.env` as an
+additional `UserPromptSubmit` command in the client. Preserve existing hooks.
+Codex also requires trusting that exact command definition through its native
+hook-review flow; installing a hook file alone does not activate it. See
+[Codex hooks](https://learn.chatgpt.com/docs/hooks) for the current review contract.
+It accepts JSON stdin containing `prompt`, searches for at most three useful
+candidates, and emits `hookSpecificOutput.additionalContext` only when candidates
+clear the relevance gate. It returns skill metadata, never workflow bodies, and
+does not load or execute a skill. Malformed input, missing access, timeouts and
+unrelated results produce no output and exit successfully. The child-process
+deadline defaults to three seconds (`SKILL_HOOK_TIMEOUT`, capped at five).
+
+The hook first uses a fresh, metadata-only cache from the MongoDB catalog. This
+provides quick local BM25 routing over names, descriptions and trigger terms.
+It does not cache or install skill workflows or supporting resources. The cache
+expires after 24 hours and uses owner-only file permissions. Override its path
+with `SKILL_HOOK_CACHE`. `mongo watch --refresh-hook-cache` refreshes it at startup
+and every 15 minutes after a successful sync. A client without MongoDB credentials
+can refresh it with `--env-file /private/client.env mongo cache-hook --remote`;
+that command pages the read-only MCP `skill_catalog` tool.
+
+If no fresh cache exists, the hook falls back to remote lexical search, bounded
+by its process deadline. Set `SKILL_HOOK_SEARCH_MODE=hybrid` to request semantic
+fusion on this fallback path. Full MCP skill search continues to default to
+hybrid retrieval. Cached routing sends no prompt to a remote service. Fallback
+routing sends the query to the configured retrieval service; neither path writes
+prompts to hook logs.
+
+### User services and live acceptance
+
+On macOS, use the installed package's Python to install task-owned user services.
+The installer backs up changed configuration, preserves other hooks and services,
+restricts runtime files, and keeps MongoDB credentials out of client hook settings.
+Provision a TLS tunnel separately. Its connector token file must be private.
+
+```sh
+python scripts/install_macos_services.py \
+  --env-file /private/runtime.env --hook-env-file /private/client.env \
+  --tunnel-token-file /private/tunnel.token --hooks --start
+python scripts/verify_mongo_distribution.py \
+  --env-file /private/client.env --receipt /private/remote-acceptance.json
+```
+
+The installer starts a loopback MCP process, an incremental source synchronizer,
+and, when selected, its own Cloudflare connector. It never restarts another
+service. Codex additionally requires native trust for the exact hook definition;
+verify its `hooks/list` state after installation or command changes. Claude and
+Codex MCP clients should use the remote HTTP URL and their private read token.
+
+The acceptance script exercises the real HTTPS endpoint, verifies authentication,
+read-only tools, both retrieval channels, complete-guide hashing, a pinned
+supporting resource, stale-pin rejection and path traversal rejection. Its default
+fixture is the DB-only `remote-skill-distribution-check` skill. Create that fixture
+with `MongoStore.create`, including `references/verification.txt`, before running
+it. A fresh agent client with local skills disabled should independently retrieve
+and follow the fixture. Keep deployment receipts and skill bodies outside Git.
+
+An ingestion receipt accounts for every discovered guide, failed or excluded
+item, resource exclusion, and unpublished remainder after a transport failure.
+Rerun ingestion after correcting the failure; upserts and content hashes make the
+operation recoverable. Readiness alone does not prove every source is ingested.
