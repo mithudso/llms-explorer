@@ -1,0 +1,59 @@
+name: Research library
+
+on:
+  pull_request:
+    paths:
+      - 'hub/research-library/**'
+      - 'scripts/research_library_coordination.py'
+      - 'scripts/codex_dr_run.py'
+      - 'scripts/codex_dr_artifacts.py'
+      - 'scripts/research_artifact.py'
+      - 'scripts/research_claims.py'
+      - 'scripts/research_gate.py'
+      - 'scripts/research_provenance.py'
+      - 'scripts/research_transaction.py'
+      - 'tests/test_research_library_coordination.py'
+      - '.agents/skills/research-library-mongodb/**'
+      - '.github/workflows/research-library.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'hub/research-library/**'
+      - 'scripts/research_library_coordination.py'
+      - 'scripts/codex_dr_run.py'
+      - 'scripts/codex_dr_artifacts.py'
+      - 'scripts/research_artifact.py'
+      - 'scripts/research_claims.py'
+      - 'scripts/research_gate.py'
+      - 'scripts/research_provenance.py'
+      - 'scripts/research_transaction.py'
+      - 'tests/test_research_library_coordination.py'
+      - '.agents/skills/research-library-mongodb/**'
+      - '.github/workflows/research-library.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  research-library-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - name: Install the locked standalone package
+        run: uv sync --directory hub/research-library --frozen --python '${{ matrix.python }}'
+      - name: Lint package, tests and installer
+        run: uv run --directory hub/research-library --frozen ruff check src tests scripts
+      - name: Test storage, query, bridge, auth and native MCP protocols
+        # Temporary roots and fake providers only: no production database,
+        # model/provider credentials, root dependency stack or background jobs.
+        run: uv run --directory hub/research-library --frozen pytest -q
+      - name: Test the maintained research coordination adapter
+        run: >-
+          uv run --directory hub/research-library --frozen python -m pytest -q
+          ../../tests/test_research_library_coordination.py

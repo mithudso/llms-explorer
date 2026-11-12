@@ -487,7 +487,7 @@ def preserve_leading_inline_code(normalize):
     return inline_safe
 
 
-def load_shared(path: Path | None = None):
+def load_shared(path: Path | None = None, *, library_coordination=True):
     path = path or Path(os.environ.get("DR_SHARED_RUN", "~/.global-ai-hub/scripts/dr_run.py")).expanduser()
     if not path.is_file():
         raise ValueError(f"shared DR runtime not found: {path}; set DR_SHARED_RUN")
@@ -718,6 +718,15 @@ def load_shared(path: Path | None = None):
 
     shared.validate_claims = validate_claims
     bound_gate.install(shared)
+    coordination_path = Path(__file__).with_name("research_library_coordination.py")
+    coordination_spec = importlib.util.spec_from_file_location(
+        "codex_research_library_coordination", coordination_path)
+    if coordination_spec is None or coordination_spec.loader is None:
+        raise ValueError("cannot load research library coordination")
+    coordination = importlib.util.module_from_spec(coordination_spec)
+    coordination_spec.loader.exec_module(coordination)
+    if library_coordination:
+        coordination.install(shared)
     return shared
 
 
