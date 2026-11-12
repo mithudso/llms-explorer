@@ -2,6 +2,8 @@
 import copy
 import importlib.util
 import json
+import sys
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
@@ -63,7 +65,7 @@ def save_review(shared, manifest, root, name, verdict='SUPPORTED', conflict=Fals
     return packet, result
 
 
-def install_judge(history, verdict):
+def install_judge(history, verdict='SUPPORTED'):
     shared, manifest, _doc, root = history
     calls = []
 
@@ -82,6 +84,152 @@ def install_judge(history, verdict):
     args = SimpleNamespace(slug=manifest['slug'], sample='all', dry_run=False, refetch_cap=0,
                            model=None, effort=None, max_turns=1, agent_timeout=1)
     return args, calls
+
+
+def missing_binary_history(history):
+    """Reproduce the archived Codex branch before run_worker was called."""
+    shared, manifest, _doc, root = history
+    previous = root / 'gate/attempts/0000-startup'
+    packet = gate.prepare(shared, manifest, previous, 'all', 0)
+    summary = {'transport': 'codex-exec', 'result': gate.MISSING_CODEX_BINARY,
+               'is_error': True, 'usage': {}, 'tools': [], 'num_turns': 0,
+               'tokens': 0, 'seconds': 0, 'model': 'gpt-6.1-sol', 'effort': 'medium'}
+    worker = root / 'agents/attempts/gate/missing-binary'
+    worker.mkdir(parents=True)
+    for name in ('worker.json', 'validated-summary.json'):
+        (worker / name).write_text(json.dumps(summary))
+    for name in ('worker.events.jsonl', 'worker.log', 'worker.last-message.txt'):
+        (worker / name).write_text('')
+    (worker / 'brief.md').write_text(gate.brief(packet, previous))
+    prior = {'schema': packet['schema'], 'validated': False, 'is_error': True,
+             'attempt': str(previous.relative_to(root)), 'packet_sha256': packet['packet_sha256'],
+             'review_binding': packet['review_binding'], 'finished': shared._now(),
+             'error': gate.MISSING_CODEX_BINARY, 'model': summary['model'], 'effort': summary['effort'],
+             'tokens': 0, 'seconds': 0}
+    (previous / 'validation.json').write_text(json.dumps(prior))
+    manifest['gate'] = prior
+    manifest['agents'] = {'gate': {**summary, 'counts': {}, 'attempts': [
+        {'path': str(worker.relative_to(root)), 'tokens': 0, 'seconds': 0, 'is_error': True}]}}
+    shared.claude_binary = lambda: sys.executable
+    return previous, worker, packet
+
+
+@pytest.mark.parametrize('binary', [None, 'missing', 'not-executable'])
+def test_missing_executor_never_overwrites_semantic_receipt_or_invokes_worker(history, binary):
+    shared, manifest, _doc, root = history
+    args, calls = install_judge(history)
+    prior = {'accepted_previous_receipt': 'preserve exactly'}
+    manifest['gate'] = copy.deepcopy(prior)
+    unavailable = root / 'worker'
+    if binary == 'not-executable':
+        unavailable.write_text('not executable')
+        unavailable.chmod(0o600)
+    shared.claude_binary = lambda: None if binary is None else str(unavailable)
+    assert shared.cmd_gate(args) == 1
+    assert calls == [] and manifest['gate'] == prior
+    attempts = list((root / 'gate/attempts').iterdir())
+    assert len(attempts) == 1 and not (attempts[0] / 'validation.json').exists()
+    startup = json.loads((attempts[0] / 'startup.json').read_text())
+    assert startup['worker_invoked'] is False and startup['failure_stage'] == 'pre-model-startup'
+    shared.claude_binary = lambda: sys.executable
+    assert shared.cmd_gate(args) == 0
+    assert len(calls) == 1
+    shared.claude_binary = lambda: None
+    assert shared.cmd_gate(args) == 0  # Exact successful judgments need no executor.
+    assert len(calls) == 1
+
+
+def test_exact_archived_missing_binary_recovers_once_without_rewriting_history(history):
+    shared, manifest, _doc, root = history
+    previous, worker, _packet = missing_binary_history(history)
+    preserved = {path: path.read_bytes() for directory in (previous, worker)
+                 for path in directory.rglob('*') if path.is_file()}
+    prior = copy.deepcopy(manifest['gate'])
+    args, calls = install_judge(history)
+    assert shared.cmd_gate(args) == 0
+    assert len(calls) == 1 and gate.verify_current(shared, manifest)['all_supported']
+    assert all(path.read_bytes() == body for path, body in preserved.items())
+    markers = list((root / 'gate/startup-recoveries').glob('*.json'))
+    assert len(markers) == 1
+    assert manifest['gate']['startup_recovery']['prior_attempt'] == prior['attempt']
+    manifest['gate'] = prior  # Restoring a pointer cannot reset the consumed allowance.
+    assert shared.cmd_gate(args) == 0  # It can still reuse the completed supported proof.
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize('corruption', ['generic-error', 'turn', 'usage', 'event', 'log', 'output',
+                                      'verdict', 'response', 'brief', 'worker-summary', 'missing-record'])
+def test_zero_tokens_or_matching_error_alone_cannot_authorize_recovery(history, corruption):
+    shared, manifest, _doc, _root = history
+    previous, worker, packet = missing_binary_history(history)
+    if corruption == 'generic-error':
+        manifest['gate']['error'] = 'timed out after 30s'
+        (previous / 'validation.json').write_text(json.dumps(manifest['gate']))
+    elif corruption in ('turn', 'usage'):
+        summary = json.loads((worker / 'worker.json').read_text())
+        summary.update({'num_turns': 1} if corruption == 'turn' else {'usage': {'input_tokens': 1}})
+        for name in ('worker.json', 'validated-summary.json'):
+            (worker / name).write_text(json.dumps(summary))
+        manifest['agents']['gate'].update(summary)
+    elif corruption in ('event', 'log', 'output'):
+        name = {'event': 'worker.events.jsonl', 'log': 'worker.log', 'output': 'worker.last-message.txt'}[corruption]
+        (worker / name).write_text('reviewer execution evidence')
+    elif corruption == 'verdict':
+        (previous / 'verdicts.json').write_text(json.dumps(response(packet, 'UNVERIFIED')))
+    elif corruption == 'response':
+        (previous / 'response.json').write_text('{}')
+    elif corruption == 'brief':
+        (worker / 'brief.md').write_text('Another packet had the same startup error.')
+    elif corruption == 'worker-summary':
+        (worker / 'validated-summary.json').write_text('{}')
+    else:
+        (worker / 'worker.events.jsonl').unlink()
+    args, calls = install_judge(history)
+    assert shared.cmd_gate(args) == 1
+    assert calls == []
+
+
+def test_startup_recovery_is_consumed_atomically_before_unknown_dispatch(history):
+    shared, manifest, doc, root = history
+    _previous, _worker, packet = missing_binary_history(history)
+    recovery = gate.unstarted_codex_recovery(shared, manifest, packet)
+    assert recovery is not None
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda n: gate.reserve_startup_recovery(
+            shared, manifest, recovery, root / f'gate/attempts/concurrent-{n}'), range(2)))
+    assert sorted(results) == [False, True]
+    assert gate.unstarted_codex_recovery(shared, manifest, packet) is None
+    # A new receipt or confidence annotation cannot mint another allowance.
+    doc['claims'][0]['confidence'] = 'high'
+    annotated = gate.prepare(shared, manifest, root / 'annotation', 'all', 0)
+    assert annotated['review_binding'] == packet['review_binding']
+    replacement_receipt = {**recovery, 'prior_validation_sha256': 'different-receipt'}
+    assert not gate.reserve_startup_recovery(shared, manifest, replacement_receipt, root / 'gate/attempts/again')
+
+
+def test_real_dissent_after_startup_recovery_cannot_be_reviewed_again(history):
+    shared, manifest, _doc, _root = history
+    missing_binary_history(history)
+    args, calls = install_judge(history, 'UNVERIFIED')
+    assert shared.cmd_gate(args) == 1
+    assert manifest['gate']['startup_recovery']
+    assert manifest['gate']['counts'] == {'UNVERIFIED': 2}
+    assert shared.cmd_gate(args) == 1
+    assert len(calls) == 1
+
+
+def test_interrupted_recovery_cannot_dispatch_again(history):
+    shared, _manifest, _doc, _root = history
+    missing_binary_history(history)
+    args, calls = install_judge(history)
+    def interrupted(*args):
+        calls.append('unknown worker execution')
+        raise RuntimeError('interrupted after durable dispatch claim')
+    shared.run_agent = interrupted
+    with pytest.raises(RuntimeError, match='interrupted'):
+        shared.cmd_gate(args)
+    assert shared.cmd_gate(args) == 1
+    assert calls == ['unknown worker execution']
 
 
 def archived_history(history):
