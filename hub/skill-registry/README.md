@@ -182,6 +182,28 @@ resources; a searchable guide does not establish that every resource is portable
 Explicitly disabled installations remain disabled. Database-created skills can
 also exist entirely in the distribution store.
 
+The versioned storage contract keeps instruction content separate from routing
+state and resource storage:
+
+| Collection | Stored data |
+|---|---|
+| `skills` | Stable source id, schema version, name/description/frontmatter, source and installation evidence, guide hash, release hash, resource manifest, exclusions, routing state, timestamps and bounded `search_text`. |
+| `skills_versions` | Immutable content releases keyed by skill id and complete release hash. |
+| `skills_resources` | Deduplicated binary chunks addressed by complete resource SHA256 and chunk number. Reads verify the resource hash. |
+
+Normal indexes cover source names, guide hashes, updates, release history and
+resource chunks. `skill_registry_voyage4_v1` embeds `search_text` with `voyage-4`;
+`skill_registry_text_v1` indexes names, descriptions and text. Both search
+channels filter to this subsystem's active, eligible documents. Archived cache
+versions and unknown installations remain stored and addressable, while verified
+installation evidence controls routing eligibility.
+
+Ingestion accepts resource directories belonging to isolated discovered skills
+or the administrator's explicit `resource_roots` configuration. Shared library
+roots and untrusted `Resource directory:` redirects publish guide-only receipts.
+Excluded credentials, caches, symlinks and oversized files are accounted for.
+An exclusion is never presented as a complete portable resource bundle.
+
 Use a private environment file, outside Git, for runtime settings:
 
 ```dotenv
@@ -208,8 +230,11 @@ skill-registry --env-file /private/runtime.env mongo watch --interval 60 --refre
 
 Use configured catalog roots to include the desired project skills. `mongo watch`
 refreshes the source inventory and ingests changes each interval. It retries
-transient database failures, preserves the last projection, and exits promptly
-on SIGINT/SIGTERM. Its JSON receipts belong in private runtime logs.
+transient database failures and preserves the last projection. On SIGINT/SIGTERM,
+it checks cancellation between guides and exits after any in-flight bounded
+operation. Its JSON receipts belong in private runtime logs.
+If an ingest is partial or aborted, watch mode also preserves the previous hook
+cache and reports `ingest-incomplete` instead of replacing it with partial data.
 
 The store provisions a Voyage `autoEmbed` vector index on `search_text` and an
 Atlas Search text index. Atlas maintains document and query embeddings. Search
@@ -266,6 +291,9 @@ with `SKILL_HOOK_CACHE`. `mongo watch --refresh-hook-cache` refreshes it at star
 and every 15 minutes after a successful sync. A client without MongoDB credentials
 can refresh it with `--env-file /private/client.env mongo cache-hook --remote`;
 that command pages the read-only MCP `skill_catalog` tool.
+Remote cache refresh uses a 30-second request timeout and initializes its MCP
+protocol once for the complete paginated fetch. Prompt-time fallback keeps its
+short two-second request timeout inside the hook's process deadline.
 
 If no fresh cache exists, the hook falls back to remote lexical search, bounded
 by its process deadline. Set `SKILL_HOOK_SEARCH_MODE=hybrid` to request semantic

@@ -39,6 +39,9 @@ def test_cache_fetches_only_metadata_and_routes_without_skill_files(tmp_path):
     assert not result["semantic"]
     assert store.search("What is the current time in New York?")["hits"] == []
     assert store.search("Please help me set up a system for my tasks")["hits"] == []
+    from skill_registry.prompt_hook import suggestions
+    named = suggestions("Find gardening", store)
+    assert "gardening" in named["hookSpecificOutput"]["additionalContext"]
 
 
 def test_cache_requires_fresh_unmodified_schema_and_preserves_on_failed_refresh(tmp_path):

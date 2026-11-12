@@ -125,3 +125,18 @@ def test_exact_resolution_excludes_invalid_metadata_and_rechecks_source(skill, r
     catalog.refresh()
     assert catalog.resolve_exact("example", refresh=False) is None
     assert not catalog.lookup("example", refresh=False)["hits"]
+
+
+def test_bulk_display_reuses_one_explicit_disable_snapshot(skill, roots, tmp_path, monkeypatch):
+    import skill_registry.catalog as module
+
+    catalog = Catalog(tmp_path / "state", roots)
+    catalog.refresh()
+    with catalog.connect() as db:
+        identity = db.execute("SELECT id FROM skills").fetchone()[0]
+        monkeypatch.setattr(module, "_codex_disabled", lambda: pytest.fail(
+            "Bulk display must not reread mutable configuration per guide"))
+        disabled = {str((skill / "SKILL.md").resolve())}
+        row = catalog._row(db, identity, disabled=disabled)
+    assert row["disabled_in"] == ["Codex"]
+    assert all(item["codex_activation"] == "explicitly-disabled" for item in row["installations"])

@@ -1,7 +1,10 @@
 import asyncio
+import json
 import os
+import signal
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 from mcp import ClientSession, StdioServerParameters
@@ -135,3 +138,73 @@ def test_mongo_watch_validates_interval_without_entering_loop(monkeypatch, capsy
         cli.main()
     assert exc.value.code == 2
     assert "watch interval" in capsys.readouterr().err
+
+
+def test_remote_cache_cli_uses_long_timeout_without_opening_mongo(monkeypatch, capsys, tmp_path):
+    from skill_registry import cli, hook_cache, prompt_hook
+    captured = []
+
+    def client(url, token, timeout):
+        captured.append(timeout)
+        return object()
+
+    monkeypatch.setattr(prompt_hook, "HTTPStore", client)
+    monkeypatch.setattr(hook_cache, "refresh_cache", lambda store, output: {"metadata_only": True})
+    monkeypatch.setattr(cli.Service, "mongo", lambda self: pytest.fail("MongoDB must not open"))
+    monkeypatch.setattr(sys, "argv", ["skill-registry", "--state", str(tmp_path / "state"),
+                                      "mongo", "cache-hook", "--remote"])
+    cli.main()
+    assert captured == [30.0]
+    assert json.loads(capsys.readouterr().out)["metadata_only"]
+
+
+@pytest.mark.parametrize("receipt", [
+    {"partial": True}, {"aborted": True}, {"failed": [{"id": "x"}]},
+    {"unattempted": 1}, {"refresh": {"partial": True}}, {},
+])
+def test_watch_preserves_cache_on_partial_ingest(monkeypatch, capsys, receipt):
+    from skill_registry import cli, hook_cache
+    calls = []
+
+    class Store:
+        def ingest(self, catalog, stop_event=None):
+            return dict(receipt)
+
+    monkeypatch.setattr(cli, "Service", lambda state: SimpleNamespace(
+        config={}, catalog=object(), jobs=object(), mongo=lambda: Store()))
+    monkeypatch.setattr(hook_cache, "refresh_cache", lambda store: calls.append(True) or
+                        {"refreshed": True})
+    monkeypatch.setattr(sys, "argv", ["skill-registry", "mongo", "watch", "--once",
+                                      "--refresh-hook-cache"])
+    cli.main()
+    result = json.loads(capsys.readouterr().out)
+    if receipt:
+        assert not calls and result["hook_cache"]["preserved"]
+        assert result["hook_cache"]["reason"] == "ingest-incomplete"
+    else:
+        assert calls == [True] and result["hook_cache"]["refreshed"]
+
+
+def test_mongo_watch_sigterm_reaches_active_ingest_and_preserves_cache(monkeypatch, capsys):
+    from skill_registry import cli, hook_cache
+    observed = []
+
+    class Store:
+        def ingest(self, catalog, stop_event=None):
+            assert stop_event is not None
+            os.kill(os.getpid(), signal.SIGTERM)
+            observed.append(stop_event.wait(1))
+            return {"cancelled": True, "partial": True, "unattempted": 100}
+
+    monkeypatch.setattr(cli, "Service", lambda state: SimpleNamespace(
+        config={}, catalog=object(), jobs=object(), mongo=lambda: Store()))
+    monkeypatch.setattr(hook_cache, "refresh_cache", lambda store: pytest.fail(
+        "A cancelled ingest must preserve the previous cache"))
+    monkeypatch.setattr(sys, "argv", ["skill-registry", "mongo", "watch", "--interval", "60",
+                                      "--refresh-hook-cache"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 143 and observed == [True]
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["cancelled"] and receipt["unattempted"] == 100
+    assert receipt["hook_cache"]["preserved"]

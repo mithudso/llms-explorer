@@ -2,6 +2,7 @@
 
 import copy
 import json
+import threading
 from pathlib import Path
 
 import pytest
@@ -51,8 +52,10 @@ class Collection:
         self.fail_channels = set()
         self.bulk_calls = 0
         self.bulk_failure = None
+        self.read_calls = 0
 
     def find_one(self, query, projection=None):
+        self.read_calls += 1
         return next(iter(self.find(query)), None)
 
     def find(self, query, projection=None):
@@ -131,6 +134,13 @@ def store():
     return MongoStore(database=Database())
 
 
+@pytest.fixture(autouse=True)
+def no_native_plugin_process(monkeypatch):
+    from skill_registry.installation_state import InstallationResolver
+
+    monkeypatch.setattr(InstallationResolver, "_native_plugins", lambda self: [])
+
+
 def create(store, name="example", body="Read original sources.", resources=None):
     description = "Research evidence lookup"
     guide = f"---\nname: {name}\ndescription: {description}\nversion: 1.0.0\n---\n# Guide\n{body}\n"
@@ -179,7 +189,7 @@ def test_chunked_large_binary_resource_is_hash_checked_and_paginated(store):
     key = f"{entry['sha256']}:1"
     store.resources.docs[key]["data"] = b"corrupt"
     with pytest.raises(ValueError, match="integrity"):
-        store.resource(result["id"], entry["path"])
+        MongoStore(database=store.database).resource(result["id"], entry["path"])
 
 
 def test_catalog_ingestion_preserves_sources_aliases_invalids_and_resource_changes(
@@ -341,9 +351,13 @@ def test_metadata_catalog_is_stable_paged_and_does_not_expose_guides_or_paths(st
         assert "triggers" in item["metadata"]
 
 
-def test_network_publish_failure_aborts_once_and_reports_unattempted_guides(store, roots, skill, tmp_path):
+def test_network_publish_failure_aborts_once_and_reports_unattempted_guides(
+        store, roots, skill, tmp_path, monkeypatch):
     from pymongo.errors import ConnectionFailure
 
+    import skill_registry.mongo_store as module
+
+    monkeypatch.setattr(module, "MAX_BULK_GUIDES", 5)
     for index in range(30):
         folder = skill.parent / f"other-{index}"
         folder.mkdir()
@@ -427,3 +441,59 @@ def test_library_root_and_shared_symlink_guides_cannot_upload_sibling_library(st
     for doc in store.collection.docs.values():
         assert doc["exclusions"] == [{"path": ".", "reason": "shared-resource-base"}]
         assert [r["path"] for r in doc["resources"]] == ["SKILL.md"]
+
+
+def test_verified_content_cache_reuses_pages_and_evicts_by_bytes(store, monkeypatch):
+    import skill_registry.mongo_store as module
+
+    monkeypatch.setattr(module, "MAX_CONTENT_CACHE_BYTES", 192)
+    result = create(store, resources={"a.txt": "a" * 128, "b.txt": "b" * 128})
+    assert store.resource(result["id"], "a.txt", max_chars=16)["text"] == "a" * 16
+    reads = store.resources.read_calls
+    assert store.resource(result["id"], "a.txt", offset=16, max_chars=16)["text"] == "a" * 16
+    assert store.resources.read_calls == reads
+    store.resource(result["id"], "b.txt")
+    assert store._content_cache_bytes <= 192
+    store.resource(result["id"], "a.txt")
+    assert store.resources.read_calls == reads + 2
+
+
+def test_unicode_search_budget_counts_utf8_bytes_and_preserves_full_guide(store):
+    result = create(store, body="漢字🙂" * 20000)
+    doc = store.collection.docs[result["id"]]
+    assert len(doc["search_text"].encode("utf-8")) <= 30000
+    assert doc["search_text_truncated"]
+    assert store.load(result["id"])["total_chars"] > 60000
+
+
+def test_cancelled_ingestion_preserves_unseen_sources_and_reports_accounting(store, roots, skill, tmp_path):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    first = store.ingest(catalog)
+    original = first["skills"][0]["id"]
+    (skill / "SKILL.md").unlink()
+    other = skill.parent / "other"
+    other.mkdir()
+    (other / "SKILL.md").write_text("---\nname: other\ndescription: another skill\n---\n")
+    stopped = threading.Event()
+    stopped.set()
+    result = store.ingest(catalog, stop_event=stopped)
+    assert result["cancelled"] and result["partial"] and not result["aborted"]
+    assert result["unattempted"] == 1 and result["ingested"] == 0 and result["deactivated"] == 0
+    assert store.collection.docs[original]["active"]
+
+
+def test_cancellation_in_resource_collection_does_not_publish_partial_skill(
+        store, roots, tmp_path, monkeypatch):
+    stopped = threading.Event()
+    blob = store._blob
+
+    def stop_after_first_resource(*args, **kwargs):
+        result = blob(*args, **kwargs)
+        stopped.set()
+        return result
+
+    monkeypatch.setattr(store, "_blob", stop_after_first_resource)
+    result = store.ingest(Catalog(tmp_path / "catalog", roots), stop_event=stopped)
+    assert result["cancelled"] and result["unattempted"] == 1 and result["ingested"] == 0
+    assert not result["failed"] and not store.collection.docs
+    assert not store._pending_chunks and not store._pending_blobs

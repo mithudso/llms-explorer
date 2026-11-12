@@ -155,7 +155,7 @@ def main():
             if action == "cache-hook" and args.remote:
                 from .prompt_hook import HTTPStore
                 store = HTTPStore(os.environ.get("SKILL_MCP_URL", ""),
-                                  os.environ.get("SKILL_MCP_TOKEN", ""))
+                                  os.environ.get("SKILL_MCP_TOKEN", ""), timeout=30.0)
             else:
                 store = service.mongo()
             if action == "cache-hook":
@@ -181,11 +181,19 @@ def main():
                 next_cache_refresh = 0.0
                 while not stop_event.is_set():
                     try:
-                        value = store.ingest(catalog)
-                        if args.refresh_hook_cache and time.monotonic() >= next_cache_refresh:
-                            from .hook_cache import refresh_cache
-                            value["hook_cache"] = refresh_cache(store)
-                            next_cache_refresh = time.monotonic() + 900
+                        value = store.ingest(catalog, stop_event=stop_event)
+                        if args.refresh_hook_cache:
+                            incomplete = (value.get("partial") or value.get("aborted")
+                                or value.get("cancelled")
+                                or value.get("failed") or value.get("unattempted", 0)
+                                or value.get("refresh", {}).get("partial"))
+                            if incomplete:
+                                value["hook_cache"] = {"refreshed": False, "preserved": True,
+                                                       "reason": "ingest-incomplete"}
+                            elif time.monotonic() >= next_cache_refresh:
+                                from .hook_cache import refresh_cache
+                                value["hook_cache"] = refresh_cache(store)
+                                next_cache_refresh = time.monotonic() + 900
                     except Exception as exc:
                         # Preserve the last published projection and retry; driver
                         # error strings can contain private connection details.

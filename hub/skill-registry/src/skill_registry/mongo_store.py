@@ -17,11 +17,12 @@ import stat
 import threading
 import time
 import unicodedata
+from collections import OrderedDict
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote
 
-from .catalog import Catalog, _frontmatter
+from .catalog import Catalog, _codex_disabled, _frontmatter
 from .util import canonical, read_bounded, sha
 
 MANAGED_BY = "skill-registry/v1"
@@ -36,12 +37,14 @@ MAX_RESOURCE_BYTES = 32 * 1024 * 1024
 MAX_SKILL_BYTES = 256 * 1024 * 1024
 MAX_RESOURCE_FILES = 4096
 RESOURCE_CHUNK_BYTES = 512 * 1024
-MAX_SEARCH_CHARS = 60000  # Bounds index cost and avoids relying on token truncation.
+MAX_SEARCH_BYTES = 30000  # Conservative UTF-8 budget below the 32k-token model window.
 MAX_QUERY_CHARS = 2000
 MAX_PAGE_CHARS = 32000
 MAX_DISCOVERY_DIRS = 20000
-MAX_BULK_BYTES = 1024 * 1024
-MAX_BULK_GUIDES = 25
+MAX_BULK_BYTES = 4 * 1024 * 1024
+MAX_BULK_GUIDES = 100
+MAX_RESOURCE_BULK_BYTES = 512 * 1024
+MAX_CONTENT_CACHE_BYTES = 64 * 1024 * 1024
 
 VECTOR_DEFINITION = {"fields": [
     {"type": "autoEmbed", "modality": "text", "path": "search_text", "model": MODEL},
@@ -79,6 +82,10 @@ SECRET_PATTERNS = [
 ]
 _URI_CREDENTIALS = re.compile(
     rb"\b(?:mongodb(?:\+srv)?|postgres(?:ql)?|mysql)://([^\s/:]+):([^\s/@]+)@([^\s/]+)")
+
+
+class _IngestCancelled(Exception):
+    pass
 
 
 def _now():
@@ -193,6 +200,8 @@ class MongoStore:
         self._blob_cache_loaded = False
         self._progress = None
         self._resource_batches = self._resource_bytes = 0
+        self._content_cache: OrderedDict[str, bytes] = OrderedDict()
+        self._content_cache_bytes = 0
         self.resource_roots = {Path(root).expanduser().resolve() for root in (resource_roots or [])}
         if any(self._broad_root(root) for root in self.resource_roots):
             raise ValueError("Trusted resource roots cannot be the home directory or its ancestors")
@@ -237,7 +246,7 @@ class MongoStore:
 
             for row in self._pending_chunks:
                 row_size = len(row["data"]) + 512
-                if batch and size + row_size > MAX_BULK_BYTES:
+                if batch and size + row_size > MAX_RESOURCE_BULK_BYTES:
                     publish()
                     batch, size = [], 0
                 batch.append(row)
@@ -286,7 +295,7 @@ class MongoStore:
         try:
             for row in self.collection.list_search_indexes():
                 if row.get("name") in SEARCH_INDEXES:
-                    indexes.append({k: row[k] for k in ("name", "type", "status", "queryable")
+                    indexes.append({k: row[k] for k in ("name", "type", "status", "queryable", "numDocs")
                                     if k in row})
         except Exception as exc:
             diagnostics.append({"operation": "list_search_indexes", **_error(exc)})
@@ -316,17 +325,21 @@ class MongoStore:
                     self._pending_chunks.append({"_id": f"{checksum}:{number}",
                         "managed_by": MANAGED_BY, "sha256": checksum, "chunk": number,
                         "chunks": chunks, "data": value, "created_at": _now()})
-                if len(self._pending_chunks) >= 16:
+                if (len(self._pending_chunks) >= 500
+                        or sum(len(row["data"]) + 512 for row in self._pending_chunks)
+                        >= MAX_RESOURCE_BULK_BYTES):
                     self._flush_resources()
         return {"path": path, "sha256": checksum, "bytes": len(data), "chunks": chunks,
                 "executable": bool(executable),
                 "media_type": mimetypes.guess_type(path)[0] or "application/octet-stream"}
 
-    def _collect(self, base: Path, guide: Path) -> tuple[list[dict], list[dict]]:
+    def _collect(self, base: Path, guide: Path, stop_event=None) -> tuple[list[dict], list[dict]]:
         manifest, excluded = [], []
         total = directories = 0
         base = base.resolve(strict=True)
         for current, dirs, files in os.walk(base, followlinks=False):
+            if stop_event is not None and stop_event.is_set():
+                raise _IngestCancelled()
             directories += 1
             if directories > MAX_DISCOVERY_DIRS:
                 excluded.append({"path": ".", "reason": "directory-limit"})
@@ -344,6 +357,8 @@ class MongoStore:
                     retained.append(name)
             dirs[:] = retained
             for name in sorted(files):
+                if stop_event is not None and stop_event.is_set():
+                    raise _IngestCancelled()
                 source = Path(current) / name
                 relative = source.relative_to(base).as_posix()
                 reason = _excluded(PurePosixPath(relative))
@@ -398,17 +413,21 @@ class MongoStore:
             self._flush_resources()
         now = _now()
         text = guide.decode("utf-8")
-        search_text = "\n".join([doc["name"], doc["description"], text])[:MAX_SEARCH_CHARS]
+        search_bytes = "\n".join([doc["name"], doc["description"], text]).encode("utf-8")
+        search_text = search_bytes[:MAX_SEARCH_BYTES].decode("utf-8", "ignore")
         doc = {**doc, "managed_by": MANAGED_BY, "schema": SCHEMA, "sha256": sha(guide),
                "release_sha256": release, "guide": guide_blob, "resources": files,
                "distribution_sha256": distribution,
                "exclusions": exclusions, "resource_complete": not exclusions,
                "search_text": search_text if doc.get("searchable", True) else "",
-               "search_text_truncated": len("\n".join([doc["name"], doc["description"], text]))
-                                        > MAX_SEARCH_CHARS,
+               "search_text_truncated": len(search_bytes) > MAX_SEARCH_BYTES,
                "active": True, "created_at": (existing or {}).get("created_at", now),
                "updated_at": now, "embedding": {"provider": "voyage-ai", "model": MODEL,
                                                 "mode": "atlas-autoEmbed", "field": "search_text"}}
+        if not doc.get("searchable", True):
+            # Missing fields are skipped by autoEmbed. Empty-string embedding
+            # requests would spend work on archived/disabled/invalid guides.
+            doc.pop("search_text", None)
         snapshot_id = sha(canonical([doc["_id"], release]))
         changed = (existing is None or existing.get("distribution_sha256") != distribution
                    or existing.get("active") is False)
@@ -444,8 +463,11 @@ class MongoStore:
             self.versions.bulk_write(version_ops, ordered=False)
             self.collection.bulk_write(current_ops, ordered=False)
 
-    def ingest(self, catalog: Catalog, progress=None) -> dict:
+    def ingest(self, catalog: Catalog, progress=None, stop_event=None) -> dict:
+        from .installation_state import InstallationResolver
+
         self._progress = progress
+        self._resource_batches = self._resource_bytes = 0
         refresh = catalog.refresh()
         with catalog.connect() as db:
             rows = [dict(r) for r in db.execute("SELECT * FROM skills ORDER BY id")]
@@ -466,6 +488,9 @@ class MongoStore:
         self._preload_blobs()
         results, failed, batch = [], [], []
         fatal = None
+        cancelled = stop_event is not None and stop_event.is_set()
+        resolver = InstallationResolver()
+        disabled_snapshot = _codex_disabled()
 
         def flush():
             nonlocal fatal
@@ -485,39 +510,49 @@ class MongoStore:
                           "resource_bytes": self._resource_bytes})
 
         for row in rows:
+            if stop_event is not None and stop_event.is_set():
+                cancelled = True
+                break
             try:
                 guide = read_bounded(Path(row["path"]), MAX_GUIDE_BYTES)
                 if sha(guide) != row["sha256"]:
                     raise ValueError("REVISION_CONFLICT: source changed during ingestion")
                 with catalog.connect() as db:
-                    display = catalog._row(db, row["id"])
+                    display = catalog._row(db, row["id"], disabled=disabled_snapshot)
                 try:
                     meta = _frontmatter(guide.decode())
                 except ValueError:
                     meta = {}
                 base = Path(row["resource_base"]).expanduser().resolve()
                 source_parent = Path(row["path"]).parent.resolve()
+                if stop_event is not None and stop_event.is_set():
+                    raise _IngestCancelled()
                 shared_base = (base in configured_roots or (base == source_parent
                                and source_parent not in guide_parents))
                 trusted_base = not shared_base and self._trusted_base(base, guide_parents)
                 if shared_base:
                     resources, excluded = [], [{"path": ".", "reason": "shared-resource-base"}]
                 elif trusted_base:
-                    resources, excluded = self._collect(Path(row["resource_base"]), Path(row["path"]))
+                    resources, excluded = self._collect(Path(row["resource_base"]), Path(row["path"]),
+                                                        stop_event=stop_event)
                 else:
                     resources, excluded = [], [{"path": ".", "reason": "untrusted-resource-base"}]
                 disabled_only = bool(display["installations"]) and all(
                     a["codex_activation"] == "explicitly-disabled" for a in display["installations"])
+                eligibility = resolver.classify(row["path"], display["installations"])
                 doc = {"_id": row["id"], "name": row["name"],
                        "name_folded": row["name"].casefold(), "description": row["description"],
                        "version": str(meta.get("version", "unversioned")), "metadata": _metadata(meta),
                        "source": {"kind": "local", "path": row["path"],
                                   "resource_base": row["resource_base"],
-                                  "resource_base_trusted": trusted_base},
-                       "installations": display["installations"],
+                                  "resource_base_trusted": trusted_base,
+                                  "eligibility": eligibility["state"],
+                                  "eligibility_reasons": eligibility["reasons"]},
+                       "installations": eligibility["installations"],
                        "disabled_in": display["disabled_in"], "activation": "unknown",
                        "validation_error": row["error"],
-                       "searchable": not row["error"] and not disabled_only}
+                       "searchable": (not row["error"] and not disabled_only
+                                      and eligibility["searchable"])}
                 self._write(doc, guide, resources, excluded,
                             _existing=existing.get(row["id"]), _batch=batch)
                 if (len(batch) >= MAX_BULK_GUIDES
@@ -525,6 +560,9 @@ class MongoStore:
                     flush()
                     if fatal:
                         break
+            except _IngestCancelled:
+                cancelled = True
+                break
             except Exception as exc:
                 failed.append({"id": row["id"], "name": row["name"], **_error(exc)})
                 from pymongo.errors import PyMongoError
@@ -536,14 +574,14 @@ class MongoStore:
                     break
         if not fatal:
             flush()
-        else:
+        if fatal or cancelled:
             # Never retry one failed network buffer once per remaining guide.
             self._pending_chunks.clear()
             self._pending_blobs.clear()
             self._blob_cache_loaded = False
         self._progress = None
         deactivated = 0
-        if not failed and not refresh.get("partial"):
+        if not failed and not refresh.get("partial") and not cancelled:
             seen = {row["id"] for row in rows}
             roots = {str(Path(root["path"]).expanduser().absolute()) for root in catalog.roots}
             stale = [sid for sid, doc in existing.items() if sid not in seen
@@ -558,10 +596,11 @@ class MongoStore:
                 "changed": sum(r["changed"] for r in results), "failed": failed,
                 "deactivated": deactivated,
                 "aborted": fatal is not None, "infrastructure_failure": fatal,
+                "cancelled": cancelled,
                 "unattempted": len(rows) - len(results) - len(failed),
                 "resource_batches": self._resource_batches, "resource_bytes": self._resource_bytes,
                 "exclusion_count": sum(len(r["exclusions"]) for r in results),
-                "partial": bool(failed or refresh.get("partial")), "refresh": refresh,
+                "partial": bool(failed or refresh.get("partial") or cancelled), "refresh": refresh,
                 "skills": results}
 
     def catalog(self, after: str = "", limit: int = 200) -> dict:
@@ -718,6 +757,20 @@ class MongoStore:
         return doc
 
     def _read_blob(self, entry: dict) -> bytes:
+        if (not isinstance(entry.get("sha256"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"])
+                or type(entry.get("bytes")) is not int or not 0 <= entry["bytes"] <= MAX_RESOURCE_BYTES
+                or type(entry.get("chunks")) is not int
+                or entry["chunks"] != max(1, (entry["bytes"] + RESOURCE_CHUNK_BYTES - 1)
+                                           // RESOURCE_CHUNK_BYTES)):
+            raise ValueError("Invalid distributed resource manifest")
+        with self._blob_lock:
+            cached = self._content_cache.pop(entry["sha256"], None)
+            if cached is not None:
+                self._content_cache[entry["sha256"]] = cached
+                if len(cached) != entry["bytes"]:
+                    raise ValueError("Distributed resource failed its SHA256 integrity check")
+                return cached
         parts = []
         for number in range(entry["chunks"]):
             row = self.resources.find_one({"_id": f"{entry['sha256']}:{number}",
@@ -728,6 +781,17 @@ class MongoStore:
         data = b"".join(parts)
         if len(data) != entry["bytes"] or sha(data) != entry["sha256"]:
             raise ValueError("Distributed resource failed its SHA256 integrity check")
+        if len(data) <= MAX_CONTENT_CACHE_BYTES:
+            with self._blob_lock:
+                prior = self._content_cache.pop(entry["sha256"], None)
+                if prior is not None:
+                    self._content_cache_bytes -= len(prior)
+                while (self._content_cache
+                       and self._content_cache_bytes + len(data) > MAX_CONTENT_CACHE_BYTES):
+                    _, evicted = self._content_cache.popitem(last=False)
+                    self._content_cache_bytes -= len(evicted)
+                self._content_cache[entry["sha256"]] = data
+                self._content_cache_bytes += len(data)
         return data
 
     def load(self, skill_id: str, expected_sha256: str = "", offset: int = 0,

@@ -243,7 +243,7 @@ class Catalog:
                 "index": "SQLite FTS5 lexical; no embeddings or legacy indexer",
                 "authority": "Live source files; catalog is derived"}
 
-    def _row(self, db, sid: str) -> dict:
+    def _row(self, db, sid: str, *, disabled: set[str] | None = None) -> dict:
         row = db.execute("SELECT * FROM skills WHERE id=?", (sid,)).fetchone()
         if row is None:
             raise KeyError("No such indexed skill")
@@ -254,7 +254,7 @@ class Catalog:
         result["description"] = result["description"][:1200]
         result["installations"] = [dict(r) for r in db.execute(
             "SELECT path,label,writable,root FROM aliases WHERE skill_id=? ORDER BY path", (sid,))]
-        disabled = _codex_disabled()
+        disabled = _codex_disabled() if disabled is None else disabled
         for installation in result["installations"]:
             installation["codex_activation"] = (
                 "explicitly-disabled" if installation["path"] in disabled or result["path"] in disabled

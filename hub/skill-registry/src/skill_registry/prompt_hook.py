@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import subprocess
@@ -22,7 +23,7 @@ class _NoRedirect(HTTPRedirectHandler):
 class HTTPStore:
     """Minimal stateless MCP client: hooks need only a URL and bearer token."""
 
-    def __init__(self, url: str, token: str):
+    def __init__(self, url: str, token: str, timeout: float = 2.0):
         parsed = urlsplit(url)
         if parsed.scheme != "https" and not (
             parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
@@ -30,7 +31,12 @@ class HTTPStore:
             raise ValueError("A remote skill MCP URL requires HTTPS")
         if parsed.username or parsed.password or not token:
             raise ValueError("Configure the skill MCP URL and separate bearer token")
+        if (isinstance(timeout, bool) or not isinstance(timeout, (int, float))
+                or not math.isfinite(timeout) or not 0.1 <= timeout <= 60):
+            raise ValueError("Skill MCP timeout must be 0.1..60 seconds")
         self.url, self.token = url, token
+        self.timeout = float(timeout)
+        self._protocol = None
 
     def _request(self, method, params, request_id, protocol="2025-06-18"):
         request = Request(self.url, method="POST", data=json.dumps({
@@ -38,7 +44,7 @@ class HTTPStore:
         }).encode(), headers={"Authorization": "Bearer " + self.token,
             "Content-Type": "application/json", "Accept": "application/json, text/event-stream",
             "MCP-Protocol-Version": protocol})
-        with build_opener(_NoRedirect()).open(request, timeout=2.0) as response:
+        with build_opener(_NoRedirect()).open(request, timeout=self.timeout) as response:
             body = response.read(1024 * 1024 + 1)
             if len(body) > 1024 * 1024:
                 raise ValueError("MCP response exceeded hook budget")
@@ -54,10 +60,12 @@ class HTTPStore:
         return self._call("skill_catalog", {"after": after, "limit": limit})
 
     def _call(self, name, arguments):
-        init = self._request("initialize", {"protocolVersion": "2025-06-18",
-            "capabilities": {}, "clientInfo": {"name": "skill-prompt-hook", "version": "1"}}, 1)
+        if self._protocol is None:
+            init = self._request("initialize", {"protocolVersion": "2025-06-18",
+                "capabilities": {}, "clientInfo": {"name": "skill-prompt-hook", "version": "1"}}, 1)
+            self._protocol = init["protocolVersion"]
         result = self._request("tools/call", {"name": name, "arguments": arguments},
-                               2, init["protocolVersion"])
+                               2, self._protocol)
         if result.get("isError"):
             raise ValueError("Skill search is unavailable")
         if "structuredContent" in result:

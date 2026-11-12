@@ -63,3 +63,42 @@ def test_hook_remote_client_rejects_plaintext_and_inline_credentials():
     with pytest.raises(ValueError, match="separate bearer"):
         HTTPStore("https://user:pass@skills.example.test/mcp", "secret")
     assert HTTPStore("http://127.0.0.1:8741/mcp", "secret")
+
+
+@pytest.mark.parametrize("timeout", [0, -1, 61, float("nan"), float("inf"), True, "30"])
+def test_remote_client_validates_timeout(timeout):
+    with pytest.raises(ValueError, match="timeout"):
+        HTTPStore("https://skills.example.test/mcp", "secret", timeout=timeout)
+
+
+def test_remote_client_reuses_initialize_and_honors_metadata_timeout(monkeypatch):
+    from skill_registry import prompt_hook
+    calls = []
+
+    class Response:
+        def __init__(self, request):
+            self.request = request
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def read(self, limit):
+            payload = json.loads(self.request.data)
+            result = ({"protocolVersion": "2025-06-18"} if payload["method"] == "initialize"
+                      else {"structuredContent": {"skills": [], "has_more": False}})
+            return json.dumps({"result": result}).encode()
+
+    class Opener:
+        def open(self, request, timeout):
+            calls.append((json.loads(request.data)["method"], timeout))
+            return Response(request)
+
+    monkeypatch.setattr(prompt_hook, "build_opener", lambda *args: Opener())
+    client = HTTPStore("https://skills.example.test/mcp", "secret", timeout=30)
+    client.catalog()
+    client.catalog(after="next")
+    assert calls == [("initialize", 30.0), ("tools/call", 30.0), ("tools/call", 30.0)]
+    assert HTTPStore("https://skills.example.test/mcp", "secret").timeout == 2.0

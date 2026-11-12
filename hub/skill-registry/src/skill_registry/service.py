@@ -30,7 +30,7 @@ class Service:
     def mongo(self):
         """Open the separately authorized MongoDB distribution projection lazily."""
         from .mongo_store import MongoStore
-        return MongoStore()
+        return MongoStore(resource_roots=self.config.get("resource_roots"))
 
     def remote(self) -> Remote:
         return Remote(os.environ.get("SKILL_REGISTRY_URL", self.config.get("remote_url", "")),
