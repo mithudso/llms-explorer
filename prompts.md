@@ -1963,3 +1963,8 @@ Scope: validate factual auxiliary prose; preserve canonical evidence with option
   - Fully research and resolve all open MongoDB concept-tree areas, validate everything, then expand the frontier including Voyage AI.
 - Authorized continuation:
   - Repair only the accepted Atlas projection from its unchanged canonical artifact after the complete-assertion compiler fix reached main. Preserve original dates, all 27 facts, existing nodes, holds, queues and paused services.
+
+## Prompt v153 - 2026-11-12T10:39:03.333113+00:00
+- User request:
+  - Resolve all existing MongoDB concept-tree areas through independent evidence review before expanding the frontier, including Voyage AI.
+- This delivery: only the accepted Oplog retention sizing under burst writes scope; preserve other research, holds and queues.

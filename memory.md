@@ -861,3 +861,7 @@ Version: 1.0.0. The bounded source-defined question has independent whole-questi
 ## Atlas complete assertion projection - 2026-11-12T05:59:33.125260+00:00
 
 Version: 1.0.1. The first publication candidate had exact parity for its 27 structured facts but omitted the accepted CLI documentation disagreement from its narrative export. The repaired candidate now preserves all 29 canonical assertion identities: 27 unchanged structured facts plus the summary and the attributed disagreement. Both narrative assertions retain exact text, ordered sources, evidence IDs and verdicts. The eight site/hub pack members match; original November 11 dates, canonical identity, existing node fields, prior scopes and queue bytes are unchanged. Independent whole-question acceptance and current native gate receipts are retained; no research, gate, source, semantic or native finalization rerun occurred. Paired source delivery and live acceptance remain separate pending gates.
+
+## MongoDB Oplog retention sizing under burst writes publication v1.0.0
+
+Publish 23 structured facts and 4 complete auxiliary assertions after independent whole-question acceptance. Preserve their exact identities, ordered citations, evidence, verdicts, temporal applicability and original research dates. All other scopes, holds, queues and paused services remain intact. Paired source/default and live/API acceptance have separate receipts.
