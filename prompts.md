@@ -16,6 +16,64 @@ data. Keep predicted evals separate from measured activation and record every
 selected target's disposition. Deliver verified repository changes through checked
 PRs and remote-main verification.
 
+## Prompt v149 — 2026-11-11 game-specific EZMob banner
+
+Version: 149. Delta: v148 to v149; TASK-1384.
+
+This is the code for a banner add for thatswhatshesaid.games, again place it wherever you feel is best:
+
+```html
+<!-- BEGIN EZMOB TAG -->
+<SCRIPT TYPE="text/javascript">
+var __jscp=function(){for(var b=0,a=window;a!=a.parent;)++b,a=a.parent;if(a=window.parent==window?document.URL:document.referrer){var c=a.indexOf("://");0<=c&&(a=a.substring(c+3));c=a.indexOf("/");0<=c&&(a=a.substring(0,c))}var b={pu:a,"if":b,rn:new Number(Math.floor(99999999*Math.random())+1)},a=[],d;for(d in b)a.push(d+"="+encodeURIComponent(b[d]));return encodeURIComponent(a.join("&"))};
+document.write('<S' + 'CRIPT TYPE="text/javascript" SRC="//cpm.ezmob.com/tag?zone_id=426338&size=300x250&subid=DP426338&j=' + __jscp() + '"></S' + 'CRIPT>');
+</SCRIPT>
+<!-- END EZMOB TAG -->
+```
+
+```text
+Note: Place this script in the <head> section of your website or where you want the ads to appear.
+
+SubID Parameter: Use the {subid} parameter to pass values that will show in your reports page.
+```
+Preserve the supplied DP426338 default. This is a separate zone from LLMSX.
+
+## Prompt v148 — 2026-11-11 LLMSX-specific EZMob banner
+
+Version: 148. Delta: v147 to v148; TASK-1384.
+
+This is the code for a banner add for llmsx.org, place it where you think it's best:
+
+```html
+<!-- BEGIN EZMOB TAG -->
+<SCRIPT TYPE="text/javascript">
+var __jscp=function(){for(var b=0,a=window;a!=a.parent;)++b,a=a.parent;if(a=window.parent==window?document.URL:document.referrer){var c=a.indexOf("://");0<=c&&(a=a.substring(c+3));c=a.indexOf("/");0<=c&&(a=a.substring(0,c))}var b={pu:a,"if":b,rn:new Number(Math.floor(99999999*Math.random())+1)},a=[],d;for(d in b)a.push(d+"="+encodeURIComponent(b[d]));return encodeURIComponent(a.join("&"))};
+document.write('<S' + 'CRIPT TYPE="text/javascript" SRC="//cpm.ezmob.com/tag?zone_id=426337&size=300x250&subid=DP426337&j=' + __jscp() + '"></S' + 'CRIPT>');
+</SCRIPT>
+<!-- END EZMOB TAG -->
+```
+
+Use only this site's supplied zone and keep ads out of account/private/noindex pages.
+
+## Prompt v147 — 2026-11-11 EZMob ownership comment on both sites
+
+Version: 147. Delta: v146 to v147; TASK-1384.
+
+```text
+<!-- EZMob Site Validation Code: EZM8ODSMLITXE2MFWNV -->      Add that to the site, apparently Google Adsense wants to take a month to approve the site so I'll go somewhere else in the meantime.
+```
+
+Additional steering:
+
+```text
+Also add it to ~/dev/thatswhatshesaid/
+```
+
+Publish the exact supplied comment on LLMSX and the existing separate game checkout
+at /Users/mitch/dev/thats-what-she-said. Preserve current ads and site behavior.
+Verify generated and live HTML, deliver owned source through checked PRs, and retain
+active/private work. The supplied marker is public ownership text, not a script.
+
 ## Prompt v146 — 2026-11-11 resume all-change reconciliation
 
 Version:146. Delta:v145 to v146; continue TASK-1359 from its private recovery and isolated integration.

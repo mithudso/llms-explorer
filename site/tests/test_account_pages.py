@@ -263,12 +263,13 @@ def test_the_key_does_not_leak_by_referer_sniffing_or_mime_confusion():
 
 def test_the_security_headers_cost_one_rule_per_strict_route_not_per_page():
     """Cloudflare caps `_headers` at 100 rules. The policy costs `/*` plus one
-    rule per STRICT_ROUTES prefix and the one WASM search page — never one per
+    rule per STRICT_ROUTES prefix, the WASM search page and three exact ad aliases — never one per
     rendered page, which would push the file over the cap as pages are added."""
     text = twins.write_headers(DIST).read_text(encoding="utf-8")
     carriers = [p for p, headers in _headers_rules(text)
                 if any(n.lower() == "content-security-policy" for n, _ in headers)]
-    assert carriers == ["/*", "/tree/", *(f"{r}*" for r in twins.STRICT_ROUTES)], carriers
+    assert carriers == ["/*", "/tree/", *(f"{r}*" for r in twins.STRICT_ROUTES),
+                        "/ads/ezmob-banner.html", "/ads/ezmob-banner", "/ads/ezmob-banner/"], carriers
 
 
 def test_wasm_compilation_is_allowed_only_on_the_search_page(tmp_path):

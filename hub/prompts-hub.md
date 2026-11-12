@@ -28,3 +28,8 @@ The user restored Wrangler login and supplied a fine-grained GitHub key for priv
 - Continuation authorization:
   - Yes, Approve moving /Users/mitch/.research intact to /Users/mitch/.global-ai-hub/research/.legacy-archives/research-20261107-task808 so the workflow can continue
 - Hub scope: minimal publication-privacy correction in historical hub continuation notes; no runtime or service changes.
+
+## Prompt v5 - 2026-11-12T00:05:38+00:00
+- User request:
+  - This research should go directly into the graph db and as llms files, that should be the shared repo and source of truth.
+- Delegated prerequisite: accept canonical v3 single-file llms.txt packs in research-expertise after the existing facts/full priority. Preserve path containment and imported qualification. Deliver source only; installation and graph ingestion remain with the parent task.
