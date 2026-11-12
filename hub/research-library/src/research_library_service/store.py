@@ -6,6 +6,7 @@ import hmac
 import os
 import re
 import secrets
+import sys
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -50,6 +51,26 @@ TX_MAX_ATTEMPTS = 8
 TX_RETRY_SECONDS = 30
 MAX_IMPORT_BATCH = 100
 MAX_IMPORT_BATCH_BYTES = 8 * 1024 * 1024
+MAX_EVIDENCE_CACHE_BYTES = 32 * 1024 * 1024
+MAX_EVIDENCE_CACHE_ENTRIES = 256
+_CACHE_MISSING = object()
+
+
+def _evidence_cache_size(value, seen=None):
+    """Conservative retained-memory accounting, including UTF-8 payload sizes."""
+    seen = set() if seen is None else seen
+    if id(value) in seen:
+        return 0
+    seen.add(id(value))
+    size = sys.getsizeof(value)
+    if isinstance(value, str):
+        size += len(value.encode("utf-8"))
+    elif isinstance(value, dict):
+        size += sum(_evidence_cache_size(key, seen) + _evidence_cache_size(item, seen)
+                    for key, item in value.items())
+    elif isinstance(value, (tuple, list)):
+        size += sum(_evidence_cache_size(item, seen) for item in value)
+    return size
 
 
 class LibraryStore:
@@ -78,6 +99,7 @@ class LibraryStore:
         self.clock = clock or time.time
         self.claim_identity = claim_identity or default_claim_identity
         self._import_context = ContextVar("research_import_scope_" + str(id(self)), default=None)
+        self._evidence_context = ContextVar("research_evidence_scope_" + str(id(self)), default=None)
 
     def _now(self):
         return float(self.clock())
@@ -87,6 +109,28 @@ class LibraryStore:
 
     def _owned(self, extra=None):
         return {"managed_by": MANAGED_BY, **(extra or {})}
+
+    def _evidence_cache_get(self, key, session):
+        frame = self._evidence_context.get()
+        if session is None or frame is None or frame["session"] is not session:
+            return _CACHE_MISSING
+        value = frame["entries"].get(key, _CACHE_MISSING)
+        return value if value is _CACHE_MISSING else copy.deepcopy(value)
+
+    def _evidence_cache_put(self, key, value, session):
+        frame = self._evidence_context.get()
+        if session is None or frame is None or frame["session"] is not session:
+            return
+        entries = frame["entries"]
+        if key in entries or len(entries) >= MAX_EVIDENCE_CACHE_ENTRIES:
+            return
+        # Include the key/container and per-entry map overhead. Immutable strings
+        # are shared on deepcopy; mutable metadata is copied before retention.
+        size = _evidence_cache_size((key, value)) + 128
+        if frame["bytes"] + size > MAX_EVIDENCE_CACHE_BYTES:
+            return
+        entries[key] = copy.deepcopy(value)
+        frame["bytes"] += size
 
     @staticmethod
     def _public(value):
@@ -112,9 +156,14 @@ class LibraryStore:
                 raise Conflict("Concurrent research transaction conflict; retry with the same request ID")
             try:
                 with self.database.client.start_session() as session:
-                    with session.start_transaction(read_concern=ReadConcern("snapshot"),
-                            write_concern=WriteConcern("majority"), max_commit_time_ms=30000):
-                        return callback(session)
+                    token = self._evidence_context.set({"session": session, "entries": {}, "bytes": 0})
+                    try:
+                        with session.start_transaction(read_concern=ReadConcern("snapshot"),
+                                write_concern=WriteConcern("majority"), max_commit_time_ms=30000):
+                            return callback(session)
+                    finally:
+                        # Commit, abort and retry all discard this attempt's cache.
+                        self._evidence_context.reset(token)
             except (NotImplementedError, AttributeError) as exc:
                 raise RuntimeError("MongoDB transactions are required for research mutations") from exc
             except DuplicateKeyError as exc:
@@ -173,9 +222,13 @@ class LibraryStore:
     def _source(self, sid, session=None, *, deleted=False):
         if not isinstance(sid, str) or not re.fullmatch(r"src:[0-9a-f]{16}", sid):
             raise ValueError("Invalid source identity")
-        doc = self.sources.find_one(self._owned({"_id": sid}), session=session)
+        key = ("source", sid)
+        doc = self._evidence_cache_get(key, session)
+        if doc is _CACHE_MISSING:
+            doc = self.sources.find_one(self._owned({"_id": sid}), session=session)
         if doc is None or (doc.get("deleted") and not deleted):
             raise KeyError("No such managed source")
+        self._evidence_cache_put(key, doc, session)
         return doc
 
     def _check_lease(self, cid, token, session):
@@ -465,6 +518,10 @@ class LibraryStore:
     def _snapshot_text(self, sid, checksum, session=None):
         if not isinstance(checksum, str) or not re.fullmatch(r"[0-9a-f]{64}", checksum):
             raise ValueError("A pinned source snapshot hash is required")
+        key = ("snapshot", sid, checksum)
+        cached = self._evidence_cache_get(key, session)
+        if cached is not _CACHE_MISSING:
+            return cached
         snapshot = self.snapshots.find_one(self._owned({"_id": sid + "@" + checksum}), session=session)
         if snapshot is None:
             raise KeyError("No such source snapshot")
@@ -477,7 +534,9 @@ class LibraryStore:
         raw = b"".join(parts)
         if len(raw) != snapshot["bytes"] or digest(raw) != checksum:
             raise ValueError("Source snapshot integrity check failed")
-        return raw.decode("utf-8"), snapshot
+        result = raw.decode("utf-8"), snapshot
+        self._evidence_cache_put(key, result, session)
+        return result
 
     def _claim(self, slug, supplied, session, lineage):
         if not isinstance(supplied, dict) or set(supplied) - {"text", "sources", "confidence", "verified_as_of",
