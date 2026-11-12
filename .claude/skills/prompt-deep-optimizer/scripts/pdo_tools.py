@@ -56,7 +56,9 @@ INLINE_LIMIT_TOKENS = 4000
 
 # Deliberately high-precision: a false positive costs one manual glance,
 # a false negative ships a live credential into a rewrite.
-SECRET_PATTERNS = [
+# Static type labels and detector expressions are configuration, not scanned values.
+# A matching input contributes only its line number and one of these fixed labels.
+REDACTION_RULES = [
     ("aws_access_key", r"\bAKIA[0-9A-Z]{16}\b"),
     ("openai_key", r"\bsk-[A-Za-z0-9]{20,}\b"),
     ("anthropic_key", r"\bsk-ant-[A-Za-z0-9\-_]{20,}\b"),
@@ -218,9 +220,9 @@ def cmd_scan(a) -> int:
     text = sys.stdin.read() if a.path == "-" else _read(a.path)
     hits = []
     for line_no, line in enumerate(text.splitlines(), 1):
-        for name, pat in SECRET_PATTERNS:
-            if re.search(pat, line):
-                hits.append({"line": line_no, "type": name})
+        for finding_type, pattern in REDACTION_RULES:
+            if re.search(pattern, line):
+                hits.append({"line": line_no, "type": finding_type})
     print(json.dumps({
         "findings": hits,
         "count": len(hits),

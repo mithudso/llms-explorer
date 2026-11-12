@@ -23,7 +23,7 @@ below the estimated hard ceiling.
 Local verification passes392 core tests plus15 subtests,70 optimizer-helper tests
 plus23 subtests,30 capture/task tests plus9 subtests,49 actual-distribution tests
 plus4 subtests, and14 projector/sync tests plus2 subtests. Source integrity checks
-pass39 targets and117 Python AST parses. Full-tree publication privacy is clean
+pass39 targets and118 Python AST parses. Full-tree publication privacy is clean
 across18,573 files with27 denylist terms; final staged hooks also apply.
 
 Operational exit remains DEGRADED. Global installed copies/wrappers, existing
@@ -31,6 +31,11 @@ embedding/research/model pauses and historical verification dates are preserved.
 Read-only keyword metadata checks have explicit bounds. Registry refresh and
 semantic intent probes are withheld. Stele MCP recovered and pending lessons and
 continuation context were restored through the MCP tools.
+
+CI follow-ups separate static scanner rule metadata without changing detections or
+output schema (29 tests+14 subtests, preimage controls also pass). Paired local
+projections refresh only two skill summaries; context is byte-identical. No CI
+security suppression, index operation or canonical fact change was used.
 
 Final source hashes, raw reviews, focused corrections and limitations are under
 docs/reviews/sko-all-skills-2026-11-11/. PR340 records final-head checks and remote

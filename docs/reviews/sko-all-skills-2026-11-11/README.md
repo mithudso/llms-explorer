@@ -26,7 +26,7 @@ whole-artifact blind acceptance claim**. The raw reviews remain unchanged.
 | Projection/sync regression |14 tests +2 subtests pass;39 bundle checks pass |History retained; current corpus and projection bytes preserved |
 | Publication privacy |18,573 files,27 denylist terms: clean |Final staged privacy also runs through the repository hooks |
 
-Eighteen legacy distributions now carry 288 complete source assets. Three Codex
+Eighteen legacy distributions now carry 289 complete source assets. Three Codex
 overlays have 56 generated assets. Their query corpora and projections retain source
 inputs byte for byte; inherited Claude predictions are not relabeled as Codex
 results. [Distribution hashes](distributions.json), [generator correction](overlay-integration.json)
@@ -74,3 +74,5 @@ is completed only after remote verification. Private preimages and scoped teleme
 remain available for rollback; no private research body or transcript is published.
 
 Publication formatting removed blank diff-context marker whitespace from author previews; private originals retain their bytes. Independent review JSON/Markdown receipts remain unchanged.
+
+Final-head CI follow-ups make static redaction-rule metadata distinct from scanned values and add file/stdin non-disclosure controls (29 tests +14 subtests). The rule labels/regexes and output schema are unchanged; the preimage also passes these controls. Paired repository-only generators refresh two skill summaries while context remains byte-identical. See [scanner receipt](codeql-followup.json) and [projection receipt](ci-projection-followup.json). Neither check was bypassed.
