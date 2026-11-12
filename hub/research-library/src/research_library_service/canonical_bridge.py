@@ -331,6 +331,7 @@ class CanonicalBridge:
                               digest(lease_token.encode())])
         jobs = self._jobs(store)
         jobs.create_index([("managed_by", 1), ("status", 1)])
+        jobs.create_index([("managed_by", 1), ("run_slug", 1)])
         prior = jobs.find_one({"_id": job_id})
         if prior and (prior.get("managed_by") != MANAGED_BY
                       or prior.get("request_sha256") != fingerprint):

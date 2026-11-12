@@ -333,7 +333,9 @@ class LibraryQueries:
             pipeline = [{"$vectorSearch": {"index": VECTOR_INDEX, "path": "search_text",
                          "query": {"text": query}, "model": MODEL, "limit": cap,
                          "numCandidates": 20 * cap, "filter": vector_filter}},
-                        {"$match": bson}, {"$set": {"score": {"$meta": "vectorSearchScore"}}}]
+                        {"$match": bson}, {"$set": {"score": {"$meta": "vectorSearchScore"}}},
+                        {"$project": {key: 1 for key in (
+                            "_id", "managed_by", "active", "deleted", "state", "score")}}]
             try:
                 rows = list(self.collection.aggregate(pipeline, maxTimeMS=15000))
                 batches.append(("semantic", rows))
@@ -355,7 +357,9 @@ class LibraryQueries:
             pipeline = [{"$search": {"index": TEXT_INDEX, "compound": {
                 "filter": filters, "should": should, "minimumShouldMatch": 1}}},
                 {"$match": bson}, {"$limit": cap},
-                {"$set": {"score": {"$meta": "searchScore"}}}]
+                {"$set": {"score": {"$meta": "searchScore"}}},
+                {"$project": {key: 1 for key in (
+                    "_id", "managed_by", "active", "deleted", "state", "score")}}]
             try:
                 rows = list(self.collection.aggregate(pipeline, maxTimeMS=15000))
                 channels["keyword"] = {"ok": True, "atlas": True, "count": len(rows),
@@ -367,15 +371,20 @@ class LibraryQueries:
                                        "count": len(rows), "error_type": type(exc).__name__,
                                        "full_claim_text": True}
             batches.append(("keyword", rows))
+        # Native indexes are asynchronous. Fetch the union once from current
+        # BSON, preserving each channel's rank while excluding retired records.
+        candidate_ids = sorted({row.get("_id") for _, rows in batches for row in rows
+                                if row.get("_id") in selected and _live(row)})
+        current_rows = ({row["_id"]: row for row in self.collection.find(
+            {"_id": {"$in": candidate_ids}, "managed_by": MANAGED_BY}, _GRAPH_FIELDS)}
+            if candidate_ids else {})
         merged = {}
         for channel, rows in batches:
             for rank, row in enumerate(rows, 1):
                 concept_id = row.get("_id")
                 if concept_id not in selected or not _live(row):
                     continue
-                # Native indexes are asynchronous. Re-read authoritative state;
-                # do not trust a cached/indexed eligibility bit or revision.
-                current = self.collection.find_one({"_id": concept_id, "managed_by": MANAGED_BY})
+                current = current_rows.get(concept_id)
                 if current is None or not _live(current):
                     continue
                 hit = merged.setdefault(concept_id, {"doc": current, "score": 0.0, "channels": {}})

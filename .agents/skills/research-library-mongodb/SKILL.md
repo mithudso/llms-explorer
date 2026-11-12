@@ -1,6 +1,6 @@
 ---
 name: research-library-mongodb
-description: Search and maintain the shared MongoDB research library through its MCP server. Use for concept discovery, research queues, evidence-bound claim and source edits, family relationships, peer seeding, and coordinating research agents with leases and version checks.
+description: Search and maintain the shared MongoDB research library through MCP. Use for semantic and keyword deduplication, scored and unscored frontier concepts, incomplete research, queue operations, evidence-bound claim and source edits, family relationships, peer seeding and terminology, and research coordination with leases and version checks.
 ---
 
 # Research library in MongoDB

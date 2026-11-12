@@ -363,3 +363,30 @@ def test_late_active_claims_remain_keyword_discoverable_after_semantic_input_tru
     assert not query.search("RemovedClaimMarker", mode="keyword")["hits"]
     legacy = query.search("legacy", mode="keyword")
     assert legacy["hits"][0]["semantic_text_truncated"] is None
+
+
+def test_search_batches_fresh_candidates_and_returns_current_revision_after_index_changes(store, monkeypatch):
+    kept, deleted = concept("kept", description="old"), concept("deleted")
+    store.concepts.insert_many([kept, deleted])
+    original_find, batch_reads = store.concepts.find, []
+
+    def native_index(*args, **kwargs):
+        store.concepts.update_one({"_id": "c:kept"}, {
+            "$set": {"revision": 9, "description": "current working revision"}})
+        store.concepts.update_one({"_id": "c:deleted"}, {"$set": {"deleted": True}})
+        return [{**kept, "score": 0.9}, {**deleted, "score": 0.8}]
+
+    def find(query, projection=None, *args, **kwargs):
+        if isinstance(query.get("_id"), dict) and "$in" in query["_id"]:
+            batch_reads.append((query, projection))
+        return original_find(query, projection, *args, **kwargs)
+
+    monkeypatch.setattr(store.concepts, "aggregate", native_index)
+    monkeypatch.setattr(store.concepts, "find", find)
+    result = LibraryQueries(store).search("different semantic wording", mode="semantic")
+    assert len(batch_reads) == 1
+    assert batch_reads[0][0]["_id"]["$in"] == ["c:deleted", "c:kept"]
+    assert "claims" not in batch_reads[0][1]
+    assert len(result["hits"]) == 1 and result["hits"][0]["id"] == "c:kept"
+    assert result["hits"][0]["revision"] == 9
+    assert result["hits"][0]["description"] == "current working revision"
