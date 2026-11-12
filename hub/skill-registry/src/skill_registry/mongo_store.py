@@ -145,7 +145,8 @@ def _has_secret(data: bytes) -> bool:
         # never make a non-placeholder password safe to distribute.
         placeholder = (re.fullmatch(r"<[^<>]+>|\$\{[^{}]+\}|\{[^{}]+\}", password)
                        or password.lower() in {"password", "pass", "your_password", "your-password",
-                                              "yourpassword", "mypassword", "example-password"})
+                                              "yourpassword", "mypassword", "example-password"}
+                       or password in {".*", "***", "..."})
         if not placeholder:
             return True
     for key, value in os.environ.items():

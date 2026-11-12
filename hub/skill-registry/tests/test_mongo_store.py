@@ -312,9 +312,20 @@ def test_constructor_never_falls_back_to_another_uri(monkeypatch):
     "mongodb://user:pass@localhost",
     "postgresql://username:${DB_PASSWORD}@db.example",
     "mongodb://username:%3Cpassword%3E@cluster.example",
+    "mongodb://.*:.*@.*",
+    "mongodb://user:***@redacted.example",
+    "mongodb://user:...@redacted.example",
 ])
 def test_documentation_uri_placeholders_are_not_credentials(uri):
     assert not _has_secret(uri.encode())
+
+
+@pytest.mark.parametrize("uri", [
+    "mongodb+srv://realuser:non-placeholder-password@cluster.example",
+    "postgresql://realuser:a-different-literal-secret@database.example",
+])
+def test_real_credential_uris_still_fail_after_redaction_mask_exception(uri):
+    assert _has_secret(uri.encode())
 
 
 def test_documentation_private_key_header_alone_is_not_a_secret():
