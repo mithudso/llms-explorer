@@ -1969,3 +1969,8 @@ Scope: validate factual auxiliary prose; preserve canonical evidence with option
 - User request: Run the full-suite skill on Salesforce Pub/Sub case alerting.
 - Seed: https://developer.salesforce.com/docs/service/service-presence-developer-guide/guide/omnichannel-external-routing-subscribe-to-change-data-capture-event-notificat.html
 - Authorized scope: public-source concept-family research, source-bound skill and llms artifacts, independent claim gates, and a cited ESRE integration assessment. Preserve service and embedding pauses; no Salesforce org changes or customer-case access.
+
+## Prompt v153 - 2026-11-12T10:39:03.333113+00:00
+- User request:
+  - Resolve all existing MongoDB concept-tree areas through independent evidence review before expanding the frontier, including Voyage AI.
+- This delivery: only the accepted Oplog retention sizing under burst writes scope; preserve other research, holds and queues.
