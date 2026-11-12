@@ -263,13 +263,32 @@ const description = hasPublishedReference && pack
       {(pack.narrative ?? []).map((assertion) => {
         const originalStatus = assertion.originValidationStatus ?? assertion.validationStatus;
         const proposed = originalStatus === "NO-FACTUAL-ASSERTION";
+        const kind = assertion.assertionKind ?? "summary";
+        let label = kind === "disagreement" ? "Source disagreement" : kind === "open_question" ? "Open question"
+          : proposed ? "Proposed guidance" : "Research summary";
+        if (assertion.validationStatus === "REDACTED-PROJECTION") label += " (redacted projection)";
+        const qualifier = kind === "open_question" ? "Question without a factual assertion; contributes no factual evidence."
+          : kind === "disagreement" ? "Nonfactual auxiliary prose; contributes no factual evidence."
+          : "Original conditional design guidance; contributes no factual evidence.";
+        const sources = (assertion.sources ?? []).filter((source) => {
+          if (!/^https?:\/\//.test(source) || /[\u0000-\u0020\u007f\u003c\u003e\u0022\u0060\\]/.test(source)) return false;
+          try {
+            const url = new URL(source);
+            return Boolean(url.hostname && !url.username && !url.password &&
+              !(["llms-explorer.com", "llmsx.org"].includes(url.hostname.toLowerCase()) && url.pathname.startsWith("/sources/")));
+          } catch { return false; }
+        });
         return (
           <section class="pack-narrative" data-assertion-id={assertion.assertionId}>
-            <h2>{proposed ? "Proposed guidance" : "Research summary"} — {assertion.documentConcept}</h2>
+            <h2>{label} — {assertion.documentConcept}</h2>
             <p class="narrative-text">{assertion.text}</p>
-            {proposed && <p>Original conditional design guidance; contributes no factual evidence.</p>}
+            {proposed && <p>{qualifier}</p>}
+            {sources.length > 0 && <div class="narrative-sources">
+              <p>{proposed ? "Context sources" : "Sources"}</p>
+              <ol>{sources.map((source) => <li><a href={source} rel="noreferrer">{source}</a></li>)}</ol>
+            </div>}
             <details>
-              <summary>Summary provenance</summary>
+              <summary>Assertion provenance</summary>
               <p>Gate verdict: {assertion.validationStatus}. Auxiliary assertion: <code>{assertion.assertionId}</code>.</p>
               <p>Statement hash: <code>{assertion.statementSha256}</code>.</p>
               {assertion.evidenceIds.length > 0 && <p>Evidence IDs: {assertion.evidenceIds.join(", ")}.</p>}
@@ -330,6 +349,7 @@ const description = hasPublishedReference && pack
 <style>
   .pack-about { border-left: 3px solid var(--line); padding-left: var(--sp-3); }
   .narrative-text { white-space: pre-wrap; }
+  .narrative-sources { overflow-wrap: anywhere; }
   .pack-toc { columns: 2 16rem; padding-left: 1.2em; }
   .pack-toc span { color: var(--ink-faint); font-size: var(--step--1); }
   .fact-source { font-size: var(--step--1); }

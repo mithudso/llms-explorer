@@ -27,6 +27,7 @@ import json
 import re
 import shutil
 from pathlib import Path
+from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parents[1]                  # site/
 DEFAULT_CONCEPTS = HERE / "src" / "data" / "concepts"
@@ -98,14 +99,33 @@ def render_facts(facts: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def narrative_source_url(value: object) -> bool:
+    """Only safe web references become links; rejected paths are never printed."""
+    if (not isinstance(value, str) or not value.startswith(("https://", "http://"))
+            or re.search(r'[\x00-\x20\x7f<>"`\\]', value)):
+        return False
+    try:
+        parsed = urlsplit(value)
+        _ = parsed.port  # Reject malformed ports as the browser URL parser does.
+        archived = (parsed.hostname in ("llms-explorer.com", "llmsx.org")
+                    and parsed.path.startswith("/sources/"))
+        return bool(parsed.hostname and not parsed.username
+                    and not parsed.password and not archived)
+    except ValueError:
+        return False
+
+
 def render_narrative(narrative: list[dict]) -> str:
-    """Complete gated summaries, separate from fact rows and evidence counts."""
+    """Complete gated auxiliary assertions, outside factual rows and counts."""
     lines = []
     for assertion in narrative:
         status = assertion["validationStatus"]
         original_status = assertion.get("originValidationStatus", status)
-        label = ("Proposed guidance" if original_status == "NO-FACTUAL-ASSERTION"
-                 else "Research summary")
+        kind = assertion.get("assertionKind", "summary")
+        label = {"disagreement": "Source disagreement", "open_question": "Open question"}.get(kind)
+        if label is None:
+            label = ("Proposed guidance" if original_status == "NO-FACTUAL-ASSERTION"
+                     else "Research summary")
         if status == "REDACTED-PROJECTION":
             label += " (redacted projection)"
         lines += [f"## {label} — {_md_text(assertion['documentConcept'])}", "",
@@ -113,10 +133,23 @@ def render_narrative(narrative: list[dict]) -> str:
                   f"Gate verdict: `{status}`. Auxiliary assertion: `{assertion['assertionId']}`. "
                   f"Statement hash: `{assertion['statementSha256']}`.", ""]
         if original_status == "NO-FACTUAL-ASSERTION":
-            lines += ["Original conditional design guidance; contributes no factual evidence.", ""]
+            qualifiers = {
+                "open_question": (
+                    "Question without a factual assertion; contributes no factual evidence."),
+                "disagreement": "Nonfactual auxiliary prose; contributes no factual evidence.",
+            }
+            qualifier = qualifiers.get(
+                kind, "Original conditional design guidance; contributes no factual evidence.")
+            lines += [qualifier, ""]
         elif assertion.get("evidenceIds"):
             evidence = ", ".join(f"`{value}`" for value in assertion["evidenceIds"])
             lines += ["Evidence IDs: " + evidence + ".", ""]
+        sources = [url for url in assertion.get("sources", []) if narrative_source_url(url)]
+        if sources:
+            links = " · ".join(f"[source {index}](<{url}>)" for index, url in enumerate(sources, 1))
+            prefix = ("Context sources: " if original_status == "NO-FACTUAL-ASSERTION"
+                      else "Sources: ")
+            lines += [prefix + links, ""]
     return "\n".join(lines)
 
 
