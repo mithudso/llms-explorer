@@ -124,6 +124,19 @@ def _print(value):
     print(json.dumps(value, indent=2, ensure_ascii=False))
 
 
+def _mongo_watch_summary(receipt):
+    """Keep cycle accounting and changed receipts without repeating unchanged skills."""
+    skills = receipt.get("skills")
+    if not isinstance(skills, list):
+        return receipt
+    # Preserve an unclassified receipt rather than silently treating it as
+    # unchanged. Aggregate counts, failures and cancellation/cache state remain.
+    retained = [skill for skill in skills
+                if not isinstance(skill, dict) or skill.get("changed") is not False]
+    return {**receipt, "skills": retained,
+            "unchanged_skill_receipts_omitted": len(skills) - len(retained)}
+
+
 def main():
     command_parser = parser()
     args = command_parser.parse_args()
@@ -198,7 +211,7 @@ def main():
                         # Preserve the last published projection and retry; driver
                         # error strings can contain private connection details.
                         value = {"status": "retry_pending", "error_type": type(exc).__name__}
-                    _print(value)
+                    _print(_mongo_watch_summary(value))
                     if args.once or stop_event.wait(args.interval):
                         break
             else:

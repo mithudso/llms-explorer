@@ -208,3 +208,43 @@ def test_mongo_watch_sigterm_reaches_active_ingest_and_preserves_cache(monkeypat
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["cancelled"] and receipt["unattempted"] == 100
     assert receipt["hook_cache"]["preserved"]
+
+
+@pytest.mark.parametrize("command", ["watch", "ingest"])
+def test_watch_compacts_unchanged_receipts_and_manual_ingest_remains_complete(
+        monkeypatch, capsys, command):
+    from skill_registry import cli
+    unchanged = [{"id": f"unchanged-{i}", "changed": False,
+                  "exclusions": [{"path": "reference.md", "reason": "unchanged-detail" * 20}]}
+                 for i in range(3701)]
+    changed = [{"id": "changed-one", "changed": True, "release_sha256": "a" * 64},
+               {"id": "changed-two", "changed": True, "release_sha256": "b" * 64}]
+    failed = [{"id": "failed-one", "operation": "bulk-publish", "error_type": "TimeoutError"}]
+    receipt = {"discovered": 3704, "ingested": 3703, "changed": 2, "failed": failed,
+               "cancelled": False, "partial": True, "unattempted": 0,
+               "resource_batches": 12, "resource_bytes": 4567,
+               "hook_cache": {"refreshed": False, "preserved": True},
+               "skills": [*unchanged, *changed]}
+
+    class Store:
+        def ingest(self, catalog, stop_event=None):
+            return receipt
+
+    monkeypatch.setattr(cli, "Service", lambda state: SimpleNamespace(
+        config={}, catalog=object(), jobs=object(), mongo=lambda: Store()))
+    arguments = ["skill-registry", "mongo", command]
+    if command == "watch":
+        arguments.append("--once")
+    monkeypatch.setattr(sys, "argv", arguments)
+    cli.main()
+    output = capsys.readouterr().out
+    result = json.loads(output)
+    assert all(result[key] == value for key, value in receipt.items() if key != "skills")
+    assert len(receipt["skills"]) == 3703  # Summary did not mutate the full receipt.
+    if command == "watch":
+        assert result["skills"] == changed
+        assert result["unchanged_skill_receipts_omitted"] == 3701
+        assert len(output) < len(json.dumps(receipt)) / 100
+    else:
+        assert result["skills"] == receipt["skills"]
+        assert "unchanged_skill_receipts_omitted" not in result

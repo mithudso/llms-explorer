@@ -53,7 +53,7 @@ def install(args) -> dict:
     }
     if not args.no_sync:
         jobs["com.llms-explorer.skills-sync"] = [python, "-m", "skill_registry.cli",
-            "--env-file", str(env_file), "mongo", "watch", "--interval", "60",
+            "--env-file", str(env_file), "mongo", "watch", "--interval", "900",
             "--refresh-hook-cache"]
     if args.tunnel_token_file:
         token_file = args.tunnel_token_file.expanduser().resolve(strict=True)

@@ -330,7 +330,11 @@ python scripts/verify_mongo_distribution.py \
 
 The installer starts a loopback MCP process, an incremental source synchronizer,
 and, when selected, its own Cloudflare connector. It never restarts another
-service. Codex additionally requires native trust for the exact hook definition;
+service. Its source synchronizer waits 15 minutes between full integrity scans;
+large libraries can take several minutes to scan. Atlas automatically embeds
+database changes independently of that filesystem schedule. Watch logs retain
+aggregate counts, failures and changed receipts while omitting unchanged rows.
+Codex additionally requires native trust for the exact hook definition;
 verify its `hooks/list` state after installation or command changes. Claude and
 Codex MCP clients should use the remote HTTP URL and their private read token.
 
