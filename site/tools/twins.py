@@ -749,12 +749,35 @@ def content_security_policy(dist_dir: Path, api_url: str | None = None,
         f"connect-src 'self' {api}" + ext,
     ]
     if third_party:
-        directives += ["frame-src https:", "fenced-frame-src https:"]
+        directives += ["frame-src 'self' https:", "fenced-frame-src https:"]
     return "; ".join(directives + [
         "form-action 'self'",
         "frame-ancestors 'none'",
         "base-uri 'none'",
         "object-src 'none'",
+    ])
+
+
+def advertisement_content_security_policy() -> str:
+    """A separate opaque-origin policy for the document.write advertisement.
+
+    Creative scripts vary, so inline/HTTPS execution is confined to this sandbox
+    document. It cannot acquire the site's origin or navigate its parent.
+    """
+    return "; ".join([
+        "default-src 'none'",
+        "script-src 'unsafe-inline' https:",
+        "style-src 'unsafe-inline' https:",
+        "img-src https: data:",
+        "font-src https: data:",
+        "connect-src https:",
+        "frame-src https:",
+        "form-action 'none'",
+        "frame-ancestors 'self'",
+        "base-uri 'none'",
+        "object-src 'none'",
+        "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox",
+        "upgrade-insecure-requests",
     ])
 
 
@@ -791,6 +814,15 @@ def write_headers(dist_dir: Path) -> Path:
         *[(f"{route}*", [("Content-Security-Policy", strict_csp),
                          ("Referrer-Policy", "no-referrer")])
           for route in STRICT_ROUTES],
+        # Pages canonicalizes .html assets to extensionless URLs. Keep each
+        # exact alias behind the Function so headers.set replaces the main
+        # policy's frame denial rather than joining two CSP values.
+        *[(path, [
+            ("Content-Security-Policy", advertisement_content_security_policy()),
+            ("X-Frame-Options", "SAMEORIGIN"),
+            ("X-Robots-Tag", "noindex, nofollow"),
+            ("Referrer-Policy", "origin"),
+        ]) for path in ("/ads/ezmob-banner.html", "/ads/ezmob-banner", "/ads/ezmob-banner/")],
         ("/*.md", [md, describedby, ("X-Robots-Tag", "noindex")]),
         ("/llms*.txt", [md, describedby, ("X-Robots-Tag", "noindex")]),
         ("/*/llms.txt", [md, describedby, ("X-Robots-Tag", "noindex")]),

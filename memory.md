@@ -1,5 +1,84 @@
 # Memory
 
+## v0.22.195 — 2026-11-11 EZMob pre-delivery verification
+
+Version: 0.22.195. Delta: v0.22.194 to v0.22.195; prompts147–149; TASK-1384.
+
+LLMSX source is frozen in the isolated post-purge worktree. The ownership comment
+is present once in the shared head. One labeled 300×250 rectangle follows eligible
+article/concept content. DNT/GPC skips its lazy sandbox frame; narrow screens scale
+the frame. Existing Google placements and strict/noindex boundaries remain.
+The privacy notice describes EZMob and the actual browser opt-out behavior.
+
+Full npm build completed exit0: 3043pages, 132twins, publication policy passed.
+Astro check completed exit0 with zero errors/warnings and existing hints. Ruff,
+the 18114-file public privacy scan and diff checks completed exit0. Focused banner,
+controller and account-CSP checks passed11, exit0. The complete site suite passed
+394tests in113.24seconds, exit0. Local gates are complete; final-head CI remains.
+
+Cloudflare canonicalizes HTML assets, so all three exact ad-document aliases receive
+the child CSP, SAMEORIGIN and noindex headers. Neighboring and nested paths retain
+frame denial. Independent source review found no unresolved Medium-or-higher issue
+after the alias correction. Actual HTTPS redirect/header and browser acceptance
+remain required. The correctly encoded provider probe returned200 with an empty
+body; this proves neither fill nor approval. Connected browsers have no authenticated
+EZMob session. The separate game banner also preserves publisher-host metadata.
+
+All five temporary Stele transport writes were replayed successfully and marked
+done. Check logs, snippet/source hashes and delivery continuation are retained in
+/Users/mitch/.local/state/ezmob-20261111/. Original dirty worktrees remain untouched.
+Remaining: passing final local/remote gates, commit/push/PR/merge each final tip,
+independent production acceptance, and final receipts/owned-worktree cleanup.
+
+## v0.22.194 — 2026-11-11 two site-specific EZMob banners
+
+Version: 0.22.194. Delta: v0.22.193 to v0.22.194; prompts147–149; TASK-1384.
+
+The user extended the ownership-comment request with explicit 300×250 banner scripts
+for both sites and delegated placement. LLMSX uses zone426337/subidDP426337. The game
+uses zone426338/subidDP426338. Exact supplied code is in the prompt log and private
+supplied-snippet artifacts. These later messages authorize the two scripts; the initial
+comment-only restriction no longer defines the full scope. Existing AdSense remains.
+
+LLMSX worker owns banner-related Base.astro body, component/static iframe, scoped ad CSS,
+CSP/headers and meaningful tests. Place one centered rectangle after article content,
+before existing bottom ad units, because the side rails are only160px wide. Preserve
+adEligible/strict/noindex boundaries and privacy optouts. Sandbox document.write execution;
+make only the ad endpoint frameable, noindex, and verify middleware response headers.
+The game worker owns its separate repo and PR33, now extended to include its own banner
+away from cards/voting controls. Do not mix either zone or source ownership.
+
+Initial LLMSX Astro-only build completed exit0 (3043pages), and locked npm install exit0.
+This was before banner changes, so it does not validate the new script. Banner-owning
+checks, rebuilt HTML/CSP, desktop/mobile rendering, actual unmocked ad requests and final
+CI are still required. Source-only presence does not prove fill, provider approval or
+network compatibility. Connected browsers have no authenticated EZMob session.
+
+Scope updates hit a temporary Stele transport error and were queued in the outbox;
+owned ids are recorded in /Users/mitch/.local/state/ezmob-20261111/outbox-ids.json.
+Replay only those current task updates after fresh version checks; preserve others.
+Remaining: finish both banner implementations/checks, deliver final branch tips through
+passing PRs, independently verify both deployments, preserve active work and write final
+receipts. Do not start models, inference, indexing, embeddings or paused services.
+
+## v0.22.193 — 2026-11-11 EZMob ownership comment
+
+Version: 0.22.193. Delta: v0.22.192 to v0.22.193; prompt147; TASK-1384.
+
+Added the exact user-supplied EZMob comment to the shared Base.astro head outside ad
+eligibility, so the homepage and article pages expose it. It executes no code and
+changes no current AdSense, analytics, privacy or account behavior. The separate
+party-game site is handled in its own isolated worktree by TASK-1387.
+
+LLMSX source worktree: /Users/mitch/dev/worktrees/llms-explorer-ezmob-01a1cbf9,
+branch site/ezmob-ownership-20261111, based on current post-purge main04a0fcf1.
+The original dirty pre-purge checkout and all unrelated work remain untouched.
+Private checks and delivery receipt: /Users/mitch/.local/state/ezmob-20261111/.
+No authenticated EZMob tab is available through connected browsers. Source/live
+verification is independent of provider-side approval; no new ad script is installed.
+Remaining: verify emitted HTML and current ad boundaries, commit/push/PR/merge each
+site, then verify both production markers and record the exact provider limitation.
+
 ## v0.22.192 — 2026-11-11 public resource description
 
 Version:0.22.192. Delta:v0.22.191 to v0.22.192; TASK-1359; PR339.
