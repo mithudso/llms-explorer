@@ -259,3 +259,107 @@ def test_peer_source_freshness_binds_current_metadata_to_exact_snapshot(store):
     assert peer["claim_candidates"][0]["canonical_provenance"][0][
         "canonical_claim_id"] == "clm:original"
     assert result["verified_claims_inherited"] is False
+
+
+def test_large_metadata_pages_preserve_all_ids_and_bound_mcp_compatibility_serialization(store):
+    import json
+
+    from research_library_service.queries import MAX_METADATA_BYTES
+
+    rows = [concept(f"large-{i:03}", cvs_rationale="r" * 20000) for i in range(90)]
+    rows[0]["source_refs"] = [{"source_id": f"src:{i:016x}", "url": "x" * 3000}
+                              for i in range(1024)]
+    store.concepts.insert_many(rows)
+    store.queue.insert_one({"_id": rows[1]["_id"], "managed_by": MANAGED_BY,
+                            "status": "held", "continuation": "c" * (3 * 1024 * 1024)})
+    query, after, found, pages = LibraryQueries(store), "", [], 0
+    while True:
+        page = query.frontier(limit=200, after=after)
+        # Model the SDK's structured output plus text compatibility result.
+        wire = {"structuredContent": page,
+                "content": [{"type": "text", "text": json.dumps(page, indent=2)}]}
+        assert len(json.dumps(wire).encode()) < MAX_METADATA_BYTES
+        found.extend(page["items"])
+        pages += 1
+        if not page["has_more"]:
+            assert page["complete_page"]
+            break
+        assert not page["complete_page"] and page["next_cursor"]
+        after = page["next_cursor"]
+    assert pages > 1 and len(found) == len({x["id"] for x in found}) == 90
+    first = next(x for x in found if x["id"] == rows[0]["_id"])
+    held = next(x for x in found if x["id"] == rows[1]["_id"])
+    assert first["source_ref_count"] == 1024 and first["details_omitted"]
+    assert "source_refs" not in first
+    assert held["eligibility"] == "held" and held["details_omitted"]
+
+
+def test_pending_canonical_family_keeps_held_node_in_scope_without_changing_physical_parent(store, monkeypatch):
+    store.concepts.insert_many([
+        concept("root"),
+        concept("held", parent_id=None, metadata={"owner_import": {"canonical_parent_id": "c:root"}}),
+    ])
+    store.queue.insert_one({"_id": "c:held", "managed_by": MANAGED_BY, "status": "held"})
+    monkeypatch.setattr(store.concepts, "aggregate", lambda *args, **kwargs: [])
+    query = LibraryQueries(store)
+    hit = query.search("held", mode="keyword", breadth="narrow", topic_id="c:root")["hits"][0]
+    assert hit["parent_id"] is None and hit["pending_parent_id"] == "c:root"
+    assert hit["family_reconciliation_pending"]
+    child = next(x for x in query.related("c:root", depth=1)["items"] if x["id"] == "c:held")
+    parent = next(x for x in query.related("c:held", depth=1)["items"] if x["id"] == "c:root")
+    assert child["via"] == ["pending-child"] and parent["via"] == ["pending-parent"]
+    frontier = next(x for x in query.frontier(topic_id="c:root")["items"] if x["id"] == "c:held")
+    assert frontier["eligibility"] == "held" and frontier["cvs"] is None
+    incomplete = next(x for x in query.incomplete(topic_id="c:root")["items"] if x["id"] == "c:held")
+    assert "canonical-family-pending" in incomplete["incomplete_reasons"]
+    peers = query.peer_seeds("c:held")
+    assert peers["parent_id"] is None and peers["peer_selection_includes_pending_family"]
+    assert store.concepts.find_one({"_id": "c:held"})["parent_id"] is None
+
+
+def test_real_working_reparent_and_detach_do_not_resurrect_old_imported_family_candidate():
+    from test_store_core import Database
+
+    from research_library_service.models import digest
+    from research_library_service.store import LibraryStore
+
+    store = LibraryStore(Database())
+    for name, metadata in [("Root", {}), ("Other", {}), ("Child", {
+            "owner_import": {"canonical_parent_id": "c:root"}})]:
+        document = {"name": name, "metadata": metadata}
+        store.import_concept(document, "corpus", digest(document))
+    query = LibraryQueries(store)
+    assert query.related("c:root", depth=1)["total"] == 2
+    ids = ["c:root", "c:other", "c:child"]
+    grants = store.lease_acquire(ids, "editor")
+    revisions = {cid: store.concept_get(cid)["revision"] for cid in ids}
+    store.relation_mutate("c:child", "c:other", "parent", "add", revisions, grants["tokens"])
+    assert query.related("c:root", depth=1)["total"] == 1
+    assert store.concept_get("c:child")["family_override"] is True
+    revisions = {cid: store.concept_get(cid)["revision"] for cid in ids}
+    store.relation_mutate("c:child", "c:other", "parent", "remove", revisions, grants["tokens"])
+    assert query.related("c:root", depth=1)["total"] == 1
+    child = next(x for x in query.incomplete()["items"] if x["id"] == "c:child")
+    assert "canonical-family-pending" not in child["incomplete_reasons"]
+    assert "pending_parent_id" not in child
+
+
+def test_late_active_claims_remain_keyword_discoverable_after_semantic_input_truncation(store, monkeypatch):
+    store.concepts.insert_many([
+        concept("long", search_text="prefix " * 4000, search_text_truncated=True,
+                claims=[{"text": "RareLateClaimMarker", "deleted": False},
+                        {"text": "RemovedClaimMarker", "deleted": True}]),
+        concept("legacy"),
+    ])
+    def native_unavailable(*args, **kwargs):
+        raise RuntimeError("Fixture native index unavailable")
+    monkeypatch.setattr(store.concepts, "aggregate", native_unavailable)
+    query = LibraryQueries(store)
+    found = query.search("RareLateClaimMarker", mode="keyword")
+    assert [x["id"] for x in found["hits"]] == ["c:long"]
+    assert found["hits"][0]["semantic_text_truncated"] is True
+    assert found["diagnostics"]["channels"]["keyword"]["full_claim_text"]
+    assert found["degraded"] and found["diagnostics"]["semantic_truncated_hits"] == 1
+    assert not query.search("RemovedClaimMarker", mode="keyword")["hits"]
+    legacy = query.search("legacy", mode="keyword")
+    assert legacy["hits"][0]["semantic_text_truncated"] is None

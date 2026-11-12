@@ -23,6 +23,12 @@ SOURCE_FIELDS = {"url", "title", "tier", "origin_id", "org", "derived_from", "ve
 PROVENANCE_FIELDS = SOURCE_FIELDS | {"fetched_at", "etag", "last_modified", "origin_annotation_sha256"}
 
 
+def pending_family(concept):
+    imported = (concept.get("metadata") or {}).get("owner_import")
+    parent = imported.get("canonical_parent_id") if isinstance(imported, dict) else None
+    return bool(parent and parent != concept.get("parent_id") and not concept.get("family_override"))
+
+
 def export_document(bridge, concept):
     """Build a claims document, without changing any immutable claim identity."""
     claims = [{**{k: v for k, v in claim.items() if k in CLAIM_FIELDS}, "section": "core"}

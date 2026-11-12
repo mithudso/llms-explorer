@@ -61,6 +61,18 @@ def test_explicit_parent_wins_child_lead_and_conflict_is_retained(tmp_path):
     assert result["warnings"][0]["other_parents"] == ["c:a"]
 
 
+def test_equal_priority_parent_preserves_authoritative_input_order(tmp_path):
+    canonical = write_json(tmp_path / "canonical-tree.json", [
+        {"concept": "B"}, {"concept": "X", "parentConcept": "B"},
+    ])
+    mirror = write_json(tmp_path / "mirror-tree.json", [
+        {"concept": "A"}, {"concept": "X", "parentConcept": "A"},
+    ])
+    result = read_inventory([canonical, mirror])
+    assert result["relations"] == [{"concept_id": "c:x", "target_id": "c:b", "relation": "parent"}]
+    assert result["warnings"][0]["other_parents"] == ["c:a"]
+
+
 def test_import_rejects_parent_cycle_before_writing(tmp_path):
     tree = write_json(tmp_path / "tree.json", [
         {"concept": "A", "parentConcept": "B"}, {"concept": "B", "parentConcept": "A"},
@@ -74,6 +86,44 @@ def test_slug_collision_preserves_distinct_exact_identities(tmp_path):
     result = read_inventory([tree])
     assert len({row["slug"] for row in result["concepts"]}) == 2
     assert result["warnings"][0]["kind"] == "slug-collision"
+
+
+@pytest.mark.parametrize("length", [150, 160, 161, 421])
+def test_imported_slug_fits_actual_core_identity_contract_and_replays_stably(tmp_path, length):
+    from test_store_core import Database
+
+    from research_library_service.models import concept_id
+    from research_library_service.store import LibraryStore
+
+    original = "a" * length
+    tree = write_json(tmp_path / "tree.json", [{"concept": original, "slug": original}])
+    first = read_inventory([tree])["concepts"][0]
+    again = read_inventory([tree])["concepts"][0]
+    assert concept_id(first["slug"]) == "c:" + first["slug"]
+    assert len(first["slug"]) <= 160 and again["slug"] == first["slug"]
+    if length <= 160:
+        assert first["slug"] == original
+    else:
+        assert first["metadata"]["original_slug"] == original
+    store = LibraryStore(Database())
+    assert import_library(store, tree_paths=[tree])["imported"] == 1
+    assert import_library(store, tree_paths=[tree])["unchanged"] == 1
+    assert store.versions.count_documents({}) == 1
+
+
+def test_unicode_names_and_maximum_length_slug_collisions_keep_stable_distinct_ids(tmp_path):
+    from research_library_service.models import concept_id
+
+    tree = write_json(tmp_path / "tree.json", [
+        {"concept": "研究の概念", "slug": "x" * 160},
+        {"concept": "Another research concept", "slug": "x" * 160},
+        {"concept": "é" * 180 + " field"},
+    ])
+    first, second = read_inventory([tree]), read_inventory([tree])
+    ids = [concept_id(row["slug"]) for row in first["concepts"]]
+    assert len(ids) == len(set(ids)) == 3
+    assert ids == [concept_id(row["slug"]) for row in second["concepts"]]
+    assert any(row["name"] == "研究の概念" for row in first["concepts"])
 
 
 def test_public_projection_hash_checked_without_inventing_evidence(tmp_path):
@@ -339,3 +389,29 @@ def test_core_source_history_import_preserves_existing_current_pointer(tmp_path)
         "snapshot_sha256"]
     assert store.source_get(current["_id"], sha)["text"] == historical
     assert store.concept_get("c:target")["qualification"] == "unreviewed"
+
+
+def test_owner_bulk_runner_isolates_invalid_record_without_losing_valid_neighbors():
+    import importlib.util
+
+    from test_store_core import Database
+
+    from research_library_service.models import MANAGED_BY
+    from research_library_service.store import LibraryStore
+
+    path = Path(__file__).resolve().parents[1] / "scripts/import_owner_library.py"
+    spec = importlib.util.spec_from_file_location("owner_bulk_scenario", path)
+    owner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(owner)
+    store = LibraryStore(Database())
+    store.concepts.create_index([("managed_by", 1), ("alias_keys", 1)], unique=True,
+        name="research_alias_identity_v1", partialFilterExpression={"managed_by": MANAGED_BY})
+    inventory = {"source_identity": "scenario", "concepts": [
+        {"name": "Valid first", "slug": "valid-first", "claims": [], "source_refs": []},
+        {"name": "b" * 501, "slug": "invalid-name", "claims": [], "source_refs": []},
+        {"name": "Valid last", "slug": "valid-last", "claims": [], "source_refs": []},
+    ]}
+    result = owner.TimedStore(store, {}).prepare_new_batches(inventory)
+    assert result["bulk_created"] == 2 and result["fallback_records"] == 1
+    assert store.concepts.count_documents({}) == store.versions.count_documents({}) == 2
+    assert store.concepts.find_one({"_id": "c:invalid-name"}) is None

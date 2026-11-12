@@ -31,7 +31,7 @@ from .models import (
     normalize_url,
     revision,
     score_axes,
-    search_text,
+    search_text_projection,
     slugify,
     source_id,
     strings,
@@ -43,10 +43,13 @@ from .models import (
 
 SUMMARY_FIELDS = ("_id", "slug", "name", "description", "aliases", "terms", "revision", "state",
                   "active", "deleted", "parent_id", "cvs", "cvs_axes", "cvs_decision", "cvs_rationale",
-                  "incomplete_reasons", "completion", "qualification", "created_at", "updated_at")
+                  "incomplete_reasons", "completion", "qualification", "created_at", "updated_at",
+                  "search_text_truncated")
 MAX_PAGE_BYTES = 2 * 1024 * 1024
 TX_MAX_ATTEMPTS = 8
 TX_RETRY_SECONDS = 30
+MAX_IMPORT_BATCH = 100
+MAX_IMPORT_BATCH_BYTES = 8 * 1024 * 1024
 
 
 class LibraryStore:
@@ -117,9 +120,15 @@ class LibraryStore:
             except DuplicateKeyError as exc:
                 raise Conflict("Concurrent research identity or idempotency conflict") from exc
             except PyMongoError as exc:
+                details = getattr(exc, "details", None)
+                errors = details.get("writeErrors", []) if isinstance(details, dict) else []
+                codes = {getattr(exc, "code", None)} | {
+                    row.get("code") for row in errors if isinstance(row, dict)}
+                if codes & {11000, 11001}:
+                    raise Conflict("Concurrent research identity or idempotency conflict") from None
                 # Atlas mongos can report WriteConflict (112) without the label.
                 # Restart the entire transaction after its context has aborted.
-                retryable = (getattr(exc, "code", None) == 112
+                retryable = (112 in codes
                              or exc.has_error_label("TransientTransactionError")
                              or exc.has_error_label("UnknownTransactionCommitResult"))
                 if not retryable:
@@ -192,7 +201,8 @@ class LibraryStore:
         self._check_lease(doc["_id"], token, session)
         return copy.deepcopy(doc)
 
-    def _save(self, doc, previous, actor, session, *, invalidate=True):
+    def _prepare_save(self, doc, previous, actor, *, invalidate=True):
+        """Derive one bounded revision without reading or writing the database."""
         doc = copy.deepcopy(doc)
         doc["revision"] = previous["revision"] + 1 if previous else 1
         doc["updated_at"] = self._date()
@@ -209,12 +219,21 @@ class LibraryStore:
             if doc.get("claims") and "verification-required" not in reasons:
                 reasons.append("verification-required")
             doc["incomplete_reasons"] = reasons
-        doc["search_text"] = search_text(doc)
+        doc.update(search_text_projection(doc))
         imported = doc.get("import_provenance")
         if imported and self._import_context.get() == imported.get("source_identity"):
             imported["managed_revision"] = doc["revision"]
         if len(canonical(doc)) > MAX_CONCEPT_BYTES:
             raise ValueError("Concept document exceeds its byte limit")
+        return doc
+
+    @staticmethod
+    def _version_snapshot(doc, actor):
+        return {**copy.deepcopy(doc), "_id": f"{doc['_id']}@{doc['revision']}",
+                "concept_id": doc["_id"], "actor": actor, "content_sha256": digest(doc)}
+
+    def _save(self, doc, previous, actor, session, *, invalidate=True):
+        doc = self._prepare_save(doc, previous, actor, invalidate=invalidate)
         if previous:
             result = self.concepts.replace_one(self._owned({"_id": doc["_id"],
                 "revision": previous["revision"]}), doc, session=session)
@@ -224,9 +243,7 @@ class LibraryStore:
             if self.concepts.find_one({"_id": doc["_id"]}, session=session):
                 raise OwnershipError("Concept identity is already owned")
             self.concepts.insert_one(doc, session=session)
-        snapshot = {**copy.deepcopy(doc), "_id": f"{doc['_id']}@{doc['revision']}",
-                    "concept_id": doc["_id"], "actor": actor, "content_sha256": digest(doc)}
-        self.versions.insert_one(snapshot, session=session)
+        self.versions.insert_one(self._version_snapshot(doc, actor), session=session)
         return doc
 
     @staticmethod
@@ -837,6 +854,10 @@ class LibraryStore:
             for key in list(loaded):
                 loaded[key] = self._edit(key, expected_revisions.get(key), lease_tokens.get(key, ""), session)
             original = copy.deepcopy(loaded)
+            if relation in {"parent", "child"} and self._import_context.get() is None:
+                # An explicit working choice supersedes the canonical read lead.
+                # Imported family projections keep their separate candidate status.
+                loaded[child]["family_override"] = True
             def link(a, field, b, add):
                 values = loaded[a].setdefault(field, [])
                 if add and b not in values:
@@ -939,26 +960,81 @@ class LibraryStore:
             protected(old)
             if old and old.get("import_provenance", {}).get("source_sha256") == source_sha256:
                 return {**old, "unchanged": True, "projection_only": True, "dispatched": False}
-            status = record.get("status", record.get("state", "queued"))
-            status = {"pending": "queued", "stopped": "paused", "STOP": "paused", "done": "completed"}.get(status, status)
-            if status not in {"queued", "paused", "held", "cancelled", "completed"}:
-                status = "held" if record.get("held") else "queued"
-            stopped = bool(record.get("stop") or record.get("STOP") or (old or {}).get("stop"))
-            if old and old.get("status") in {"paused", "held"}:
-                status = old["status"]
-            if stopped:
-                status = "paused"
-            next_revision = (old or {}).get("revision", 0) + 1
-            row = {"_id": cid, "managed_by": MANAGED_BY, "concept_id": cid,
-                   "revision": next_revision, "status": status, "stop": stopped,
-                   "metadata": record, "updated_at": self._date(), "actor": "canonical-import",
-                   "import_provenance": {"source_identity": source_identity,
-                       "source_sha256": source_sha256, "managed_revision": next_revision}}
+            row = self._prepare_import_queue(cid, record, source_identity, source_sha256, old)
             self.queue.replace_one(self._owned({"_id": cid}), row, upsert=True, session=session)
             return {**row, "projection_only": True, "dispatched": False}
         return self._mutate("import_queue", dict(concept_id=cid, record=record,
             source_identity=source_identity, source_sha256=source_sha256), "canonical-import",
             digest(["queue", cid, source_identity, source_sha256, record]), load)
+
+    def _prepare_import_queue(self, cid, record, source_identity, source_sha256, previous=None):
+        status = record.get("status", record.get("state", "queued"))
+        if not isinstance(status, str):
+            raise ValueError("Imported queue status must be text")
+        status = {"pending": "queued", "stopped": "paused", "STOP": "paused", "done": "completed"}.get(status, status)
+        if status not in {"queued", "paused", "held", "cancelled", "completed"}:
+            status = "held" if record.get("held") else "queued"
+        stopped = bool(record.get("stop") or record.get("STOP") or (previous or {}).get("stop"))
+        if previous and previous.get("status") in {"paused", "held"}:
+            status = previous["status"]
+        if stopped:
+            status = "paused"
+        next_revision = (previous or {}).get("revision", 0) + 1
+        return {"_id": cid, "managed_by": MANAGED_BY, "concept_id": cid,
+                "revision": next_revision, "status": status, "stop": stopped,
+                "metadata": copy.deepcopy(record), "updated_at": self._date(), "actor": "canonical-import",
+                "import_provenance": {"source_identity": source_identity,
+                    "source_sha256": source_sha256, "managed_revision": next_revision}}
+
+    def import_new_queues(self, records, source_identity):
+        """Owner-local new-only queue projection; never resumes or dispatches work."""
+        self._import_batch_records(records, {"concept_id", "record", "source_sha256"})
+        source_identity = text(source_identity, "queue import identity", 2000)
+        rows, identities = [], {}
+        for entry in records:
+            cid = concept_id(entry["concept_id"])
+            record, checksum = entry["record"], entry["source_sha256"]
+            if not isinstance(record, dict):
+                raise ValueError("Imported queue record must be an object")
+            record = json_value(record)
+            if not isinstance(checksum, str) or not re.fullmatch(r"[0-9a-f]{64}", checksum) or digest(record) != checksum:
+                raise ValueError("Import hash must match the exact queue record")
+            if cid in identities:
+                raise Conflict("Duplicate queue concept identity in import batch")
+            identities[cid] = checksum
+            rows.append(self._prepare_import_queue(cid, record, source_identity, checksum))
+        rows.sort(key=lambda row: row["_id"])
+        if len(canonical(rows)) > MAX_IMPORT_BATCH_BYTES:
+            raise ValueError("Prepared queue import exceeds the batch byte limit")
+        ids = list(identities)
+        def concepts_exist(session):
+            found = list(self.concepts.find({"_id": {"$in": ids}},
+                {"_id": 1, "managed_by": 1, "deleted": 1}, session=session))
+            if len(found) != len(ids) or any(row.get("managed_by") != MANAGED_BY or row.get("deleted") for row in found):
+                raise Conflict("Queue batch requires existing managed current concepts")
+        def guard(session):
+            concepts_exist(session)
+            if self.queue.find_one({"$or": [{"_id": {"$in": ids}},
+                    {"managed_by": {"$ne": MANAGED_BY}}]}, {"_id": 1}, session=session):
+                raise Conflict("An existing queue row or producer already owns this queue batch")
+        def replay():
+            concepts_exist(None)
+            current = list(self.queue.find({"_id": {"$in": ids}}, {
+                "_id": 1, "managed_by": 1, "revision": 1, "import_provenance": 1}).sort("_id", 1))
+            if len(current) != len(ids):
+                raise Conflict("Imported queue batch no longer has its original current rows")
+            for row in current:
+                provenance = row.get("import_provenance", {})
+                if (row.get("managed_by") != MANAGED_BY or provenance.get("source_identity") != source_identity
+                        or provenance.get("source_sha256") != identities[row["_id"]]
+                        or provenance.get("managed_revision") != row.get("revision")):
+                    raise Conflict("A locally edited queue row cannot be replaced by import replay")
+            return self._import_batch_summary(current, replay=True)
+        payload = {"source_identity": source_identity, "records": [
+            {"concept_id": cid, "source_sha256": identities[cid]} for cid in sorted(identities)]}
+        return self._import_batch_execute("import_new_queues", payload, rows,
+            self.queue, guard, replay, extra={"projection_only": True, "dispatched": False,
+                                            "affected_concepts": []})
 
     def queue_recover(self, concept_id, expected_queue_revision, reason,
                       actor="local-admin", request_id=""):
@@ -1056,6 +1132,144 @@ class LibraryStore:
         finally:
             self._import_context.reset(token)
 
+    @staticmethod
+    def _import_batch_records(records, keys):
+        if not isinstance(records, list) or not 1 <= len(records) <= MAX_IMPORT_BATCH:
+            raise ValueError("Import batch must contain 1..100 records")
+        if any(not isinstance(row, dict) or set(row) != keys for row in records):
+            raise ValueError("Import batch record fields do not match the contract")
+        if len(canonical(records)) > MAX_IMPORT_BATCH_BYTES:
+            raise ValueError("Import batch exceeds its byte limit")
+
+    @staticmethod
+    def _import_batch_summary(rows, *, replay=False):
+        ids = [row["_id"] for row in rows]
+        return {"inserted": 0 if replay else len(rows), "inserted_ids": [] if replay else ids,
+                "skipped_ids": ids if replay else [], "unchanged": replay,
+                "revisions": {row["_id"]: row["revision"] for row in rows},
+                "affected_concepts": [] if replay else [
+                    {"concept_id": row["_id"], "revision": row["revision"]} for row in rows]}
+
+    def _import_batch_execute(self, operation, payload, rows, collection, guard, replay,
+                              *, versions=None, extra=None):
+        """One summary receipt and two bounded writes, with no per-record I/O."""
+        actor = "canonical-import"
+        request_id = digest([operation, payload])
+        key = "op:" + digest([actor, request_id])
+        fingerprint = digest({"operation": operation, "payload": payload})
+        prior = self.receipts.find_one({"_id": key})
+        if prior:
+            if prior.get("managed_by") != MANAGED_BY:
+                raise OwnershipError("Import receipt identity belongs to another producer")
+            if prior.get("request_sha256") != fingerprint:
+                raise Conflict("Import receipt does not match this batch")
+            return {**replay(), **(extra or {}), "request_id": request_id}
+        guard(None)
+        execution = secrets.token_hex(16)
+        def insert(session):
+            guard(session)
+            collection.insert_many(copy.deepcopy(rows), ordered=True, session=session)
+            if versions is not None:
+                self.versions.insert_many(copy.deepcopy(versions), ordered=True, session=session)
+            return {**self._import_batch_summary(rows), **(extra or {}), "_batch_execution": execution}
+        result = self._mutate(operation, payload, actor, request_id, insert, raw=True)
+        if result.pop("_batch_execution", None) != execution:
+            # Another caller may have committed this same receipt after preflight.
+            # Re-read current metadata rather than returning stale revision-one state.
+            return {**replay(), **(extra or {}), "request_id": request_id}
+        return self._public(result)
+
+    def import_new_concepts(self, records, source_identity):
+        """Owner-local new-only read projection; never grants research ownership.
+
+        Like import_concept, a canonical inventory projection may describe a
+        filesystem-held concept. Subsequent research/family lease acquisition
+        still checks that hold. Any existing or orphan Mongo lease blocks a new
+        projection, and no existing concept or alias is ever replaced here.
+        """
+        self._import_batch_records(records, {"document", "source_sha256"})
+        source_identity = text(source_identity, "import source identity", 2000)
+        allowed = {"_id", "slug", "name", "description", "aliases", "terms", "state", "cvs", "cvs_axes",
+                   "cvs_rationale", "cvs_decision", "open_questions", "scope", "incomplete_reasons",
+                   "metadata", "summary", "disagreements", "telemetry", "scope_assessment", "claims",
+                   "source_refs", "qualification", "legacy_qualification"}
+        documents, snapshots, identities, aliases = [], [], {}, set()
+        for record in records:
+            document, checksum = record["document"], record["source_sha256"]
+            if not isinstance(document, dict) or set(document) - allowed:
+                raise ValueError("New concept batch cannot contain family edits or publication proofs")
+            if not isinstance(checksum, str) or not re.fullmatch(r"[0-9a-f]{64}", checksum) or digest(document) != checksum:
+                raise ValueError("Import hash must match the exact concept document")
+            if document.get("claims", []) != [] or document.get("source_refs", []) != []:
+                raise ValueError("New concept batch must not contain claims or source references")
+            if document.get("state", "frontier") not in {"frontier", "draft", "incomplete"}:
+                raise ValueError("New concept batch cannot grant completion authority")
+            name = text(document.get("name"), "concept name", 500)
+            cid = concept_id(document.get("_id") or document.get("slug") or slugify(name))
+            if document.get("slug") and concept_id(document["slug"]) != cid:
+                raise ValueError("Imported slug and concept identity differ")
+            if cid in identities:
+                raise Conflict("Duplicate concept identity in import batch")
+            doc = {"_id": cid, "slug": cid[2:], "name": name, "state": "frontier", "claims": [],
+                   "source_refs": [], "parent_id": None, **{field: [] for field in RELATION_FIELDS},
+                   "cvs": None, "cvs_axes": None, "cvs_decision": "REVIEW", "deleted": False,
+                   "open_questions": [], "scope": {}, "description": "", "aliases": [], "terms": []}
+            patch = {key: document[key] for key in allowed - {
+                "_id", "slug", "state", "claims", "source_refs", "qualification", "legacy_qualification",
+                "cvs_decision"} if key in document}
+            doc = self._patch(doc, patch)
+            doc.update(state=document.get("state", "frontier"), qualification="unreviewed",
+                legacy_qualification=json_value(document.get("qualification", document.get("legacy_qualification", "unknown"))),
+                import_provenance={"source_identity": source_identity, "source_sha256": checksum, "managed_revision": 1})
+            doc = self._prepare_save(doc, None, "canonical-import")
+            keys = set(doc["alias_keys"])
+            if aliases & keys:
+                raise Conflict("Duplicate concept name or alias in import batch")
+            aliases.update(keys)
+            identities[cid] = checksum
+            documents.append(doc)
+            snapshots.append(self._version_snapshot(doc, "canonical-import"))
+        documents.sort(key=lambda doc: doc["_id"])
+        snapshots.sort(key=lambda doc: doc["_id"])
+        if len(canonical([documents, snapshots])) > MAX_IMPORT_BATCH_BYTES:
+            raise ValueError("Prepared import revisions exceed the batch byte limit")
+        index = self.concepts.index_information().get("research_alias_identity_v1", {})
+        if (list(index.get("key", [])) != [("managed_by", 1), ("alias_keys", 1)]
+                or index.get("unique") is not True
+                or index.get("partialFilterExpression") != {"managed_by": MANAGED_BY}):
+            raise RuntimeError("Provisioned unique research alias index is required for bulk import")
+        ids = list(identities)
+        version_ids = [row["_id"] for row in snapshots]
+        def guard(session):
+            if self.concepts.find_one({"$or": [{"_id": {"$in": ids}},
+                    {"alias_keys": {"$in": sorted(aliases)}}, {"managed_by": {"$ne": MANAGED_BY}}]},
+                    {"_id": 1}, session=session):
+                raise Conflict("A concept identity, alias, or producer already owns this import batch")
+            if self.leases.find_one({"_id": {"$in": ids}}, {"_id": 1}, session=session):
+                raise LeaseConflict("An existing or orphan Mongo lease blocks this new concept batch")
+            if self.versions.find_one({"_id": {"$in": version_ids}}, {"_id": 1}, session=session):
+                raise Conflict("An immutable concept revision already owns this import batch")
+        def replay():
+            current = list(self.concepts.find({"_id": {"$in": ids}}, {
+                "_id": 1, "managed_by": 1, "revision": 1, "import_provenance": 1}).sort("_id", 1))
+            if len(current) != len(ids):
+                raise Conflict("Imported concept batch no longer has its original current records")
+            for row in current:
+                provenance = row.get("import_provenance", {})
+                if (row.get("managed_by") != MANAGED_BY or provenance.get("source_identity") != source_identity
+                        or provenance.get("source_sha256") != identities[row["_id"]]
+                        or provenance.get("managed_revision") != row.get("revision")):
+                    raise Conflict("A locally edited concept cannot be replaced by import replay")
+            if self.leases.find_one({"_id": {"$in": ids}, "status": "held",
+                    "expires_at": {"$gt": self._now()}}, {"_id": 1}):
+                raise LeaseConflict("An actively leased concept blocks this import replay")
+            return self._import_batch_summary(current, replay=True)
+        payload = {"source_identity": source_identity, "records": [
+            {"concept_id": cid, "source_sha256": identities[cid]} for cid in sorted(identities)]}
+        return self._import_batch_execute("import_new_concepts", payload, documents,
+            self.concepts, guard, replay, versions=snapshots,
+            extra={"qualification": "unreviewed", "dispatch_authorized": False})
+
     def import_concept(self, document, source_identity, source_sha256, artifact_proof=None,
                        replace_import=False):
         """Owner-local import; never exposed as a remote concept patch."""
@@ -1073,7 +1287,10 @@ class LibraryStore:
         if existing and (imported.get("source_identity") != source_identity
                 or imported.get("managed_revision") != existing["revision"]):
             raise Conflict("A locally edited concept cannot be replaced by import")
-        if self.leases.find_one(self._owned({"_id": cid, "status": "held", "expires_at": {"$gt": self._now()}})):
+        lease_query = {"_id": cid}
+        if existing:
+            lease_query.update(status="held", expires_at={"$gt": self._now()})
+        if self.leases.find_one(lease_query):
             raise LeaseConflict("An actively leased concept cannot be replaced by import")
         if existing and imported.get("source_sha256") == source_sha256 and not replace_import:
             return {**self._public(existing), "id": cid, "unchanged": True,
@@ -1083,7 +1300,10 @@ class LibraryStore:
         with self.importing(source_identity):
             def load(session):
                 old = self.concepts.find_one(self._owned({"_id": cid}), session=session)
-                lease = self.leases.find_one(self._owned({"_id": cid, "status": "held", "expires_at": {"$gt": self._now()}}), session=session)
+                lease_query = {"_id": cid}
+                if old:
+                    lease_query.update(status="held", expires_at={"$gt": self._now()})
+                lease = self.leases.find_one(lease_query, session=session)
                 if lease:
                     raise LeaseConflict("An actively leased concept cannot be replaced by import")
                 if old:

@@ -200,6 +200,7 @@ class LiveCheck:
         self.passed("idempotent_requests_cas_and_delegated_fences")
         self.graph()
         self.sources_and_claims()
+        self.late_keyword_fixture()
         self.queue_and_capabilities()
         self.store.lease_release(self.ids, self.tokens, self.owner)
         self.passed("owned_bundle_release")
@@ -290,6 +291,20 @@ class LiveCheck:
         self.passed("unicode_evidence_immutable_snapshots_and_claim_versions")
         self.passed("caller_cannot_self_certify_completion")
 
+    def late_keyword_fixture(self):
+        self.stage = "bounded_semantic_coverage_full_keyword_fixture"
+        self.late_marker = "VoyageLateKeywordSkink2026"
+        for claim in ("Synthetic padding. " * 1600,
+                      self.late_marker + " is a synthetic late claim marker."):
+            self.store.claim_mutate(self.root, "add", {"text": claim},
+                expected_revision=self.revision(self.root), lease_token=self.tokens[self.root])
+        current = self.store.concept_get(self.root)
+        require(current.get("search_text_truncated") is True, "semantic_coverage_not_marked")
+        require(self.late_marker not in current["search_text"], "late_marker_not_beyond_budget")
+        require(any(self.late_marker in claim["text"] for claim in current["claims"]),
+                "late_claim_not_preserved_for_keyword")
+        self.passed("bounded_semantic_projection_preserves_full_late_claim")
+
     def queue_and_capabilities(self):
         self.stage = "queue_holds_explicit_recovery_and_read_capability"
         for action in ("hold", "stop"):
@@ -348,16 +363,20 @@ class LiveCheck:
         while True:
             keyword = queries.search("fencing", mode="keyword", top=4)
             semantic = queries.search(paraphrase, mode="semantic", top=4)
+            late = queries.search(self.late_marker, mode="keyword", top=4)
             channels = keyword["diagnostics"]["channels"]
             if (channels.get("keyword", {}).get("atlas") is True and not keyword["degraded"]
                     and self.child in {row["id"] for row in keyword["hits"]}
                     and semantic["semantic"] and not semantic["degraded"]
-                    and self.child in {row["id"] for row in semantic["hits"]}):
+                    and self.child in {row["id"] for row in semantic["hits"]}
+                    and late["diagnostics"]["channels"].get("keyword", {}).get("atlas") is True
+                    and not late["degraded"] and self.root in {row["id"] for row in late["hits"]}):
                 break
             require(time.monotonic() < deadline, "native_retrieval_catchup_timeout")
             if time.monotonic() - last_progress >= 5:
                 emit({"event": "waiting_for_native_retrieval", "keyword_hits": len(keyword["hits"]),
-                      "semantic_hits": len(semantic["hits"]), "semantic_available": semantic["semantic"]})
+                      "semantic_hits": len(semantic["hits"]), "semantic_available": semantic["semantic"],
+                      "late_claim_keyword_hits": len(late["hits"])})
                 last_progress = time.monotonic()
             time.sleep(2)
         hybrid = queries.search("fencing research ownership", mode="hybrid", top=4)
@@ -378,8 +397,10 @@ class LiveCheck:
         self.report["retrieval"] = {"keyword_hits": len(keyword["hits"]),
             "semantic_hits": len(semantic["hits"]), "hybrid_hits": len(hybrid["hits"]),
             "narrow_semantic_hits": len(narrow["hits"]), "explicit_scope_hits": len(exact["hits"]),
-            "native_auto_embedding": True, "fallback_used": False}
+            "native_auto_embedding": True, "fallback_used": False,
+            "late_claim_keyword_hits": len(late["hits"]), "semantic_projection_truncated": True}
         self.passed("native_semantic_keyword_hybrid_broad_narrow_and_explicit_scope")
+        self.passed("native_keyword_recovers_claim_beyond_semantic_byte_budget")
         self.report["counts"] = self.store.status()["counts"]
 
     def cleanup(self):

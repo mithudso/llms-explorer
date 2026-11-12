@@ -195,9 +195,15 @@ def score_axes(value):
     return {"cvs": round(score, 8), "cvs_axes": axes, "cvs_decision": decision}
 
 
-def search_text(doc):
+def search_text_projection(doc):
     values = [doc.get("name", ""), doc.get("description", ""), *doc.get("aliases", []),
               *doc.get("terms", []), *doc.get("open_questions", [])]
     values.extend(claim.get("text", "") for claim in doc.get("claims", []) if not claim.get("deleted"))
     values = [v if isinstance(v, str) else canonical(v).decode() for v in values]
-    return "\n".join(values).encode()[:MAX_SEARCH_BYTES].decode("utf-8", "ignore")
+    encoded = "\n".join(values).encode()
+    return {"search_text": encoded[:MAX_SEARCH_BYTES].decode("utf-8", "ignore"),
+            "search_text_truncated": len(encoded) > MAX_SEARCH_BYTES}
+
+
+def search_text(doc):
+    return search_text_projection(doc)["search_text"]

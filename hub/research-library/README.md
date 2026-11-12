@@ -127,7 +127,10 @@ rewrite the existing skill distribution collection or historical vector stores.
 The managed concept indexes are `research_library_voyage4_v1` (Atlas
 `vectorSearch`, an `autoEmbed` text field on `search_text` with model `voyage-4`)
 and `research_library_text_v1` (static text mappings for names, aliases, terms,
-description and derived search text). Managed/active/slug fields support scoped
+description, derived search text, and complete active claim text). Claim arrays
+use an `embeddedDocuments` mapping and an `embeddedDocument` query that excludes
+deleted claims. This follows MongoDB's [array-of-documents search contract](https://www.mongodb.com/docs/search/indexes/field-types/embedded-documents-type/).
+Managed/active/slug fields support scoped
 filtering. Atlas generates document and query embeddings for the native
 auto-embedding path; this application does not call a Voyage SDK or require a
 separate Voyage API key. The cluster must support that capability. Provisioning
@@ -141,7 +144,7 @@ Imports accept owner-local files only. First run the same command with
 ```sh
 "$python_bin" -m research_library_service.cli --env-file "$server_env" import \
   --tree /absolute/path/concepts.json \
-  --queue /absolute/path/queue.json \
+  --queue /absolute/path/queue.md \
   --scores /absolute/path/scores.json \
   --artifact /absolute/path/accepted-artifact.json \
   --repo /absolute/path/llms-explorer \
@@ -154,6 +157,26 @@ oversized source bodies produce warnings. Import provenance uses input hashes;
 ordinary imports preserve newer working edits. `--replace-import` is an explicit
 owner replacement operation, not a remote tool. Import neither starts research
 nor converts legacy qualification into current `SUPPORTED`/`COMPLETED` proof.
+
+For the owner's complete maintained corpus, the dedicated runner inventories
+both permanent repository/hub trees, every `RESEARCH_QUEUE*.md`, both CVS
+sidecars, ranked plans, unfinished manifests, and accepted canonical artifacts:
+
+```sh
+"$python_bin" hub/research-library/scripts/import_owner_library.py --conservative
+"$python_bin" hub/research-library/scripts/import_owner_library.py --apply --conservative
+```
+
+The first command prepares a dry run. Full inventories, exclusions, progress,
+and receipts stay owner-only under `~/.local/share/research-library/imports`;
+stdout contains counts and timings. Corrupt/non-completed artifacts are explicitly
+excluded without moving their source files. Stable import ownership uses the
+permanent repository and hub, while each concept fingerprint binds its own
+content and relevant provenance. New simple concepts, initial reciprocal family
+links, and new queue projections use bounded transactions; existing edits,
+leases, holds, and STOP state remain protected. Historical artifacts retain
+their original qualification and references; the runner does not rotate CURRENT
+through old documents or grant inherited verification.
 
 Other allowlisted methods are available through JSON stdin:
 
@@ -228,6 +251,10 @@ Concepts and source text are each bounded to 8 MiB in storage. The 8 MiB total
 JSON request cap can require a smaller source upload. Concepts contain at most
 2,000 claims; derived `search_text` is at most 30,000 UTF-8 bytes. Source bodies
 are read in bounded character slices, not copied into inventory responses.
+`search_text_truncated` records whether the unchanged semantic input budget cut
+off later material. Retrieval exposes `semantic_text_truncated`; null means an
+older record has no coverage attestation. Native keyword retrieval indexes all
+active claim text, including claims beyond that semantic input budget.
 
 Mutations use MongoDB transactions with snapshot reads and majority writes.
 Transactionless writes fail closed. Compare-and-swap revisions prevent lost
@@ -238,6 +265,17 @@ leases. A serialized graph revision prevents concurrent edits creating cycles.
 Deletion creates a tombstone and retains history; connected concepts must first
 be unlinked. Immutable snapshots referenced by claims remain addressable after a
 source update or retirement.
+
+Canonical import placement remains a qualified navigation lead in
+`metadata.owner_import.canonical_parent_id`. A protected hold can leave its
+physical parent link unapplied. In that case, scoped discovery still includes
+the concept through `pending-parent`/`pending-child` candidate edges and exposes
+`family_reconciliation_pending` with `pending_parent_id`. Actual `parent_id`
+stays unchanged, and the incomplete view reports `canonical-family-pending`.
+An explicit working parent/child edit overrides the inherited placement through
+an internal child flag; clients perform the ordinary leased relation operation
+and never patch that flag. Trusted publication requires a reconciled placement
+or that explicit working override.
 
 An actor-scoped `request_id` binds one exact mutation body. Repeating that body
 returns its receipt; reusing the ID with different content conflicts. Reader and

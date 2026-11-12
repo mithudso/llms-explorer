@@ -11,7 +11,15 @@ import pytest
 from pymongo.errors import OperationFailure
 
 import research_library_service.store as store_module
-from research_library_service.models import MANAGED_BY, digest, normalize_url, source_id
+from research_library_service.models import (
+    MANAGED_BY,
+    MAX_SEARCH_BYTES,
+    digest,
+    normalize_url,
+    search_text,
+    search_text_projection,
+    source_id,
+)
 from research_library_service.queries import LibraryQueries
 from research_library_service.store import Conflict, LeaseConflict, LibraryStore
 
@@ -434,6 +442,61 @@ def test_numeric_axes_override_supplied_scalar_and_preserve_hard_gates(store, ax
         with pytest.raises(ValueError, match="qualifying axis evidence"):
             store.concept_update(doc["_id"], {"cvs_decision": "RESEARCH"}, 2, token)
         assert store.concept_get(doc["_id"])["revision"] == 2
+
+
+def test_explicit_parent_choice_overrides_canonical_lead_and_nonfamily_edits_preserve_it(store):
+    parent, child = make(store, "Parent Choice", "Child Choice")
+    held = lease(store, [parent, child])
+    with store.importing("canonical-corpus"):
+        store.relation_mutate(child["_id"], parent["_id"], "parent", "add",
+                              revisions(store, parent, child), held["tokens"])
+    assert "family_override" not in store.concept_get(child["_id"])
+    # Reaffirming the same parent is an explicit working choice, even with no edge change.
+    current = store.concept_get(child["_id"])
+    store.relation_mutate(child["_id"], parent["_id"], "parent", "update",
+                          revisions(store, parent, child), held["tokens"])
+    selected = store.concept_get(child["_id"])
+    assert selected["family_override"] and selected["revision"] == current["revision"] + 1
+    updated = store.concept_update(child["_id"], {"description": "A later prose edit"},
+                                   selected["revision"], held["tokens"][child["_id"]])
+    assert updated["family_override"]
+    with pytest.raises(ValueError, match="Unsupported concept edit"):
+        store.concept_update(child["_id"], {"family_override": False}, updated["revision"],
+                             held["tokens"][child["_id"]])
+
+
+@pytest.mark.parametrize("payload,total,truncated", [
+    ("🐘" * 7499 + "a", 29999, False),
+    ("🐘" * 7499 + "ab", 30000, False),
+    ("🐘" * 7500, 30002, True),
+])
+def test_search_projection_multibyte_budget_reports_exact_coverage(payload, total, truncated):
+    doc = {"name": "N", "description": payload}
+    raw = ("N\n" + payload).encode()
+    assert len(raw) == total
+    projection = search_text_projection(doc)
+    assert projection["search_text_truncated"] is truncated
+    assert projection["search_text"] == raw[:MAX_SEARCH_BYTES].decode("utf-8", "ignore")
+    assert search_text(doc) == projection["search_text"]
+    assert len(projection["search_text"].encode()) <= MAX_SEARCH_BYTES
+    assert "�" not in projection["search_text"]
+
+
+def test_truncated_semantic_projection_keeps_late_claims_whole_for_keyword_retrieval(store):
+    doc, = make(store, "Long Claim Inventory")
+    token = lease(store, [doc])["tokens"][doc["_id"]]
+    first = store.claim_mutate(doc["_id"], "add", {"text": "🧪" * 8000},
+        expected_revision=1, lease_token=token)
+    marker = "RareLateKeywordIris2026 remains in the complete claim field."
+    last = store.claim_mutate(doc["_id"], "add", {"text": marker},
+        expected_revision=2, lease_token=token)
+    assert last["search_text_truncated"]
+    assert marker not in last["search_text"]
+    assert last["claims"][-1]["text"] == marker
+    assert store.concept_get(doc["_id"], 3)["claims"][-1]["text"] == marker
+    shortened = store.claim_mutate(doc["_id"], "remove", lineage_id=first["claim"]["lineage_id"],
+        expected_revision=3, lease_token=token)
+    assert not shortened["search_text_truncated"] and marker in shortened["search_text"]
 
 
 def test_pagination_alias_lookup_and_tombstone_history(store):

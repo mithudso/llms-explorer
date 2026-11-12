@@ -16,6 +16,8 @@ import unicodedata
 from collections import Counter, deque
 from datetime import UTC, datetime, timedelta
 
+from .models import MAX_SEARCH_BYTES
+
 MANAGED_BY = "research-library/v1"
 MODEL = "voyage-4"
 VECTOR_INDEX = "research_library_voyage4_v1"
@@ -23,6 +25,11 @@ TEXT_INDEX = "research_library_text_v1"
 MAX_INVENTORY = 100_000
 MAX_SCOPE = 10_000
 MAX_PEER_BYTES = 512 * 1024
+MAX_METADATA_BYTES = 2 * 1024 * 1024
+# MCP returns structured data and a JSON text compatibility block. Reserve the
+# extra serialization/escaping copies instead of bounding only the inner dict.
+MAX_METADATA_PAYLOAD_BYTES = (MAX_METADATA_BYTES - 32768) // 3
+MAX_SUMMARY_BYTES = 24 * 1024
 VECTOR_DEFINITION = {"fields": [
     {"type": "autoEmbed", "modality": "text", "path": "search_text", "model": MODEL},
     {"type": "filter", "path": "managed_by"},
@@ -35,6 +42,8 @@ TEXT_DEFINITION = {"mappings": {"dynamic": False, "fields": {
     "terms": {"type": "string"},
     "description": {"type": "string"},
     "search_text": {"type": "string"},
+    "claims": {"type": "embeddedDocuments", "dynamic": False, "fields": {
+        "text": {"type": "string"}, "deleted": {"type": "boolean"}}},
     "managed_by": {"type": "token"},
     "active": {"type": "boolean"},
     "slug": {"type": "token"},
@@ -45,7 +54,7 @@ _GRAPH_FIELDS = {
         "active", "deleted", "parent_id", "children_ids", "related_ids", "adjacent_ids",
         "prerequisite_ids", "dependent_ids", "cvs", "cvs_axes", "cvs_decision",
         "cvs_rationale", "incomplete_reasons", "completion", "source_refs", "metadata",
-        "managed_by", "updated_at",
+        "managed_by", "updated_at", "family_override", "search_text_truncated",
     )
 }
 
@@ -78,6 +87,14 @@ def _live(doc):
             and not doc.get("deleted") and doc.get("state") != "archived")
 
 
+def _pending_parent(doc):
+    """A canonical navigation lead is separate from the physical working link."""
+    if doc.get("family_override"):
+        return None
+    value = ((doc.get("metadata") or {}).get("owner_import") or {}).get("canonical_parent_id")
+    return value if isinstance(value, str) and value != doc.get("parent_id") else None
+
+
 def _integer(value, low, high, name):
     if type(value) is not int or not low <= value <= high:
         raise ValueError(f"{name} must be {low}..{high}")
@@ -102,12 +119,30 @@ def _axis_values(value):
 
 
 def _summary(doc):
-    keys = ("slug", "name", "aliases", "terms", "revision", "state", "cvs", "cvs_axes",
-            "cvs_decision", "cvs_rationale", "incomplete_reasons", "completion", "source_refs")
+    keys = ("slug", "name", "aliases", "terms", "revision", "state", "parent_id", "cvs", "cvs_axes",
+            "cvs_decision", "cvs_rationale", "incomplete_reasons", "completion")
     value = {key: copy.deepcopy(doc[key]) for key in keys if key in doc}
     value.update(id=doc["_id"], concept_id=doc["_id"], candidate_only=True)
     value["description"] = str(doc.get("description", ""))[:1200]
     value["qualification"] = (doc.get("completion") or {}).get("status", "unreviewed")
+    value["semantic_text_truncated"] = (doc["search_text_truncated"]
+        if type(doc.get("search_text_truncated")) is bool else None)
+    pending = _pending_parent(doc)
+    if pending:
+        value.update(family_reconciliation_pending=True, pending_parent_id=pending)
+    if doc.get("source_refs"):
+        value.update(source_ref_count=len(doc["source_refs"]), details_omitted=True,
+                     detail_operation="research_concept_get")
+    omitted = []
+    for field in ("aliases", "terms", "completion", "incomplete_reasons", "cvs_rationale"):
+        if len(_canonical(value)) <= MAX_SUMMARY_BYTES:
+            break
+        if field in value:
+            value.pop(field)
+            omitted.append(field)
+    if omitted:
+        value.update(details_omitted=True, omitted_fields=omitted,
+                     detail_operation="research_concept_get")
     return value
 
 
@@ -134,15 +169,34 @@ def _page(rows, after, limit, scope):
         except (KeyError, TypeError, json.JSONDecodeError, UnicodeError) as exc:
             raise ValueError("Invalid continuation cursor") from exc
     remaining = [row for row in rows if row["id"] > last]
-    selected = remaining[:limit]
-    more = len(remaining) > limit
+    selected, consumed = [], 8192 + len(_canonical(scope))
+    for row in remaining:
+        size = len(_canonical(row)) + 2
+        if size > MAX_METADATA_PAYLOAD_BYTES - 16384:
+            # A holder's continuation or another large metadata field must not
+            # erase this identity from the complete enumeration.
+            row = {key: copy.deepcopy(row[key]) for key in (
+                "id", "concept_id", "slug", "name", "revision", "state", "cvs", "cvs_axes",
+                "cvs_decision", "eligibility", "coverage", "depth", "via", "qualification",
+                "candidate_only") if key in row}
+            row.update(details_omitted=True, detail_operation="research_concept_get",
+                       detail_operations=["research_concept_get", "research_queue_list",
+                                          "research_lease_list"])
+            size = len(_canonical(row)) + 2
+        if len(selected) >= limit or consumed + size > MAX_METADATA_PAYLOAD_BYTES:
+            break
+        selected.append(row)
+        consumed += size
+    more = len(remaining) > len(selected)
     next_cursor = ""
     if more:
         payload = {"scope": scope_hash, "census": census, "last": selected[-1]["id"]}
         next_cursor = "pg1:" + base64.urlsafe_b64encode(_canonical(payload)).decode().rstrip("=")
     return {"items": selected, "total": len(rows), "has_more": more,
             "next_after": next_cursor, "next_cursor": next_cursor,
-            "census_sha256": census, "scope": scope, "complete_page": not more}
+            "census_sha256": census, "scope": scope, "complete_page": not more,
+            "max_response_bytes": MAX_METADATA_BYTES,
+            "max_metadata_payload_bytes": MAX_METADATA_PAYLOAD_BYTES, "metadata_only": True}
 
 
 def provision_search_indexes(store, wait_seconds=0):
@@ -197,6 +251,8 @@ class LibraryQueries:
         result = set(_strings(inventory[concept_id].get("children_ids")))
         result.update(row["_id"] for row in inventory.values()
                       if row.get("parent_id") == concept_id)
+        result.update(row["_id"] for row in inventory.values()
+                      if _pending_parent(row) == concept_id)
         return result & inventory.keys()
 
     def _descendants(self, inventory, concept_id):
@@ -291,18 +347,25 @@ class LibraryQueries:
                                 "score": {"boost": {"value": weight}}}}
                       for field, weight in (("name", 6), ("aliases", 5), ("terms", 4),
                                             ("description", 3), ("search_text", 1))]
+            should.append({"embeddedDocument": {"path": "claims", "operator": {"compound": {
+                "must": [{"text": {"query": query, "path": "claims.text",
+                                      "score": {"boost": {"value": 1}}}}],
+                "mustNot": [{"equals": {"path": "claims.deleted", "value": True}}],
+            }}}})
             pipeline = [{"$search": {"index": TEXT_INDEX, "compound": {
                 "filter": filters, "should": should, "minimumShouldMatch": 1}}},
                 {"$match": bson}, {"$limit": cap},
                 {"$set": {"score": {"$meta": "searchScore"}}}]
             try:
                 rows = list(self.collection.aggregate(pipeline, maxTimeMS=15000))
-                channels["keyword"] = {"ok": True, "atlas": True, "count": len(rows)}
+                channels["keyword"] = {"ok": True, "atlas": True, "count": len(rows),
+                                       "full_claim_text": True}
             except Exception as exc:
                 native_failed = True
                 rows = self._keyword_fallback(query, selected, cap)
                 channels["keyword"] = {"ok": True, "atlas": False, "fallback": True,
-                                       "count": len(rows), "error_type": type(exc).__name__}
+                                       "count": len(rows), "error_type": type(exc).__name__,
+                                       "full_claim_text": True}
             batches.append(("keyword", rows))
         merged = {}
         for channel, rows in batches:
@@ -338,13 +401,18 @@ class LibraryQueries:
                 "diagnostics": {"channels": channels, "scope": response_scope,
                                 "per_channel_candidate_limit": cap,
                                 "ranked_result_limit": top,
+                                "semantic_input_max_utf8_bytes": MAX_SEARCH_BYTES,
+                                "semantic_truncated_hits": sum(
+                                    row["semantic_text_truncated"] is True for row in hits),
+                                "semantic_coverage_unknown_hits": sum(
+                                    row["semantic_text_truncated"] is None for row in hits),
                                 "enumeration": False},
                 "candidate_only": True}
 
     def _keyword_fallback(self, query, selected, cap):
         terms = _terms(query)
         rows = []
-        projection = {**_GRAPH_FIELDS, "search_text": 1}
+        projection = {**_GRAPH_FIELDS, "search_text": 1, "claims.text": 1, "claims.deleted": 1}
         for doc in self.collection.find({"managed_by": MANAGED_BY, "_id": {"$in": sorted(selected)}},
                                         projection):
             if not _live(doc):
@@ -352,7 +420,9 @@ class LibraryQueries:
             counts = Counter(re.findall(r"[^\W_]+", unicodedata.normalize(
                 "NFKC", " ".join([str(doc.get("name", "")), str(doc.get("description", "")),
                                   str(doc.get("search_text", "")),
-                                  *_strings(doc.get("aliases")), *_strings(doc.get("terms"))])
+                                  *_strings(doc.get("aliases")), *_strings(doc.get("terms")),
+                                  *(str(claim.get("text", "")) for claim in doc.get("claims", [])
+                                    if isinstance(claim, dict) and not claim.get("deleted"))])
             ).casefold()))
             score = sum(1 + math.log(counts[term]) for term in terms if counts[term])
             if score:
@@ -375,14 +445,19 @@ class LibraryQueries:
             edges = []
             if doc.get("parent_id") in inventory:
                 edges.append((doc["parent_id"], "parent"))
-            edges.extend((x, "child") for x in self._children(inventory, current))
+            pending_parent = _pending_parent(doc)
+            if pending_parent in inventory:
+                edges.append((pending_parent, "pending-parent"))
+            edges.extend((x, "pending-child" if _pending_parent(inventory[x]) == current
+                          else "child") for x in self._children(inventory, current))
             for field, kind in (("related_ids", "related"), ("adjacent_ids", "adjacent"),
                                 ("prerequisite_ids", "prerequisite"),
                                 ("dependent_ids", "dependent")):
                 edges.extend((x, kind) for x in _strings(doc.get(field)) if x in inventory)
-            parent = doc.get("parent_id")
-            if parent in inventory:
-                edges.extend((x, "sibling") for x in self._children(inventory, parent) - {current})
+            for parent in {doc.get("parent_id"), pending_parent} & inventory.keys():
+                edges.extend((x, "sibling" if doc.get("parent_id") == parent
+                              and inventory[x].get("parent_id") == parent else "pending-sibling")
+                             for x in self._children(inventory, parent) - {current})
             for target, kind in sorted(edges):
                 if target not in found:
                     found[target] = {"depth": distance + 1, "via": [kind]}
@@ -498,6 +573,8 @@ class LibraryQueries:
                 reasons.append("missing-current-gate-and-projection-proof")
             if completion.get("stale"):
                 reasons.append("stale-gate-binding")
+            if _pending_parent(doc):
+                reasons.append("canonical-family-pending")
             if concept_id in holds:
                 reasons.append("held-or-in-progress")
             if reasons:
@@ -512,10 +589,11 @@ class LibraryQueries:
             raise KeyError("No such active concept")
         target = inventory[concept_id]
         parent_id = target.get("parent_id")
+        pending_parent = _pending_parent(target)
         peers = set()
-        if parent_id in inventory:
-            peers |= self._children(inventory, parent_id) - {concept_id}
-            peers.add(parent_id)
+        for seed_parent in {parent_id, pending_parent} & inventory.keys():
+            peers |= self._children(inventory, seed_parent) - {concept_id}
+            peers.add(seed_parent)
         peers |= set(_strings(target.get("related_ids")))
         peers |= set(_strings(target.get("adjacent_ids")))
         packets, fresh_sources, candidates = [], [], []
@@ -598,7 +676,9 @@ class LibraryQueries:
                                    for x in fresh_sources}:
                         fresh_sources.append(entry)
         return {"concept_id": concept_id, "concept_revision": target.get("revision"),
-                "parent_id": parent_id, "peers": packets, "source_candidates": candidates[:64],
+                "parent_id": parent_id, "pending_parent_id": pending_parent,
+                "peer_selection_includes_pending_family": bool(pending_parent),
+                "peers": packets, "source_candidates": candidates[:64],
                 "fresh_source_seeds": fresh_sources, "omitted_oversized_peers": omitted,
                 "truncated": len(peers) > limit or bool(omitted),
                 "independent_origins_not_multiplied": True,

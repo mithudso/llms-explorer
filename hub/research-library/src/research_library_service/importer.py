@@ -249,9 +249,13 @@ def read_inventory(tree_paths, queue_paths=None, score_paths=None, artifact_path
         declared_slug = first.get("slug")
         slug = declared_slug if isinstance(declared_slug, str) and re.fullmatch(
             r"[a-z0-9][a-z0-9-]{0,199}", declared_slug) else _slug(name)
+        original_slug = slug
+        if len(slug) > 160:
+            slug = slug[:147].rstrip("-") + "-" + _hash(key)[:12]
+            warnings.append({"kind": "slug-shortened", "identity": _hash(key)})
         if slug in used_slugs and used_slugs[slug] != key:
             warnings.append({"kind": "slug-collision", "identity": _hash(key)})
-            slug = slug[:180] + "-" + _hash(key)[:12]
+            slug = slug[:147].rstrip("-") + "-" + _hash(key)[:12]
         used_slugs[slug] = key
         group_ids[key] = "c:" + slug
         researched = bool(group["nodes"])
@@ -263,6 +267,8 @@ def read_inventory(tree_paths, queue_paths=None, score_paths=None, artifact_path
             "legacy_validation": copy.deepcopy(first.get("claimValidation")),
             "qualification": "unreviewed-import", "imported_from": "canonical-inventory",
         }
+        if original_slug != slug:
+            metadata["original_slug"] = original_slug
         doc = {
             "name": name, "slug": slug,
             "aliases": list(dict.fromkeys(x for x in group["names"] if x != name)),
@@ -344,7 +350,9 @@ def read_inventory(tree_paths, queue_paths=None, score_paths=None, artifact_path
     for key, group in sorted(groups.items()):
         if key not in group_ids:
             continue
-        parents = sorted(set(group["parents"]), key=lambda value: value[0])
+        # Source order is authoritative within a priority. Converting to a set
+        # made conflicting imported parent selection depend on PYTHONHASHSEED.
+        parents = sorted(dict.fromkeys(group["parents"]), key=lambda value: value[0])
         candidates = [(rank, group_ids.get(identities.find(name))) for rank, name in parents]
         candidates = [(rank, value) for rank, value in candidates
                       if value and value != group_ids[key]]
@@ -470,9 +478,21 @@ def _snapshot_sources(store, inventory, source_library_path):
 def import_library(store, *, tree_paths, queue_paths=None, score_paths=None, artifact_paths=None,
                    repo=None, source_library_path=None, dry_run=False, replace_import=False):
     """Owner-local resumable import preserving local edits and held endpoints."""
+    inventory = read_inventory(tree_paths, queue_paths, score_paths, artifact_paths, repo=repo)
+    return import_inventory(store, inventory, source_library_path=source_library_path,
+                            dry_run=dry_run, replace_import=replace_import)
+
+
+def import_inventory(store, inventory, *, source_library_path=None,
+                     dry_run=False, replace_import=False, family_applier=None, progress=None):
+    """Apply an owner-local preflight inventory; never expose this through MCP."""
     if type(dry_run) is not bool or type(replace_import) is not bool:
         raise ValueError("Import switches must be booleans")
-    inventory = read_inventory(tree_paths, queue_paths, score_paths, artifact_paths, repo=repo)
+    if any(value is not None and not callable(value) for value in (family_applier, progress)):
+        raise ValueError("Owner-local import callbacks must be callable")
+    if not isinstance(inventory, dict) or any(key not in inventory for key in (
+            "concepts", "relations", "inputs", "warnings", "source_identity", "counts")):
+        raise ValueError("A complete owner-local inventory is required")
     receipt = {"counts": inventory["counts"], "inputs": inventory["inputs"],
                "warnings": list(inventory["warnings"]), "dry_run": dry_run,
                "imported": 0, "unchanged": 0, "skipped": [], "relations_updated": 0,
@@ -483,7 +503,7 @@ def import_library(store, *, tree_paths, queue_paths=None, score_paths=None, art
     receipt["snapshots"] = _snapshot_sources(store, inventory, source_library_path)
     identity = inventory["source_identity"]
     eligible, pending_queue = set(), []
-    for doc in inventory["concepts"]:
+    for position, doc in enumerate(inventory["concepts"], 1):
         payload = copy.deepcopy(doc)
         proof = payload.pop("artifact_proof", None)
         fingerprint = _hash(payload)
@@ -508,8 +528,20 @@ def import_library(store, *, tree_paths, queue_paths=None, score_paths=None, art
             receipt["skipped"].append({"concept_id": "c:" + payload["slug"],
                                        "reason": "import-conflict-or-invalid",
                                        "error_type": type(exc).__name__})
+        finally:
+            if progress is not None:
+                progress({"phase": "concepts", "processed": position,
+                          "total": len(inventory["concepts"]), "imported": receipt["imported"],
+                          "unchanged": receipt["unchanged"], "skipped": len(receipt["skipped"])})
+    relations = inventory["relations"]
+    if family_applier is not None:
+        family = family_applier(store, relations, eligible, identity)
+        receipt["relations_updated"] = family["updated"]
+        receipt["relations_skipped"] = family["skipped"]
+        receipt["relations_unchanged"] = family.get("unchanged", 0)
+        relations = []
     with store.importing(identity):
-        for edge in inventory["relations"]:
+        for edge in relations:
             child, parent = edge["concept_id"], edge["target_id"]
             if child not in eligible or parent not in eligible:
                 receipt["relations_skipped"].append({**edge, "reason": "endpoint-not-import-managed"})
@@ -553,7 +585,7 @@ def import_library(store, *, tree_paths, queue_paths=None, score_paths=None, art
                         receipt["warnings"].append({"kind": "import-lease-release-pending"})
     # Materialize the initial family before applying its imported queue holds.
     # Holds already present in Mongo remain effective throughout reconciliation.
-    for concept_id, entries, cvs in pending_queue:
+    for position, (concept_id, entries, cvs) in enumerate(pending_queue, 1):
         tags = [row.get("tags") or {} for row in entries]
         states = [str(row.get("status", row.get("state", "queued"))).casefold()
                   for row in tags]
@@ -572,6 +604,12 @@ def import_library(store, *, tree_paths, queue_paths=None, score_paths=None, art
         except Exception as exc:
             receipt["queue_skipped"].append({
                 "concept_id": concept_id, "error_type": type(exc).__name__})
+        finally:
+            if progress is not None:
+                progress({"phase": "queue", "processed": position, "total": len(pending_queue),
+                          "imported": receipt["queue_imported"],
+                          "unchanged": receipt["queue_unchanged"],
+                          "skipped": len(receipt["queue_skipped"])})
     receipt["partial"] = bool(receipt["skipped"] or receipt["relations_skipped"]
                               or receipt["snapshots"]["failed"] or receipt["queue_skipped"])
     return receipt

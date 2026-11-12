@@ -98,6 +98,15 @@ either a topic whose descendants define the scope or explicit `scope_ids`.
 Explicit scope IDs restrict either breadth. The service bounds explicit scope
 lists to 100 concepts and internal descendant expansion to 10,000 concepts.
 
+Scoped discovery includes qualified canonical placement candidates when a hold
+prevented physical reconciliation. `related` labels these `pending-parent`,
+`pending-child`, or `pending-sibling`; summaries expose
+`family_reconciliation_pending` and `pending_parent_id`. Actual `parent_id`
+remains the physical working relationship. The incomplete view adds
+`canonical-family-pending`. These are navigation leads with no factual-support
+credit. A normal explicit parent/child edit overrides inherited placement; use
+the existing leased relation tool rather than editing internal flags.
+
 Hybrid fusion uses reciprocal rank fusion (`k=60`), semantic weight 1.2 and
 keyword/exact weight 1.0, plus exact-name/alias and lexical-overlap boosts.
 Candidate pools are bounded. Native text failure can fall back to a bounded
@@ -106,6 +115,14 @@ pretending embeddings succeeded. Inspect `diagnostics` before interpreting an
 empty result as absence. The active inventory safety limit is 100,000 rows;
 scope/inventory overflow fails explicitly rather than silently claiming full
 coverage.
+
+The semantic input retains its 30,000 UTF-8 byte budget. A result's
+`semantic_text_truncated` is true when later text falls outside that input,
+false when it fits, or null when legacy coverage is unknown. Keyword retrieval
+also indexes complete active `claims.text` through Atlas embedded-document
+search and omits deleted claims. Its degraded local fallback includes full
+active claim text too. Run both keyword and semantic searches before judging
+novelty; a semantic miss alone cannot exclude a late claim.
 
 Frontier CVS uses five 0–5 axes:
 `0.25 relevance + 0.25 usefulness + 0.20 novelty + 0.15 interest + 0.15 viability`.
@@ -204,7 +221,9 @@ token. Poll `research_publication_status` using its returned job ID.
 The fixed repository adapter checks exact claim identity/evidence, all-claim
 preflight, independent semantic review, canonical artifact validity, current
 scope and final projections. A failed gate, missing provider, incomplete scope
-or failed projection remains incomplete. A caller-authored `SUPPORTED` label,
+or failed projection remains incomplete. Unresolved canonical family placement
+also withholds publication until safely reconciled or deliberately overridden
+by an ordinary working family edit. A caller-authored `SUPPORTED` label,
 external URL, arbitrary receipt or requested `complete` field cannot substitute
 for those checks. The complete/finalization authority is not exposed as a
 general remote CRUD endpoint.

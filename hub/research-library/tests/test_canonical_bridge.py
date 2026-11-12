@@ -49,6 +49,18 @@ def test_provider_environment_has_no_database_service_or_voyage_capability():
     assert clean_provider_environment(environment) == {"PATH": "/usr/bin", "HOME": "/private/home"}
 
 
+def test_canonical_frontier_pack_names_bound_long_labels_without_changing_short_ids(bridge, monkeypatch):
+    shared = SimpleNamespace(HUB_DIR=bridge.hub,
+        slugify=lambda value: value.lower().replace(" ", "-"))
+    monkeypatch.setattr(module, "load_module", lambda *args:
+                        SimpleNamespace(load_shared=lambda **kwargs: shared))
+    runtime = bridge._shared()
+    assert runtime.slugify("Stable Short Identity") == "stable-short-identity"
+    first = runtime.slugify("Long Frontier Label " * 30 + "First")
+    second = runtime.slugify("Long Frontier Label " * 30 + "Second")
+    assert len(first) <= 160 and len(second) <= 160 and first != second
+
+
 def test_legacy_paused_and_ranked_stop_holds_are_not_stolen(bridge):
     store = bridge.store
     concept = store.concept_create("Held Concept", aliases=["Exact Alias"])
@@ -168,6 +180,17 @@ def test_caller_receipt_cannot_select_arbitrary_artifact(bridge, tmp_path):
     concept, _ = draft(bridge)
     with pytest.raises(ValueError, match="outside the trusted"):
         bridge.completion_verifier(concept, {"artifact_path": str(tmp_path / "forged.json")})
+
+
+def test_pending_canonical_family_cannot_publish_until_explicitly_reconciled(bridge):
+    concept, token = draft(bridge)
+    concept = bridge.store.concept_update(concept["_id"], {"metadata": {
+        "owner_import": {"canonical_parent_id": "c:held-parent"}}}, concept["revision"], token)
+    with pytest.raises(Conflict, match="family reconciliation"):
+        bridge.publish(bridge.store, concept["_id"], concept["revision"], token, "mcp:agent-a")
+    with pytest.raises(ValueError, match="family reconciliation"):
+        bridge.completion_verifier(concept, {})
+    assert bridge.store.lease_list()["leases"][0]["owner"] == "mcp:agent-a"
 
 
 @pytest.mark.parametrize("field,value", [("summary", "An unreviewed replacement"),

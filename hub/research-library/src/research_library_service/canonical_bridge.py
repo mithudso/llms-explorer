@@ -217,9 +217,21 @@ class CanonicalBridge:
         shared = adapter.load_shared(library_coordination=False)
         if Path(shared.HUB_DIR).resolve() != self.hub:
             raise ValueError("The canonical runtime hub differs from the trusted service configuration")
+        # Imported frontier labels can exceed a filesystem component's limit.
+        # Preserve every existing short/curated identity; bound newly generated
+        # pack names before the canonical compiler allocates them.
+        original_slugify = shared.slugify
+        def bounded_slugify(value):
+            slug = original_slugify(value)
+            return (slug if len(slug) <= 160 else
+                    slug[:147].rstrip("-") + "-" + digest(slug.encode())[:12])
+        shared.slugify = bounded_slugify
         return shared
 
     def completion_verifier(self, concept, receipt):
+        from .publication import pending_family
+        if pending_family(concept):
+            raise ValueError("Canonical family reconciliation is still pending")
         if not isinstance(receipt, dict):
             raise ValueError("A trusted canonical completion receipt is required")
         path = Path(receipt.get("artifact_path", "")).expanduser().resolve()
@@ -327,6 +339,9 @@ class CanonicalBridge:
             return self.publication_status(store, job_id)
         if document["revision"] != expected_revision:
             raise Conflict("Concept revision changed before publication")
+        from .publication import pending_family
+        if pending_family(document):
+            raise Conflict("Canonical family reconciliation is still pending")
         if not any(not c.get("deleted") for c in document.get("claims", [])) or document.get("deleted"):
             raise ValueError("Research publication requires active claims")
         if document.get("scope_assessment", {}).get("ready_for_full_scope_export") is not True:

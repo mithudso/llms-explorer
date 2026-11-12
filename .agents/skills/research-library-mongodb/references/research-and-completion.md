@@ -115,6 +115,12 @@ incomplete work as drafts with explicit gaps and continuation. Include factual
 summary, disagreements, and open questions in the concept so the trusted bridge
 can gate the complete persisted result.
 
+An unresolved `canonical-family-pending` placement withholds publication. Safely
+reconcile it under all endpoint leases, or make the deliberate working family
+edit authorized by the assignment. The ordinary relation tool records that
+override internally; no client patches an authority flag. Preserve a held
+placement as an incomplete candidate rather than stealing its reservation.
+
 Use your current concept revision and owned lease:
 
 ```json

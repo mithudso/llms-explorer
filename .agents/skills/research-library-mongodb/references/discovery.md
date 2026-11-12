@@ -106,6 +106,14 @@ that concept and its primary descendants; related, adjacent, or prerequisite
 neighbors are not automatically in this subtree. Use explicit `scope_ids` when
 investigating a different bounded set (at most 100 IDs per MCP request).
 
+Canonical placement awaiting a protected family edit remains a candidate path
+for scoped discovery. Related traversal labels it `pending-parent`,
+`pending-child`, or `pending-sibling`; summaries expose
+`family_reconciliation_pending` and `pending_parent_id`. The physical
+`parent_id` remains unchanged. Keep `canonical-family-pending` in the incomplete
+ledger. A normal explicit working parent/child edit overrides inherited
+placement; do not patch internal flags to clear it or bypass a hold.
+
 For each candidate and its 2–3 distinctive variants, execute all four channels:
 
 ```json
@@ -137,6 +145,13 @@ does not establish a semantic miss. Search results are bounded candidates and
 can be truncated; absence from the top results is not evidence of absence.
 Keep GAP provisional when required search channels or inventory pages are
 unavailable. Do not create a likely duplicate to work around an outage.
+
+The semantic input is bounded to 30,000 UTF-8 bytes. Check
+`semantic_text_truncated`: true means later content lies outside that input;
+null means legacy coverage is unknown. Keyword retrieval includes full active
+claim text, including late claims, through Atlas embedded-document search or
+the explicitly degraded local fallback. This is another reason the four dedup
+calls are required before claiming a gap.
 
 ## Peer wording and source leads
 
