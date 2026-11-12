@@ -73,6 +73,9 @@ EXCLUDED_NAMES = {
     "id_rsa", "id_ed25519", "registry-manifest.json",
 }
 SECRET_SUFFIXES = {".pem", ".key", ".p12", ".pfx", ".keystore"}
+_FIXTURE_DIRS = {"fixtures", "testdata", "test-data", "test_fixtures", "eval-fixtures"}
+_DATED_RUN = re.compile(r"(?:physical-cold|feedback-corrected-terminal|run|session|benchmark)-20\d{2}-\d{2}-\d{2}")
+_RUN_DATA_SUFFIXES = {".json", ".jsonl", ".txt", ".csv", ".gz", ".bin", ".npy", ".npz"}
 SECRET_PATTERNS = [
     re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----[ \t\r\n]+"
                rb"[A-Za-z0-9+/=\r\n]{80,}"),
@@ -133,6 +136,26 @@ def _excluded(path: PurePosixPath) -> str | None:
         return "excluded-name"
     if path.suffix.lower() in SECRET_SUFFIXES:
         return "credential-file-type"
+    if _FIXTURE_DIRS.intersection(part.lower() for part in path.parts):
+        return None
+    lower = path.name.lower()
+    parts = {part.lower() for part in path.parts}
+    if "raw-state" in parts:
+        return "operational-raw-state"
+    if lower.startswith("terminal-bundle.") or lower.endswith("-full-work-files.txt"):
+        return "operational-terminal-or-workspace-dump"
+    if re.search(r"\.log(?:\.(?:gz|xz|bz2|zst))?$", lower):
+        return "operational-run-log"
+    if re.search(r"(?:^|[._-])(?:stdout|stderr)\.(?:jsonl|json|txt)(?:\.(?:gz|xz|bz2|zst))?$", lower):
+        return "operational-worker-output"
+    if ("transcripts" in parts or "transcript" in parts
+            or re.fullmatch(r"(?:.+[._-])?transcripts?\.(?:jsonl|json|txt|md)(?:\.gz)?", lower)):
+        # Fetchers and other source code in a transcripts package remain usable.
+        if path.suffix.lower() in {".json", ".jsonl", ".txt", ".md", ".gz"}:
+            return "operational-transcript"
+    if (any(_DATED_RUN.fullmatch(part) for part in path.parts)
+            and path.suffix.lower() in _RUN_DATA_SUFFIXES):
+        return "operational-dated-run-output"
     return None
 
 

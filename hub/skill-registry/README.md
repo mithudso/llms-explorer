@@ -202,6 +202,9 @@ Ingestion accepts resource directories belonging to isolated discovered skills
 or the administrator's explicit `resource_roots` configuration. Shared library
 roots and untrusted `Resource directory:` redirects publish guide-only receipts.
 Excluded credentials, caches, symlinks and oversized files are accounted for.
+Generated run logs, worker output, transcripts and raw-state dumps are excluded.
+Source scripts, deliberate evaluation fixtures, final Markdown reports and
+portable templates remain eligible resources.
 An exclusion is never presented as a complete portable resource bundle.
 
 Use a private environment file, outside Git, for runtime settings:

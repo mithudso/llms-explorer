@@ -3,7 +3,7 @@
 import copy
 import json
 import threading
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -16,6 +16,7 @@ from skill_registry.mongo_store import (
     SEARCH_INDEXES,
     VECTOR_INDEX,
     MongoStore,
+    _excluded,
     _has_secret,
 )
 
@@ -508,3 +509,54 @@ def test_cancellation_in_resource_collection_does_not_publish_partial_skill(
     assert result["cancelled"] and result["unattempted"] == 1 and result["ingested"] == 0
     assert not result["failed"] and not store.collection.docs
     assert not store._pending_chunks and not store._pending_blobs
+
+
+@pytest.mark.parametrize("path", [
+    "references/harness/docs/physical-cold-2026-10-01/benchmark.nv.log",
+    "references/harness/docs/physical-cold-2026-10-01/workers/worker.stdout.jsonl",
+    "references/harness/docs/feedback-corrected-terminal-2026-10-01/terminal-bundle.json.gz",
+    "references/harness/docs/physical-cold-2026-10-01/raw-state/arm.json",
+    "references/harness/docs/physical-cold-2026-10-01/worker.gpu-evidence.json",
+    "references/harness/docs/egpu-full-work-files.txt",
+    "runs/worker.stderr.jsonl",
+    "runs/worker.stdout.jsonl.gz",
+    "logs/server.log.zst",
+    "transcripts/session.md",
+    "session-transcript.jsonl",
+])
+def test_generated_operational_artifacts_are_not_skill_resources(path):
+    assert _excluded(PurePosixPath(path)).startswith("operational-")
+
+
+@pytest.mark.parametrize("path", [
+    "references/harness/docs/physical-cold-2026-10-01/final-report.md",
+    "references/harness/docs/physical-cold-2026-10-01/plot.png",
+    "references/harness/docs/physical-cold-2026-10-01/reproduce.py",
+    "scripts/workers/worker.py",
+    "scripts/workers/settings.json",
+    "scripts/transcripts/fetch.py",
+    "evals/trigger-corpus.jsonl",
+    "fixtures/worker.stdout.jsonl",
+    "fixtures/physical-cold-2026-10-01/raw-state/input.log",
+    "assets/reference.pptx",
+    "assets/font.woff2",
+])
+def test_operational_exclusions_preserve_sources_reports_fixtures_and_assets(path):
+    assert _excluded(PurePosixPath(path)) is None
+
+
+def test_ingestion_records_operational_exclusions_without_reading_or_copying_artifacts(
+        store, roots, skill, tmp_path):
+    run = skill / "references" / "harness" / "docs" / "physical-cold-2026-10-01"
+    run.mkdir(parents=True)
+    (run / "worker.stdout.jsonl").write_text("PRIVATE OPERATIONAL TRACE")
+    (run / "final-report.md").write_text("Portable final report")
+    result = store.ingest(Catalog(tmp_path / "catalog", roots))
+    assert result["ingested"] == 1
+    doc = next(iter(store.collection.docs.values()))
+    paths = {resource["path"] for resource in doc["resources"]}
+    assert "references/harness/docs/physical-cold-2026-10-01/final-report.md" in paths
+    assert not any(path.endswith(".jsonl") for path in paths)
+    assert any(row["reason"].startswith("operational-") for row in doc["exclusions"])
+    assert all(b"PRIVATE OPERATIONAL TRACE" not in chunk["data"]
+               for chunk in store.resources.docs.values())
