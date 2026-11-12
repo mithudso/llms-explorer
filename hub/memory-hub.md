@@ -1,3 +1,12 @@
+## v1.0.4 - 2026-11-12
+
+- Delta: v1.0.2 to v1.0.3 (preparation), then v1.0.3 to v1.0.4 (verification); complete source checks for the single-file canonical llms reader prerequisite for TASK-1462.
+- Original trigger: the graph importer skipped a manifest-bearing pack when only llms.txt exists. Add a final fallback after llms-facts.txt and llms-full.txt, with unchanged containment, hashes and unreviewed qualification.
+- Ownership: isolated fix/research-expertise-single-llms-20261111 branch. Preserve the divergent shared checkout and every other task. No database write, embedding run, installed service update or scheduler change in this source-delivery subtask.
+- Completed: fallback facts/full/llms.txt with shared containment; regression tests preserve canonical Unicode/CRLF bytes, hashes, exact spans and unreviewed qualification, reject external single-file symlinks and retain facts/full priority. Package patch0.2.2.
+- Verification: 21 corpus tests passed; complete standalone suite 133 passed / 1 skipped; Ruff and public privacy gate passed; diff check passed.
+- Remaining: source PR/checks/merge, then parent installation/graph acceptance. No installed behavior is claimed.
+
 ## v1.0.2 - 2026-11-08
 
 - TASK-808 publication privacy check found three operator-denylist matches in historical continuation notes. This update removes the private mounted-root spelling here and a provider identifier in the root memory. Existing operational outcomes and remaining work stay intact.

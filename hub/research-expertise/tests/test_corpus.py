@@ -30,6 +30,7 @@ def test_one_canonical_rendering_and_no_research_or_staging(tmp_path):
     path = pack(concepts)
     (path / "llms-full.txt").write_text("Duplicate rendering")
     (path / "llms-small.txt").write_text("Another duplicate")
+    (path / "llms.txt").write_text("Single-file or index rendering")
     pack(concepts, ".hidden")
     pack(concepts, "staging")
     pack(tmp_path / "research", "other")
@@ -115,7 +116,38 @@ def test_full_fallback_without_duplicate_small(tmp_path):
     path = pack(tmp_path)
     (path / "llms-facts.txt").unlink()
     (path / "llms-full.txt").write_text("Full source")
+    (path / "llms.txt").write_text("Index rendering")
     assert next(iter_documents(tmp_path))["relative_path"] == "topic.llms/llms-full.txt"
+
+
+def test_single_file_pack_preserves_canonical_bytes_and_qualification(tmp_path):
+    text = "# Single-file concept\r\n\r\n## Facts\r\n- Café evidence 🧠.\r\n"
+    path = pack(tmp_path, research_status="SUPPORTED", mode="single-file")
+    (path / "llms-facts.txt").unlink()
+    (path / "llms.txt").write_bytes(text.encode("utf-8"))
+    (path / "llms-small.txt").write_text("Must not import this alternate rendering")
+
+    docs = list(iter_documents(tmp_path))
+    assert len(docs) == 1
+    doc = docs[0]
+    assert doc["relative_path"] == "topic.llms/llms.txt"
+    assert doc["text"] == text
+    assert doc["sha256"] == hashlib.sha256(text.encode("utf-8")).hexdigest()
+    assert doc["qualification"] == "unreviewed"
+    assert doc["claimed_status"] == "SUPPORTED"
+    chunks = chunk_document(doc, max_chars=32, overlap=4)
+    assert all(chunk["text"] == text[chunk["start"] : chunk["end"]] for chunk in chunks)
+    assert chunks[-1]["end"] == len(text)
+
+
+def test_single_file_fallback_cannot_follow_external_prose_symlink(tmp_path):
+    root = tmp_path / "corpus"
+    path = pack(root)
+    (path / "llms-facts.txt").unlink()
+    outside = tmp_path / "private.txt"
+    outside.write_text("Private external prose")
+    (path / "llms.txt").symlink_to(outside)
+    assert list(iter_documents(root)) == []
 
 
 def test_urls_strip_markdown_closers_preserve_balanced_parentheses():

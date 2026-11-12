@@ -10,7 +10,8 @@ remote embedding API, legacy indexer or generated research is required.
 The canonical files remain the single source of truth. This database is a
 rebuildable projection, not another authoring store. Ingestion reads immediate
 `llms-concepts/*.llms/manifest.json` packs and prefers `llms-facts.txt`, falling
-back to `llms-full.txt`. It excludes backups, raw source snapshots, research-run
+back to `llms-full.txt`, then `llms.txt` for v3 single-file packs. It imports only
+one rendering per pack. It excludes backups, raw source snapshots, research-run
 staging, alternate small/full renderings and prompts. Packs without a manifest
 or prose are outside this initial scope. URLs are document citations; they do
 not establish per-claim evidentiary support.
