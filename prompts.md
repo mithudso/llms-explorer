@@ -1979,3 +1979,8 @@ Scope: validate factual auxiliary prose; preserve canonical evidence with option
 - User request:
   - Resolve all existing MongoDB concept-tree areas through independent evidence review before expanding the frontier, including Voyage AI.
 - This delivery: only the accepted Infrastructure-as-code alert configuration scope; preserve other research, holds and queues.
+
+## Prompt v155 - 2026-11-12T23:24:53.806137+00:00
+- User request:
+  - Resolve all existing MongoDB concept-tree areas through independent evidence review before expanding the frontier, including Voyage AI.
+- This delivery: only the accepted Atlas Trigger replacement with change-stream consumers scope; preserve other research, holds and queues.
