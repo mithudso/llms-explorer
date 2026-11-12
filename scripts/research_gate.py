@@ -7,7 +7,9 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import re
+import shutil
 from collections import Counter
 from copy import deepcopy
 from datetime import UTC, datetime
@@ -706,6 +708,101 @@ def verify_completion_scope(manifest: dict) -> None:
         raise ValueError("completion requires the full commissioned scope; its assessment is not ready")
 
 
+MISSING_CODEX_BINARY = "codex binary not found; set DR_CODEX_BIN or use --dry-run"
+
+
+def worker_startup_error(shared) -> str | None:
+    """Check the executor before invoking it, without changing a semantic receipt."""
+    lookup = getattr(shared, 'claude_binary', None)
+    if not callable(lookup):
+        return None  # Portable callers may supply their own run_agent transport.
+    binary = lookup()
+    resolved = shutil.which(str(binary)) if binary else None
+    if not resolved or not Path(resolved).is_file() or not os.access(resolved, os.X_OK):
+        return "research worker executable unavailable; configure its installed binary before review"
+    return None
+
+
+def unstarted_codex_recovery(shared, manifest: dict, packet: dict) -> dict | None:
+    """Recognize one archived missing-binary startup, never a zero-usage model failure."""
+    prior = manifest.get('gate', {})
+    if (prior.get('startup_recovery') is not None
+            or prior.get('error') != MISSING_CODEX_BINARY or prior.get('is_error') is not True
+            or prior.get('validated') is not False or prior.get('tokens') != 0
+            or prior.get('seconds') != 0 or prior.get('schema') != packet['schema']
+            or prior.get('packet_sha256') != packet['packet_sha256']
+            or prior.get('review_binding') != packet['review_binding']):
+        return None
+    run = shared.run_dir(manifest['slug']).resolve()
+    attempts = run / 'gate/attempts'
+    try:
+        previous = (run / prior['attempt']).resolve()
+        if previous.parent != attempts or not previous.is_dir():
+            return None
+        receipt_path, packet_path = previous / 'validation.json', previous / 'packet.json'
+        archived = json.loads(packet_path.read_text())
+        if (json.loads(receipt_path.read_text()) != prior or archived != packet
+                or digest({key: value for key, value in archived.items() if key != 'packet_sha256'}) != packet['packet_sha256']
+                or preflight(archived, previous) or (previous / 'verdicts.json').exists()
+                or (previous / 'response.json').exists()):
+            return None
+        agent = manifest.get('agents', {}).get('gate', {})
+        worker_attempts = agent.get('attempts', [])
+        if len(worker_attempts) != 1:
+            return None
+        worker = (run / worker_attempts[0]['path']).resolve()
+        if worker.parent != run / 'agents/attempts/gate' or not worker.is_dir():
+            return None
+        worker_path, summary_path = worker / 'worker.json', worker / 'validated-summary.json'
+        summary = json.loads(summary_path.read_text())
+        if (json.loads(worker_path.read_text()) != summary
+                or {key: value for key, value in agent.items() if key not in ('attempts', 'counts')} != summary
+                or summary.get('transport') != 'codex-exec' or summary.get('result') != MISSING_CODEX_BINARY
+                or summary.get('is_error') is not True or summary.get('usage') != {}
+                or summary.get('tools') != [] or summary.get('num_turns') != 0
+                or summary.get('tokens') != 0 or summary.get('seconds') != 0
+                or summary.get('model') != prior.get('model') or summary.get('effort') != prior.get('effort')):
+            return None
+        if any((worker / name).read_bytes() for name in ('worker.events.jsonl', 'worker.log', 'worker.last-message.txt')):
+            return None
+        first_line = (worker / 'brief.md').read_text().splitlines()[0]
+        if first_line != f"Independently validate the canonical research claims in {packet_path}.":
+            return None
+        receipt_hash = digest(receipt_path.read_bytes())
+        recovery_key = digest([packet['schema'], packet['review_binding']])
+        if (run / 'gate/startup-recoveries' / (recovery_key + '.json')).exists():
+            return None
+        for marker in attempts.glob('*/startup-recovery.json'):
+            if json.loads(marker.read_text()).get('prior_validation_sha256') == receipt_hash:
+                return None
+        return {'schema': 'gate-startup-recovery/v1', 'recovery_key': recovery_key, 'prior_attempt': prior['attempt'],
+                'prior_validation_sha256': receipt_hash, 'packet_sha256': packet['packet_sha256'],
+                'review_binding': packet['review_binding'], 'worker_attempt': str(worker.relative_to(run)),
+                'worker_sha256': digest(worker_path.read_bytes()),
+                'validated_summary_sha256': digest(summary_path.read_bytes()),
+                'reason': 'Exact archived Codex missing-binary branch; no reviewer process or output existed.'}
+    except (OSError, ValueError, KeyError, TypeError, IndexError):
+        return None
+
+
+def reserve_startup_recovery(shared, manifest: dict, recovery: dict, root: Path) -> bool:
+    """Consume the one recovery before dispatch, including interrupted dispatches."""
+    target = shared.run_dir(manifest['slug']) / 'gate/startup-recoveries' / (
+        recovery['recovery_key'] + '.json')
+    target.parent.mkdir(parents=True, exist_ok=True)
+    record = {**recovery, 'recovery_attempt': str(root.relative_to(shared.run_dir(manifest['slug'])))}
+    try:
+        with target.open('x') as handle:
+            json.dump(record, handle, indent=2)
+            handle.write('\n')
+            handle.flush()
+            os.fsync(handle.fileno())
+    except FileExistsError:
+        return False
+    shared.atomic_write(root / 'startup-recovery.json', json.dumps(record, indent=2) + '\n')
+    return True
+
+
 def install(shared):
     original_create = shared._create_run
 
@@ -774,11 +871,21 @@ def install(shared):
                   {v['claim_id'] for v in packet.get('reused_verdicts', [])}]
         needs_model = bool(review or (packet['schema'] == STRICT_SCHEMA
                                      and not packet.get('reused_conflict_review')))
+        if needs_model and (startup_error := worker_startup_error(shared)):
+            receipt = {'schema': packet['schema'], 'attempt': str(root.relative_to(shared.run_dir(args.slug))),
+                       'packet_sha256': packet['packet_sha256'], 'review_binding': packet['review_binding'],
+                       'failure_stage': 'pre-model-startup', 'worker_invoked': False, 'error': startup_error}
+            shared.atomic_write(root / 'startup.json', json.dumps(receipt, indent=2) + '\n')
+            shared._print({'ok': False, **receipt})
+            return 1
         prior = manifest.get('gate', {})
+        startup_recovery = None
         if (needs_model and not format_retry and prior.get('is_error')
                 and prior.get('review_binding') == packet.get('review_binding')):
-            shared._print({'ok': False, 'error': 'unchanged failed packet; repair listed claims before another paid review'})
-            return 1
+            startup_recovery = unstarted_codex_recovery(shared, manifest, packet)
+            if startup_recovery is None or not reserve_startup_recovery(shared, manifest, startup_recovery, root):
+                shared._print({'ok': False, 'error': 'unchanged failed packet; repair listed claims before another paid review'})
+                return 1
         if review or (packet['schema'] == STRICT_SCHEMA and not packet.get('reused_conflict_review')):
             summary = shared.run_agent(manifest, "gate", brief(packet, root), args.model or "sonnet",
                                        args.effort or "medium", args.max_turns, args.agent_timeout)
@@ -817,6 +924,8 @@ def install(shared):
                    "packet_sha256": packet["packet_sha256"], "review_binding": packet.get("review_binding"), "finished": shared._now(),
                    "error": error, "model": summary.get("model"), "effort": summary.get("effort"),
                    **{key: summary.get(key) for key in ("cost_usd", "tokens", "seconds")}}
+        if startup_recovery is not None:
+            receipt['startup_recovery'] = startup_recovery
         shared.atomic_write(root / "validation.json", json.dumps(receipt, indent=2) + "\n")
         with shared.run_lock(args.slug):
             current = shared.load_manifest(args.slug)
