@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from skill_registry.installation_state import InstallationResolver
 
 
@@ -90,6 +92,74 @@ def test_user_owned_sources_continue_to_route_and_marketplace_only_does_not(tmp_
     assert resolver.classify(str(user), [installation(user)])["searchable"]
     marketplace = tmp_path / ".claude/plugins/marketplaces/market/plugins/example/skills/x/SKILL.md"
     assert not resolver.classify(str(marketplace), [installation(marketplace)])["searchable"]
+
+
+@pytest.mark.parametrize("structured", [False, True])
+def test_explicit_local_marketplace_is_not_a_user_overlay_without_installed_evidence(
+        tmp_path, structured):
+    market = tmp_path / ".cache/native-marketplace"
+    guide = market / "plugins/example/skills/workflow/SKILL.md"
+    guide.parent.mkdir(parents=True)
+    guide.write_text("Guide")
+    config = tmp_path / ".codex/config.toml"
+    config.parent.mkdir()
+    source = ('source = { source = "local", path = ' + json.dumps(str(market)) + ' }\n'
+              if structured else 'source_type = "local"\nsource = ' + json.dumps(str(market)) + '\n')
+    config.write_text('[marketplaces.native]\n' + source
+                      + '[plugins."example@native"]\nenabled = true\n')
+    result = InstallationResolver(home=tmp_path, native_plugins=[]).classify(
+        str(guide), [installation(guide, market, writable=False)])
+    assert not result["searchable"]
+    assert result["reasons"] == ["plugin-installation-unverified"]
+
+
+def test_native_local_marketplace_binding_routes_only_current_declared_entrypoints(tmp_path):
+    market = tmp_path / ".cache/native-marketplace"
+    root = market / "plugins/example"
+    guide = root / "skills/workflow/SKILL.md"
+    guide.parent.mkdir(parents=True)
+    guide.write_text("Guide")
+    write_json(root / "plugin.json", {"name": "example", "version": "1.0"})
+    config = tmp_path / ".codex/config.toml"
+    config.parent.mkdir()
+    config.write_text('[marketplaces.native]\nsource_type = "local"\nsource = '
+                      + json.dumps(str(market)) + '\n')
+    evidence = [{"pluginId": "example@native", "version": "1.0", "installed": True,
+                 "enabled": True, "source": {"source": "local", "path": str(root)}}]
+    resolver = InstallationResolver(home=tmp_path, native_plugins=evidence)
+    assert resolver.classify(str(guide), [installation(guide, market)])["searchable"]
+    archived = root / "skills/archive/workflow/SKILL.md"
+    assert not resolver.classify(str(archived), [installation(archived, market)])["searchable"]
+    evidence[0]["enabled"] = False
+    assert not InstallationResolver(home=tmp_path, native_plugins=evidence).classify(
+        str(guide), [installation(guide, market)])["searchable"]
+
+
+def test_local_marketplace_symlink_alias_keeps_its_canonical_source_nonrouting(tmp_path):
+    actual = tmp_path / "dev/marketplace"
+    guide = actual / "plugins/example/skills/workflow/SKILL.md"
+    guide.parent.mkdir(parents=True)
+    guide.write_text("Guide")
+    alias = tmp_path / "declared-marketplace"
+    alias.symlink_to(actual, target_is_directory=True)
+    config = tmp_path / ".codex/config.toml"
+    config.parent.mkdir()
+    config.write_text('[marketplaces.native]\nsource_type = "local"\nsource = '
+                      + json.dumps(str(alias)) + '\n')
+    assert not InstallationResolver(home=tmp_path, native_plugins=[]).classify(
+        str(guide), [installation(guide, actual)])["searchable"]
+
+
+@pytest.mark.parametrize("source", ["home", "relative", "remote"])
+def test_unqualified_marketplace_paths_do_not_reclassify_normal_user_sources(tmp_path, source):
+    value = str(tmp_path) if source == "home" else "./relative" if source == "relative" else "https://example.invalid/market"
+    config = tmp_path / ".codex/config.toml"
+    config.parent.mkdir()
+    config.write_text('[marketplaces.native]\nsource_type = "local"\nsource = '
+                      + json.dumps(value) + '\n')
+    guide = tmp_path / ".agents/skills/example/SKILL.md"
+    assert InstallationResolver(home=tmp_path, native_plugins=[]).classify(
+        str(guide), [installation(guide)])["searchable"]
 
 
 def test_configured_codex_version_pins_are_not_guessed_from_newest_cache(tmp_path):
