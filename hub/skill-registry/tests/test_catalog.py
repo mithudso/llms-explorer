@@ -46,6 +46,43 @@ def test_invalid_metadata_is_reported_not_routed(skill, roots, tmp_path):
     assert not catalog.lookup("frontmatter")["hits"]
 
 
+def test_missing_previously_known_root_preserves_catalog_and_aliases(skill, roots, tmp_path):
+    catalog = Catalog(tmp_path / "state", roots)
+    assert catalog.refresh()["counts"]["skills"] == 1
+    skill.parent.rename(tmp_path / "temporarily-unavailable")
+    result = catalog.refresh()
+    assert result["partial"]
+    assert result["counts"] == {"skills": 1, "installations": 1, "invalid_skills": 0}
+    assert result["root_access"] == [{"path": roots[0]["path"], "available": False,
+                                      "error_type": "FileNotFoundError"}]
+
+
+def test_absent_empty_default_root_is_explicit_without_discarding_available_scope(
+        skill, roots, tmp_path):
+    absent = tmp_path / "uninstalled-harness/skills"
+    catalog = Catalog(tmp_path / "state", [*roots, {"path": str(absent)}])
+    result = catalog.refresh()
+    assert not result["partial"] and result["counts"]["skills"] == 1
+    assert result["root_access"][-1] == {"path": str(absent), "available": False,
+                                        "error_type": "FileNotFoundError"}
+
+
+def test_dangling_previously_known_alias_preserves_catalog(tmp_path):
+    source = tmp_path / "source/example"
+    source.mkdir(parents=True)
+    (source / "SKILL.md").write_text("---\nname: example\ndescription: Source alias\n---\n")
+    root = tmp_path / "skills"
+    root.mkdir()
+    (root / "linked").symlink_to(source, target_is_directory=True)
+    catalog = Catalog(tmp_path / "state", [{"path": str(root)}])
+    assert catalog.refresh()["counts"]["skills"] == 1
+    source.rename(source.with_name("temporarily-unavailable"))
+    result = catalog.refresh()
+    assert result["partial"]
+    assert result["counts"] == {"skills": 1, "installations": 1, "invalid_skills": 0}
+    assert "unavailable symbolic-link source" in result["warnings"][0]
+
+
 @pytest.mark.parametrize("query,top", [("", 5), ("word", True), ("word", 21), ("x" * 2001, 5)])
 def test_search_bounds(tmp_path, query, top):
     with pytest.raises(ValueError):

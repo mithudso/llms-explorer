@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote
 
-from .catalog import Catalog, _codex_disabled, _frontmatter
+from .catalog import Catalog, _codex_disabled, _frontmatter, _root_access, _unavailable_alias
 from .routing_score import routing_score
 from .util import canonical, read_bounded, sha
 
@@ -66,6 +66,71 @@ SEARCH_INDEXES = {
     LEXICAL_INDEX: {"type": "search", "definition": LEXICAL_DEFINITION},
 }
 _MISSING = object()
+_GENERATED_FIELDS = {"managed_by", "schema", "sha256", "release_sha256", "guide", "resources",
+    "distribution_sha256", "exclusions", "resource_complete", "search_text", "search_text_truncated",
+    "active", "created_at", "updated_at", "embedding"}
+_LOCAL_METADATA_FIELDS = ("name", "name_folded", "description", "version", "metadata",
+                          "activation", "validation_error")
+
+
+def _local_publication(existing: dict | None, doc: dict, files: list[dict], release: str) -> list[str]:
+    """Keep DB edits, allow exact local ancestry or lossless legacy additions."""
+    binding_fields = {"guide_sha256", "release_sha256", "metadata_sha256", "source_sha256"}
+    source_input = {key: value for key, value in doc["source"].items() if key not in binding_fields}
+    if existing is None:
+        doc["source"].update(guide_sha256=files[0]["sha256"], release_sha256=release,
+            metadata_sha256=sha(canonical({key: doc.get(key) for key in _LOCAL_METADATA_FIELDS})),
+            source_sha256=sha(canonical(source_input)))
+        return []
+    reasons = []
+    previous_source = existing.get("source", {})
+    source = doc["source"]
+    # Keep original alias records, including labels and harness controls. Add
+    # newly discovered aliases without interpreting their presence as removal.
+    aliases = list(existing.get("installations", []))
+    paths = {alias.get("path") for alias in aliases}
+    aliases.extend(alias for alias in doc.get("installations", []) if alias.get("path") not in paths)
+    doc["installations"] = aliases
+    for key, value in existing.items():
+        if key not in _GENERATED_FIELDS and key not in doc:
+            doc[key] = value
+    previous_input = {key: value for key, value in previous_source.items() if key not in binding_fields}
+    if (previous_input != source_input
+            and previous_source.get("source_sha256") != sha(canonical(previous_input))):
+        reasons.append("existing-local-source-override")
+    if existing.get("sha256") == files[0]["sha256"]:
+        if any(existing.get(key) != doc.get(key) for key in _LOCAL_METADATA_FIELDS):
+            reasons.append("existing-local-metadata-override")
+    else:
+        if previous_source.get("guide_sha256") != existing.get("sha256"):
+            reasons.append("existing-divergent-or-unbound-guide")
+        previous_metadata = sha(canonical({key: existing.get(key) for key in _LOCAL_METADATA_FIELDS}))
+        if previous_source.get("metadata_sha256") != previous_metadata:
+            reasons.append("existing-divergent-or-unbound-metadata")
+    if existing.get("release_sha256") != release:
+        bound = previous_source.get("release_sha256") == existing.get("release_sha256")
+        if not bound:
+            candidate = {entry.get("path"): entry for entry in files}
+            # Every old manifest member must survive byte-for-byte, including
+            # path, hash, byte length, media type, chunking and executable bit.
+            monotonic = (existing.get("sha256") == files[0]["sha256"]
+                and bool(existing.get("resources"))
+                and all(candidate.get(entry.get("path")) == entry
+                        for entry in existing.get("resources", [])))
+            if not monotonic:
+                reasons.append("existing-divergent-or-unbound-resources")
+        if not reasons:
+            source.update(guide_sha256=files[0]["sha256"], release_sha256=release)
+    else:
+        # Do not turn unchanged legacy heads into a mass metadata migration.
+        for key in binding_fields:
+            if key in previous_source:
+                source[key] = previous_source[key]
+    if not reasons and (existing.get("release_sha256") != release
+                        or "metadata_sha256" in previous_source):
+        source["metadata_sha256"] = sha(canonical({key: doc.get(key) for key in _LOCAL_METADATA_FIELDS}))
+        source["source_sha256"] = sha(canonical(source_input))
+    return reasons
 
 EXCLUDED_NAMES = {
     ".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache",
@@ -120,6 +185,22 @@ def _error(exc: Exception) -> dict:
     if isinstance(code, int):
         value["code"] = code
     return value
+
+
+def _head_receipt(head: dict | None) -> dict | None:
+    """Report a guard fingerprint without copying source metadata into logs."""
+    if head is None:
+        return None
+    return {"sha256": sha(canonical(_metadata(head))),
+            "managed_owner": head.get("managed_by") == MANAGED_BY,
+            "active": head.get("active") if type(head.get("active")) is bool else None,
+            "searchable": head.get("searchable")
+            if type(head.get("searchable")) is bool else None}
+
+
+def _head_guard(head: dict) -> dict:
+    """Match the full observed BSON document, including unknown future fields."""
+    return {"_id": head["_id"], "$expr": {"$eq": ["$$ROOT", {"$literal": head}]}}
 
 
 def _safe_path(value: str) -> str:
@@ -429,7 +510,8 @@ class MongoStore:
         return manifest, excluded
 
     def _write(self, doc: dict, guide: bytes, resources: list[dict], exclusions: list[dict], *,
-               _existing=_MISSING, _batch: list | None = None) -> dict:
+               _existing=_MISSING, _batch: list | None = None,
+               _local_ingest: bool = False) -> dict:
         if _has_secret(guide):
             raise ValueError("Guide contains credential material and cannot be distributed")
         guide_blob = self._blob(guide, "SKILL.md")
@@ -437,22 +519,19 @@ class MongoStore:
         release = sha(canonical({"schema": SCHEMA, "skill_id": doc["_id"], "files": files}))
         existing = _existing
         if existing is _MISSING:
-            existing = self.collection.find_one({"_id": doc["_id"]}, {"managed_by": 1,
-                                                 "release_sha256": 1, "created_at": 1,
-                                                 "distribution_sha256": 1, "active": 1,
-                                                 "disabled_in": 1, "searchable": 1})
+            existing = self.collection.find_one({"_id": doc["_id"]})
         if existing is not None and existing.get("managed_by") != MANAGED_BY:
             raise ValueError("Skill identity belongs to another collection owner")
         active = True
         if self.preserve_states and existing is not None:
-            active = existing.get("active", True)
-            disabled = sorted(set(doc.get("disabled_in", [])) | set(existing.get("disabled_in", [])))
-            doc = {**doc, "disabled_in": disabled}
-            if not active or disabled or existing.get("searchable") is False:
+            active = existing.get("active") is True
+            doc["disabled_in"] = sorted(set(doc.get("disabled_in", []))
+                                         | set(existing.get("disabled_in", [])))
+            if not active or doc["disabled_in"] or existing.get("searchable") is not True:
                 doc["searchable"] = False
+        local_conflicts = (_local_publication(existing, doc, files, release)
+                           if _local_ingest else [])
         distribution = sha(canonical({"document": doc, "files": files, "exclusions": exclusions}))
-        if _batch is None:
-            self._flush_resources()
         now = _now()
         text = guide.decode("utf-8")
         search_bytes = "\n".join([doc["name"], doc["description"], text]).encode("utf-8")
@@ -477,19 +556,48 @@ class MongoStore:
                   "sha256": doc["sha256"], "release_sha256": release, "changed": changed,
                   "resources": len(files), "exclusions": exclusions,
                   "resource_complete": not exclusions}
+        preserved_state = local_conflicts
+        if existing is not None:
+            if not self.preserve_states and existing.get("active") is not True:
+                preserved_state.append("existing-inactive-or-unknown")
+            if existing.get("searchable") is not True and doc.get("searchable", True):
+                preserved_state.append("existing-nonrouting-or-unknown")
+            if any(value not in doc.get("disabled_in", [])
+                   for value in existing.get("disabled_in", [])):
+                preserved_state.append("existing-explicit-disable")
+        restrictive = None
+        if (_local_ingest and existing is not None and preserved_state
+                and any(value not in existing.get("disabled_in", [])
+                        for value in doc.get("disabled_in", []))):
+            # A new explicit local disable still takes effect when source
+            # content conflicts. Keep the exact current guide/resources and
+            # metadata; union disabled states and never reactivate the head.
+            restrictive = copy.deepcopy(existing)
+            restrictive["disabled_in"] = sorted(set(existing.get("disabled_in", []))
+                                                 | set(doc.get("disabled_in", [])))
+            restrictive.update(searchable=False, updated_at=now)
+            restrictive.pop("search_text", None)
+            inputs = {key: value for key, value in restrictive.items() if key not in _GENERATED_FIELDS}
+            restrictive["distribution_sha256"] = sha(canonical({"document": inputs,
+                "files": restrictive.get("resources", []), "exclusions": restrictive.get("exclusions", [])}))
+        item = {"document": doc, "snapshot_id": snapshot_id, "result": result,
+                "expected_head": copy.deepcopy(existing),
+                "preserve_database_source": (existing is not None
+                    and existing.get("source", {}).get("kind") == "database"
+                    and doc.get("source", {}).get("kind") == "local"),
+                "preserved_state": preserved_state,
+                "restrictive_document": restrictive,
+                "bytes": len(canonical(doc)) + len(canonical(_metadata(existing)))}
         if _batch is not None:
-            _batch.append({"document": doc, "snapshot_id": snapshot_id, "result": result,
-                           "bytes": len(canonical(doc))})
-        elif changed:
-            self.versions.update_one({"_id": snapshot_id, "managed_by": MANAGED_BY},
-                {"$setOnInsert": {**doc, "_id": snapshot_id, "skill_id": doc["_id"]}}, upsert=True)
-            self.collection.replace_one({"_id": doc["_id"], "managed_by": MANAGED_BY}, doc, upsert=True)
+            _batch.append(item)
+        elif self._flush_documents([item]):
+            raise ValueError("REVISION_CONFLICT: current skill changed; candidate snapshot retained")
         return result
 
     def _flush_documents(self, batch: list):
-        """Publish resource chunks before the snapshots and current documents that cite them."""
+        """Archive candidates, then conditionally publish without replacing a newer head."""
         if not batch:
-            return
+            return []
         from pymongo import ReplaceOne, UpdateOne
         self._flush_resources()
         version_ops, current_ops = [], []
@@ -499,11 +607,56 @@ class MongoStore:
             doc, snapshot_id = item["document"], item["snapshot_id"]
             version_ops.append(UpdateOne({"_id": snapshot_id, "managed_by": MANAGED_BY},
                 {"$setOnInsert": {**doc, "_id": snapshot_id, "skill_id": doc["_id"]}}, upsert=True))
-            current_ops.append(ReplaceOne({"_id": doc["_id"], "managed_by": MANAGED_BY},
-                                         doc, upsert=True))
+            if item["restrictive_document"] is not None:
+                current_ops.append(ReplaceOne(_head_guard(item["expected_head"]),
+                                              item["restrictive_document"], upsert=False))
+                continue
+            if item["preserve_database_source"] or item["preserved_state"]:
+                continue
+            expected = item["expected_head"]
+            if expected is None:
+                # An intervening insert, including another owner's identity,
+                # must never be replaced by an initial-source ingestion.
+                current_ops.append(UpdateOne({"_id": doc["_id"]},
+                                             {"$setOnInsert": doc}, upsert=True))
+            else:
+                current_ops.append(ReplaceOne(_head_guard(expected),
+                                              doc, upsert=False))
         if version_ops:
             self.versions.bulk_write(version_ops, ordered=False)
+        if current_ops:
             self.collection.bulk_write(current_ops, ordered=False)
+        heads = {row["_id"]: row for row in self.collection.find(
+            {"_id": {"$in": [item["document"]["_id"] for item in batch]}})}
+        conflicts = []
+        for item in batch:
+            doc, result = item["document"], item["result"]
+            current = heads.get(doc["_id"])
+            if (not item["preserved_state"] and not item["preserve_database_source"]
+                    and current and current.get("managed_by") == MANAGED_BY
+                    and {key: value for key, value in current.items()
+                         if key not in {"created_at", "updated_at"}}
+                    == {key: value for key, value in doc.items()
+                        if key not in {"created_at", "updated_at"}}):
+                if result["changed"] and current.get("updated_at") != doc["updated_at"]:
+                    result.update(changed=False, concurrent_equivalent=True)
+                continue
+            # Unchanged inputs can also race. Retain their candidate snapshot
+            # before reporting that a current MongoDB edit takes precedence.
+            self.versions.update_one({"_id": item["snapshot_id"], "managed_by": MANAGED_BY},
+                {"$setOnInsert": {**doc, "_id": item["snapshot_id"], "skill_id": doc["_id"]}},
+                upsert=True)
+            conflicts.append({"id": doc["_id"], "name": result["name"],
+                "operation": "current-head-conflict", "candidate_retained": True,
+                "current_preserved": True, "preserved_state": item["preserved_state"],
+                "restrictive_disable_applied": (item["restrictive_document"] is not None
+                    and current is not None and current.get("distribution_sha256")
+                    == item["restrictive_document"]["distribution_sha256"]),
+                "candidate_release_sha256": doc["release_sha256"],
+                "candidate_snapshot_id": item["snapshot_id"],
+                "expected_head": _head_receipt(item["expected_head"]),
+                "observed_head": _head_receipt(current)})
+        return conflicts
 
     def ingest(self, catalog: Catalog, progress=None, stop_event=None) -> dict:
         from .installation_state import InstallationResolver
@@ -511,6 +664,7 @@ class MongoStore:
         self._progress = progress
         self._resource_batches = self._resource_bytes = 0
         refresh = catalog.refresh()
+        root_access = refresh.get("root_access") or _root_access(catalog.roots)
         with catalog.connect() as db:
             rows = [dict(r) for r in db.execute("SELECT * FROM skills ORDER BY id")]
         configured_roots = {Path(root["path"]).expanduser().resolve() for root in catalog.roots}
@@ -524,10 +678,7 @@ class MongoStore:
                          if len(guides) == 1 and next(iter(guides)).name == "SKILL.md"
                          and parent not in configured_roots and not self._broad_root(parent)}
         # One bounded metadata cursor avoids one network read per installed skill.
-        existing = {doc["_id"]: doc for doc in self.collection.find({"managed_by": MANAGED_BY},
-                    {"managed_by": 1, "release_sha256": 1, "distribution_sha256": 1,
-                     "created_at": 1, "source": 1, "installations": 1, "active": 1,
-                     "disabled_in": 1, "searchable": 1})}
+        existing = {doc["_id"]: doc for doc in self.collection.find({"managed_by": MANAGED_BY})}
         self._preload_blobs()
         results, failed, batch = [], [], []
         fatal = None
@@ -538,8 +689,11 @@ class MongoStore:
         def flush():
             nonlocal fatal
             try:
-                self._flush_documents(batch)
-                results.extend(item["result"] for item in batch)
+                conflicts = self._flush_documents(batch)
+                failed.extend(conflicts)
+                conflicted = {item["id"] for item in conflicts}
+                results.extend(item["result"] for item in batch
+                               if item["result"]["id"] not in conflicted)
             except Exception as exc:
                 # Unordered bulk operations can partly succeed. Report the entire
                 # batch as unverified so retries remain safe and accounting honest.
@@ -557,8 +711,12 @@ class MongoStore:
                 cancelled = True
                 break
             try:
-                guide = read_bounded(Path(row["path"]), MAX_GUIDE_BYTES)
+                source_path = Path(row["path"])
+                source_stat = source_path.stat()
+                guide = read_bounded(source_path, MAX_GUIDE_BYTES)
                 if sha(guide) != row["sha256"]:
+                    raise ValueError("REVISION_CONFLICT: source changed during ingestion")
+                if source_path.stat() != source_stat:
                     raise ValueError("REVISION_CONFLICT: source changed during ingestion")
                 with catalog.connect() as db:
                     display = catalog._row(db, row["id"], disabled=disabled_snapshot)
@@ -596,8 +754,9 @@ class MongoStore:
                        "validation_error": row["error"],
                        "searchable": (not row["error"] and not disabled_only
                                       and eligibility["searchable"])}
+                previous = existing.get(row["id"])
                 self._write(doc, guide, resources, excluded,
-                            _existing=existing.get(row["id"]), _batch=batch)
+                            _existing=previous, _batch=batch, _local_ingest=True)
                 if (len(batch) >= MAX_BULK_GUIDES
                         or sum(item["bytes"] for item in batch) >= MAX_BULK_BYTES):
                     flush()
@@ -624,17 +783,36 @@ class MongoStore:
             self._blob_cache_loaded = False
         self._progress = None
         deactivated = 0
+        preserved_unavailable = []
+        deactivation_conflicts = []
         if not failed and not refresh.get("partial") and not cancelled:
             seen = {row["id"] for row in rows}
             roots = {str(Path(root["path"]).expanduser().absolute()) for root in catalog.roots}
             stale = [sid for sid, doc in existing.items() if sid not in seen
                      and doc.get("source", {}).get("kind") == "local"
+                     and doc.get("active") is not False
                      and any(installation.get("root") in roots
                              for installation in doc.get("installations", []))]
-            if stale:
-                self.collection.update_many({"managed_by": MANAGED_BY, "_id": {"$in": stale}},
-                    {"$set": {"active": False, "searchable": False, "updated_at": _now()}})
-                deactivated = len(stale)
+            unavailable = {item["path"] for item in root_access if not item["available"]}
+            for sid in stale:
+                previous = existing[sid]
+                if any(installation.get("root") in unavailable or _unavailable_alias(
+                        installation["path"], installation["root"])
+                       for installation in previous.get("installations", [])
+                       if installation.get("root") in roots):
+                    preserved_unavailable.append(sid)
+                    continue
+                timestamp = _now()
+                self.collection.update_many(_head_guard(previous),
+                    {"$set": {"active": False, "searchable": False, "updated_at": timestamp}})
+                current = self.collection.find_one({"_id": sid})
+                if (current and current.get("managed_by") == MANAGED_BY
+                        and current.get("active") is False
+                        and current.get("updated_at") == timestamp):
+                    deactivated += 1
+                else:
+                    deactivation_conflicts.append({"id": sid,
+                        "operation": "deactivation-head-conflict", "current_preserved": True})
         return {"schema": SCHEMA, "discovered": len(rows), "ingested": len(results),
                 "changed": sum(r["changed"] for r in results), "failed": failed,
                 "deactivated": deactivated,
@@ -643,7 +821,12 @@ class MongoStore:
                 "unattempted": len(rows) - len(results) - len(failed),
                 "resource_batches": self._resource_batches, "resource_bytes": self._resource_bytes,
                 "exclusion_count": sum(len(r["exclusions"]) for r in results),
-                "partial": bool(failed or refresh.get("partial") or cancelled), "refresh": refresh,
+                "partial": bool(failed or refresh.get("partial") or cancelled
+                                or preserved_unavailable or deactivation_conflicts),
+                "root_access": root_access, "preserved_unavailable_sources": preserved_unavailable,
+                "conflicts": [item for item in failed if item.get("operation", "").endswith("head-conflict")]
+                             + deactivation_conflicts,
+                "refresh": refresh,
                 "skills": results}
 
     def catalog(self, after: str = "", limit: int = 200) -> dict:
