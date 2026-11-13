@@ -1,0 +1,446 @@
+{
+  "slug": "container-memory-limits-and-allocator-cache-configuration",
+  "concept": "Container memory limits and allocator cache configuration",
+  "generated": "2026-11-12",
+  "summary": "Source-anchored research for Container memory limits and allocator cache configuration. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "In the tagged MongoDB allocator implementation, `getMongoMaxCpuCacheSize` checks `MONGO_TCMALLOC_PER_CPU_CACHE_SIZE_BYTES` first and returns its parsed value when nonzero, before calculating the memory-derived default. The override therefore bypasses that default calculation. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+          "note": null,
+          "claimId": "clm:999322f8cc5a73ed2991ff8fb2437fe9293efcf1421975cdd8dd6872b5362c00",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4340cbef1da210598cf6c5404c0d4cfb4b9da21fcde1de53703d3e8730a3d8c9",
+            "ev:5eaff8162ebb6ce707df130735fac963d77ef6c6125bc0778d41ffd22bb94a08"
+          ],
+          "temporal": {
+            "applicability_version": "8.0.16"
+          }
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "In the tagged parameter handlers, setting `tcmallocMaxPerCPUCacheSize` without the Google allocator build, or `tcmallocMaxTotalThreadCacheBytes` without the legacy gperftools allocator build, logs an unavailable/no-effect warning and returns `Status::OK()`. An accepted setting alone therefore does not establish that its cache control took effect. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp",
+          "note": null,
+          "claimId": "clm:290e068230c9fedebe866695024af6785e96f16da94514a75f1376a66307ccca",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0441ddc95c397784b98befe8baa0fb0b75b7cbb6d8e73686983d5ecf50251421"
+          ],
+          "temporal": {
+            "applicability_version": "8.0.16"
+          }
+        },
+        {
+          "text": "Upstream TCMalloc says memory release can reduce footprint after a peak but does not reduce the peak itself. It advises provisioning jobs for peak memory usage to avoid OOM errors and says release-rate tuning cannot substitute for appropriate job memory requirements. (low confidence)",
+          "source": "https://github.com/google/tcmalloc/blob/master/docs/tuning.md",
+          "note": null,
+          "claimId": "clm:5b090fe44a2defd75d222a65715a371e863b9be02358849d544c4e2a546b7bcc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1d3eb79de14298c2f4eb487201dfe9e62bdc6c6303098fb2196cf6626b3f34c6"
+          ]
+        },
+        {
+          "text": "A static comparison of the MongoDB source tags for releases 8.0.16 and 8.0.17 finds their inspected allocator files byte-identical, including `parseLineFromFile`, `getSystemMemorySizeBytes`, and `getMemorySizeLimitInBytes`. This finite pair does not demonstrate a release-to-release parser change or establish other tags or compiled builds. Separately, the pinned Linux cgroup v2 documentation defines `memory.max` as a memory-usage hard limit with default `max`; its limits convention says `max` is a no-op. This is source comparison and interface documentation, not an executed container test. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+          "note": null,
+          "claimId": "clm:3c37250253126e9864bb642fc9dbb6e37eb343403c1c9ad22afee6edf5ad2624",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:048e5ef3c2c73ee0c4415156b1c8745cc0c35e3add7c911354763425c6dde163",
+            "ev:4f08faabff156edf5f4f4a78d28270a63af6bf7d9eefa6150373c8c538e3097b",
+            "ev:55efca785a299ab3867231075f9c437d753e886100b77648b7584db8a7741d1b",
+            "ev:69cf16ecbda063c95ee90db97adb7373e765a80d72f9d5f3bb04e2c5c8a87954",
+            "ev:6ce26d080683fa2e0f22cada4cd1a66012aeaf716001c43de14dbfa89ed09b87",
+            "ev:a396d544fbd4def68aa078eaf02a9a929d85ca43a6393666e38f6338a481770c",
+            "ev:dde147faeb9dc0aa85f7c2414cc190be787195307c6590c48379be628971af7c",
+            "ev:f5cc56d97465b5af3500aeb5907fdb527cb11b07edd090653d357f51455944e7"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/fe4a0b8cf49fd664128bcf668c046292c8e8eb80/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+            "https://api.github.com/repos/mongodb/mongo/git/tags/9cc9fb2fa826b5454ccb41773d462b2233a0734f",
+            "https://api.github.com/repos/mongodb/mongo/git/tags/d05058c71c6142b3b0468fd268cf2ac57900c793",
+            "https://raw.githubusercontent.com/torvalds/linux/v6.8/Documentation/admin-guide/cgroup-v2.rst",
+            "https://www.mongodb.com/docs/v8.0/release-notes/8.0-changelog.md"
+          ]
+        },
+        {
+          "text": "The MongoDB 8.0 self-managed guide defines `cacheSizeGB` as the WiredTiger internal-cache budget and describes filesystem caching separately. It warns that container RAM can be lower than host RAM and that the internal cache might not account for a specific container limit; it points to `hostInfo` for the memory limit. These storage-cache budgets are separate from the per-CPU and total-thread allocator cache controls. The separate documented consumers do not establish a total process-memory ceiling. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/configuration-options.md",
+          "note": null,
+          "claimId": "clm:79c152e3318793b85daf96bbc76a7d54ff76b92bcd108b3d47b1258ef8fc5405",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:68630c4462aee06d39ee8aec0b553326ffbcf451a7e514408870077cc34589ca",
+            "ev:99798cb61b39ee999eef4192bc9e263c67f49a87e75a820a6d849d898348629a",
+            "ev:a0c75fe063509f9bb45d266b3b54676f925299aea6e7e511aed9fdf658eb7b75",
+            "ev:efbb2a0f3bbe615b8d388c83a05e90940304a71e114ab5f879994ede5dd13f70",
+            "ev:f964f34daeab447d5cc8c9d5958a866152fac1f128d4a05f1621d62f3cf9dab3"
+          ],
+          "also": [
+            "https://github.com/google/tcmalloc/blob/master/docs/tuning.md",
+            "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp"
+          ]
+        },
+        {
+          "text": "In the inspected MongoDB 8.0.16 `getMongoMaxCpuCacheSize` function, `atoll` parses the environment override and `value != 0` is its only value check before returning to an `unsigned long long` result. A parsed zero falls through to the memory-derived default; the branch does not require a positive value and has no explicit range, complete-string or conversion-error check. A negative parsed value therefore also satisfies that nonzero test. The absence of validation supplies no safe cache-size input contract for negative, malformed or overflowing text, and no particular malformed-input, overflow or platform-width outcome is established by these checks. This environment branch is distinct from the validated BSON and string server-parameter entry points. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+          "note": null,
+          "claimId": "clm:6d0ac1ae380f65857b57ef675c4e7e6538afcbd10ee33fd3f16bf2737c09869f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0441ddc95c397784b98befe8baa0fb0b75b7cbb6d8e73686983d5ecf50251421",
+            "ev:4340cbef1da210598cf6c5404c0d4cfb4b9da21fcde1de53703d3e8730a3d8c9",
+            "ev:4f08faabff156edf5f4f4a78d28270a63af6bf7d9eefa6150373c8c538e3097b",
+            "ev:5949798bd038c88e832e96543a7556ab83220884a0aeda770a7dbfd0417296fc",
+            "ev:773ccac56900a15e399fef38c7a3311512df3335e46d88bc6aec5b0b70678158",
+            "ev:9c2b68f3aa13110247996aca11f7b9027c4adcc412267dcf242f4f6ddec94033"
+          ],
+          "temporal": {
+            "applicability_version": "8.0.16"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp",
+            "https://www.mongodb.com/docs/v8.0/release-notes/8.0-changelog.md"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Upstream TCMalloc documents heterogeneous per-CPU caches that redistribute capacity from lightly used caches to heavily used caches. A heavily used cache may grow beyond `tcmalloc_max_per_cpu_cache_size`; this is an upstream tuning boundary, rather than proof that every MongoDB build enables that optimization. (low confidence)",
+          "source": "https://github.com/google/tcmalloc/blob/master/docs/tuning.md",
+          "note": null,
+          "claimId": "clm:a1b1627f1c284623bb30add2469a680c6c02025204d32aee244ce22fe5b6de2b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:68630c4462aee06d39ee8aec0b553326ffbcf451a7e514408870077cc34589ca"
+          ]
+        },
+        {
+          "text": "In the selected MongoDB 8.0.16 Linux source, cache activation obtains `num_cpus` from `NumCPUs` and passes it to `getMongoMaxCpuCacheSize` only under the guard `max_cache_size == kMaxCpuCacheSize`. `NumCPUs` caches `NumPossibleCPUsNoCache`, which reads `/sys/devices/system/cpu/possible` and returns the highest listed CPU identifier plus one. The header describes possible CPUs including offline CPUs. That inspected path uses the possible-CPU view rather than reading an affinity mask or CPU quota. Actual container file views, effective constraints and workload-appropriate cache capacity remain deployment questions. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.h",
+          "note": null,
+          "claimId": "clm:87da424573d4fb3457ee0687e2f047224cf92f73fc19a340e5a141fb29e71340",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:44e9524ed220e7ac6db30af5c5e98c5e11d39be535ae7eac89da853fda16c39f",
+            "ev:4f08faabff156edf5f4f4a78d28270a63af6bf7d9eefa6150373c8c538e3097b",
+            "ev:5b0f5e5e72d2031cfd915f0aca34fab4218f6f4f9e8f98ebc805c92f9c0b0148",
+            "ev:6f6056cfbbfe582f66c29ed52686a0b7ea58b1c8e3d9925b2e30a8ecf9594132",
+            "ev:8cf5b40dd26a0028c1eddf403298935d2eadf97191affeda9e632e39dcdb1404"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/internal/sysinfo.h",
+            "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/internal/sysinfo.cc",
+            "https://api.github.com/repos/mongodb/mongo/git/tags/9cc9fb2fa826b5454ccb41773d462b2233a0734f",
+            "https://www.mongodb.com/docs/v8.0/release-notes/8.0-changelog.md"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Without a nonzero environment override, the tagged implementation divides both a one-GiB budget and one-quarter of the detected memory by `numCpus`, and chooses the smaller per-CPU cache size. Its calculation uses integer division through a memory-in-megabytes intermediate. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+          "note": null,
+          "claimId": "clm:39942f911863f34d2fdad285e754d3e8f0b6062ff3b998912760b1c92e9cbff2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4340cbef1da210598cf6c5404c0d4cfb4b9da21fcde1de53703d3e8730a3d8c9",
+            "ev:5eaff8162ebb6ce707df130735fac963d77ef6c6125bc0778d41ffd22bb94a08"
+          ],
+          "temporal": {
+            "applicability_version": "8.0.16"
+          }
+        },
+        {
+          "text": "The tagged MongoDB parameter definitions allow `tcmallocMaxPerCPUCacheSize` and `tcmallocMaxTotalThreadCacheBytes` at startup and runtime. For the Google allocator build, the per-CPU property getter and setter call `tcmalloc::MallocExtension::GetMaxPerCpuCacheSize` and `tcmalloc::MallocExtension::SetMaxPerCpuCacheSize`. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_parameters.idl",
+          "note": null,
+          "claimId": "clm:532a0e42608917e67526db5456caaa320e222b98ca61944679134bc6db87783c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:99798cb61b39ee999eef4192bc9e263c67f49a87e75a820a6d849d898348629a",
+            "ev:dc177fcce200526fef53a6752397f35086488c6930c7fc23b3858bede60c2b90"
+          ],
+          "temporal": {
+            "applicability_version": "8.0.16"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp"
+          ]
+        },
+        {
+          "text": "For the legacy gperftools allocator build, the tagged MongoDB initializer sets the total thread-cache default to the smaller of one GiB and one-eighth of the memory reported by `pi.getMemSizeMB()`. If `TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES` exists in the environment, this initializer returns before setting that default. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp",
+          "note": null,
+          "claimId": "clm:7365c9d0d45cba3f27b362bbca2beaefc92db63e940c5f68089e3d18d09f4f22",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e7298ba54533d2e1302185aabc2c3a96393dbd2324997d5fe2b0187372d65e39"
+          ],
+          "temporal": {
+            "applicability_version": "8.0.16"
+          }
+        },
+        {
+          "text": "Upstream TCMalloc documents `tcmalloc::MallocExtension::SetMaxPerCpuCacheSize` as a per-CPU control, so the application-wide cache total can be much larger. It contrasts this with `tcmalloc::MallocExtension::SetMaxTotalThreadCacheBytes`, which controls the total of all thread caches. (medium confidence)",
+          "source": "https://github.com/google/tcmalloc/blob/master/docs/tuning.md",
+          "note": null,
+          "claimId": "clm:63953af0b7c0fd74fda538e7aa971927c7573ce4fa68840ac304a7b6f641b0f7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:68630c4462aee06d39ee8aec0b553326ffbcf451a7e514408870077cc34589ca",
+            "ev:99798cb61b39ee999eef4192bc9e263c67f49a87e75a820a6d849d898348629a"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp"
+          ]
+        },
+        {
+          "text": "The Trisquare migration write-up reports that setting `MONGO_TCMALLOC_PER_CPU_CACHE_SIZE_BYTES=10485760` in its MongoDB containers caused `tcmalloc.cpu_free` to rise and slightly improved performance relative to its Bitnami baseline. This is an attributed result for that migration workload. (low confidence)",
+          "source": "https://trisquare.eu/blog/bitnami-mongo-migration",
+          "note": null,
+          "claimId": "clm:2264a64c18136e08aa0b4760b5c86a33c5c7a0540c2e3be5679fbae0bfc9230e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:02c4d9c126e4b6cbd164134619944bfe50ac91357de5067ecac0746fe7628da3"
+          ]
+        },
+        {
+          "text": "Percona reports that its container-related allocator correction shipped in Percona Server for MongoDB version 8.0.16-5, made available on December 2, 2025. The release notes separately identify that version with the same release date. (medium confidence) (verified as of 2026-03-12)",
+          "source": "https://www.percona.com/blog/a-failing-unit-test-a-mysterious-tcmalloc-misconfiguration-and-a-60-performance-gain-in-docker/",
+          "note": null,
+          "claimId": "clm:13853622270f730f30b8362c90c693eed0d26e06db1087e8c72a67df9488db58",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:15f70b9602a259bb7275b3bd1d224235dee49eb8f48143e46c84c44373b17839",
+            "ev:6fd77f73532da4b02f9b0b9a5cffb0101aa614d0046c0077e464a0f21088292b"
+          ],
+          "also": [
+            "https://docs.percona.com/percona-server-for-mongodb/8.0/release_notes/8.0.16-5.html"
+          ]
+        },
+        {
+          "text": "In the tagged allocator implementation, `getMemorySizeLimitInBytes` checks `/sys/fs/cgroup/memory.max` before `/sys/fs/cgroup/memory/memory.limit_in_bytes`. For the first nonempty value it returns the smaller of system memory and the value parsed with `atoll`; if neither file yields a nonempty value, it returns system memory. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+          "note": null,
+          "claimId": "clm:646fcc8e32583f5e710ca3020f82e1154b2b0325aa1a59f86440972125885b45",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0f40fdcb09d4f523795187bcf2f9ed85878041d8df3a486ca6700b569a7cb6fb",
+            "ev:5eaff8162ebb6ce707df130735fac963d77ef6c6125bc0778d41ffd22bb94a08"
+          ],
+          "temporal": {
+            "applicability_version": "8.0.16"
+          }
+        },
+        {
+          "text": "In the tagged MongoDB handlers, `tcmallocAggressiveMemoryDecommit` is applied only in the legacy gperftools allocator build. Outside that build, the setter warns that the setting has no effect and returns `Status::OK()`. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp",
+          "note": null,
+          "claimId": "clm:7442fdfcde09297c56f59145df597820965522fc026116c9d1f3698849ebad23",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3102ff98e2a51214089a8ac34aab7472f11701b2cf04a21cc357a4bcaf24e23e"
+          ],
+          "temporal": {
+            "applicability_version": "8.0.16"
+          }
+        },
+        {
+          "text": "The inspected MongoDB 8.0.16 server handlers use separate BSON and string validation paths. `validateTCMallocValue` requires a numeric BSON type and assigns an `unsigned long long` cast of the element's numeric conversion to `valueULL`. It rejects a value above `maxOkValue`: the minimum of the unsigned casts of `std::numeric_limits<size_t>::max()` and `std::numeric_limits<long long>::max()`. It reports an allowed range from zero through `maxOkValue`; converted zero is forwarded without the environment fallback. If the element's conversion produces a negative signed result, the unsigned cast exceeds that cap and is rejected. The string helper instead parses into `size_t` with `NumberParser{}(str, &value)`, returns a non-OK parser status, or forwards a successful value; this file does not define that parser's complete accepted syntax, coercion or overflow rules. The per-CPU parameter selects these helpers only for `MONGO_CONFIG_TCMALLOC_GOOGLE`, and the total-thread parameter only for `MONGO_CONFIG_TCMALLOC_GPERF`; other build branches warn of no effect and return OK. The property writer skips its allocator call under `RUNNING_ON_VALGRIND`. These inspected 8.0.16 handler paths do not establish interchangeable accepted inputs across entry points, and the finite allocator-file comparison does not establish 8.0.17 handler equivalence. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp",
+          "note": null,
+          "claimId": "clm:fcd70d1d8b836fde55bbf741a80be3a63dca858e872ceb49a3a6a53deb6ca55a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0441ddc95c397784b98befe8baa0fb0b75b7cbb6d8e73686983d5ecf50251421",
+            "ev:4340cbef1da210598cf6c5404c0d4cfb4b9da21fcde1de53703d3e8730a3d8c9",
+            "ev:4f08faabff156edf5f4f4a78d28270a63af6bf7d9eefa6150373c8c538e3097b",
+            "ev:5949798bd038c88e832e96543a7556ab83220884a0aeda770a7dbfd0417296fc",
+            "ev:773ccac56900a15e399fef38c7a3311512df3335e46d88bc6aec5b0b70678158",
+            "ev:84ab44c1a9ae181a5bc77adff57534e7cd32d214d8828c272af6a4e5d9f44423",
+            "ev:908a695969c667624ad0bda2a3345d3726683b709eecd7f01a18734290be51ce",
+            "ev:9c2b68f3aa13110247996aca11f7b9027c4adcc412267dcf242f4f6ddec94033",
+            "ev:c4068930061f856f0e772c767adaff14aa371076f31fd4a9ff184bfcd41dc486",
+            "ev:da6df4f7c7f345d8b9f8dc981dc82b2355192150c35c492d1870405c1e0872ec",
+            "ev:dde147faeb9dc0aa85f7c2414cc190be787195307c6590c48379be628971af7c"
+          ],
+          "temporal": {
+            "applicability_version": "8.0.16"
+          },
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+            "https://raw.githubusercontent.com/mongodb/mongo/fe4a0b8cf49fd664128bcf668c046292c8e8eb80/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+            "https://www.mongodb.com/docs/v8.0/release-notes/8.0-changelog.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "ec637870bac08b139019b6ce16fa5b73d1c690eeed79e62e22db7a48b97805c8",
+  "canonicalConceptId": "concept:ed846478c190728bdffca603d416bd352acc53e66e81d27221b5c4d621809507",
+  "narrative": [
+    {
+      "assertionId": "prose:291721c1c91ec0f4d2b552645de3ee6a31d5524a900b6f0ffbef13220f62a2db",
+      "statementSha256": "291721c1c91ec0f4d2b552645de3ee6a31d5524a900b6f0ffbef13220f62a2db",
+      "assertionKind": "summary",
+      "index": 0,
+      "documentSlug": "container-memory-limits-and-allocator-cache-configuration",
+      "documentConcept": "Container memory limits and allocator cache configuration",
+      "canonicalConceptId": "concept:ed846478c190728bdffca603d416bd352acc53e66e81d27221b5c4d621809507",
+      "text": "The inspected self-managed MongoDB source defines allocator-specific controls, and the finite 8.0.16/8.0.17 comparison finds the inspected allocator files byte-identical. Per-CPU, total-thread and WiredTiger budgets remain distinct. Upstream tuning limits and the attributed migration and Percona reports remain source-scoped; no tested deployment, optimal cache capacity or cross-product fix is asserted.",
+      "sources": [
+        "https://api.github.com/repos/mongodb/mongo/git/tags/9cc9fb2fa826b5454ccb41773d462b2233a0734f",
+        "https://api.github.com/repos/mongodb/mongo/git/tags/d05058c71c6142b3b0468fd268cf2ac57900c793",
+        "https://docs.percona.com/percona-server-for-mongodb/8.0/release_notes/8.0.16-5.html",
+        "https://github.com/google/tcmalloc/blob/master/docs/tuning.md",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/internal/sysinfo.cc",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/internal/sysinfo.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/fe4a0b8cf49fd664128bcf668c046292c8e8eb80/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_parameters.idl",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+        "https://raw.githubusercontent.com/torvalds/linux/v6.8/Documentation/admin-guide/cgroup-v2.rst",
+        "https://trisquare.eu/blog/bitnami-mongo-migration",
+        "https://www.mongodb.com/docs/v8.0/reference/configuration-options.md",
+        "https://www.mongodb.com/docs/v8.0/release-notes/8.0-changelog.md",
+        "https://www.percona.com/blog/a-failing-unit-test-a-mysterious-tcmalloc-misconfiguration-and-a-60-performance-gain-in-docker/"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:02c4d9c126e4b6cbd164134619944bfe50ac91357de5067ecac0746fe7628da3",
+        "ev:15f70b9602a259bb7275b3bd1d224235dee49eb8f48143e46c84c44373b17839",
+        "ev:69cf16ecbda063c95ee90db97adb7373e765a80d72f9d5f3bb04e2c5c8a87954",
+        "ev:6ce26d080683fa2e0f22cada4cd1a66012aeaf716001c43de14dbfa89ed09b87",
+        "ev:6fd77f73532da4b02f9b0b9a5cffb0101aa614d0046c0077e464a0f21088292b",
+        "ev:76aeb8e93835030d2f4b14da0f172da90a3403d5902e9e241e28fdcdf380dc77",
+        "ev:a0c75fe063509f9bb45d266b3b54676f925299aea6e7e511aed9fdf658eb7b75",
+        "ev:a396d544fbd4def68aa078eaf02a9a929d85ca43a6393666e38f6338a481770c",
+        "ev:bb910673fc74d3bd8c1c8b9860d5868023bfa7cf1bc19e1de4cdb0d89078e699",
+        "ev:c205673ad622d116896203498b4a8662de15f093b1633718f282353de5cab94e",
+        "ev:efbb2a0f3bbe615b8d388c83a05e90940304a71e114ab5f879994ede5dd13f70",
+        "ev:f5cc56d97465b5af3500aeb5907fdb527cb11b07edd090653d357f51455944e7",
+        "ev:f964f34daeab447d5cc8c9d5958a866152fac1f128d4a05f1621d62f3cf9dab3"
+      ]
+    },
+    {
+      "assertionId": "prose:daebce53f95f93711725e8581804a2a0991b9ee7f7757969eca0bcb26a19c587",
+      "statementSha256": "daebce53f95f93711725e8581804a2a0991b9ee7f7757969eca0bcb26a19c587",
+      "assertionKind": "open_question",
+      "index": 0,
+      "documentSlug": "container-memory-limits-and-allocator-cache-configuration",
+      "documentConcept": "Container memory limits and allocator cache configuration",
+      "canonicalConceptId": "concept:ed846478c190728bdffca603d416bd352acc53e66e81d27221b5c4d621809507",
+      "text": "For other Community release tags, is allocator container-limit parsing identical to or different from the inspected pair, and what source evidence establishes any difference?",
+      "sources": [
+        "https://api.github.com/repos/mongodb/mongo/git/tags/9cc9fb2fa826b5454ccb41773d462b2233a0734f",
+        "https://api.github.com/repos/mongodb/mongo/git/tags/d05058c71c6142b3b0468fd268cf2ac57900c793",
+        "https://docs.percona.com/percona-server-for-mongodb/8.0/release_notes/8.0.16-5.html",
+        "https://github.com/google/tcmalloc/blob/master/docs/tuning.md",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/internal/sysinfo.cc",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/internal/sysinfo.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/fe4a0b8cf49fd664128bcf668c046292c8e8eb80/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_parameters.idl",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+        "https://raw.githubusercontent.com/torvalds/linux/v6.8/Documentation/admin-guide/cgroup-v2.rst",
+        "https://trisquare.eu/blog/bitnami-mongo-migration",
+        "https://www.mongodb.com/docs/v8.0/reference/configuration-options.md",
+        "https://www.mongodb.com/docs/v8.0/release-notes/8.0-changelog.md",
+        "https://www.percona.com/blog/a-failing-unit-test-a-mysterious-tcmalloc-misconfiguration-and-a-60-performance-gain-in-docker/"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:69cf16ecbda063c95ee90db97adb7373e765a80d72f9d5f3bb04e2c5c8a87954",
+        "ev:6ce26d080683fa2e0f22cada4cd1a66012aeaf716001c43de14dbfa89ed09b87",
+        "ev:a396d544fbd4def68aa078eaf02a9a929d85ca43a6393666e38f6338a481770c",
+        "ev:f5cc56d97465b5af3500aeb5907fdb527cb11b07edd090653d357f51455944e7"
+      ]
+    },
+    {
+      "assertionId": "prose:e9dac81c21041ca0f075111a5cd72b24b90ae7ecd5700efc30e9e0e88faef33c",
+      "statementSha256": "e9dac81c21041ca0f075111a5cd72b24b90ae7ecd5700efc30e9e0e88faef33c",
+      "assertionKind": "open_question",
+      "index": 1,
+      "documentSlug": "container-memory-limits-and-allocator-cache-configuration",
+      "documentConcept": "Container memory limits and allocator cache configuration",
+      "canonicalConceptId": "concept:ed846478c190728bdffca603d416bd352acc53e66e81d27221b5c4d621809507",
+      "text": "How should per-CPU cache capacity be selected for a particular container workload?",
+      "sources": [
+        "https://api.github.com/repos/mongodb/mongo/git/tags/9cc9fb2fa826b5454ccb41773d462b2233a0734f",
+        "https://api.github.com/repos/mongodb/mongo/git/tags/d05058c71c6142b3b0468fd268cf2ac57900c793",
+        "https://docs.percona.com/percona-server-for-mongodb/8.0/release_notes/8.0.16-5.html",
+        "https://github.com/google/tcmalloc/blob/master/docs/tuning.md",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/internal/sysinfo.cc",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/internal/sysinfo.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/fe4a0b8cf49fd664128bcf668c046292c8e8eb80/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_parameters.idl",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+        "https://raw.githubusercontent.com/torvalds/linux/v6.8/Documentation/admin-guide/cgroup-v2.rst",
+        "https://trisquare.eu/blog/bitnami-mongo-migration",
+        "https://www.mongodb.com/docs/v8.0/reference/configuration-options.md",
+        "https://www.mongodb.com/docs/v8.0/release-notes/8.0-changelog.md",
+        "https://www.percona.com/blog/a-failing-unit-test-a-mysterious-tcmalloc-misconfiguration-and-a-60-performance-gain-in-docker/"
+      ],
+      "validationStatus": "NO-FACTUAL-ASSERTION",
+      "evidenceIds": []
+    },
+    {
+      "assertionId": "prose:bf30b01cc64d5cc5823b229e2bc342fd06c2166e573fff85f74129ee06fe6874",
+      "statementSha256": "bf30b01cc64d5cc5823b229e2bc342fd06c2166e573fff85f74129ee06fe6874",
+      "assertionKind": "open_question",
+      "index": 2,
+      "documentSlug": "container-memory-limits-and-allocator-cache-configuration",
+      "documentConcept": "Container memory limits and allocator cache configuration",
+      "canonicalConceptId": "concept:ed846478c190728bdffca603d416bd352acc53e66e81d27221b5c4d621809507",
+      "text": "For an actual container deployment, what CPU list is visible to the allocator, what effective affinity and CPU quota apply, and does an uninspected allocator build use the inspected possible-CPU call chain or a different one?",
+      "sources": [
+        "https://api.github.com/repos/mongodb/mongo/git/tags/9cc9fb2fa826b5454ccb41773d462b2233a0734f",
+        "https://api.github.com/repos/mongodb/mongo/git/tags/d05058c71c6142b3b0468fd268cf2ac57900c793",
+        "https://docs.percona.com/percona-server-for-mongodb/8.0/release_notes/8.0.16-5.html",
+        "https://github.com/google/tcmalloc/blob/master/docs/tuning.md",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/internal/sysinfo.cc",
+        "https://raw.githubusercontent.com/mongodb/mongo/6649991c993da79c269e52beec51274bf53fbb98/src/third_party/tcmalloc/dist/tcmalloc/internal/sysinfo.h",
+        "https://raw.githubusercontent.com/mongodb/mongo/fe4a0b8cf49fd664128bcf668c046292c8e8eb80/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_parameters.idl",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/mongo/util/tcmalloc_set_parameter.cpp",
+        "https://raw.githubusercontent.com/mongodb/mongo/r8.0.16/src/third_party/tcmalloc/dist/tcmalloc/cpu_cache.cc",
+        "https://raw.githubusercontent.com/torvalds/linux/v6.8/Documentation/admin-guide/cgroup-v2.rst",
+        "https://trisquare.eu/blog/bitnami-mongo-migration",
+        "https://www.mongodb.com/docs/v8.0/reference/configuration-options.md",
+        "https://www.mongodb.com/docs/v8.0/release-notes/8.0-changelog.md",
+        "https://www.percona.com/blog/a-failing-unit-test-a-mysterious-tcmalloc-misconfiguration-and-a-60-performance-gain-in-docker/"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:44e9524ed220e7ac6db30af5c5e98c5e11d39be535ae7eac89da853fda16c39f",
+        "ev:4f08faabff156edf5f4f4a78d28270a63af6bf7d9eefa6150373c8c538e3097b",
+        "ev:5b0f5e5e72d2031cfd915f0aca34fab4218f6f4f9e8f98ebc805c92f9c0b0148",
+        "ev:6f6056cfbbfe582f66c29ed52686a0b7ea58b1c8e3d9925b2e30a8ecf9594132",
+        "ev:8cf5b40dd26a0028c1eddf403298935d2eadf97191affeda9e632e39dcdb1404"
+      ]
+    }
+  ]
+}

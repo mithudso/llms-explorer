@@ -891,3 +891,7 @@ Publish 17 structured facts and 2 complete auxiliary assertions after independen
 ## MongoDB Atlas Trigger replacement with change-stream consumers publication v1.0.0
 
 Publish 19 structured facts and 8 complete auxiliary assertions after independent whole-question acceptance. Preserve their exact identities, ordered citations, evidence, verdicts, temporal applicability and original research dates. All other scopes, holds, queues and paused services remain intact. Paired source/default and live/API acceptance have separate receipts.
+
+## MongoDB Container memory limits and allocator cache configuration publication v1.0.0
+
+Publish 17 structured facts and 4 complete auxiliary assertions after independent whole-question acceptance. Preserve their exact identities, ordered citations, evidence, verdicts, temporal applicability and original research dates. All other scopes, holds, queues and paused services remain intact. Paired source/default and live/API acceptance have separate receipts.

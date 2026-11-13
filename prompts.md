@@ -1995,3 +1995,8 @@ Scope: validate factual auxiliary prose; preserve canonical evidence with option
 ## 2026-11-12 — Global semantic-indexing authorization
 
 User answer: “lift the pause altogether.” Resume normal incremental embedding/indexing and verify current Salesforce artifacts. Preserve existing model contracts, frozen website assets and independently scoped research holds.
+
+## Prompt v156 - 2026-11-13T01:13:08.325527+00:00
+- User request:
+  - Resolve all existing MongoDB concept-tree areas through independent evidence review before expanding the frontier, including Voyage AI.
+- This delivery: only the accepted Container memory limits and allocator cache configuration scope; preserve other research, holds and queues.
