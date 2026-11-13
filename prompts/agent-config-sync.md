@@ -1,10 +1,10 @@
 # Mounted-home agent configuration sync prompt
 
-- Version: 1.3.0
-- Delta: 1.2.0 to 1.3.0; record verified SSH transport, completed primary staged merge, and active remote application.
+- Version: 1.4.0
+- Delta: 1.3.0 to 1.4.0; record completed asset rounds, applied configuration merges, native acceptance, and remaining directory-proof checks.
 - Updated: 2026-11-13
 - Status: IN_PROGRESS
-- Tracking: Configuration sync task `TASK-1465`; active copy stage `TASK-1468`.
+- Tracking: Configuration sync task `TASK-1465`; the parent owns lifecycle transitions and final delivery.
 - Repository record: `/Users/mitch.hudson/dev/llms-explorer/prompts/agent-config-sync.md`.
 
 ## Original user prompt
@@ -42,7 +42,7 @@ reload as part of synchronization.
 
 ## Continuation record
 
-Use the [versioned sync memory](../docs/operations/agent-config-sync-memory.md)
+Use `/Users/mitch.hudson/dev/llms-explorer/docs/operations/agent-config-sync-memory.md`
 for the current stage, aggregate evidence, remaining work, and delivery status.
 The memory record is a checkpoint until final verification and delivery finish.
 Private configuration contents, authentication values, raw artifacts, and helper
@@ -55,28 +55,36 @@ key exactly to known-host evidence. The parent agent verified the canonical
 native home and a non-root SSH session. The SMB display name is separate from
 the canonical Unix account. No authentication input request is pending.
 
-Primary host-local staged CAS merge phase 100 completed with exit code 0:
-189,363 operations, 78,976 verified writes, zero errors, and 1,531,663,977 logical
-bytes. Those writes comprise 75,305 actual primary asset writes and 3,671 writes
-to the staging outgoing delta. These are phase-local results, not final global
-sync totals. A fresh primary census completed with 226,667 nodes and 182,389 file
-hashes, with zero errors.
+The initial remote apply is no longer running. Primary phase 100, remote phase
+103, remote residual phase 112, and single-file retry 113 completed. Residual
+phase 110 recorded one disappearing-parent failure before that retry succeeded.
+Their phase-local counts are in the continuation record. Earlier unjournaled
+attempts prevent an exact historical overall-write claim. Source backups remain
+retained, and this sync has not deleted original user data.
 
-The SSH snapshot verified 185,279 files, approximately 3.5 GB. It initially
-identified 4,084 files missing remotely and observed 640 initially cached paths
-absent on both sides during external plugin-updater activity. This sync does
-not claim to have deleted or restored those superseded cache paths. The outgoing
-3,671-file delta, approximately 54 MB, was staged remotely and verified as 3,672
-entries including metadata.
+Structured configuration merges have been applied. The latest reported
+normalized comparison covers 36 files with zero pending differences and zero
+issues. There are 53 verified configuration writes: 47 primary and six remote.
 
-Remote apply phase 102 is running at this checkpoint. Attempt 101 timed out
-while connecting and did not run the apply. A bounded one-hour sleep assertion
-was started. Source backups remain retained, and no original user data was
-deleted by this sync. APFS copy-on-write staging has ten fixture checks for
-independent content, source ctime preservation, and safe fallback on low disk.
+Native discovery verified the same 50 MCP names on both hosts. Authenticated
+metadata acceptance passed on both hosts with protocol `2025-11-25`: five skills
+tools and 40 research-library tools. No tools were called and no corpus queries,
+models, or embeddings ran. A temporary-probe rejection was resolved by giving
+that probe its descriptive application User-Agent. Native definitions, auth,
+accounts, TLS validation, and edge policies were unchanged.
 
-The current private suite has 169 passing checks with exit code 0. No structured
-configuration merges have been applied. Fresh cross-host digest comparison,
-new cache-path reconciliation, residual sync, configuration merges, native CLI
-verification, and final repository delivery remain outstanding. The helper
-implementation and detailed configuration data remain outside Git.
+The parent reports a native Codex catalog of 205 entries. Claude portable
+registries have identical sets of 91 keys. All 16 additional primary synced-scope
+plugin directories and manifests also exist remotely. Their activation remains
+tied to each host's existing identity; this sync does not change that identity.
+
+Verification remains in progress. The primary native path probe passed 9,305
+paths and 15,828 proofs. A remote serial probe checked 2,504 paths and 2,473 proofs
+and reported four directory-change errors that the parent is diagnosing. Do not
+claim complete asset parity from this checkpoint.
+
+The current private suite contains 241 checks, but its final full run has not
+completed. A focused 29-case comparator run passed. Final directory-proof
+classification, full-suite results, record finalization, and repository delivery
+remain outstanding. Keep the draft PR open and unmerged until final acceptance.
+Private helper implementation and detailed configuration data remain outside Git.
