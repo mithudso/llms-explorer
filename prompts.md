@@ -2005,3 +2005,8 @@ User answer: “lift the pause altogether.” Resume normal incremental embeddin
 ## 2026-11-13 — Confirm current skill MCP target
 
 The user selected the currently connected MCP database for current skills. Preserve the separate original candidate prototype and its nine immutable seed revisions. Verify current source/release pins through the existing runtime; no prototype or schema migration is requested.
+
+## Prompt v157 - 2026-11-13T07:55:15.819200+00:00
+- User request:
+  - Resolve all existing MongoDB concept-tree areas through independent evidence review before expanding the frontier, including Voyage AI.
+- This delivery: only the accepted Bulk-write partial completion and ordering scope; preserve other research, holds and queues.

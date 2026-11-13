@@ -1,0 +1,596 @@
+{
+  "slug": "bulk-write-partial-completion-and-ordering",
+  "concept": "Bulk-write partial completion and ordering",
+  "generated": "2026-11-13",
+  "summary": "Source-anchored research for Bulk-write partial completion and ordering. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The client bulk-write specification rejects unacknowledged write concern with `verboseResults` set to true, and also rejects it with `ordered` set to true, including when the ordered default applies. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:83155b2f36f50b5d066e4d6f5b4b2191054306cecd8267921b35b832ce6b76c9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e7c78a93c917480c472d94c87f34a45bab5ec460612fdc09d27040d633b4e50a",
+            "ev:fcde6e74c0ed3960900a26f387164940c0bd6ee977051f6e6617bd7f0e8075fa"
+          ]
+        },
+        {
+          "text": "In the Node.js v7.6.0 source, the shared executor assigns the selected server to the operation before dispatch. Successful bulk cursor initialization returns that operation server and its supplied session; getMore receives the recorded cursor server and same session. An existing valid operation session is reused, while an ended or wrong-client session is rejected. The retry executor reuses sameServerSelector; that callback ignores deprioritized addresses and filters to the original address only when its type is not Unknown. Although the generic retry loop can record the previous server as deprioritized, this selector does not turn that into alternate-server selection. If the original address is ineligible, the callback supplies no candidate. (low confidence)",
+          "source": "https://api.github.com/repos/mongodb/node-mongodb-native/releases/tags/v7.6.0",
+          "note": null,
+          "claimId": "clm:3587b8df3cf12351e66a22c0f15455467973094eccc9659079f13825ab2d35bc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c7a27c61412c0eab38cc368190686315389035e09a7f86d3fb489cecd240bcc",
+            "ev:29479f40e3c0270a27f5180a1309a4a90fe210652f94bf2de30bcbbb0d2ed1a9",
+            "ev:3b166f0ef896d14f6c671ab130d895547a5f9e7f8a5cc2d9255112f5839d9ffe",
+            "ev:4e0fdd11cded50db1b4bbe757e72daea904a541d3d000f1e601f9775d7bf9aa0",
+            "ev:4e297d9c9da3f8ff172f2a446368faf8501a20141f0ea50d169f055d6e78a558",
+            "ev:6d2c36863772eb6a271dde746959f26805621065856a31a44365a0816815aec8",
+            "ev:7b39d23a85e4978d73cf8bef29da2b96b5903e26491d9b917fbfc794e9e780ff",
+            "ev:91fca5a312bdef02638706d81056693ebea7d45b5c4546ab78ac322e063db95c",
+            "ev:affcc55e82a02caab3c709ecc7396f46c503b6c2811f63697c34b0e8154e6127",
+            "ev:dfef73157b450f02208e1927398f61a40608c6dbe1dcd9326949163679a958b2",
+            "ev:fe85b2e77ca81332fec306a5180f80888874aabfeed38813abdd6d56ad90ab5f"
+          ],
+          "also": [
+            "https://api.github.com/repos/mongodb/node-mongodb-native/git/ref/tags/v7.6.0",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/client_bulk_write_cursor.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/execute_operation.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/abstract_cursor.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/get_more.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sdam/server_selection.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "In the client bulk-write specification, top-level errors include network failures, command failures, client-side failures, and failures retrieving results. Apart from the specified Client Backpressure `getMore` retry exception, they halt both ordered and unordered execution: drivers must stop fetching cursor responses and sending further batches. Already observed individual results or errors must be retained by embedding the top-level error in `BulkWriteException`. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:ddd7c8b3b18776d61affbe064d2b7df49bc258180c8c1576f86f8d98fe331fe8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:04dd2d3694ada191bc6ff79c1b8cf855712497197887b7b04364e8c130b58d5f",
+            "ev:386c821c4421f4ca877012b5956427a19be876e98cfdc73a6dbb32760e4f4999",
+            "ev:afee68e7bda1ec7d7e00dd9f55de5e3a8323b15fcaf863ebbc27d709b0177ad8"
+          ]
+        },
+        {
+          "text": "The client bulk-write specification requires consuming the results cursor even for summary results because the cursor contains write errors. A nonzero cursor ID requires `getMore` until exhaustion, using the original session; behind a load balancer, the driver must also use the original connection. When connected to a load balancer, the specification requires creating that cursor with the connection that ran the bulk command so the same server is targeted. It also states that drivers SHOULD retry `getMore` when the command failure is eligible under the referenced Client Backpressure specification. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:fa99f3ace69401aba66ba30545c29c408b2360fe7978057383e9245cb5cba97e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:04dd2d3694ada191bc6ff79c1b8cf855712497197887b7b04364e8c130b58d5f",
+            "ev:386c821c4421f4ca877012b5956427a19be876e98cfdc73a6dbb32760e4f4999",
+            "ev:afee68e7bda1ec7d7e00dd9f55de5e3a8323b15fcaf863ebbc27d709b0177ad8",
+            "ev:d30c662c217842a9302480676746ad9b694981a2e5f3454f71bfcb8e4c371d6d"
+          ]
+        },
+        {
+          "text": "For the documented collection bulk-write method inside a transaction, the first error fails the entire bulk write and aborts the transaction even when the bulk write is unordered. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkWrite.md",
+          "note": null,
+          "claimId": "clm:53843c77d30d004ec4c6920f1f4de5fbf50ab170abd1b77f91709563b162968e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f531a9c85abdbd3916d39ae00219c3e17f3891b9dd6bb307e810aab663fcca29"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkwrite/"
+          ]
+        },
+        {
+          "text": "The `db.collection.bulkWrite()` documentation marks a sharded-cluster reporting change in MongoDB 8.1.2: when the method runs on `mongos`, a `writeConcernError` that occurs is always reported even if other errors occur. In earlier releases, other errors sometimes caused the method to omit the write concern error. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkWrite.md",
+          "note": null,
+          "claimId": "clm:5565882ba382537e74b00dcf3c36d0ac92821628a15293a8cdc6027b3c757675",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:19ca7148c49a93679bdef525b17f97abc341cc525593a8e7f71c64df86cbe5e5",
+            "ev:a66ef0fa034eb0f9909138f9ca6e1988ef9986926766fa79771ba20d3d674f65"
+          ]
+        },
+        {
+          "text": "In the Node.js v7.6.0 command path, an existing session-pinned connection is used before pool checkout; checkout occurs only when no pinned connection exists. In load-balanced mode, with a session and a pinnable command but no existing pin, the command path calls the session pin method. The pinnable-command set explicitly includes bulkWrite and getMore. Command cleanup checks a connection back into the pool only when it is not the session pinned connection. These conditional source paths do not establish that every pin survives every error or that a deployment was tested. (low confidence)",
+          "source": "https://api.github.com/repos/mongodb/node-mongodb-native/releases/tags/v7.6.0",
+          "note": null,
+          "claimId": "clm:983ac2e473ce9dde50dfb13d72bbb3762da5d7628e7a2183e0219689594d6160",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c7a27c61412c0eab38cc368190686315389035e09a7f86d3fb489cecd240bcc",
+            "ev:29479f40e3c0270a27f5180a1309a4a90fe210652f94bf2de30bcbbb0d2ed1a9",
+            "ev:463b695a3f022cac8d9bd9836a7fdfaca3103c28de7e59f31d24f7232f5109ca",
+            "ev:6e010b18b05c5ebf85639bbd8a6398c5fe1b373806709e1149b543968dae9f5c",
+            "ev:91fca5a312bdef02638706d81056693ebea7d45b5c4546ab78ac322e063db95c"
+          ],
+          "also": [
+            "https://api.github.com/repos/mongodb/node-mongodb-native/git/ref/tags/v7.6.0",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sdam/server.ts"
+          ]
+        },
+        {
+          "text": "In the Node.js v7.6.0 retry loop, an eligible overload sets the attempt limit to topology.s.options.maxAdaptiveRetries + 1, capped by operation.maxAttempts when present, before checking whether another attempt remains. CSOT can reject a backoff longer than remaining time. For a pinned session with a committed transaction, execution unpins before dispatch unless operation.bypassPinningCheck applies; error handling also unpins a pinned session on TransientTransactionError. The executor overload-unpin branch requires CURSOR_CREATING, which GetMoreOperation lacks. A failed getMore or exhausted cursor enters cleanup: it may attempt KillCursorsOperation, ends a session it owns and calls maybeClearPinnedConnection outside a transaction. Attempt, time, server-availability and cleanup limits prevent a retry-success or unconditional connection-survival guarantee. (low confidence)",
+          "source": "https://api.github.com/repos/mongodb/node-mongodb-native/releases/tags/v7.6.0",
+          "note": null,
+          "claimId": "clm:b546d5f7e12c6b001d611bfa09e9cdfff1c968370fa941a337e3df3e109c0f28",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c7a27c61412c0eab38cc368190686315389035e09a7f86d3fb489cecd240bcc",
+            "ev:29479f40e3c0270a27f5180a1309a4a90fe210652f94bf2de30bcbbb0d2ed1a9",
+            "ev:3b166f0ef896d14f6c671ab130d895547a5f9e7f8a5cc2d9255112f5839d9ffe",
+            "ev:40bb2ef43f6f08908197b5f8206990dbb034b472987d9b146d8fe33d613908ae",
+            "ev:4e0fdd11cded50db1b4bbe757e72daea904a541d3d000f1e601f9775d7bf9aa0",
+            "ev:6d2c36863772eb6a271dde746959f26805621065856a31a44365a0816815aec8",
+            "ev:91fca5a312bdef02638706d81056693ebea7d45b5c4546ab78ac322e063db95c",
+            "ev:affcc55e82a02caab3c709ecc7396f46c503b6c2811f63697c34b0e8154e6127",
+            "ev:e202011e2504eacf3b7102420c8d49c2a8987d0a12d3fa805af50803fdf70df9"
+          ],
+          "also": [
+            "https://api.github.com/repos/mongodb/node-mongodb-native/git/ref/tags/v7.6.0",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/execute_operation.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sdam/server.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/get_more.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/abstract_cursor.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sdam/server_selection.ts"
+          ]
+        },
+        {
+          "text": "The bulk-write specification requires killCursors after a top-level error leaves a results cursor unexhausted and says its command result MUST NOT be ignored. In Node.js v7.6.0, shared cursor cleanup attempts KillCursorsOperation only with a session, a non-killed cursor with a nonzero ID, a namespace, a selected server and a session that has not ended; it marks the cursor killed and zeros its ID before awaiting the operation. The base connection parses a MongoDBResponse and checks ok and CSOT error conditions; the server command path checks write concern. KillCursorsOperation has no handleOk override, so inherited handleOk returns the response through toObject, which invokes deserialization. Cleanup awaits this return without assigning or inspecting the returned object: generic reply processing occurs, while the cleanup caller adds no command-specific interpretation of that result. (low confidence)",
+          "source": "https://api.github.com/repos/mongodb/node-mongodb-native/releases/tags/v7.6.0",
+          "note": null,
+          "claimId": "clm:8365af0ca77d47c720ba697cfcb96541ea94c1616cc126d8c49889f1179ee77b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:001ab545018fc908ea821aecbfe5dacb6bdd39dcb76cb8eb50dc00e4056c6e0a",
+            "ev:07d890ce0dd75309a61c84e08bcac6220f18025ae4dfd77e5f02e320b327cd9b",
+            "ev:0b6834365a6b9982f1f154f8a02d92c28a8e804c85c3526d22203deaff107681",
+            "ev:0c0b9fc67426c275cf0fbcb6614a707d8c1e1b9b283a7a4981f68f0a60305741",
+            "ev:0c7a27c61412c0eab38cc368190686315389035e09a7f86d3fb489cecd240bcc",
+            "ev:2101ee7bb306ce3ff25d2db27f032c9b68b76861ce606b6cd1f4c74fdce840ca",
+            "ev:29479f40e3c0270a27f5180a1309a4a90fe210652f94bf2de30bcbbb0d2ed1a9",
+            "ev:421097b6847ee4d19a6ff753eb6d9ff29fa66e26044f3dd838775816b336de41",
+            "ev:59064d8c2cfcfd4d116eb72d4b6d6f03419db536c6c4c176a7b0611d34c45a0f",
+            "ev:776171b59623d357d31a6bff2842a84b15cfeb358dc1a31b50fe0ba03fb431f8",
+            "ev:8ee718ffc35c8b84145b160f4988bf1323560912125a659bb007c8467a8eb624",
+            "ev:91170e88f311d511eee4558c9d2925fa12f56b3d352bbbc8be4d6207ae504f7a",
+            "ev:91fca5a312bdef02638706d81056693ebea7d45b5c4546ab78ac322e063db95c",
+            "ev:938eb66e3d1dee757cb30f340c27d5599598bc4bc07cdc2bb386859f7b2191f5",
+            "ev:9608a441f3ec5d8ebcb333decd9e0d525c68ec216512b1314693fc0826fe4985",
+            "ev:c967b023c5c4c6476dbf7981d469e20a2110f92888456f3c8f647d5f34936415",
+            "ev:f83500d530c570873ea6800ac53b0231659c8b61d1b7e7922a0378362c2a83a4"
+          ],
+          "also": [
+            "https://api.github.com/repos/mongodb/node-mongodb-native/git/ref/tags/v7.6.0",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/abstract_cursor.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/execute_operation.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/operation.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cmap/connection.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cmap/wire_protocol/responses.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/write_concern.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cmap/wire_protocol/on_demand/document.ts",
+            "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/kill_cursors.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sdam/server.ts"
+          ]
+        },
+        {
+          "text": "In Node.js v7.6.0, an ordered individual write failure creates a MongoClientBulkWriteError with the observed write error and partial result. Leaving result iteration runs an iterator finally that catches and squashes a close rejection, preserving that pending ordered-write error through this branch. Initialization differs: cursorInit awaits cleanup before its rethrow without the separate cleanup-rejection catch, so a rejecting cleanup helper or finally can replace that initialization failure. Dead or exhausted cursor paths and explicit close await cleanup directly and can surface helper or close failures outside the swallowed kill try. The results merger rethrows non-write-concern cursor errors, with counts and batch-offset updates in finally. The bulk executor wraps a propagated MongoServerError that is not already MongoClientBulkWriteError, retaining it as bulkWriteError.cause and attaching bulkWriteError.partialResult; other errors are rethrown. The cursor and public bulk API boundaries can therefore expose different error objects. (low confidence)",
+          "source": "https://api.github.com/repos/mongodb/node-mongodb-native/releases/tags/v7.6.0",
+          "note": null,
+          "claimId": "clm:806548fabb9d4394e8f8ec653a98933689f4f31658ceb6cb2f165508cd87ccea",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c7a27c61412c0eab38cc368190686315389035e09a7f86d3fb489cecd240bcc",
+            "ev:29479f40e3c0270a27f5180a1309a4a90fe210652f94bf2de30bcbbb0d2ed1a9",
+            "ev:29a8db8a1c28141a4bec871832a0158c7f31061e735f6499597ed64690130243",
+            "ev:4014e035ff25b3865fb5155f5e10b4c45cb15c4f063cd50244f532cf027dcd4c",
+            "ev:814c8e9396f639550b9d14a73f93921edf9812a1e5ef8333a20d98dd2bed2e92",
+            "ev:89c1e4800e860abee133613f0be69edab75e51c97903ea47dd86904166c40683",
+            "ev:91fca5a312bdef02638706d81056693ebea7d45b5c4546ab78ac322e063db95c",
+            "ev:9c6d5caf41761e465b9906f298ef7082aeb25c70e652b86a59739fc3f894719f",
+            "ev:b3b77ec0982fbb00e1c4aab4d2520a4bca5c17e2290e730db1b684213db4c316",
+            "ev:b809a4ebae54bdce605806bb08acced3cf4290d3b6073a68fcd53cabc2c70a48",
+            "ev:c967b023c5c4c6476dbf7981d469e20a2110f92888456f3c8f647d5f34936415",
+            "ev:fe5544ba1972de6a0235844b5bb37a00484fa2ea4826809405a249f53e8d16e6"
+          ],
+          "also": [
+            "https://api.github.com/repos/mongodb/node-mongodb-native/git/ref/tags/v7.6.0",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/abstract_cursor.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/client_bulk_write/results_merger.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/client_bulk_write/executor.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/utils.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "The client bulk-write specification requires `partialResult` to remain absent unless at least one write is known to have succeeded. For an ordered command, success is established when `nErrors` is 0 or the error cursor entry has `idx` greater than 0; for an unordered command, `nErrors` must be smaller than the number of operations in that command. For recovery from a bulk-write exception, MongoG advises inspecting write errors and partial results rather than assuming all models succeeded or failed, and lists blindly retrying successful models after an exception as a mistake. In the inspected Node.js v7.6.0 source, `ClientBulkWriteResultsMerger` initializes its result counts to 0. Its ordered individual-write-error branch assigns `error.partialResult = this.result` without testing for a confirmed successful write. For a `MongoServerError` that is not already a `MongoClientBulkWriteError`, the client executor assigns `bulkWriteError.partialResult = resultsMerger.bulkWriteResult` while wrapping the error. In this implementation, the presence of a `partialResult` object alone does not confirm that an individual write succeeded. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:750539aba6233be115f75cb781b584227720d7f6852416855fad04ea6bcf3267",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c7a27c61412c0eab38cc368190686315389035e09a7f86d3fb489cecd240bcc",
+            "ev:1501929c5b83cac2f9d89fd4195fa5c02a540fffab6656a6d2dfb38312b65bc0",
+            "ev:29479f40e3c0270a27f5180a1309a4a90fe210652f94bf2de30bcbbb0d2ed1a9",
+            "ev:627d518b3cdc8b8c239c3cdad7f1545793e7abfb405bbfdeb5f391021bb585c0",
+            "ev:881f627ea4824866cc431026f97ca611c791293b80977452c1182ce243e1a1e4",
+            "ev:91fca5a312bdef02638706d81056693ebea7d45b5c4546ab78ac322e063db95c",
+            "ev:9c6d5caf41761e465b9906f298ef7082aeb25c70e652b86a59739fc3f894719f",
+            "ev:b0fce64586582ad7b6d70a8ac9224d2f76955cf5daa5815ac003d3ab7e5cbb22",
+            "ev:f5b116fd45698b2953e86d706ea96559b7769daa4d5859194bc542f6066518d8",
+            "ev:fe5544ba1972de6a0235844b5bb37a00484fa2ea4826809405a249f53e8d16e6"
+          ],
+          "also": [
+            "https://mongog.com/docs/mongodb/bulk-write-operations",
+            "https://www.mongodb.com/docs/drivers/node/current/crud/bulk-write.md",
+            "https://api.github.com/repos/mongodb/node-mongodb-native/releases/tags/v7.6.0",
+            "https://api.github.com/repos/mongodb/node-mongodb-native/git/ref/tags/v7.6.0",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/client_bulk_write/results_merger.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/client_bulk_write/executor.ts"
+          ]
+        },
+        {
+          "text": "The bulk-write specification states that an eligible results-cursor `getMore` failure SHOULD be retried under Client Backpressure. For this exception, `MAX_RETRIES` defaults to 2 and is configurable as `maxAdaptiveRetries`. The policy counter `attempt` starts at 0, includes retries under other policies, and uses 1 for the first retry; after an overload error, `MAX_RETRIES` limits all retries, including non-overload and CSOT retries. For an eligible overload retry of this cursor, the client MUST use `backoff = jitter * min(MAX_BACKOFF, BASE_BACKOFF * 2^attempt)`: jitter is between 0 and 1, `MAX_BACKOFF` is 10000ms and the default `BASE_BACKOFF` is 100ms, replaced by a positive error `baseBackoffMS`. The pseudocode propagates the error instead of sleeping if this delay would exceed the CSOT deadline. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/b8e0ee19b4622fe48c9337969da56b24037b9335/source/client-backpressure/client-backpressure.md",
+          "note": null,
+          "claimId": "clm:a520230286ea68d42e16eccf788cb3624f880c107056ebfc6f72c0d4e790542a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:27c5da1ac4255f88e8cb7b37104feb2d848944ce0b539a12d185a7c019a3a3bb",
+            "ev:6cf21a8b16fd262ad79545ebdd7f94e4ce16dfb140cfb30e405c95e88d90d48c",
+            "ev:e8196c6f3d47e046c93c2de19c08295d1b6e0aee75f7ebaf7a1c5c1b2ceb61d6"
+          ],
+          "also": [
+            "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md"
+          ]
+        },
+        {
+          "text": "In Node.js v7.6.0, the KillCursorsOperation handleError override is a no-op: the executor routes errors from its inner server command or handleOk through this handler. The outer cursor kill try also catches a rejected operation and calls squashError, whose body simply returns. Before suppression, guarded server-command error handling can mark a network session dirty, attach labels, unpin a transaction session and update server or pool state. In cleanup finally, error refers to the original cleanup argument rather than the kill-catch variable; cleanup ends a session it owns and, outside a transaction, calls maybeClearPinnedConnection with that original error. The endSession path attempts abort for an active transaction, rethrows MongoOperationTimeoutError by name, and has a finally block containing session release, ended-state and pin cleanup. The pinned-connection helper can return for TransientTransactionError, requires a pinned connection and topology, and checks in only with no error or a force option. On the explicit failed-getMore path, fetchBatch catches any rejection from its awaited cleanup, including helper, finally or close-emission rejection, then rethrows the original getMore error. (low confidence)",
+          "source": "https://api.github.com/repos/mongodb/node-mongodb-native/releases/tags/v7.6.0",
+          "note": null,
+          "claimId": "clm:dd27d0f57d0fc4b2c8b7c10bcb63772005fd012be4a523325b305b91c99aa29d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c7a27c61412c0eab38cc368190686315389035e09a7f86d3fb489cecd240bcc",
+            "ev:163224a3d11ecd815584b717e588b71472d883f202ecf51a357cc41b86d9bcb5",
+            "ev:2101ee7bb306ce3ff25d2db27f032c9b68b76861ce606b6cd1f4c74fdce840ca",
+            "ev:29479f40e3c0270a27f5180a1309a4a90fe210652f94bf2de30bcbbb0d2ed1a9",
+            "ev:33c6cbc97be9220ee19b32cf662d3f150f351b9231afe22cab080327782dca15",
+            "ev:59064d8c2cfcfd4d116eb72d4b6d6f03419db536c6c4c176a7b0611d34c45a0f",
+            "ev:6c820383a16e14303c1aeaff5709e00bcdc71140cf88c8fc001b6e53ef7c3c46",
+            "ev:77ab6d5ef51ac3a9ab15a9e3094b5e0f883df1afeb48279cd52b54f1e416d76d",
+            "ev:7a8d429abafe050dc760246500c56f93968053d685dda00e9b3e236ae8e2edb0",
+            "ev:89c1e4800e860abee133613f0be69edab75e51c97903ea47dd86904166c40683",
+            "ev:91fca5a312bdef02638706d81056693ebea7d45b5c4546ab78ac322e063db95c",
+            "ev:b3b77ec0982fbb00e1c4aab4d2520a4bca5c17e2290e730db1b684213db4c316",
+            "ev:c967b023c5c4c6476dbf7981d469e20a2110f92888456f3c8f647d5f34936415",
+            "ev:ce454f4d03a5240bca443c3c751063ca0fa210a2d56f78b273d79a9c10722790",
+            "ev:d7f5a034db151a35733742a85e4c2b8f1526439764ad5d909331d93506fbfc44",
+            "ev:f45aa1b3971c0e47cfdf737f54991928a1a7e7a5dad1b26624131fac51d4765f",
+            "ev:f83500d530c570873ea6800ac53b0231659c8b61d1b7e7922a0378362c2a83a4",
+            "ev:fd29164a7aed3e8685ce300239b74fb1c1b0de796325a6c2f5afcdbd1a80f39a"
+          ],
+          "also": [
+            "https://api.github.com/repos/mongodb/node-mongodb-native/git/ref/tags/v7.6.0",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/abstract_cursor.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/execute_operation.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/operation.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sdam/server.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/utils.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sessions.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/kill_cursors.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "In the Node.js collection API, `MongoBulkWriteError` exposes `writeErrors`, `writeConcernErrors`, and `result` for successful operations before the exception; the client API instead exposes `MongoClientBulkWriteError` with a `writeErrors` map and `partialResult`. (low confidence)",
+          "source": "https://www.mongodb.com/docs/drivers/node/current/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:111294a59850ca2c544c13e0a72d1401dc2ec76beb47921a8beac4339458b7d1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f5b116fd45698b2953e86d706ea96559b7769daa4d5859194bc542f6066518d8"
+          ]
+        },
+        {
+          "text": "The client bulk-write specification keys `insertResults`, `updateResults`, `deleteResults`, and `writeErrors` by the original operation index in the `writeModels` list passed to `MongoClient.bulkWrite`. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:2e3c7825b509bc9cd49742c050f1fa82726b004a0534375c76c14d16bebc1fb2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1cc89f25cb4555bc8dc0893f7b35eab8cf1a6b5b5132cc7b08cae6cfdcf53f51",
+            "ev:4ff949480089ab843666157d04db8931c6993e2bc0d7f4d903ad2586f892e41e",
+            "ev:fcde6e74c0ed3960900a26f387164940c0bd6ee977051f6e6617bd7f0e8075fa"
+          ]
+        },
+        {
+          "text": "The client bulk-write specification records write concern failures in `writeConcernErrors`, continues execution for either ordering mode, and requires an exception at the end if such failures occurred. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:f89eeb3abfbd4bc34c7af7f51b21ff5cf007eaac422ede794c9f52930233a771",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:edcdc0c0513691cbc24f7da5b979e8d02f12ff966889ccfb29a94595fe9be7b8",
+            "ev:fcde6e74c0ed3960900a26f387164940c0bd6ee977051f6e6617bd7f0e8075fa"
+          ]
+        },
+        {
+          "text": "For client bulk writes, the specification defaults `verboseResults` to false and forbids populating `insertResults`, `updateResults`, or `deleteResults` unless it is true. It also requires users to be able to distinguish summary results from verbose results without inspecting the original `verboseResults` option. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:3c29a7cf74656db904a7955c10d404945825771cb9368970b7bb1394b83ab24f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:04dd2d3694ada191bc6ff79c1b8cf855712497197887b7b04364e8c130b58d5f",
+            "ev:406b0a806865f6a0e0e0f52ba64c6d250c0820a22b037b4fe75d64406b636d84",
+            "ev:cc5fbbc7e8f429f364d4b534fc83efdb4654183f8f6c58e59194169e4411b185"
+          ]
+        },
+        {
+          "text": "The client bulk-write specification permits recording an `insertedId` in `BulkWriteResult` only after the results cursor confirms that the insert succeeded; the driver generates or records the document identifier before receiving that confirmation. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:3e8144d917614f57a088a3090bbd562987b5319f13248b7673c20b24cf3f8c74",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:87913d8688193271fbcab66f00de33169d128cf4238d13699b3a50febf99e9e6",
+            "ev:fcde6e74c0ed3960900a26f387164940c0bd6ee977051f6e6617bd7f0e8075fa"
+          ]
+        },
+        {
+          "text": "A client bulk API call can be split into multiple server commands according to `maxWriteBatchSize`, `maxBsonObjectSize`, and `maxMessageSizeBytes`; the specification requires merging their outcomes into one `BulkWriteResult` or `BulkWriteException`. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:6a2bbad5cf4413f0589bbf8b048b630a3408e2ffdd48682055c98290a4df86f4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c191e798095c6959c1a7e73e90d2e669ef010f4b1fdcea3c10851c02c81bc4d5",
+            "ev:fcde6e74c0ed3960900a26f387164940c0bd6ee977051f6e6617bd7f0e8075fa"
+          ]
+        },
+        {
+          "text": "A matched update need not modify the document: MongoG explains that already-equal stored and requested values can leave `modifiedCount` below `matchedCount`. (low confidence)",
+          "source": "https://mongog.com/docs/mongodb/bulk-write-operations",
+          "note": null,
+          "claimId": "clm:72c652a6a69b0899acb0b3c1edbe18f0f51f54706170dea16c6897be8717bd84",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6e69e93e1c6bd73e257b098435808264bd860df43a0b07955ab370f06481b564",
+            "ev:d417d0149331c67c2af29905dcfb3f15976f78865be8588316a862f256a45756"
+          ]
+        },
+        {
+          "text": "The client bulk-write specification defines a separate API from collection bulk write for the command introduced in MongoDB 8.0. The Node.js guide requires MongoDB Server 8.0 or later and Node.js driver 6.10 or later for client-level bulk writes. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:774366692afc61fa7805090f429cd9f36bd31ea1ed6610b67ae823e557e72dd8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4ff949480089ab843666157d04db8931c6993e2bc0d7f4d903ad2586f892e41e",
+            "ev:50859b6b10071522a04047655fbb02ac83d11d18a938fdf1b9938c02e6749565",
+            "ev:fcde6e74c0ed3960900a26f387164940c0bd6ee977051f6e6617bd7f0e8075fa"
+          ],
+          "also": [
+            "https://www.mongodb.com/docs/drivers/node/current/crud/bulk-write.md"
+          ]
+        },
+        {
+          "text": "The client bulk-write specification's Q&A states that the `bulkWrite` command is not supported on Atlas Serverless. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+          "note": null,
+          "claimId": "clm:ad8a5e309dc9a751b8e1ffef0e11b4c2f584025f7f58f3db11cefd1da685b754",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:04dd2d3694ada191bc6ff79c1b8cf855712497197887b7b04364e8c130b58d5f",
+            "ev:9987175c82d198b51980f19769c0432f750c55a5cbd69f990af518caf5397c3d"
+          ]
+        },
+        {
+          "text": "The published Node.js driver v7.6.0 tag binds the inspected commit-specific source. In that source, ClientBulkWriteCursor inherits the getMore path that constructs GetMoreOperation with READ_OPERATION and MUST_SELECT_SAME_SERVER, without RETRYABLE. Ordinary read retry eligibility requires RETRYABLE plus READ_OPERATION. The overload retry branch instead tests both SystemOverloadedError and RetryableError and uses retryReads for this read operation. The separate RunCommand branch requires both retry options; retryWrites alone does not enable the results-cursor getMore overload branch. (low confidence)",
+          "source": "https://api.github.com/repos/mongodb/node-mongodb-native/releases/tags/v7.6.0",
+          "note": null,
+          "claimId": "clm:c63447229f83f0bf09b333e798db00bf370d8dd994ecce81c466862b3550ea4e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0c7a27c61412c0eab38cc368190686315389035e09a7f86d3fb489cecd240bcc",
+            "ev:29479f40e3c0270a27f5180a1309a4a90fe210652f94bf2de30bcbbb0d2ed1a9",
+            "ev:40459e4c71b5c9c08c67197f41ea486321b8d87c8b582aba05a39c590cc6a034",
+            "ev:4e297d9c9da3f8ff172f2a446368faf8501a20141f0ea50d169f055d6e78a558",
+            "ev:7b39d23a85e4978d73cf8bef29da2b96b5903e26491d9b917fbfc794e9e780ff",
+            "ev:91fca5a312bdef02638706d81056693ebea7d45b5c4546ab78ac322e063db95c",
+            "ev:affcc55e82a02caab3c709ecc7396f46c503b6c2811f63697c34b0e8154e6127",
+            "ev:c79febb62e24d24fdcf54a76cf120cf509eaf440aa4262a5fd8fcf26c19e73db",
+            "ev:e17b2d22dffb32421222fbf4ca8934c9138ce012e855222f41abe9ab331b979e"
+          ],
+          "also": [
+            "https://api.github.com/repos/mongodb/node-mongodb-native/git/ref/tags/v7.6.0",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/client_bulk_write_cursor.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/abstract_cursor.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/get_more.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/operation.ts",
+            "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/execute_operation.ts"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "c662689448f331e0ff56aaadb89a122e6d07076839a4bffbd6e87af003253172",
+  "canonicalConceptId": "concept:94287ccec159c91632186f0839ac31e62a29379f721b1d0423d04f96a9feb240",
+  "narrative": [
+    {
+      "assertionId": "prose:446d759c3196e014b12cb97528b53655ed901370bcea4245bc8d14469a6e40d5",
+      "statementSha256": "446d759c3196e014b12cb97528b53655ed901370bcea4245bc8d14469a6e40d5",
+      "assertionKind": "summary",
+      "index": 0,
+      "documentSlug": "bulk-write-partial-completion-and-ordering",
+      "documentConcept": "Bulk-write partial completion and ordering",
+      "canonicalConceptId": "concept:94287ccec159c91632186f0839ac31e62a29379f721b1d0423d04f96a9feb240",
+      "text": "Client bulk-write results retain indexed errors. The specification requires known individual success for `partialResult`; Node.js v7.6.0 attaches initialized results in the inspected error branches without that test, so object presence alone does not confirm successful completion. Node.js v7.6.0 source uses retryReads, the cursor session and same-address selection for eligible dual-label getMore overload retry; load-balanced dispatch reuses an existing session pin. Transaction, cursor-state, server-availability, attempt and CSOT guards constrain recovery. The bulk specification forbids ignoring killCursors results. The base command path checks and deserializes replies; cleanup discards the returned object and suppresses kill errors after possible session/server effects. Failed getMore preserves its original error through cleanup; bulk wrapping can retain its cause and partial result. Ordered-write iterator cleanup suppresses close rejection; initialization and normal close can surface helper failures. The bulk SHOULD exception, write-concern continuation, API-specific progress/transaction semantics, Atlas Serverless exclusion and MongoDB 8.1.2 mongos/sharded writeConcernError reporting also apply.",
+      "sources": [
+        "https://api.github.com/repos/mongodb/node-mongodb-native/git/ref/tags/v7.6.0",
+        "https://api.github.com/repos/mongodb/node-mongodb-native/releases/tags/v7.6.0",
+        "https://mongog.com/docs/mongodb/bulk-write-operations",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cmap/connection.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cmap/wire_protocol/on_demand/document.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cmap/wire_protocol/responses.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/abstract_cursor.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/client_bulk_write_cursor.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/client_bulk_write/executor.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/client_bulk_write/results_merger.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/execute_operation.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/get_more.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/kill_cursors.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/operation.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sdam/server.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sdam/server_selection.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sessions.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/utils.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/write_concern.ts",
+        "https://raw.githubusercontent.com/mongodb/specifications/b8e0ee19b4622fe48c9337969da56b24037b9335/source/client-backpressure/client-backpressure.md",
+        "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+        "https://www.mongodb.com/docs/drivers/node/current/crud/bulk-write.md",
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkWrite.md",
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkwrite/"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:001ab545018fc908ea821aecbfe5dacb6bdd39dcb76cb8eb50dc00e4056c6e0a",
+        "ev:07d890ce0dd75309a61c84e08bcac6220f18025ae4dfd77e5f02e320b327cd9b",
+        "ev:0b6834365a6b9982f1f154f8a02d92c28a8e804c85c3526d22203deaff107681",
+        "ev:0c0b9fc67426c275cf0fbcb6614a707d8c1e1b9b283a7a4981f68f0a60305741",
+        "ev:0c7a27c61412c0eab38cc368190686315389035e09a7f86d3fb489cecd240bcc",
+        "ev:1501929c5b83cac2f9d89fd4195fa5c02a540fffab6656a6d2dfb38312b65bc0",
+        "ev:163224a3d11ecd815584b717e588b71472d883f202ecf51a357cc41b86d9bcb5",
+        "ev:19ca7148c49a93679bdef525b17f97abc341cc525593a8e7f71c64df86cbe5e5",
+        "ev:1cc89f25cb4555bc8dc0893f7b35eab8cf1a6b5b5132cc7b08cae6cfdcf53f51",
+        "ev:2101ee7bb306ce3ff25d2db27f032c9b68b76861ce606b6cd1f4c74fdce840ca",
+        "ev:29479f40e3c0270a27f5180a1309a4a90fe210652f94bf2de30bcbbb0d2ed1a9",
+        "ev:29a8db8a1c28141a4bec871832a0158c7f31061e735f6499597ed64690130243",
+        "ev:33c6cbc97be9220ee19b32cf662d3f150f351b9231afe22cab080327782dca15",
+        "ev:386c821c4421f4ca877012b5956427a19be876e98cfdc73a6dbb32760e4f4999",
+        "ev:3b166f0ef896d14f6c671ab130d895547a5f9e7f8a5cc2d9255112f5839d9ffe",
+        "ev:4014e035ff25b3865fb5155f5e10b4c45cb15c4f063cd50244f532cf027dcd4c",
+        "ev:40459e4c71b5c9c08c67197f41ea486321b8d87c8b582aba05a39c590cc6a034",
+        "ev:40bb2ef43f6f08908197b5f8206990dbb034b472987d9b146d8fe33d613908ae",
+        "ev:421097b6847ee4d19a6ff753eb6d9ff29fa66e26044f3dd838775816b336de41",
+        "ev:463b695a3f022cac8d9bd9836a7fdfaca3103c28de7e59f31d24f7232f5109ca",
+        "ev:4e0fdd11cded50db1b4bbe757e72daea904a541d3d000f1e601f9775d7bf9aa0",
+        "ev:4e297d9c9da3f8ff172f2a446368faf8501a20141f0ea50d169f055d6e78a558",
+        "ev:4ff949480089ab843666157d04db8931c6993e2bc0d7f4d903ad2586f892e41e",
+        "ev:59064d8c2cfcfd4d116eb72d4b6d6f03419db536c6c4c176a7b0611d34c45a0f",
+        "ev:627d518b3cdc8b8c239c3cdad7f1545793e7abfb405bbfdeb5f391021bb585c0",
+        "ev:6c820383a16e14303c1aeaff5709e00bcdc71140cf88c8fc001b6e53ef7c3c46",
+        "ev:6d2c36863772eb6a271dde746959f26805621065856a31a44365a0816815aec8",
+        "ev:6e010b18b05c5ebf85639bbd8a6398c5fe1b373806709e1149b543968dae9f5c",
+        "ev:776171b59623d357d31a6bff2842a84b15cfeb358dc1a31b50fe0ba03fb431f8",
+        "ev:77ab6d5ef51ac3a9ab15a9e3094b5e0f883df1afeb48279cd52b54f1e416d76d",
+        "ev:7a8d429abafe050dc760246500c56f93968053d685dda00e9b3e236ae8e2edb0",
+        "ev:7b39d23a85e4978d73cf8bef29da2b96b5903e26491d9b917fbfc794e9e780ff",
+        "ev:814c8e9396f639550b9d14a73f93921edf9812a1e5ef8333a20d98dd2bed2e92",
+        "ev:881f627ea4824866cc431026f97ca611c791293b80977452c1182ce243e1a1e4",
+        "ev:89c1e4800e860abee133613f0be69edab75e51c97903ea47dd86904166c40683",
+        "ev:8ee718ffc35c8b84145b160f4988bf1323560912125a659bb007c8467a8eb624",
+        "ev:91170e88f311d511eee4558c9d2925fa12f56b3d352bbbc8be4d6207ae504f7a",
+        "ev:91fca5a312bdef02638706d81056693ebea7d45b5c4546ab78ac322e063db95c",
+        "ev:9608a441f3ec5d8ebcb333decd9e0d525c68ec216512b1314693fc0826fe4985",
+        "ev:9c6d5caf41761e465b9906f298ef7082aeb25c70e652b86a59739fc3f894719f",
+        "ev:a66ef0fa034eb0f9909138f9ca6e1988ef9986926766fa79771ba20d3d674f65",
+        "ev:affcc55e82a02caab3c709ecc7396f46c503b6c2811f63697c34b0e8154e6127",
+        "ev:b0fce64586582ad7b6d70a8ac9224d2f76955cf5daa5815ac003d3ab7e5cbb22",
+        "ev:b3b77ec0982fbb00e1c4aab4d2520a4bca5c17e2290e730db1b684213db4c316",
+        "ev:c79febb62e24d24fdcf54a76cf120cf509eaf440aa4262a5fd8fcf26c19e73db",
+        "ev:c967b023c5c4c6476dbf7981d469e20a2110f92888456f3c8f647d5f34936415",
+        "ev:ce2a86cd579f06737bf4b2250facb9094472b7f6e9d2d8462fb8f0fde573f77a",
+        "ev:ce454f4d03a5240bca443c3c751063ca0fa210a2d56f78b273d79a9c10722790",
+        "ev:d30c662c217842a9302480676746ad9b694981a2e5f3454f71bfcb8e4c371d6d",
+        "ev:d7f5a034db151a35733742a85e4c2b8f1526439764ad5d909331d93506fbfc44",
+        "ev:dfef73157b450f02208e1927398f61a40608c6dbe1dcd9326949163679a958b2",
+        "ev:e17b2d22dffb32421222fbf4ca8934c9138ce012e855222f41abe9ab331b979e",
+        "ev:e202011e2504eacf3b7102420c8d49c2a8987d0a12d3fa805af50803fdf70df9",
+        "ev:e8196c6f3d47e046c93c2de19c08295d1b6e0aee75f7ebaf7a1c5c1b2ceb61d6",
+        "ev:edcdc0c0513691cbc24f7da5b979e8d02f12ff966889ccfb29a94595fe9be7b8",
+        "ev:f45aa1b3971c0e47cfdf737f54991928a1a7e7a5dad1b26624131fac51d4765f",
+        "ev:f5b116fd45698b2953e86d706ea96559b7769daa4d5859194bc542f6066518d8",
+        "ev:f83500d530c570873ea6800ac53b0231659c8b61d1b7e7922a0378362c2a83a4",
+        "ev:fd29164a7aed3e8685ce300239b74fb1c1b0de796325a6c2f5afcdbd1a80f39a",
+        "ev:fe5544ba1972de6a0235844b5bb37a00484fa2ea4826809405a249f53e8d16e6",
+        "ev:fe85b2e77ca81332fec306a5180f80888874aabfeed38813abdd6d56ad90ab5f"
+      ]
+    },
+    {
+      "assertionId": "prose:155e742d19ffc90a314b8906ef19fbe547e351aa9d4fffe26da009050024038f",
+      "statementSha256": "155e742d19ffc90a314b8906ef19fbe547e351aa9d4fffe26da009050024038f",
+      "assertionKind": "open_question",
+      "index": 0,
+      "documentSlug": "bulk-write-partial-completion-and-ordering",
+      "documentConcept": "Bulk-write partial completion and ordering",
+      "canonicalConceptId": "concept:94287ccec159c91632186f0839ac31e62a29379f721b1d0423d04f96a9feb240",
+      "text": "For an uninspected driver or release, or the intended deployment, does bulk results-cursor getMore use the inspected Node.js v7.6.0 retryReads classification, same-server selection and load-balanced pinning path, or a different one?",
+      "sources": [
+        "https://api.github.com/repos/mongodb/node-mongodb-native/git/ref/tags/v7.6.0",
+        "https://api.github.com/repos/mongodb/node-mongodb-native/releases/tags/v7.6.0",
+        "https://mongog.com/docs/mongodb/bulk-write-operations",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cmap/connection.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cmap/wire_protocol/on_demand/document.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cmap/wire_protocol/responses.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/abstract_cursor.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/cursor/client_bulk_write_cursor.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/client_bulk_write/executor.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/client_bulk_write/results_merger.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/execute_operation.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/get_more.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/kill_cursors.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/operations/operation.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sdam/server.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sdam/server_selection.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/sessions.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/utils.ts",
+        "https://raw.githubusercontent.com/mongodb/node-mongodb-native/0fb2c132cf731200ba35c273dd8632d7bc67e17b/src/write_concern.ts",
+        "https://raw.githubusercontent.com/mongodb/specifications/b8e0ee19b4622fe48c9337969da56b24037b9335/source/client-backpressure/client-backpressure.md",
+        "https://raw.githubusercontent.com/mongodb/specifications/master/source/crud/bulk-write.md",
+        "https://www.mongodb.com/docs/drivers/node/current/crud/bulk-write.md",
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkWrite.md",
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkwrite/"
+      ],
+      "validationStatus": "SUPPORTED",
+      "evidenceIds": [
+        "ev:0c7a27c61412c0eab38cc368190686315389035e09a7f86d3fb489cecd240bcc",
+        "ev:29479f40e3c0270a27f5180a1309a4a90fe210652f94bf2de30bcbbb0d2ed1a9",
+        "ev:3b166f0ef896d14f6c671ab130d895547a5f9e7f8a5cc2d9255112f5839d9ffe",
+        "ev:40459e4c71b5c9c08c67197f41ea486321b8d87c8b582aba05a39c590cc6a034",
+        "ev:463b695a3f022cac8d9bd9836a7fdfaca3103c28de7e59f31d24f7232f5109ca",
+        "ev:4e0fdd11cded50db1b4bbe757e72daea904a541d3d000f1e601f9775d7bf9aa0",
+        "ev:4e297d9c9da3f8ff172f2a446368faf8501a20141f0ea50d169f055d6e78a558",
+        "ev:6d2c36863772eb6a271dde746959f26805621065856a31a44365a0816815aec8",
+        "ev:6e010b18b05c5ebf85639bbd8a6398c5fe1b373806709e1149b543968dae9f5c",
+        "ev:7b39d23a85e4978d73cf8bef29da2b96b5903e26491d9b917fbfc794e9e780ff",
+        "ev:91fca5a312bdef02638706d81056693ebea7d45b5c4546ab78ac322e063db95c",
+        "ev:affcc55e82a02caab3c709ecc7396f46c503b6c2811f63697c34b0e8154e6127",
+        "ev:c79febb62e24d24fdcf54a76cf120cf509eaf440aa4262a5fd8fcf26c19e73db",
+        "ev:dfef73157b450f02208e1927398f61a40608c6dbe1dcd9326949163679a958b2",
+        "ev:e17b2d22dffb32421222fbf4ca8934c9138ce012e855222f41abe9ab331b979e",
+        "ev:fe85b2e77ca81332fec306a5180f80888874aabfeed38813abdd6d56ad90ab5f"
+      ]
+    }
+  ]
+}
