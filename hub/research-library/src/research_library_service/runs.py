@@ -146,6 +146,22 @@ class ResearchRunStore:
         row = self.store.meta.find_one(self._owned({"_id": "run-catalog"}), session=session)
         return (row or {}).get("revision", 0)
 
+    def _increment_catalog(self, session):
+        self._claim(self.store.meta, "run-catalog", session)
+        self.store.meta.update_one(self._owned({"_id": "run-catalog"}),
+            {"$setOnInsert": {"managed_by": MANAGED_BY}, "$inc": {"revision": 1}},
+            upsert=True, session=session)
+
+    def _reserve_catalog_revision(self, rid, session):
+        # Reserve the existing increment before the authorized write's body work.
+        # The transaction still commits it atomically with the matching run save.
+        # Per-attempt credits disappear on abort/retry with the store's frame.
+        frame = self.store._evidence_context.get()
+        if frame is not None and frame.get("session") is session:
+            self._increment_catalog(session)
+            credits = frame.setdefault("run_catalog_credits", {})
+            credits[rid] = credits.get(rid, 0) + 1
+
     def _save(self, row, previous, actor, session):
         row = copy.deepcopy(row)
         row.update(managed_by=MANAGED_BY, schema=RUN_SCHEMA,
@@ -156,11 +172,14 @@ class ResearchRunStore:
             raise ValueError("Run document exceeds its byte limit")
         # Take the shared catalog write before run/version writes establish a
         # longer conflict window. The outer transaction rolls everything back.
-        self._claim(self.store.meta, "run-catalog", session)
-        self.store.meta.update_one(self._owned({"_id": "run-catalog"}),
-            {"$setOnInsert": {"managed_by": MANAGED_BY}, "$inc": {"revision": 1}},
-            upsert=True, session=session)
         rid = row["_id"]
+        frame = self.store._evidence_context.get()
+        credits = (frame.get("run_catalog_credits", {}) if frame is not None
+                   and frame.get("session") is session else {})
+        if credits.get(rid, 0):
+            credits[rid] -= 1
+        else:
+            self._increment_catalog(session)
         if previous is None:
             self._claim(self.runs, rid, session)
             self.runs.insert_one(row, session=session)
@@ -326,6 +345,7 @@ class ResearchRunStore:
             patch["options"] = _options(patch["options"])
         def change(session):
             old = self._edit(rid, expected_revision, lease_token, owner, session)
+            self._reserve_catalog_revision(rid, session)
             return {"run": self._save({**old, **patch}, old, actor, session)}
         return self.store._mutate("run_checkpoint", self._fenced_payload(lease_token,
             run_id=rid, patch=patch, expected_revision=expected_revision, owner=owner),
@@ -434,6 +454,7 @@ class ResearchRunStore:
                                        "Artifact metadata", 32 * 1024)
 
     def _store_artifact(self, old, name, kind, raw, metadata, provenance, actor, session):
+        self._reserve_catalog_revision(old["_id"], session)
         sha = digest(raw)
         identity = {"run_id": old["_id"], "name": name, "kind": kind,
                     "body_utf8_sha256": sha, "metadata": metadata,
@@ -444,18 +465,44 @@ class ResearchRunStore:
         # All writes still commit or roll back in this same transaction.
         saved = self._save(old, old, actor, session)
         prior = self._claim(self.artifacts, aid, session)
-        chunks = []
+        chunks, expected = [], {}
         for start in range(0, len(raw), CHUNK_BYTES):
             chunk = raw[start:start + CHUNK_BYTES]
             cid = "chunk:" + digest(chunk)
-            existing = self._claim(self.artifact_chunks, cid, session)
-            if existing is None:
-                self.artifact_chunks.insert_one({"_id": cid, "managed_by": MANAGED_BY,
-                    "data": chunk, "byte_count": len(chunk), "sha256": digest(chunk)}, session=session)
-            elif (bytes(existing.get("data", b"")) != chunk or existing.get("sha256") != digest(chunk)
-                  or existing.get("byte_count") != len(chunk)):
-                raise Conflict("Stored artifact chunk checksum mismatch")
+            expected[cid] = {"_id": cid, "managed_by": MANAGED_BY,
+                "data": chunk, "byte_count": len(chunk), "sha256": digest(chunk)}
             chunks.append(cid)
+        # An artifact has at most sixteen bounded chunks. Read them together,
+        # including foreign collisions, before inserting only missing bodies.
+        found = {}
+        existing_chunks = (self.artifact_chunks.find({"_id": {"$in": list(expected)}}, session=session)
+                           if expected else ())
+        for existing in existing_chunks:
+            cid = existing.get("_id")
+            if cid not in expected or cid in found:
+                raise Conflict("Unexpected stored artifact chunk identity")
+            if existing.get("managed_by") != MANAGED_BY:
+                raise OwnershipError("Run storage identity is already owned")
+            wanted = expected[cid]
+            if (bytes(existing.get("data", b"")) != wanted["data"]
+                    or existing.get("sha256") != wanted["sha256"]
+                    or existing.get("byte_count") != wanted["byte_count"]):
+                raise Conflict("Stored artifact chunk checksum mismatch")
+            found[cid] = existing
+        missing = [value for cid, value in expected.items() if cid not in found]
+        if missing:
+            try:
+                self.artifact_chunks.insert_many(missing, ordered=True, session=session)
+            except Exception as exc:
+                from pymongo.errors import BulkWriteError, DuplicateKeyError, OperationFailure
+                details = getattr(exc, "details", None)
+                errors = details.get("writeErrors", []) if isinstance(details, dict) else []
+                codes = {getattr(exc, "code", None)} | {
+                    row.get("code") for row in errors if isinstance(row, dict)}
+                if isinstance(exc, (BulkWriteError, DuplicateKeyError)) and codes & {11000, 11001}:
+                    # Restart the fenced transaction and validate the winner.
+                    raise OperationFailure("Concurrent immutable artifact insertion", code=112) from None
+                raise
         manifest = {**identity, "_id": aid, "managed_by": MANAGED_BY, "encoding": "utf-8",
                     "byte_count": len(raw), "chunks": chunks, "created_at": self.store._date(),
                     "qualification": copy.deepcopy(UNVERIFIED) if provenance is False else
@@ -553,10 +600,21 @@ class ResearchRunStore:
     def _artifact_text(self, artifact_id, session=None):
         """Read and verify the whole immutable body for trusted in-process consumers."""
         manifest = self._artifact_manifest(artifact_id, session=session)
+        identities = set(manifest["chunks"])
+        found = {}
+        stored_chunks = (self.artifact_chunks.find({"_id": {"$in": list(identities)}}, session=session)
+                         if identities else ())
+        for chunk in stored_chunks:
+            cid = chunk.get("_id")
+            if cid not in identities or cid in found:
+                raise Conflict("Unexpected stored artifact chunk identity")
+            if chunk.get("managed_by") != MANAGED_BY:
+                raise Conflict("Stored artifact chunk is missing or invalid")
+            found[cid] = chunk
         blocks = []
         for cid in manifest["chunks"]:
             _identity(cid, "chunk:")
-            chunk = self.artifact_chunks.find_one(self._owned({"_id": cid}), session=session)
+            chunk = found.get(cid)
             if chunk is None or not isinstance(chunk.get("data"), bytes):
                 raise Conflict("Stored artifact chunk is missing or invalid")
             raw = bytes(chunk["data"])

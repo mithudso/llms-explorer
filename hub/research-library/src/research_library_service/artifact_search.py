@@ -5,7 +5,7 @@ import copy
 import re
 import time
 
-from .models import MANAGED_BY, Conflict, digest, text
+from .models import MANAGED_BY, Conflict, OwnershipError, digest, text
 from .queries import MODEL
 from .runs import MAX_ARTIFACT_BYTES, _identity
 
@@ -127,12 +127,40 @@ class ArtifactSearch:
         return units
 
     def _insert(self, units, session):
+        expected = {}
         for unit in units:
-            old = self.runs._claim(self.collection, unit["_id"], session)
-            if old is None:
-                self.collection.insert_one(unit, session=session)
-            elif old != unit:
+            prior = expected.setdefault(unit["_id"], unit)
+            if prior != unit:
                 raise Conflict("Immutable artifact search unit checksum mismatch")
+        identities, existing = sorted(expected), {}
+        for start in range(0, len(identities), MAX_CENSUS_GROUP):
+            selected = identities[start:start + MAX_CENSUS_GROUP]
+            # Do not filter on managed_by: that would hide a foreign collision.
+            for old in self.collection.find({"_id": {"$in": selected}}, session=session):
+                if old.get("_id") not in expected or old["_id"] in existing:
+                    raise Conflict("Artifact search unit census contains unexpected identities")
+                if old.get("managed_by") != MANAGED_BY:
+                    raise OwnershipError("Run storage identity is already owned")
+                if old != expected[old["_id"]]:
+                    raise Conflict("Immutable artifact search unit checksum mismatch")
+                existing[old["_id"]] = old
+        missing = [expected[uid] for uid in identities if uid not in existing]
+        for start in range(0, len(missing), MAX_CENSUS_GROUP):
+            try:
+                self.collection.insert_many(missing[start:start + MAX_CENSUS_GROUP],
+                                            ordered=True, session=session)
+            except Exception as exc:
+                # A concurrent immutable insert can win after the snapshot read.
+                # Abort and let the existing bounded whole-transaction retry read
+                # and validate that winner; never continue an aborted transaction.
+                from pymongo.errors import BulkWriteError, DuplicateKeyError, OperationFailure
+                details = getattr(exc, "details", None)
+                errors = details.get("writeErrors", []) if isinstance(details, dict) else []
+                codes = {getattr(exc, "code", None)} | {
+                    row.get("code") for row in errors if isinstance(row, dict)}
+                if isinstance(exc, (BulkWriteError, DuplicateKeyError)) and codes & {11000, 11001}:
+                    raise OperationFailure("Concurrent immutable artifact insertion", code=112) from None
+                raise
 
     def index_artifacts(self, artifact_ids, wait_seconds=0):
         """In-process indexing from verified Mongo bodies, without accepting caller text."""
@@ -150,6 +178,7 @@ class ArtifactSearch:
         owner = text(owner, "run owner", 200)
         def change(session):
             old = self.runs._edit(rid, expected_revision, lease_token, owner, session)
+            self.runs._reserve_catalog_revision(rid, session)
             units = self._prepare(ids, session, run_id=rid)
             self._insert(units, session)
             return {"run": self.runs._save(old, old, actor, session), "artifact_ids": ids,

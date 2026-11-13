@@ -1,6 +1,7 @@
 import copy
 
 import pytest
+from pymongo.errors import BulkWriteError
 from test_store_core import Database
 
 from research_library_service.artifact_search import (
@@ -101,11 +102,20 @@ def test_unicode_units_have_stable_ids_sha_and_full_byte_coverage(search, monkey
 
 def test_public_index_is_fenced_and_request_retry_only_refreshes_coverage(search, monkeypatch):
     made = artifact(search)
+    catalog_before = search.runs._catalog()
+    original_prepare = search._prepare
+
+    def prepare(ids, session=None, **kwargs):
+        assert search.runs._catalog(session) == catalog_before + 1
+        return original_prepare(ids, session, **kwargs)
+
+    monkeypatch.setattr(search, "_prepare", prepare)
     pipelines = native(search, monkeypatch, fail="semantic")
     args = (made["run"]["_id"], [made["artifact"]["_id"]], made["run"]["revision"],
             made["lease_token"], "coordinator")
     with pytest.raises(LeaseConflict):
         search.artifact_index(*args[:3], "wrong-token", "coordinator")
+    assert search.runs._catalog() == catalog_before
     result = search.artifact_index(*args, request_id="index-once")
     assert result["run"]["revision"] == made["run"]["revision"] + 1
     assert not result["coverage"]["complete"]
@@ -117,6 +127,7 @@ def test_public_index_is_fenced_and_request_retry_only_refreshes_coverage(search
     assert retry["coverage"]["complete"]
     assert retry["run"]["revision"] == result["run"]["revision"]
     assert list(search.collection.find()) == saved
+    assert search.runs._catalog() == catalog_before + 1
     assert len(pipelines) == 2
 
 
@@ -169,6 +180,72 @@ def test_corrupt_immutable_units_or_artifact_chunks_fail_before_reindex(search, 
                                            {"$set": {"data": b"bad"}})
     with pytest.raises(Conflict, match="checksum"):
         search.index_artifacts([made["artifact"]["_id"]])
+
+
+def test_bulk_unit_insert_reads_complete_bounded_census_and_reuses_exact_rows(search, monkeypatch):
+    made = artifact(search, "x" * (UNIT_BYTES * 501))
+    units = search._units(made["artifact"], "x" * (UNIT_BYTES * 501))
+    search.collection.insert_many([units[0], units[-1]])
+    reads, writes = [], []
+    original_find, original_insert = search.collection.find, search.collection.insert_many
+    def find(query, **kwargs):
+        reads.append(copy.deepcopy(query))
+        return original_find(query, **kwargs)
+    def insert(rows, **kwargs):
+        writes.append(copy.deepcopy(rows))
+        return original_insert(rows, **kwargs)
+    monkeypatch.setattr(search.collection, "find", find)
+    monkeypatch.setattr(search.collection, "insert_many", insert)
+    search.store._tx(lambda session: search._insert(units, session))
+    assert len(reads) == 2 and all(len(row["_id"]["$in"]) <= MAX_CENSUS_GROUP for row in reads)
+    assert all("managed_by" not in row for row in reads)
+    assert len(writes) == 1 and len(writes[0]) == 499
+    assert sorted(original_find(), key=lambda row: row["_id"]) == sorted(units, key=lambda row: row["_id"])
+    search.store._tx(lambda session: search._insert(units, session))
+    assert len(writes) == 1
+
+
+@pytest.mark.parametrize("foreign", [False, True])
+def test_bulk_unit_insert_checks_later_census_group_before_any_write(search, monkeypatch, foreign):
+    made = artifact(search, "x" * (UNIT_BYTES * 501))
+    units = search._units(made["artifact"], "x" * (UNIT_BYTES * 501))
+    last = max(units, key=lambda row: row["_id"])
+    broken = {**last, **({"managed_by": "foreign"} if foreign else {"search_text": "corrupted"})}
+    search.collection.insert_one(broken)
+    def forbidden(*args, **kwargs):
+        pytest.fail("All existing groups must be checked before insertion")
+    monkeypatch.setattr(search.collection, "insert_many", forbidden)
+    with pytest.raises(OwnershipError if foreign else Conflict):
+        search.store._tx(lambda session: search._insert(units, session))
+    assert list(search.collection.find()) == [broken]
+
+
+@pytest.mark.parametrize("foreign_winner", [False, True])
+def test_bulk_duplicate_race_retries_whole_transaction_then_validates_winner(
+        search, monkeypatch, foreign_winner):
+    import research_library_service.store as store_module
+    made = artifact(search)
+    units = search._units(made["artifact"], "MongoDB document cache pressure")
+    original = search.collection.insert_many
+    attempted = []
+    winner = {**units[0], **({"managed_by": "foreign"} if foreign_winner else {})}
+    def insert(rows, **kwargs):
+        attempted.append(1)
+        if len(attempted) == 1:
+            raise BulkWriteError({"writeErrors": [{"code": 11000}], "writeConcernErrors": [],
+                                  "nInserted": 0})
+        return original(rows, **kwargs)
+    def after_abort(_):
+        search.collection.insert_one(winner)
+    monkeypatch.setattr(search.collection, "insert_many", insert)
+    monkeypatch.setattr(store_module.time, "sleep", after_abort)
+    if foreign_winner:
+        with pytest.raises(OwnershipError):
+            search.store._tx(lambda session: search._insert(units, session))
+    else:
+        search.store._tx(lambda session: search._insert(units, session))
+    assert len(attempted) == 1  # retry sees the committed winner; never overwrites it
+    assert list(search.collection.find()) == [winner]
 
 
 def test_hybrid_search_scopes_both_channels_and_returns_current_verified_text(search, monkeypatch):
