@@ -86,3 +86,7 @@ Delivery correction v1.0.1: align the API dependency pin and lock entry with ski
 ## 2026-11-13 — Owner import family guard v1.0.1
 
 Delta: filter family reservation requests to eligible, existing, nondeleted endpoints. Record missing endpoints and reservation-discovery errors without writing their relationships. The trigger was KeyError("A reserved research concept is unavailable") after source and concept imports had already succeeded. Private continuation reuses the frozen inventory and verifies existing source snapshots; it does not restart research or judges.
+
+## 2026-11-13 — Artifact catalog write ordering v1.0.0
+
+Delta: save the run revision and shared catalog before transferring artifact chunks, within the same MongoDB transaction. Concurrent activity on run-catalog previously invalidated an entire upload near its end. The change keeps one catalog increment and one run version per artifact, and rollback covers early revision/catalog writes when any later artifact write fails. Private synchronization receipts remain outside Git.
