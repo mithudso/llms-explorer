@@ -1,7 +1,7 @@
 # Mounted-home agent configuration sync prompt
 
-- Version: 1.2.0
-- Delta: 1.1.0 to 1.2.0; record authenticated recovery and the active guarded copy checkpoint.
+- Version: 1.3.0
+- Delta: 1.2.0 to 1.3.0; record verified SSH transport, completed primary staged merge, and active remote application.
 - Updated: 2026-11-13
 - Status: IN_PROGRESS
 - Tracking: Configuration sync task `TASK-1465`; active copy stage `TASK-1468`.
@@ -28,8 +28,9 @@ whole; mixing an older command with newer arguments or environment values can
 produce an invalid server. Identify hooks by their target and binding so a newer
 command replaces an older definition of that hook.
 
-Translate local home paths for each destination. The mount location is an access
-path, while the mounted machine uses `/Users/mitch` when it executes commands.
+Translate local home paths for each destination. The mount location and SMB
+display name are not Unix account identity. Use the canonical native home
+verified through the trusted, non-root SSH session for remote commands.
 Keep SSH remote command paths unchanged. Preserve each system's authentication,
 account, session, database, lock, and runtime state. Preserve host-specific hook
 trust and existing source files. Back up every overwritten node privately.
@@ -49,23 +50,33 @@ execution receipts remain outside this repository.
 
 ## Current execution state
 
-The user confirmed Finder authentication. The parent agent verified the SMB
-mount, a read probe, the mounted machine's native home, and the target's distinct
-device identity. The guarded round-three copy pass is active. The reported
-snapshot was approximately 20,500 of 189,363 planned checks and 2,374 verified writes with no errors
-observed at that point. These are approximate progress observations, not final
-counts or a completed-sync receipt.
+Transport moved to trusted SSH. Strict host-key verification matched the pinned
+key exactly to known-host evidence. The parent agent verified the canonical
+native home and a non-root SSH session. The SMB display name is separate from
+the canonical Unix account. No authentication input request is pending.
 
-No structured configuration merges have been applied. The private executor now
-anchors directory creation, temporary files, replacement, and temporary-file
-cleanup to directory file descriptors. It checks parent traversal without
-following symlinks and verifies device/inode identity. It journals every outcome
-and drains all submitted batch results. Configuration processing uses a sticky
-abort, outcome journal, and nonzero failure exits.
+Primary host-local staged CAS merge phase 100 completed with exit code 0:
+189,363 operations, 78,976 verified writes, zero errors, and 1,531,663,977 logical
+bytes. Those writes comprise 75,305 actual primary asset writes and 3,671 writes
+to the staging outgoing delta. These are phase-local results, not final global
+sync totals. A fresh primary census completed with 226,667 nodes and 182,389 file
+hashes, with zero errors.
 
-The current completed fixture suite has 92 passing checks with exit code 0,
-including 12 finalized inventory tests. Verifier work remains active. Final
-copying, inventory reconciliation, configuration application,
-and native verification remain outstanding. Verify mount identity again before
-continuation and inspect current private receipts before retrying an operation.
-The implementation and detailed configuration data remain outside Git.
+The SSH snapshot verified 185,279 files, approximately 3.5 GB. It initially
+identified 4,084 files missing remotely and observed 640 initially cached paths
+absent on both sides during external plugin-updater activity. This sync does
+not claim to have deleted or restored those superseded cache paths. The outgoing
+3,671-file delta, approximately 54 MB, was staged remotely and verified as 3,672
+entries including metadata.
+
+Remote apply phase 102 is running at this checkpoint. Attempt 101 timed out
+while connecting and did not run the apply. A bounded one-hour sleep assertion
+was started. Source backups remain retained, and no original user data was
+deleted by this sync. APFS copy-on-write staging has ten fixture checks for
+independent content, source ctime preservation, and safe fallback on low disk.
+
+The current private suite has 169 passing checks with exit code 0. No structured
+configuration merges have been applied. Fresh cross-host digest comparison,
+new cache-path reconciliation, residual sync, configuration merges, native CLI
+verification, and final repository delivery remain outstanding. The helper
+implementation and detailed configuration data remain outside Git.
