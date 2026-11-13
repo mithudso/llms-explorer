@@ -635,3 +635,27 @@ def test_cache_projection_never_changes_original_frozen_files(store, roots, skil
     assert all(entry["path"] not in {"facts.db", "SKILLS-EMBEDDINGS.json"}
                for entry in doc["resources"])
     assert all(path.read_bytes() == value for path, value in before.items())
+
+
+@pytest.mark.parametrize("active,disabled", [(False, []), (True, ["Codex"]), (True, [])])
+def test_conservative_ingestion_preserves_states_and_versions(store, skill, roots, tmp_path,
+                                                             active, disabled):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    first = store.ingest(catalog)
+    sid = first["skills"][0]["id"]
+    old_release = store.collection.docs[sid]["release_sha256"]
+    store.collection.docs[sid].update(active=active, disabled_in=disabled, searchable=False)
+    guide = skill / "SKILL.md"
+    guide.write_text(guide.read_text() + "\nA new local instruction.\n")
+    store.preserve_states = True
+    result = store.ingest(catalog)
+    current = store.collection.docs[sid]
+    assert result["changed"] == 1
+    assert current["active"] is active
+    assert current["disabled_in"] == disabled
+    assert current["searchable"] is False
+    assert "search_text" not in current
+    assert current["release_sha256"] != old_release
+    assert "A new local instruction." in store.load(sid)["text"]
+    assert any(row["release_sha256"] == old_release for row in store.versions.docs.values())
+    assert store.ingest(catalog)["changed"] == 0
