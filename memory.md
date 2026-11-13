@@ -1,5 +1,13 @@
 # Memory
 
+## Salesforce full-suite authorized completion — 2026-11-12
+
+The user requested completion of the remaining work and lifted the standing embedding/indexing pause altogether. TASK-1517 remains in progress until final artifact validation, index freshness and verified remote delivery. The new native cohorts completed all four remaining concepts:82new source facts and108reviewed assertions. Current mapped scope is23complete concepts/342source facts,40scored candidates,17skips and no queued or partial research node. One evidence-grounded re-expansion examined13leads and produced two skips; it does not establish frontier saturation. Final14CQ artifact acceptance is still being repaired.
+
+The final sampled source review caught an earlier overbroad permission-delay claim. Its canonical statement now limits the ten-minute bound to standard /data/ChangeEvents and custom channels. A fresh bound v4 gate accepted the one changed assertion;135other cohort judgments and341other corpus units remain unchanged. The previous canonical artifact and review receipts remain private history. Four clipped new facet notes were also repaired. Current navigation and final device-resume/hydration specification are not yet released.
+
+Normal incremental index services are healthy after a validated stale-SHM repair that preserved main database bytes and vectors. The initial342-unit semantic collection and seven-page proposal/text layer are retained as pre-correction receipts; current source refresh and scoped MongoDB skill read-back remain pending. Existing embedding model/dimension contracts and frozen website vectors remain protected. The initial scoped build passed3,073pages, typecheck0errors/0warnings/21hints,26tree-page tests and source/frozen guards. Corrected final projections require a new build before delivery. No Salesforce org/customer reads or production alert migration occurred.
+
 ## Salesforce Pub/Sub bounded research delivery — 2026-11-12
 
 The full-suite run reached SATURATION-DISSENT after its default three frontier rounds: 38 scored candidates, 19 complete concepts, one partial result, 15 skips and three queued gaps. Current v4 gates cover 260 structured facts and 96 auxiliary assertions. Twenty complete packs include a 79-claim aggregate that duplicates six leaves; the family has 19 members. The Omni channel diagnostic retains eight facts and five auxiliary assertions but withholds two details; no twentieth complete pack or researched node was promoted.
