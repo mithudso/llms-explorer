@@ -70,9 +70,11 @@ paths and content hashes. Use
 limits and `architecture-assessment.md` beside it for the proposed implementation.
 The family contains 23 completed leaf concepts and 342 source-supported facts.
 The foundational aggregate duplicates six leaves and is excluded from those totals.
-The family also links proposed application-policy and Omni-validation contracts;
-their acceptance traces remain unexecuted. Complete accepted units are indexed
-in `salesforce-pubsub-full-suite-2026-11-12__facts` with `mxbai-embed-large`/1024.
+The family also links proposed application-policy, device-recovery and Omni-validation contracts;
+their acceptance traces remain unexecuted. The permanent facts key is
+`salesforce-pubsub-full-suite-2026-11-12__facts`, using whole accepted unit text
+with `mxbai-embed-large`/1024. The suite
+`verification.json` records current operational readiness.
 These artifacts do not establish production readiness or authorize deployment.
 
 <!-- llms-routing:start -->

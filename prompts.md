@@ -2000,3 +2000,8 @@ User answer: “lift the pause altogether.” Resume normal incremental embeddin
 - User request:
   - Resolve all existing MongoDB concept-tree areas through independent evidence review before expanding the frontier, including Voyage AI.
 - This delivery: only the accepted Container memory limits and allocator cache configuration scope; preserve other research, holds and queues.
+
+
+## 2026-11-13 — Confirm current skill MCP target
+
+The user selected the currently connected MCP database for current skills. Preserve the separate original candidate prototype and its nine immutable seed revisions. Verify current source/release pins through the existing runtime; no prototype or schema migration is requested.

@@ -98,6 +98,8 @@ ManagedSubscribe remains labeled Beta in the pinned official references. Adminis
 
 The service derives allowed tenant, cohort and field policy from authenticated identity. A caller-supplied `scopeId` is not authorization. Devices receive no Atlas or Salesforce database credentials.
 
+The [proposed device recovery and hydration contract](device-recovery-and-hydration-contract.md) specifies cursor scope, contiguous acknowledgments, journal catch-up and snapshot reset. It also defines central batch hydration, singleflight caching, freshness and invalidation requirements. These application requirements complement the source facts below; they remain unimplemented, and their failure traces remain unexecuted.
+
 On startup, the service returns an authorized Case summary snapshot, the retained journal floor and a compatible catch-up cursor. It then sends journal updates over the chosen authenticated push transport. Reconnect always includes catch-up from the last contiguous accepted position; a websocket being open does not prove there were no missing journal entries. A cursor older than retention produces an explicit snapshot/reset response rather than a false “caught up” result.
 
 The following is proposed MongoDB query pseudocode over the application's fields. These are not Salesforce API field names or an implemented endpoint contract:
