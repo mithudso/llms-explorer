@@ -24,6 +24,9 @@ WRITE_STORE = {
     "lease_acquire", "lease_renew", "lease_release", "queue_put",
 }
 ADMIN_STORE = {"provision", "complete", "queue_recover"}
+READ_RUNS = {"run_get", "run_list", "run_ledger", "artifact_get", "artifact_list"}
+WRITE_RUNS = {"run_create", "run_checkpoint", "run_item_put", "run_lease", "artifact_put"}
+WRITE_OUTPUTS = {"compile", "artifact_index"}
 ROLE_LEVELS = {"read": 0, "write": 1, "admin": 2}
 
 
@@ -60,7 +63,7 @@ def validate_json(value: Any, depth: int = 0) -> None:
         raise ValueError("Research requests must contain JSON values")
 
 
-def validate_arguments(arguments: dict) -> None:
+def validate_arguments(arguments: dict, operation: str = "") -> None:
     if not isinstance(arguments, dict):
         raise ValueError("Operation arguments must be an object")
     validate_json(arguments)
@@ -92,7 +95,8 @@ def validate_arguments(arguments: dict) -> None:
         not isinstance(arguments["query"], str) or not 1 <= len(arguments["query"].strip()) <= 2000
     ):
         raise ValueError("Query must contain 1..2000 characters")
-    if arguments.get("mode", "hybrid") not in {"hybrid", "semantic", "keyword", "lexical"}:
+    if operation not in {"run_create", "run_list"} and arguments.get(
+            "mode", "hybrid") not in {"hybrid", "semantic", "keyword", "lexical"}:
         raise ValueError("Unknown retrieval mode")
     if arguments.get("breadth", "broad") not in {"broad", "narrow"}:
         raise ValueError("Unknown retrieval breadth")
@@ -130,6 +134,9 @@ class Service:
         self._bridge = bridge
         self._bridge_bound = False
         self._initialization_lock = threading.RLock()
+        self._runs = None
+        self._artifact_search = None
+        self._compiler = None
 
     @property
     def bridge(self) -> dict:
@@ -167,25 +174,55 @@ class Service:
                 self._queries = LibraryQueries(self.store)
             return self._queries
 
+    @property
+    def runs(self):
+        with self._initialization_lock:
+            if self._runs is None:
+                from .runs import ResearchRunStore
+                self._runs = ResearchRunStore(self.store)
+            return self._runs
+
+    @property
+    def artifact_search(self):
+        with self._initialization_lock:
+            if self._artifact_search is None:
+                from .artifact_search import ArtifactSearch
+                self._artifact_search = ArtifactSearch(self.runs)
+            return self._artifact_search
+
+    @property
+    def compiler(self):
+        with self._initialization_lock:
+            if self._compiler is None:
+                from .compilation import ResearchCompiler
+                self._compiler = ResearchCompiler(self.store, self.runs, self.artifact_search)
+            return self._compiler
+
     def dispatch(self, operation: str, arguments: dict | None = None, *, role="read",
                  actor: str | None = None) -> dict:
         """Validate and authorize before lazy database creation or backend dispatch."""
         if role not in ROLE_LEVELS or not isinstance(operation, str):
             raise PermissionError("Unsupported research capability")
-        if operation in READ_STORE | READ_QUERIES | {"publication_status"}:
+        if operation in READ_STORE | READ_QUERIES | READ_RUNS | {
+                "publication_status", "artifact_search"}:
             required = 0
-        elif operation in WRITE_STORE | {"publish"}:
+        elif operation in WRITE_STORE | WRITE_RUNS | WRITE_OUTPUTS | {"publish"}:
             required = 1
-        elif operation in ADMIN_STORE | {"import", "coordinate"}:
+        elif operation in ADMIN_STORE | {"import", "coordinate", "run_provision"}:
             required = 2
         else:
             raise ValueError("Unsupported research operation")
         if ROLE_LEVELS[role] < required:
             raise PermissionError("A write capability is required")
         arguments = dict(arguments or {})
-        validate_arguments(arguments)
-        if operation in WRITE_STORE | {"complete", "publish", "coordinate", "queue_recover"}:
+        validate_arguments(arguments, operation)
+        if operation in WRITE_STORE | WRITE_RUNS | WRITE_OUTPUTS | {
+                "complete", "publish", "coordinate", "queue_recover"}:
             arguments["actor"] = actor or f"local-{role}"
+        if operation == "run_provision":
+            if arguments:
+                raise ValueError("Run provisioning accepts no remote configuration")
+            return {"runs": self.runs.provision(), "search": self.artifact_search.provision()}
         if operation == "queue_recover" and not arguments["actor"].startswith("local-"):
             raise PermissionError("Queue recovery requires an owner-local invocation")
         if operation == "coordinate":
@@ -208,7 +245,14 @@ class Service:
         if operation == "import":
             from .importer import import_library
             return import_library(self.store, **arguments)
-        target = self.queries if operation in READ_QUERIES else self.store
+        if operation in READ_RUNS | WRITE_RUNS:
+            target = self.runs
+        elif operation == "compile":
+            target = self.compiler
+        elif operation in {"artifact_search", "artifact_index"}:
+            target = self.artifact_search
+        else:
+            target = self.queries if operation in READ_QUERIES else self.store
         function = getattr(target, operation)
         # Signature binding rejects unknown options; remote callers cannot select methods.
         inspect.signature(function).bind(**arguments)

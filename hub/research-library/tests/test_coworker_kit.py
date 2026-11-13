@@ -229,7 +229,7 @@ def test_documented_tool_inventory_matches_both_mcp_servers():
     skill_tools = {node.name for node in ast.walk(skills_tree)
                    if isinstance(node, ast.FunctionDef)
                    and node.name.startswith(("skill_", "skills_"))}
-    assert len(research_tools) == 27 and len(skill_tools) == 5
+    assert len(research_tools) == 40 and len(skill_tools) == 5
     reference = (SERVICE / "distribution/TOOLS.md").read_text()
     rows = re.findall(r"^\| `([a-z_]+)` \| (.+) \|$", reference, re.MULTILINE)
     documented = {name: re.findall(r"`([^`]+)`", description) for name, description in rows}

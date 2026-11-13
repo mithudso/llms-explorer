@@ -240,6 +240,10 @@ class CanonicalBridge:
                 or path.parent.parent.name != "artifacts"
                 or not re.fullmatch(r"[0-9a-f]{64}\.json", path.name)):
             raise ValueError("Canonical artifact is outside the trusted research archive")
+        # Only writer completion reaches this verifier. Reader status never
+        # recreates files or changes archive/job state.
+        from .publication_archive import restore_completion
+        restore_completion(self, concept, path)
         if path.stat().st_size > 32 * 1024 * 1024:
             raise ValueError("Canonical artifact exceeds its byte bound")
         artifact_module = load_module(self.repo / "scripts/research_artifact.py",
@@ -318,7 +322,8 @@ class CanonicalBridge:
                 # Observation only: the reader capability never writes jobs.
                 row["status"], row["phase"] = "interrupted", "worker-exited"
         return {k: row[k] for k in ("_id", "concept_id", "input_revision", "status",
-                "phase", "error_type", "created_at", "updated_at", "result") if k in row}
+                "phase", "error_type", "created_at", "updated_at", "result", "archive_run_id",
+                "archive_status", "archive_phase", "archive_error_type") if k in row}
 
     def publish(self, store, concept_id, expected_revision, lease_token, owner,
                 actor="local-admin", request_id=""):
@@ -375,6 +380,8 @@ class CanonicalBridge:
             delegated = store.lease_delegate([document["_id"]],
                 {document["_id"]: lease_token}, owner, "publication:" + run_slug,
                 actor="trusted-publisher", request_id=job_id + "-handoff")
+            from .publication_archive import PublicationArchive
+            PublicationArchive(self, store, saved)
             directory = self.state / "jobs" / job_id[4:]
             atomic(directory / "private.json", {"tokens": delegated["tokens"],
                    "owner": "publication:" + run_slug, "concept_ids": [document["_id"]]})

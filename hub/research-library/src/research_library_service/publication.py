@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 
 from .canonical_bridge import atomic, clean_provider_environment, load_module
 from .models import MANAGED_BY, Conflict, digest, source_id
+from .publication_archive import PublicationArchive
 
 CLAIM_FIELDS = {"text", "sources", "confidence", "verified_as_of", "volatile",
                 "temporal", "evidence", "conflict"}
@@ -169,6 +170,7 @@ def run_job(bridge, store, job_id):
                 "updated_at": datetime.now(UTC).isoformat()}})
 
         thread = threading.Thread(target=heartbeat, daemon=True)
+        archive = None
         try:
             phase("preflight")
             thread.start()
@@ -177,6 +179,10 @@ def run_job(bridge, store, job_id):
                 raise Conflict("Publication input revision changed")
             document = export_document(bridge, concept)
             family = family_binding(bridge, concept)
+            archive = PublicationArchive(bridge, store, job)
+            archive.restore()
+            archive.restore_previous()
+            archive.inputs(document, family, concept["scope_assessment"])
             shared = bridge._shared()
             def checkpoint():
                 if lost:
@@ -227,13 +233,56 @@ def run_job(bridge, store, job_id):
             environment = clean_provider_environment(os.environ)
             environment.update(HUB_DIR=str(bridge.hub), LLMS_EXPLORER_REPO=str(bridge.repo))
             timeout = max(30, min(int(bridge.config.get("gate_timeout_seconds", 900)), 3600))
-            # No shell, no remote-selected paths/commands, no provider DB access.
-            completed = subprocess.run([sys.executable, "-m",
-                "research_library_service.canonical_bridge", "gate-job", job_id,
-                "--config", str(directory / "config.json")], env=environment,
-                timeout=timeout * 2 + 180, check=False)
-            if completed.returncode:
-                raise ValueError("Independent semantic gate did not accept this revision")
+            # The gate coordinator itself also receives no service/database
+            # configuration. This private runtime capability is not archived.
+            atomic(directory / "gate-config.json", {"repo_root": str(bridge.repo),
+                "hub_root": str(bridge.hub), "llmsx_root": str(bridge.llmsx),
+                "state_dir": str(bridge.state), "gate_timeout_seconds": timeout})
+            gate_binding = digest([document, family, concept["scope_assessment"]])
+            archive.capture("before-gate")
+            try:
+                # A valid current proof can survive a lost worker or a new
+                # publication job. The maintained verifier alone accepts reuse.
+                shared.verify_current_gate(shared.load_manifest(run_slug))
+                reusable = True
+            except (OSError, ValueError, KeyError, TypeError):
+                reusable = False
+            if not reusable:
+                archive.require_known_gate(gate_binding)
+                # Persist dispatch intent before a process can spend money.
+                # An interruption leaves this binding blocked until its exact
+                # canonical proof is recovered, including across new jobs.
+                archive.state("dispatched", gate_binding)
+                watching = threading.Event()
+
+                def watch_gate():
+                    while not watching.wait(1):
+                        try:
+                            archive.capture("independent-gate")
+                        except Exception:
+                            # A provider may be writing an incomplete JSON
+                            # object. The final synchronous capture must pass.
+                            pass
+
+                watcher = threading.Thread(target=watch_gate, daemon=True)
+                watcher.start()
+                try:
+                    # No shell, remotely selected paths, or provider DB access.
+                    completed = subprocess.run([sys.executable, "-m",
+                        "research_library_service.canonical_bridge", "gate-job", job_id,
+                        "--config", str(directory / "gate-config.json")], env=environment,
+                        timeout=timeout * 2 + 180, check=False)
+                except BaseException:
+                    archive.state("unknown", gate_binding)
+                    raise
+                finally:
+                    watching.set()
+                    watcher.join()
+                archive.state("returned" if completed.returncode == 0 else "failed", gate_binding)
+                if completed.returncode:
+                    raise ValueError("Independent semantic gate did not accept this revision")
+            else:
+                archive.state("reused", gate_binding)
             phase("canonical-promotion")
             checkpoint()
             shared.verify_current_gate(shared.load_manifest(run_slug))
@@ -243,6 +292,9 @@ def run_job(bridge, store, job_id):
             canonical = proof["canonical_artifact"]
             receipt = {"artifact_path": canonical["path"], "artifact_sha256": canonical["sha256"],
                        "document_slug": concept["slug"]}
+            # Canonical projection authority stays in finish/completion_verifier.
+            # Database completion requires its exact outputs to be durable first.
+            archive.capture("canonical-completed", compiled=True)
             phase("database-promotion")
             result = store.complete(concept["_id"], job["input_revision"],
                 private["tokens"][concept["_id"]], receipt,
@@ -250,8 +302,16 @@ def run_job(bridge, store, job_id):
             jobs.update_one(query, {"$set": {"status": "completed", "phase": "completed",
                 "updated_at": datetime.now(UTC).isoformat(), "result": {
                     "concept_id": result["_id"], "revision": result["revision"],
-                    "state": result["state"], "artifact_sha256": canonical["sha256"]}}})
+                    "state": result["state"], "artifact_sha256": canonical["sha256"],
+                    "archive_run_id": archive.run_id}}})
         except BaseException as error:
+            if archive is not None:
+                try:
+                    archive.capture("failed")
+                except Exception:
+                    # capture records incomplete status. Never hide the
+                    # original failure or convert archive loss to completion.
+                    pass
             # Detailed provider logs are private. Remote status exposes no body,
             # credentials, caller text, filesystem path or driver diagnostics.
             jobs.update_one(query, {"$set": {"status": "failed", "phase": "failed",
