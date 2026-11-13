@@ -549,7 +549,7 @@ def test_artifact_catalog_reservation_precedes_bodies_and_commits_one_increment(
 
     def insert(rows, **kwargs):
         observed.append(runs._catalog(kwargs["session"]))
-        assert runs.run_get(made["run"]["_id"])["revision"] == 1
+        assert runs.run_get(made["run"]["_id"])["revision"] == made["run"]["revision"] + 1
         return original(rows, **kwargs)
 
     monkeypatch.setattr(runs.artifact_chunks, "insert_many", insert)
@@ -666,7 +666,7 @@ def test_artifact_reserves_catalog_before_chunk_transfer(runs, monkeypatch):
     made = create(runs)
     events = []
     update = runs.store.meta.update_one
-    insert = runs.artifact_chunks.insert_one
+    insert = runs.artifact_chunks.insert_many
 
     def catalog(*args, **kwargs):
         events.append("catalog")
@@ -677,7 +677,7 @@ def test_artifact_reserves_catalog_before_chunk_transfer(runs, monkeypatch):
         return insert(*args, **kwargs)
 
     monkeypatch.setattr(runs.store.meta, "update_one", catalog)
-    monkeypatch.setattr(runs.artifact_chunks, "insert_one", chunk)
+    monkeypatch.setattr(runs.artifact_chunks, "insert_many", chunk)
     before = runs._catalog()
     result = put_artifact(runs, made, body="catalog ordering")
     assert events.index("catalog") < events.index("chunk")
@@ -695,7 +695,7 @@ def test_failed_artifact_rolls_back_early_catalog_and_run(runs, monkeypatch):
     def fail(*args, **kwargs):
         raise RuntimeError("simulated chunk failure")
 
-    monkeypatch.setattr(runs.artifact_chunks, "insert_one", fail)
+    monkeypatch.setattr(runs.artifact_chunks, "insert_many", fail)
     with pytest.raises(RuntimeError, match="simulated chunk failure"):
         put_artifact(runs, made, body="rollback all writes")
     assert runs._catalog() == before
