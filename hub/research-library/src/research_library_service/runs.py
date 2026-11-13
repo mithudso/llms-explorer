@@ -458,6 +458,10 @@ class ResearchRunStore:
                     "body_utf8_sha256": sha, "metadata": metadata,
                     "trusted_provenance": provenance}
         aid = "art:" + digest(identity)
+        # Reserve the shared catalog before transferring artifact chunks. A late
+        # catalog write can lose to unrelated runs for the entire upload window.
+        # All writes still commit or roll back in this same transaction.
+        saved = self._save(old, old, actor, session)
         prior = self._claim(self.artifacts, aid, session)
         chunks, expected = [], {}
         for start in range(0, len(raw), CHUNK_BYTES):
@@ -514,7 +518,7 @@ class ResearchRunStore:
             "managed_by": MANAGED_BY, "run_id": old["_id"], "name": name, "artifact_id": aid,
             "kind": kind, "body_utf8_sha256": sha,
             "run_revision": old["revision"] + 1}, upsert=True, session=session)
-        return {"artifact": manifest, "run": self._save(old, old, actor, session)}
+        return {"artifact": manifest, "run": saved}
 
     def artifact_put(self, run_id, name, kind, text, expected_revision, lease_token, owner,
                      metadata=None, request_id="", actor="agent"):
