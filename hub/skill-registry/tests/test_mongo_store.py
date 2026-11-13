@@ -637,7 +637,7 @@ def test_cache_projection_never_changes_original_frozen_files(store, roots, skil
     assert all(path.read_bytes() == value for path, value in before.items())
 
 
-@pytest.mark.parametrize("active,disabled", [(False, []), (True, ["Codex"])])
+@pytest.mark.parametrize("active,disabled", [(False, []), (True, ["Codex"]), (True, [])])
 def test_conservative_ingestion_preserves_states_and_versions(store, skill, roots, tmp_path,
                                                              active, disabled):
     catalog = Catalog(tmp_path / "catalog", roots)

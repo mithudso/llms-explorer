@@ -448,7 +448,7 @@ class MongoStore:
             active = existing.get("active", True)
             disabled = sorted(set(doc.get("disabled_in", [])) | set(existing.get("disabled_in", [])))
             doc = {**doc, "disabled_in": disabled}
-            if not active or disabled:
+            if not active or disabled or existing.get("searchable") is False:
                 doc["searchable"] = False
         distribution = sha(canonical({"document": doc, "files": files, "exclusions": exclusions}))
         if _batch is None:
