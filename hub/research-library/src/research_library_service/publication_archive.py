@@ -333,11 +333,16 @@ class PublicationArchive:
                 raise ArchiveIncomplete("Publication Mongo archive is incomplete") from error
 
     def state(self, state, input_sha256):
-        _write(self._target("job", "archive-state.json"), _json({"schema": SCHEMA, **self.binding,
-               "gate_execution": state, "gate_input_sha256": input_sha256}))
-        self.jobs.update_one({"_id": self.job["_id"], "managed_by": MANAGED_BY}, {"$set": {
-            "gate_execution": state, "gate_input_sha256": input_sha256}})
-        self.capture("gate-" + state)
+        with self.lock:
+            _write(self._target("job", "archive-state.json"), _json({"schema": SCHEMA, **self.binding,
+                   "gate_execution": state, "gate_input_sha256": input_sha256}))
+            # Do not resolve dispatched/unknown execution before its gate files
+            # are durable. A failed capture must preserve the paid-retry fence
+            # even if every local scratch file is subsequently lost. Dispatch
+            # itself still finishes both writes before the provider can start.
+            self.capture("gate-" + state)
+            self.jobs.update_one({"_id": self.job["_id"], "managed_by": MANAGED_BY}, {"$set": {
+                "gate_execution": state, "gate_input_sha256": input_sha256}})
 
     def require_known_gate(self, input_sha256):
         if self.jobs.find_one({"managed_by": MANAGED_BY, "concept_id": self.job["concept_id"],

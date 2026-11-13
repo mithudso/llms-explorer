@@ -256,12 +256,54 @@ def test_installed_maintained_renderer_has_real_family_grammar_and_exact_provena
     unit = json.loads(files["family--units.jsonl"])
     assert unit["text"] == claim["text"] and unit["claim_id"] == claim["claim_id"]
     assert unit["evidence"][0]["quote"] == claim["evidence"][0]["quote"]
-    assert json.loads(files["family--vocabulary.jsonl"]) == [
-        doc["name"], claim["text"], claim["claim_id"]]
+    from llms_txt.lint import parse_vocab_line, pass_vocabulary
+
+    vocabulary = files["family--llms-vocabulary.txt"]
+    assert vocabulary.startswith("# Compiled research family — vocabulary\n")
+    assert "## Named, not yet defined\n\n- " + doc["name"] in vocabulary
+    assert not any(parse_vocab_line(line) for line in vocabulary.splitlines())
+    assert not any(row["severity"] == "high" for row in pass_vocabulary(vocabulary, None))
     assert result["indexing"]["status"] == "pending"
     assert set(result["skill_phases"].values()) == {"pending"}
     assert compiler.compile(made["run"]["_id"], [doc["_id"]], 1, made["lease_token"],
                             "coordinator", request_id="compile") == result
+
+
+def test_vocabulary_output_uses_exact_definitions_and_explicit_undefined_names(setup):
+    store, runs, compiler, _ = setup
+    doc = qualified(store, "Snapshot")
+    named = qualified(store, "Named research gap")
+    exact = "Snapshot is an immutable source record."
+    source = store.source_put("https://example.org/snapshot", exact)
+    supplied = {"text": exact, "sources": [source["url"]], "evidence": [{
+        "url": source["url"], "source_id": source["_id"],
+        "snapshot_sha256": source["snapshot_sha256"], "start": 0, "end": len(exact),
+        "quote": exact, "extraction_status": "complete"}]}
+    claim = store._claim(doc["slug"], supplied, None, "lineage:definition")
+    claim["qualification"] = "SUPPORTED"
+    doc.update(claims=[claim], summary=exact)
+    store.concepts.replace_one({"_id": doc["_id"]}, doc)
+    result = compile_(setup, [doc, named])
+    family = json.loads(body(runs, result["family_manifest"]))
+    vocab_ref = next(row for row in family["artifacts"]
+                     if row["name"] == "family--llms-vocabulary.txt")
+    vocabulary = body(runs, vocab_ref)
+    expected = "- **Snapshot** — " + exact + " — " + source["url"]
+    assert expected + " · claim: " + claim["claim_id"] in vocabulary
+    assert "## Named, not yet defined\n\n- Named research gap" in vocabulary
+    assert not any(row["name"].endswith("vocabulary.jsonl") for row in result["artifacts"])
+    # The pure adapter emits the same tuples parsed by the maintained wheel.
+    try:
+        from llms_txt.lint import parse_vocab_line, pass_vocabulary
+    except ImportError:
+        return
+    parsed = [row for line in vocabulary.splitlines() if (row := parse_vocab_line(line))]
+    assert parsed == [("Snapshot", exact, source["url"])]
+    assert not any(row["severity"] == "high" for row in pass_vocabulary(vocabulary, None))
+    concept_head = compiler._head(result["run"]["_id"], compiler._prefix(doc["_id"])
+                                  + "--manifest.json")
+    _, manifest = compiler._read_manifest(concept_head[0]["_id"])
+    assert any(row["name"].endswith("--llms-vocabulary.txt") for row in manifest["artifacts"])
 
 
 def test_mid_compilation_source_change_never_commits_current_family_manifest(setup):

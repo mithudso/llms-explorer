@@ -42,7 +42,7 @@ uv export --directory hub/research-library --frozen --no-dev --no-emit-project \
 uv venv --python 3.13 "$runtime/.venv"
 uv pip sync --python "$runtime/.venv/bin/python" "$runtime/requirements.txt"
 uv pip install --python "$runtime/.venv/bin/python" --no-deps \
-  "$runtime/wheels/research_library_service-0.1.0-py3-none-any.whl"
+  "$runtime/wheels/research_library_service-0.2.0-py3-none-any.whl"
 ```
 
 Create an owner-only server environment file using a local secret manager or

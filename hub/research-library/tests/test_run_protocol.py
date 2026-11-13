@@ -72,4 +72,3 @@ def test_native_mcp_runs_artifacts_and_client_labels_remain_unqualified():
         assert token not in json.dumps(listed)
         assert not store.concepts.count_documents({})
         assert not store.queue.count_documents({})
-

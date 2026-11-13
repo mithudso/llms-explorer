@@ -30,6 +30,7 @@ MAX_RUN_BYTES = 256 * 1024
 MAX_ITEM_BYTES = 256 * 1024
 MAX_ARTIFACT_BYTES = 8 * 1024 * 1024
 MAX_PAGE_BYTES = 2 * 1024 * 1024
+MAX_ARTIFACT_HEAD_SCAN = 1000
 RUN_SCHEMA = "research-run/v1"
 COLLECTIONS = ("runs", "run_versions", "run_items", "item_versions", "run_leases",
                "artifacts", "artifact_chunks", "artifact_heads")
@@ -464,6 +465,7 @@ class ResearchRunStore:
         self._claim(self.artifact_heads, hid, session)
         self.artifact_heads.replace_one(self._owned({"_id": hid}), {"_id": hid,
             "managed_by": MANAGED_BY, "run_id": old["_id"], "name": name, "artifact_id": aid,
+            "kind": kind, "body_utf8_sha256": sha,
             "run_revision": old["revision"] + 1}, upsert=True, session=session)
         return {"artifact": manifest, "run": self._save(old, old, actor, session)}
 
@@ -512,8 +514,8 @@ class ResearchRunStore:
                 expected_revision=expected_revision, lease_owner=lease_owner)
         return self.store._mutate("trusted_artifact_archive", payload, actor, request_id, change)
 
-    def _artifact_text(self, artifact_id, session=None):
-        """Read and verify the whole immutable body for trusted in-process consumers."""
+    def _artifact_manifest(self, artifact_id, session=None):
+        """Verify bounded manifest metadata without materializing its body chunks."""
         aid = _identity(artifact_id, "art:")
         manifest = self.artifacts.find_one(self._owned({"_id": aid}), session=session)
         if manifest is None:
@@ -523,6 +525,28 @@ class ResearchRunStore:
                 or not isinstance(manifest.get("chunks"), list)
                 or len(manifest["chunks"]) > (MAX_ARTIFACT_BYTES + CHUNK_BYTES - 1) // CHUNK_BYTES):
             raise Conflict("Invalid stored artifact manifest")
+        try:
+            identity = {key: manifest[key] for key in ("run_id", "name", "kind", "body_utf8_sha256",
+                                                      "metadata", "trusted_provenance")}
+            _identity(identity["run_id"], "run:")
+            _identity("chunk:" + identity["body_utf8_sha256"], "chunk:")
+            self._artifact_input(identity["name"], identity["kind"], "", identity["metadata"])
+            if identity["trusted_provenance"] is not False:
+                if not _object(identity["trusted_provenance"], "Trusted artifact provenance", 32 * 1024):
+                    raise ValueError("Missing trusted provenance")
+            for cid in manifest["chunks"]:
+                _identity(cid, "chunk:")
+            if len(canonical(manifest)) > MAX_ITEM_BYTES:
+                raise ValueError("Oversized artifact manifest")
+        except (KeyError, TypeError, ValueError) as exc:
+            raise Conflict("Invalid stored artifact manifest") from exc
+        if "art:" + digest(identity) != aid:
+            raise Conflict("Stored artifact manifest checksum mismatch")
+        return manifest
+
+    def _artifact_text(self, artifact_id, session=None):
+        """Read and verify the whole immutable body for trusted in-process consumers."""
+        manifest = self._artifact_manifest(artifact_id, session=session)
         blocks = []
         for cid in manifest["chunks"]:
             _identity(cid, "chunk:")
@@ -537,10 +561,6 @@ class ResearchRunStore:
         raw = b"".join(blocks)
         if len(raw) != manifest["byte_count"] or digest(raw) != manifest["body_utf8_sha256"]:
             raise Conflict("Stored artifact body checksum mismatch")
-        identity = {key: manifest[key] for key in ("run_id", "name", "kind", "body_utf8_sha256",
-                                                  "metadata", "trusted_provenance")}
-        if "art:" + digest(identity) != aid:
-            raise Conflict("Stored artifact manifest checksum mismatch")
         try:
             body = raw.decode("utf-8")
         except UnicodeError as exc:
@@ -562,7 +582,41 @@ class ResearchRunStore:
             raise ValueError("Invalid artifact kind")
         if kind:
             text(kind, "artifact kind", 100)
+        limit = _page_limit(limit)
         generation = self._get(rid)["revision"]
-        query = self._owned({"run_id": rid, **({"kind": kind} if kind else {})})
-        return self._page(self.artifacts, query, ["artifacts", rid, kind], generation, after,
-                          limit, "artifacts", lambda: self._get(rid)["revision"])
+        scope = ["artifact-heads/v1", rid, kind]
+        last = self._after(after, scope, generation)
+        if last:
+            _identity(last, "head:")
+        query = self._owned({"run_id": rid, **({"_id": {"$gt": last}} if last else {})})
+        rows, used, scanned, more = [], 0, 0, False
+        for head in self.artifact_heads.find(query).sort("_id", 1).limit(MAX_ARTIFACT_HEAD_SCAN + 1):
+            if scanned >= MAX_ARTIFACT_HEAD_SCAN:
+                more = True
+                break
+            try:
+                name = text(head["name"], "artifact head name", 200)
+                if (head["_id"] != "head:" + digest([rid, name])
+                        or type(head["run_revision"]) is not int
+                        or not 1 <= head["run_revision"] <= generation):
+                    raise ValueError("Invalid head identity or revision")
+                manifest = self._artifact_manifest(head["artifact_id"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise Conflict("Current artifact head or manifest is invalid") from exc
+            if (manifest["run_id"] != rid or manifest["name"] != name
+                    or head.get("kind", manifest["kind"]) != manifest["kind"]
+                    or head.get("body_utf8_sha256", manifest["body_utf8_sha256"])
+                    != manifest["body_utf8_sha256"]):
+                raise Conflict("Current artifact head does not match its manifest")
+            if not kind or manifest["kind"] == kind:
+                size = len(canonical(manifest))
+                if len(rows) >= limit or used + size > MAX_PAGE_BYTES:
+                    more = True
+                    break
+                rows.append(self.store._public(manifest))
+                used += size
+            last, scanned = head["_id"], scanned + 1
+        if self._get(rid)["revision"] != generation:
+            raise Conflict("Run listing changed; restart pagination")
+        return {"artifacts": rows, "next_after": self._cursor(scope, generation, last)
+                if more and last else "", "revision": generation}

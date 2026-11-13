@@ -188,6 +188,33 @@ def test_unknown_paid_dispatch_is_durable_and_blocks_new_same_concept_job(fixtur
         PublicationArchive(archive.bridge, archive.store, other).require_known_gate("d" * 64)
 
 
+@pytest.mark.parametrize("terminal_state", ["returned", "failed"])
+def test_failed_result_archive_preserves_paid_retry_fence_after_scratch_loss(
+        fixture, terminal_state):
+    archive = archive_inputs(fixture)
+    manifest(archive)
+    binding = "d" * 64
+    archive.state("dispatched", binding)
+    archive.store.database.fail = lambda name, operation: (
+        name.endswith("artifact_chunks") and operation == "insert_one")
+    with pytest.raises(ArchiveIncomplete):
+        archive.state(terminal_state, binding)
+    job = archive.jobs.find_one({"_id": archive.job["_id"]})
+    assert job["gate_execution"] == "dispatched"
+    assert job["gate_input_sha256"] == binding and job["archive_status"] == "incomplete"
+    # A recovery can restore only the last durable dispatched inventory. It
+    # cannot infer that a paid execution was safe to repeat from missing files.
+    shutil.rmtree(archive.directory)
+    shutil.rmtree(archive.root)
+    archive.store.database.fail = None
+    other = {**archive.job, "_id": "pub:" + "b" * 32}
+    archive.jobs.insert_one(other)
+    fresh = PublicationArchive(archive.bridge, archive.store, other)
+    fresh.restore_previous()
+    with pytest.raises(Conflict, match="earlier paid gate"):
+        fresh.require_known_gate(binding)
+
+
 def test_new_job_restores_same_concept_attempts_without_taking_an_arbitrary_run(fixture):
     archive = archive_inputs(fixture)
     manifest(archive)

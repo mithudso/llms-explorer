@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from test_store_core import Database
 
+import research_library_service.runs as runs_module
 from research_library_service.models import (
     CHUNK_BYTES,
     MANAGED_BY,
@@ -257,7 +258,94 @@ def test_artifact_chunked_unicode_windows_idempotency_and_old_versions(runs):
     assert second["artifact"]["_id"] != artifact["_id"]
     assert runs.artifact_get(artifact["_id"], offset=CHUNK_BYTES - 1)["text"] == body[CHUNK_BYTES - 1:]
     assert runs.artifact_heads.find_one({"run_id": made["run"]["_id"]})["artifact_id"] == second["artifact"]["_id"]
-    assert len(runs.artifact_list(made["run"]["_id"])["artifacts"]) == 2
+    assert [row["_id"] for row in runs.artifact_list(made["run"]["_id"])["artifacts"]] == [second["artifact"]["_id"]]
+
+
+def test_artifact_list_pages_current_heads_and_filters_current_kind_only(runs):
+    made = create(runs)
+    first = put_artifact(runs, made, "report.txt", body="Old compiled report")
+    made = advanced(made, first)
+    second = put_artifact(runs, made, "report.txt", body="Current gate", kind="gate-result")
+    made = advanced(made, second)
+    third = put_artifact(runs, made, "other.txt", body="Current compiled report")
+    rid = made["run"]["_id"]
+    assert [row["_id"] for row in runs.artifact_list(rid, kind="compiled")["artifacts"]] == [third["artifact"]["_id"]]
+    assert [row["_id"] for row in runs.artifact_list(rid, kind="gate-result")["artifacts"]] == [second["artifact"]["_id"]]
+    page = runs.artifact_list(rid, limit=1)
+    assert page["next_after"]
+    next_page = runs.artifact_list(rid, after=page["next_after"], limit=1)
+    assert not next_page["next_after"]
+    assert {row["_id"] for row in page["artifacts"] + next_page["artifacts"]} == {
+        second["artifact"]["_id"], third["artifact"]["_id"]}
+    assert runs.artifact_get(first["artifact"]["_id"])["text"] == "Old compiled report"
+
+
+def test_artifact_list_bounded_filter_scan_keeps_empty_page_continuation(runs, monkeypatch):
+    made = create(runs)
+    for name in ("first.txt", "second.txt", "third.txt"):
+        made = advanced(made, put_artifact(runs, made, name, kind="gate-result"))
+    rid = made["run"]["_id"]
+    final_name = list(runs.artifact_heads.find({"run_id": rid}).sort("_id", 1))[-1]["name"]
+    latest = put_artifact(runs, made, final_name, body="Only compiled current artifact", kind="compiled")
+    monkeypatch.setattr(runs_module, "MAX_ARTIFACT_HEAD_SCAN", 1)
+    page = runs.artifact_list(rid, kind="compiled", limit=1)
+    assert page["artifacts"] == [] and page["next_after"]
+    second = runs.artifact_list(rid, kind="compiled", after=page["next_after"], limit=1)
+    assert second["artifacts"] == [] and second["next_after"]
+    final = runs.artifact_list(rid, kind="compiled", after=second["next_after"], limit=1)
+    assert [row["_id"] for row in final["artifacts"]] == [latest["artifact"]["_id"]]
+    assert final["next_after"] == ""
+
+
+@pytest.mark.parametrize("field,value", [
+    ("name", "different-name.txt"), ("artifact_id", "art:" + "0" * 64),
+    ("kind", "different-kind"), ("body_utf8_sha256", "0" * 64),
+])
+def test_artifact_list_rejects_head_identity_or_manifest_mismatch(runs, field, value):
+    made = create(runs)
+    put_artifact(runs, made)
+    runs.artifact_heads.update_one({"run_id": made["run"]["_id"]}, {"$set": {field: value}})
+    with pytest.raises(Conflict, match="[Hh]ead"):
+        runs.artifact_list(made["run"]["_id"])
+
+
+def test_artifact_list_checks_manifest_digest_without_reading_body_chunks(runs, monkeypatch):
+    made = create(runs)
+    result = put_artifact(runs, made)
+    def no_chunk_read(*args, **kwargs):
+        raise AssertionError("Metadata listing must not materialize artifact bodies")
+    monkeypatch.setattr(runs.artifact_chunks, "find_one", no_chunk_read)
+    assert runs.artifact_list(made["run"]["_id"])["artifacts"][0]["_id"] == result["artifact"]["_id"]
+    runs.artifacts.update_one({"_id": result["artifact"]["_id"]},
+                              {"$set": {"metadata": {"tampered": True}}})
+    with pytest.raises(Conflict, match="[Hh]ead or manifest"):
+        runs.artifact_list(made["run"]["_id"])
+
+
+def test_artifact_list_rejects_head_change_during_page_read(runs, monkeypatch):
+    made = create(runs)
+    first = put_artifact(runs, made)
+    made = advanced(made, first)
+    original = runs._artifact_manifest
+    changed = False
+    def racing_read(*args, **kwargs):
+        nonlocal changed
+        manifest = original(*args, **kwargs)
+        if not changed:
+            changed = True
+            put_artifact(runs, made, body="New head during listing")
+        return manifest
+    monkeypatch.setattr(runs, "_artifact_manifest", racing_read)
+    with pytest.raises(Conflict, match="restart pagination"):
+        runs.artifact_list(made["run"]["_id"])
+
+
+def test_artifact_list_resolves_legacy_head_without_optional_hash_metadata(runs):
+    made = create(runs)
+    result = put_artifact(runs, made)
+    runs.artifact_heads.update_one({"run_id": made["run"]["_id"]},
+                                  {"$unset": {"kind": "", "body_utf8_sha256": ""}})
+    assert runs.artifact_list(made["run"]["_id"])["artifacts"][0]["_id"] == result["artifact"]["_id"]
 
 
 @pytest.mark.parametrize("kind", ["gate-result", "compiled", "canonical", "published"])
