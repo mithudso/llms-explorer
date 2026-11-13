@@ -1,9 +1,9 @@
 # Mounted-home agent configuration sync prompt
 
-- Version: 1.4.0
-- Delta: 1.3.0 to 1.4.0; record completed asset rounds, applied configuration merges, native acceptance, and remaining directory-proof checks.
+- Version: 1.5.0
+- Delta: 1.4.0 to 1.5.0; record accepted content/configuration/native verification, corrected accounting, metadata boundaries, and delivery through PR 363.
 - Updated: 2026-11-13
-- Status: IN_PROGRESS
+- Status: VERIFICATION_COMPLETE
 - Tracking: Configuration sync task `TASK-1465`; the parent owns lifecycle transitions and final delivery.
 - Repository record: `/Users/mitch.hudson/dev/llms-explorer/prompts/agent-config-sync.md`.
 
@@ -62,9 +62,10 @@ Their phase-local counts are in the continuation record. Earlier unjournaled
 attempts prevent an exact historical overall-write claim. Source backups remain
 retained, and this sync has not deleted original user data.
 
-Structured configuration merges have been applied. The latest reported
-normalized comparison covers 36 files with zero pending differences and zero
-issues. There are 53 verified configuration writes: 47 primary and six remote.
+Structured configuration merges have been applied. The final normalized
+comparison covers 36 files with zero pending differences and zero issues. There
+are 53 verified configuration writes: 47 in the initial round and six in the
+follow-up round. Actual destination counts are 29 primary and 24 remote.
 
 Native discovery verified the same 50 MCP names on both hosts. Authenticated
 metadata acceptance passed on both hosts with protocol `2025-11-25`: five skills
@@ -73,18 +74,28 @@ models, or embeddings ran. A temporary-probe rejection was resolved by giving
 that probe its descriptive application User-Agent. Native definitions, auth,
 accounts, TLS validation, and edge policies were unchanged.
 
-The parent reports a native Codex catalog of 205 entries. Claude portable
-registries have identical sets of 91 keys. All 16 additional primary synced-scope
-plugin directories and manifests also exist remotely. Their activation remains
-tied to each host's existing identity; this sync does not change that identity.
+Both native Codex catalogs list 205 entries. Claude portable registries have
+identical sets of 91 keys. All 16 additional primary managed synced-scope plugin
+directories and manifests also exist remotely. Their optional remote activation
+requires the native claude.ai login; account identity was not transferred.
 
-Verification remains in progress. The primary native path probe passed 9,305
-paths and 15,828 proofs. A remote serial probe checked 2,504 paths and 2,473 proofs
-and reported four directory-change errors that the parent is diagnosing. Do not
-claim complete asset parity from this checkpoint.
+Final comparison 5 and its export passed with 235,742 paths examined and zero
+canonical body mismatches, one-sided entries, unresolved entries, proof errors,
+input errors, or remaining required probes. The final fixture suite completed:
+250 checks passed with exit code zero. All six native authentication files with
+available baselines remained unchanged.
 
-The current private suite contains 241 checks, but its final full run has not
-completed. A focused 29-case comparator run passed. Final directory-proof
-classification, full-suite results, record finalization, and repository delivery
-remain outstanding. Keep the draft PR open and unmerged until final acceptance.
-Private helper implementation and detailed configuration data remain outside Git.
+These proofs combine native baselines with fresh logical overlays and targeted
+native probes. They do not assert simultaneous fresh reads of every live file.
+Existing permissions were retained when canonical content already matched.
+There are 62,818 metadata-difference rows, including 405 reviewed mode differences
+on identical content. Do not claim raw byte-size, mode, or modification-time
+identity across native homes.
+
+Synchronization verification is complete. These records are prepared through
+https://github.com/mithudso/llms-explorer/pull/363
+
+As of this commit, repository delivery is pending. Actual final checks, merge,
+and delivery receipts are recorded in GitHub and the private run directory;
+they do not require a later narrative-only record commit. Private helper code,
+configuration data, and raw diagnostics remain outside Git.
