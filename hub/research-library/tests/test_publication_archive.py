@@ -196,7 +196,7 @@ def test_failed_result_archive_preserves_paid_retry_fence_after_scratch_loss(
     binding = "d" * 64
     archive.state("dispatched", binding)
     archive.store.database.fail = lambda name, operation: (
-        name.endswith("artifact_chunks") and operation == "insert_one")
+        name.endswith("artifact_chunks") and operation in {"insert_one", "insert_many"})
     with pytest.raises(ArchiveIncomplete):
         archive.state(terminal_state, binding)
     job = archive.jobs.find_one({"_id": archive.job["_id"]})
@@ -341,7 +341,8 @@ def test_archive_database_failure_prevents_provider_execution(fixture, monkeypat
     bridge, store, _, job, _ = worker_fixture(fixture, monkeypatch)
     monkeypatch.setattr(publication.subprocess, "run", lambda *args, **kwargs:
                         pytest.fail("An incomplete archive cannot dispatch a provider"))
-    store.database.fail = lambda name, operation: name.endswith("artifact_chunks") and operation == "insert_one"
+    store.database.fail = lambda name, operation: (
+        name.endswith("artifact_chunks") and operation in {"insert_one", "insert_many"})
     with pytest.raises(ArchiveIncomplete):
         publication.run_job(bridge, store, job["_id"])
     row = bridge._jobs(store).find_one({"_id": job["_id"]})

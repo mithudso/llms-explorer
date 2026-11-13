@@ -378,3 +378,85 @@ runs without a provider, but it accepts only current trusted v4 research proof.
 The SK methods store output packs, prompts, ledgers, continuation and trusted
 publication archives in Mongo. Server scratch is a derived adapter workspace.
 The [MCP guide](MCP.md) explains the separate run and concept authorities.
+
+## Reconcile owner-local research archives
+
+`scripts/reconcile_local_research.py` retains existing research without starting
+research or paid judges. Run `prepare --inventory FILE --denylist FILE` with a
+private `--receipt-dir`. Preparation reads the supplied complete JSONL census,
+screens content locally, preserves originals, and creates a hash-bound plan. It
+does not connect to MongoDB or acquire leases. Review its exclusions and conflicts
+before `apply`. Use all configured research roots when building the census;
+preparation cannot discover a root omitted by its caller.
+
+`--parent-run RUN_ID apply` uses the existing commissioned prompt and creates its
+own fenced child run. Put `--parent-run` before the subcommand. It retains exact
+text or base64 binary bytes in content-addressed bundles of at most 7 MiB, with
+per-source hashes and Unicode/byte ranges. Deduplication includes the provenance
+domain, so private originals and sanitized copies remain distinct. Every alias
+retains a mapping. Changed sources become explicit conflicts. Private receipts
+and resumable lease state use owner-only permissions; never commit this directory.
+
+Preparation records explicit structured identities and preserves their original
+files. Application maps only identities and claim bindings already available
+through the maintained library. Missing evidence or lineage remains an explicit
+unverified artifact; generated prose and imported verdicts do not qualify facts.
+The owner importer remains responsible for converting supported canonical inputs.
+
+`verify --current-inventory FILE` reads every stored artifact through hash-checked
+retrieval and verifies every source mapping and reconstructed original hash. Its
+fresh inventory must enumerate the full root set again to detect newly added or
+removed paths. Omitting this inventory, disabling source rechecks, or finding any
+set/hash difference prevents a successful exhaustive reconciliation exit status.
+`index` and `verify-index` inspect exact native keyword and Voyage unit coverage
+for every retained text bundle. `index` submits all bounded units without waiting
+for each artifact's native propagation. It reports completed writes separately
+from pending coverage. `verify-index` polls only pending, hash-bound unit censuses
+and reuses accepted coverage without reinserting units. A written index with
+pending native coverage returns an incomplete exit status. Both phases bind
+their proof to the current plan, archive receipt and index contract.
+They report binary and administrative census
+artifacts outside search scope separately. They never provision index definitions
+or alter historical vectors. `finish` releases the owned lease only after complete
+storage reconciliation and native search coverage receipts exist.
+
+For interrupted application, use `apply --resume`. It validates a frozen source
+check receipt, checks current file identity/stat pins, and rechecks changed
+sources. Older owned full-hash checks require matching fenced run-history
+checkpoints and exact complete source rows before adoption. Accepted immutable
+payload heads avoid reconstruction and upload; the subsequent `verify` still
+reads back their bytes. The writer retries only the specific exhausted
+concurrent-transaction error, at most three times with one unchanged request,
+revision and lease. Progress records count source checks and bounded bundles.
+
+To reconcile later changes, keep the base directory intact. First run its
+`verify --no-source-recheck` to obtain artifact readback proof; its incomplete
+exit status preserves unresolved current-source gaps. Then run `prepare-delta`
+in a new receipt directory with `--layer BASE --current-inventory FULL_CENSUS`
+and the supplied `--scope-receipt` enumeration evidence. This local phase selects
+only new, changed or unverified identities. Apply, verify and index that delta;
+pass its generated `delta-inventory.jsonl` to the delta's storage verification.
+Use `compose` in another receipt directory with both `--layer BASE --layer DELTA`,
+the full current census, and the root-enumeration receipts. Composition checks the
+full current union and reuses accepted base mappings, artifacts and native proof.
+Each layer must preserve the full frozen source and verification identity sets,
+including rows with storage conflicts. A missing historical row rejects reuse.
+It does not upload source bundles or insert native units. Removed sources and
+superseded versions stay explicit. An old conflict whose bytes were never
+retained remains a separate historical retention gap and prevents overall
+completion, even when current-source coverage passes. A verified exclusion for
+the exact original identity, hash, size and provenance accounts for that version
+as an exclusion; it never claims recovered bytes. Native coverage includes every
+referenced historical and recovered artifact, including removed sources.
+`finish` also rejects
+changed proof files and absent root-enumeration receipts. The caller separately
+audits those receipts; composition records that it did not enumerate the roots.
+
+An owner-reviewed privacy recovery uses `prepare-delta --admission-ledger FILE
+--admission-sha256 SHA256` with the exact single private denylist. The sealed
+ledger must bind each source identity, provenance domain, original hash and
+complete review evidence. Current bytes are rehashed. Admission retries only
+named sources; unknown sources, changed bytes, denylist matches, private-key
+headers and provider-key patterns retain their exclusions. The ledger is retained
+as an immutable administrative artifact. This narrow privacy decision never
+qualifies factual research or changes the default scanner rules.

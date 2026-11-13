@@ -118,6 +118,22 @@ def test_competing_writers_have_one_cas_winner(runs):
     assert runs.run_get(made["run"]["_id"])["revision"] == 2
 
 
+def test_checkpoint_reserves_one_catalog_increment_before_saving_run(runs, monkeypatch):
+    made = create(runs)
+    before = runs._catalog()
+    original = runs.run_versions.insert_one
+
+    def insert(row, **kwargs):
+        assert runs._catalog(kwargs["session"]) == before + 1
+        return original(row, **kwargs)
+
+    monkeypatch.setattr(runs.run_versions, "insert_one", insert)
+    result = runs.run_checkpoint(made["run"]["_id"], {"checkpoint": {"phase": "saved"}},
+        1, made["lease_token"], "coordinator", request_id="checkpoint-reservation")
+    assert result["run"]["revision"] == 2
+    assert runs._catalog() == before + 1
+
+
 def test_lease_expiry_resume_and_release_fence_previous_coordinator(runs):
     made = create(runs)
     rid, token = made["run"]["_id"], made["lease_token"]
@@ -426,6 +442,164 @@ def test_artifact_corruption_and_foreign_chunk_are_detected(runs):
     with pytest.raises(OwnershipError):
         put_artifact(runs, advanced(made, result), name="other.txt")
     assert runs.run_get(made["run"]["_id"])["revision"] == 2
+
+
+def test_artifact_chunk_batches_preserve_repeated_order_and_reuse_bodies(runs, monkeypatch):
+    made = create(runs)
+    body = "a" * CHUNK_BYTES * 2 + "tail 🐘"
+    calls = []
+    original_find = runs.artifact_chunks.find
+    original_insert = runs.artifact_chunks.insert_many
+
+    def find(query, **kwargs):
+        calls.append(("find", copy.deepcopy(query), kwargs.get("session")))
+        return original_find(query, **kwargs)
+
+    def insert(rows, **kwargs):
+        calls.append(("insert", len(rows), kwargs.get("session")))
+        return original_insert(rows, **kwargs)
+
+    monkeypatch.setattr(runs.artifact_chunks, "find", find)
+    monkeypatch.setattr(runs.artifact_chunks, "insert_many", insert)
+    result = put_artifact(runs, made, body=body)
+    assert [call[0] for call in calls] == ["find", "insert"]
+    assert calls[1][1] == 2 and all(call[2] is not None for call in calls)
+    chunks = result["artifact"]["chunks"]
+    assert len(chunks) == 3 and chunks[0] == chunks[1]
+    calls.clear()
+    assert runs._artifact_text(result["artifact"]["_id"])[1] == body
+    assert [call[0] for call in calls] == ["find"]
+    calls.clear()
+    put_artifact(runs, advanced(made, result), name="other.txt", body=body)
+    assert [call[0] for call in calls] == ["find"]
+    assert runs.artifact_chunks.count_documents({}) == 2
+
+
+@pytest.mark.parametrize("foreign", [False, True])
+def test_artifact_chunk_batch_validates_every_existing_body_before_insert(runs, monkeypatch, foreign):
+    made = create(runs)
+    raw = b"x" * CHUNK_BYTES
+    cid = "chunk:" + digest(raw)
+    runs.artifact_chunks.insert_one({"_id": cid, "managed_by": "foreign" if foreign else MANAGED_BY,
+        "data": b"corrupt" if not foreign else raw, "byte_count": len(raw), "sha256": digest(raw)})
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Must validate every existing chunk before inserting any body")
+
+    monkeypatch.setattr(runs.artifact_chunks, "insert_many", forbidden)
+    with pytest.raises(OwnershipError if foreign else Conflict):
+        put_artifact(runs, made, body="a" * CHUNK_BYTES + raw.decode())
+    assert runs.run_get(made["run"]["_id"])["revision"] == 1
+    assert runs.artifacts.count_documents({}) == 0
+
+
+def test_artifact_chunk_bulk_duplicate_retries_complete_fenced_transaction(runs, monkeypatch):
+    from pymongo.errors import BulkWriteError
+
+    made = create(runs)
+    catalog_before = runs._catalog()
+    original = runs.artifact_chunks.insert_many
+    attempts = []
+
+    def insert(rows, **kwargs):
+        attempts.append(kwargs["session"])
+        if len(attempts) == 1:
+            raise BulkWriteError({"writeErrors": [{"code": 11000}], "writeConcernErrors": []})
+        return original(rows, **kwargs)
+
+    monkeypatch.setattr(runs.artifact_chunks, "insert_many", insert)
+    result = put_artifact(runs, made, body="a" * (CHUNK_BYTES + 1), request_id="retry-chunks")
+    assert len(attempts) == 2
+    assert result["run"]["revision"] == 2
+    assert runs.run_versions.count_documents({}) == 2
+    assert runs._catalog() == catalog_before + 1
+    assert runs.artifact_chunks.count_documents({}) == 2
+    assert runs._artifact_text(result["artifact"]["_id"])[1] == "a" * (CHUNK_BYTES + 1)
+
+
+def test_artifact_chunk_bulk_retry_exhaustion_rolls_back_all_writes(runs, monkeypatch):
+    from pymongo.errors import BulkWriteError
+
+    from research_library_service.store import TX_MAX_ATTEMPTS
+
+    made = create(runs)
+    catalog_before = runs._catalog()
+    calls = []
+
+    def fail(rows, **kwargs):
+        calls.append(True)
+        raise BulkWriteError({"writeErrors": [{"code": 11000}], "writeConcernErrors": []})
+
+    monkeypatch.setattr(runs.artifact_chunks, "insert_many", fail)
+    monkeypatch.setattr("research_library_service.store.time.sleep", lambda _: None)
+    with pytest.raises(Conflict, match="transaction conflict"):
+        put_artifact(runs, made)
+    assert len(calls) == TX_MAX_ATTEMPTS
+    assert runs.run_get(made["run"]["_id"])["revision"] == 1
+    assert runs.artifact_chunks.count_documents({}) == 0
+    assert runs.artifacts.count_documents({}) == 0
+    assert runs._catalog() == catalog_before
+
+
+def test_artifact_catalog_reservation_precedes_bodies_and_commits_one_increment(runs, monkeypatch):
+    made = create(runs)
+    catalog_before = runs._catalog()
+    original = runs.artifact_chunks.insert_many
+    observed = []
+
+    def insert(rows, **kwargs):
+        observed.append(runs._catalog(kwargs["session"]))
+        assert runs.run_get(made["run"]["_id"])["revision"] == 1
+        return original(rows, **kwargs)
+
+    monkeypatch.setattr(runs.artifact_chunks, "insert_many", insert)
+    result = put_artifact(runs, made, request_id="early-catalog")
+    assert observed == [catalog_before + 1]
+    assert runs._catalog() == catalog_before + 1
+    assert put_artifact(runs, made, request_id="early-catalog") == result
+    assert runs._catalog() == catalog_before + 1
+
+
+def test_artifact_catalog_reservation_rolls_back_and_requires_fenced_authorization(runs, monkeypatch):
+    made = create(runs)
+    catalog_before = runs._catalog()
+
+    def fail(*args, **kwargs):
+        assert runs._catalog() == catalog_before + 1
+        raise RuntimeError("injected body failure")
+
+    monkeypatch.setattr(runs.artifact_chunks, "insert_many", fail)
+    with pytest.raises(LeaseConflict):
+        runs.artifact_put(made["run"]["_id"], "unauthorized", "working", "body", 1,
+                          "wrong-token", "coordinator")
+    assert runs._catalog() == catalog_before
+    with pytest.raises(RuntimeError, match="injected body failure"):
+        put_artifact(runs, made)
+    assert runs._catalog() == catalog_before
+    assert runs.run_get(made["run"]["_id"])["revision"] == 1
+    assert runs.artifacts.count_documents({}) == 0
+    assert runs.artifact_chunks.count_documents({}) == 0
+
+
+def test_catalog_reservation_credits_count_multiple_saves_and_never_escape_attempt(runs):
+    made = create(runs)
+    rid, catalog_before = made["run"]["_id"], runs._catalog()
+
+    def two_saves(session):
+        runs._reserve_catalog_revision(rid, session)
+        runs._reserve_catalog_revision(rid, session)
+        first = runs._get(rid, session)
+        second = runs._save(first, first, "test", session)
+        third = runs._save(second, second, "test", session)
+        assert runs._catalog(session) == catalog_before + 2
+        return third
+
+    assert runs.store._tx(two_saves)["revision"] == 3
+    assert runs._catalog() == catalog_before + 2
+    assert runs.store._evidence_context.get() is None
+    current = {**made, "run": runs.run_get(rid)}
+    put_artifact(runs, current)
+    assert runs._catalog() == catalog_before + 3
 
 
 def test_artifact_manifest_metadata_corruption_is_detected(runs):
