@@ -82,3 +82,7 @@ PR 214 merged as 7bb689556a6a8368288f9e42df935b261e3157ec. Cloudflare production
 Delta: add `mongo ingest --preserve-states` for authorized reconciliation. Changed guides and supporting resources still receive immutable releases. Existing inactive state and disabled markers survive ingestion. Preserved inactive/disabled records omit search text. Ordinary source reappearance behavior remains available without the flag. The source suite passes 255 tests, including inactive/disabled updates, old release retention and repeat-ingest idempotency. Private corpus reconciliation continues separately; this code change does not establish corpus storage, evidence qualification or search coverage.
 
 Delivery correction v1.0.1: align the API dependency pin and lock entry with skill-registry 0.1.1. CI caught the stale 0.1.0 pin during the vendored hub bootstrap.
+
+## 2026-11-13 — Owner import family guard v1.0.1
+
+Delta: filter family reservation requests to eligible, existing, nondeleted endpoints. Record missing endpoints and reservation-discovery errors without writing their relationships. The trigger was KeyError("A reserved research concept is unavailable") after source and concept imports had already succeeded. Private continuation reuses the frozen inventory and verifies existing source snapshots; it does not restart research or judges.

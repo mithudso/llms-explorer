@@ -24,6 +24,7 @@ from research_library_service import importer
 from research_library_service.environment import load_environment
 from research_library_service.models import MANAGED_BY, score_axes
 
+OWNER_IMPORT_VERSION = "1.0.1"
 MAX_BYTES = 64 * 1024 * 1024
 COLLECTIONS = ("concepts", "versions", "sources", "snapshots", "snapshot_chunks", "leases",
                "queue", "receipts", "meta", "claim_versions", "source_versions", "publications")
@@ -499,14 +500,29 @@ def family_applier(timed, inventory, progress):
         current = {}
         for start in range(0, len(endpoints), 1000):
             current.update({row["_id"]: row for row in timed.store.concepts.find(
-                {"managed_by": MANAGED_BY, "_id": {"$in": endpoints[start:start + 1000]}},
+                {"managed_by": MANAGED_BY, "deleted": {"$ne": True},
+                 "_id": {"$in": endpoints[start:start + 1000]}},
                 {"_id": 1, "parent_id": 1, "children_ids": 1})})
-        holds = (timed.store.reservation_provider(endpoints, "canonical-import", "")
-                 if timed.store.reservation_provider is not None else {})
+        # Skipped imports and deleted endpoints cannot participate in a family
+        # write. Asking the bridge to reserve them aborts otherwise valid work.
+        reservable = sorted(set(current) & set(eligible))
+        holds, reservation_error = {}, None
+        if timed.store.reservation_provider is not None and reservable:
+            try:
+                holds = timed.store.reservation_provider(reservable, "canonical-import", "")
+            except Exception as exc:
+                # A concurrent disappearance or unavailable hold scan must not
+                # authorize writes or discard earlier successful import receipts.
+                reservation_error = type(exc).__name__
         for edge in edges:
             child, parent = edge["concept_id"], edge["target_id"]
             if child not in eligible or parent not in eligible:
                 skipped.append({**edge, "reason": "endpoint-not-import-managed"})
+            elif child not in current or parent not in current:
+                skipped.append({**edge, "reason": "endpoint-unavailable"})
+            elif reservation_error is not None:
+                skipped.append({**edge, "reason": "reservation-check-unavailable",
+                                "error_type": reservation_error})
             elif current.get(child, {}).get("parent_id") == parent and child in current.get(
                     parent, {}).get("children_ids", []):
                 unchanged += 1
@@ -592,7 +608,7 @@ def main():
                                   "frontier": sum(row["state"] == "frontier" for row in selected["concepts"])}
             preview = importer.import_inventory(None, selected, dry_run=True)
             save(run / "dry-run.json", preview)
-            summary = {"phase": "dry-run", "receipt": str(run), "counts": inventory["counts"],
+            summary = {"version": OWNER_IMPORT_VERSION, "phase": "dry-run", "receipt": str(run), "counts": inventory["counts"],
                        "selected_counts": selected["counts"], "excluded": dict(Counter(
                            row["kind"] + ":" + row["reason"] for row in preparation["excluded"])),
                        "warnings": preparation["warnings"], "artifact_contracts": preparation["artifact_contracts"]}

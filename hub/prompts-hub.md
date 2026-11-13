@@ -39,3 +39,9 @@ The user restored Wrangler login and supplied a fine-grained GitHub key for priv
   - Synchronize skills using the installed skill-registry CLI. Retain legitimate database-only skills and existing disabled or archived states.
 - Implementation scope: add an opt-in conservative ingestion mode that preserves existing inactive and disabled states while retaining immutable release history.
 - Delta: v5 to v6. Private source inventories and synchronization receipts remain outside Git.
+
+## Prompt v7 - 2026-11-13
+- User request:
+  - Use the maintained owner importer conservatively, continue through safely repairable gaps, preserve newer MongoDB edits and holds, and audit completeness.
+- Scope: prevent skipped or missing family endpoints from aborting the owner import; fail closed if reservation discovery changes.
+- Delta: v6 to v7.

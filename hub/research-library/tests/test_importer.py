@@ -415,3 +415,74 @@ def test_owner_bulk_runner_isolates_invalid_record_without_losing_valid_neighbor
     assert result["bulk_created"] == 2 and result["fallback_records"] == 1
     assert store.concepts.count_documents({}) == store.versions.count_documents({}) == 2
     assert store.concepts.find_one({"_id": "c:invalid-name"}) is None
+
+
+@pytest.mark.parametrize("unavailable", ["not-imported", "missing", "deleted"])
+def test_owner_family_reserves_only_eligible_existing_endpoints(unavailable):
+    import importlib.util
+
+    from test_store_core import Database
+
+    from research_library_service.models import MANAGED_BY
+    from research_library_service.store import LibraryStore
+
+    path = Path(__file__).resolve().parents[1] / "scripts/import_owner_library.py"
+    spec = importlib.util.spec_from_file_location("owner_family_scenario", path)
+    owner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(owner)
+    store = LibraryStore(Database())
+    for row in [
+        {"_id": "c:child", "parent_id": "c:parent", "children_ids": []},
+        {"_id": "c:parent", "parent_id": None, "children_ids": ["c:child"]},
+    ]:
+        store.concepts.insert_one({**row, "managed_by": MANAGED_BY})
+    if unavailable == "deleted":
+        store.concepts.insert_one({"_id": "c:unavailable", "managed_by": MANAGED_BY,
+                                   "deleted": True})
+    calls = []
+    def reservations(ids, actor, run_id):
+        calls.append(ids)
+        assert ids == ["c:child", "c:parent"]
+        return {}
+    store.reservation_provider = reservations
+    timed = owner.TimedStore(store, {})
+    apply, _ = owner.family_applier(timed, {"concepts": []}, lambda _: None)
+    eligible = {"c:child", "c:parent"}
+    if unavailable != "not-imported":
+        eligible.add("c:unavailable")
+    result = apply(timed, [
+        {"concept_id": "c:child", "target_id": "c:parent"},
+        {"concept_id": "c:unavailable", "target_id": "c:parent"},
+    ], eligible, "scenario")
+    assert calls == [["c:child", "c:parent"]]
+    assert result["unchanged"] == 1 and result["updated"] == 0
+    assert result["skipped"][0]["reason"] == (
+        "endpoint-not-import-managed" if unavailable == "not-imported" else "endpoint-unavailable")
+    assert not store.versions.count_documents({})
+
+
+def test_owner_family_fails_closed_if_reservation_inventory_changes():
+    import importlib.util
+
+    from test_store_core import Database
+
+    from research_library_service.models import MANAGED_BY
+    from research_library_service.store import LibraryStore
+    path = Path(__file__).resolve().parents[1] / "scripts/import_owner_library.py"
+    spec = importlib.util.spec_from_file_location("owner_family_changed", path)
+    owner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(owner)
+    store = LibraryStore(Database())
+    for cid in ["c:child", "c:parent"]:
+        store.concepts.insert_one({"_id": cid, "managed_by": MANAGED_BY})
+    def unavailable(*args):
+        raise KeyError("A reserved research concept is unavailable")
+    store.reservation_provider = unavailable
+    timed = owner.TimedStore(store, {})
+    apply, _ = owner.family_applier(timed, {"concepts": []}, lambda _: None)
+    result = apply(timed, [{"concept_id": "c:child", "target_id": "c:parent"}],
+                   {"c:child", "c:parent"}, "scenario")
+    assert result["updated"] == 0
+    assert result["skipped"][0]["reason"] == "reservation-check-unavailable"
+    assert result["skipped"][0]["error_type"] == "KeyError"
+    assert not store.versions.count_documents({})
