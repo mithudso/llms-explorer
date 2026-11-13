@@ -11,6 +11,20 @@ Use [MCP.md](MCP.md) for client configuration and the agent workflow. The
 The agent skill is
 [research-library-mongodb](../../.agents/skills/research-library-mongodb/SKILL.md).
 
+For coworkers and command-line clients, start with the
+[portable kit quickstart](distribution/QUICKSTART.md) and
+[complete tool reference](distribution/TOOLS.md). The kit includes a standalone
+read-only HTTPS client, portable skill files, an installer that preserves
+existing skills, and a smoke test. It needs Python 3.11 and an issued MCP
+capability; it does not need this server runtime or database credentials.
+
+Build a distributable archive from the repository root:
+
+```sh
+python3 hub/research-library/scripts/build_coworker_kit.py \
+  --output "$HOME/Downloads/MongoDB-Research-Coworker-Kit.zip"
+```
+
 ## Install a private runtime
 
 The standalone package requires Python 3.11 or later, MongoDB transactions, and
