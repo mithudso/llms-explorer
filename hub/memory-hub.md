@@ -90,3 +90,7 @@ Delta: filter family reservation requests to eligible, existing, nondeleted endp
 ## 2026-11-13 — Artifact catalog write ordering v1.0.0
 
 Delta: save the run revision and shared catalog before transferring artifact chunks, within the same MongoDB transaction. Concurrent activity on run-catalog previously invalidated an entire upload near its end. The change keeps one catalog increment and one run version per artifact, and rollback covers early revision/catalog writes when any later artifact write fails. Private synchronization receipts remain outside Git.
+
+## 2026-11-13 — Catalog reservation ordering v1.0.1
+
+Delta: reserve the shared catalog before run/version writes in all run saves. The earlier artifact-transfer reorder leaves two additional network round trips before this contested write. This follow-up shortens that window and retains atomic rollback. Snapshot transactions can still conflict after earlier receipt or lease reads; this is a contention reduction, not a claim that concurrent writes can never fail.
