@@ -351,3 +351,30 @@ protocol transport, role/authentication separation, lease conflicts, rollback,
 claim/source history, search degradation and import boundaries. They do not
 prove live Atlas index readiness, network/proxy configuration, provider quality,
 or a real production publication. Test those separately with explicit receipts.
+
+
+## Provision Mongo-native SK runs and artifacts
+
+After installing the updated wheel, explicitly provision the new run namespaces
+and native artifact indexes with the owner-local CLI. This operation does not
+rebuild historical vectors or launch research:
+
+```sh
+printf '{}\n' | "$HOME/.local/share/research-library/runtime/.venv/bin/research-library" \
+  --env-file "$HOME/.config/research-library/server.env" --role admin request run_provision
+```
+
+The operation provisions versioned runs/items, separate fenced run leases,
+immutable artifact chunks and heads, and new artifact units. It creates native
+`research_artifact_voyage4_v1` and `research_artifact_text_v1` indexes. Prefixes
+follow the existing operator configuration. Provision before enabling new
+publication workers because Mongo transactions cannot create missing namespaces.
+Native index propagation may remain pending after provisioning; artifact indexing
+returns exact coverage for each unit and can refresh the same request later.
+
+The maintained first-party `llms_txt` wheel documented above supplies trusted
+compilation. Do not substitute a similarly named third-party package. Compilation
+runs without a provider, but it accepts only current trusted v4 research proof.
+The SK methods store output packs, prompts, ledgers, continuation and trusted
+publication archives in Mongo. Server scratch is a derived adapter workspace.
+The [MCP guide](MCP.md) explains the separate run and concept authorities.

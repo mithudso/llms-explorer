@@ -268,3 +268,45 @@ limiter, or per-user audit attribution. Operators remain responsible for
 network/TLS protection, token issuance, MongoDB least-privilege credentials,
 backup/restore policy and private research handling. Use live end-to-end receipts
 to distinguish an installed client from a working search/publication path.
+
+
+## Mongo-native research modes
+
+The SK plugin provides DR, CFE, rabbithole and full-suite methods, with saved
+queue continuation and frontier expansion. See [SK Research](../../docs/sk-research.md).
+The research endpoint now advertises 40 tools: 20 reads and 20 writes. The
+[tool inventory](distribution/TOOLS.md) documents every signature.
+
+`research_run_create` records the commissioned prompt, mode, scope and options.
+Run leases fence orchestration independently of concept leases. Checkpoint,
+ledger and artifact writes require the current run revision and private token.
+`research_run_get`, `research_run_list` and `research_run_ledger` recover saved
+phases without local research files. Runs and client-authored artifacts are
+unverified even when their labels say complete or supported.
+
+`research_artifact_put` versions immutable UTF-8 text in hash-verified chunks.
+The trusted publisher archives its bound inputs, gate attempts and outputs into
+its own run; `research_publication_status` exposes `archive_run_id`. Temporary
+server scratch supports the existing gated adapter and is recoverable from the
+trusted archive. Configuration, credentials, private leases and raw provider
+logs are excluded. A failed archive prevents successful publication reporting.
+
+`research_compile` accepts only current v4-qualified concepts with supported
+active claims, exact pinned evidence and verified projections. It writes
+revision-pinned concept packs and cumulative family rollups to MongoDB. A later
+source/claim/family edit makes an old pack historical; replay rechecks its pins.
+Compilation does not confer research support or install a native skill.
+
+`research_artifact_index` separately indexes up to 16 artifacts and 8 MiB per
+batch through new native Voyage autoEmbed and text indexes. Its coverage receipt
+checks every expected unit in both channels. Native index readiness alone does
+not establish coverage. Retry an identical request during indexing lag; this
+refreshes coverage without rewriting units. `research_artifact_search` returns
+only validated current heads, with channel diagnostics. Historical vectors are
+unchanged. Required paused or unavailable stages leave a suite partial.
+
+Run, ledger and artifact lists use at most 100 rows per page. Ledger/artifact
+cursors bind to a run revision; restart a stale listing before further edits.
+Artifact reads use Unicode character offsets and return `next_offset` and `done`.
+Queue lists support status/stop filters only; topic selection requires an exact
+concept-ID join against the paged topic/family inventory.

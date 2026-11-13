@@ -25,9 +25,9 @@ Search first, choose the most specific useful skill, and load it with the return
 continue all pages. Search results and a release hash do not themselves load the
 guide. These read tools neither install local skills nor change the research corpus.
 
-## Research service: 27 tools
+## Research service: 40 tools
 
-The 14 tools below are the read allowlist. Reader tokens can use them. Tool
+The 20 tools below are the read allowlist. Reader tokens can use them. Tool
 discovery also lists writer operations, but a reader token cannot execute them.
 
 | Read tool | Arguments |
@@ -46,8 +46,14 @@ discovery also lists writer operations, but a reader token cannot execute them.
 | `research_queue_list` | `filters=null`, `after=""`, `limit=100` |
 | `research_lease_list` | None |
 | `research_publication_status` | `job_id` |
+| `research_run_get` | `run_id`, `revision=null` |
+| `research_run_list` | `mode=""`, `status=""`, `after=""`, `limit=100` |
+| `research_run_ledger` | `run_id`, `kind=""`, `after=""`, `limit=100` |
+| `research_artifact_get` | `artifact_id`, `offset=0`, `max_chars=16000` |
+| `research_artifact_list` | `run_id`, `kind=""`, `after=""`, `limit=100` |
+| `research_artifact_search` | `query`, `mode="hybrid"`, `run_id=""`, `top=10` |
 
-These 13 writer tools require a writer token and the user's authorized scope.
+These 20 writer tools require a writer token and the user's authorized scope.
 Transport defaults do not waive leases, current revisions, or operation rules.
 
 | Writer tool | Required arguments; optional defaults |
@@ -65,6 +71,21 @@ Transport defaults do not waive leases, current revisions, or operation rules.
 | `research_lease_release` | `concept_ids`, `tokens`, `owner`; `request_id=""` |
 | `research_queue_put` | `concept_id`; `action="enqueue"`, `metadata=null`, `expected_revision=null`, `lease_token=""`, `request_id=""` |
 | `research_finalize` | `concept_id`, `expected_revision`, `lease_token`, `owner`; `request_id=""` |
+| `research_run_create` | `mode`, `subject`, `prompt`, `owner`; `options=null`, `scope=null`, `request_id=""` |
+| `research_run_checkpoint` | `run_id`, `patch`, `expected_revision`, `lease_token`, `owner`; `request_id=""` |
+| `research_run_item_put` | `run_id`, `key`, `kind`, `data`, `expected_revision`, `lease_token`, `owner`; `request_id=""` |
+| `research_run_lease` | `run_id`, `action`, `owner`; `token=""`, `ttl_seconds=900`, `expected_revision=null`, `request_id=""` |
+| `research_artifact_put` | `run_id`, `name`, `kind`, `text`, `expected_revision`, `lease_token`, `owner`; `metadata=null`, `request_id=""` |
+| `research_artifact_index` | `run_id`, `artifact_ids`, `expected_revision`, `lease_token`, `owner`; `request_id=""` |
+| `research_compile` | `run_id`, `concept_ids`, `expected_revision`, `lease_token`, `owner`; `rollup=true`, `request_id=""` |
+
+Run leases coordinate mode checkpoints; concept leases independently protect research
+edits. Runs, ledgers and client-authored artifacts remain unverified. Trusted
+compilation consumes current qualified claims, while indexing verifies every
+expected artifact unit through native keyword and exact semantic census. Compile
+and index are separate operations. Index batches accept at most 16 artifacts and
+8 MiB combined text; new run/ledger/artifact lists accept at most 100 rows.
+See the SK kit for complete persisted mode protocols.
 
 ## Workflow and limits
 

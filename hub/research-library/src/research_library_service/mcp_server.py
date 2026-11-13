@@ -53,6 +53,9 @@ def create_server(service=None, default_role: str = "read"):
         "finalize; remote owners are namespaced mcp:. CRUD success is draft persistence, "
         "not publication. Finalization uses the trusted existing research evidence/gate/"
         "projection path. Caller-authored SUPPORTED or COMPLETED labels are not authority. "
+        "Use research_run_* for durable MongoDB checkpoints, coverage and continuation; "
+        "use research_artifact_* for immutable working files and compiled outputs. "
+        "A run lease coordinates a run and does not replace per-concept research leases. "
         "No tool accepts shell commands, local file paths or raw MongoDB pipelines."
     ))
     state = service
@@ -274,6 +277,105 @@ def create_server(service=None, default_role: str = "read"):
     def research_publication_status(job_id: str) -> dict[str, Any]:
         """Read redacted status of a trusted publication job."""
         return invoke("publication_status", {"job_id": job_id})
+
+    @tool()
+    def research_run_get(run_id: str, revision: int | None = None) -> dict[str, Any]:
+        """Read a Mongo research run or its immutable checkpoint version; never lease secrets."""
+        return invoke("run_get", {"run_id": run_id, "revision": revision})
+
+    @tool()
+    def research_run_list(mode: str = "", status: str = "", after: str = "",
+                          limit: int = 100) -> dict[str, Any]:
+        """Page saved research modes and continuation state without starting work."""
+        return invoke("run_list", {"mode": mode, "status": status, "after": after, "limit": limit})
+
+    @tool()
+    def research_run_ledger(run_id: str, kind: str = "", after: str = "",
+                            limit: int = 100) -> dict[str, Any]:
+        """Page all coverage, question, pass, round, selection and attempt records."""
+        return invoke("run_ledger", {"run_id": run_id, "kind": kind, "after": after, "limit": limit})
+
+    @tool()
+    def research_artifact_get(artifact_id: str, offset: int = 0,
+                              max_chars: int = 16000) -> dict[str, Any]:
+        """Read immutable hash-verified artifact text using Unicode character offsets."""
+        return invoke("artifact_get", {"artifact_id": artifact_id, "offset": offset,
+                                       "max_chars": max_chars})
+
+    @tool()
+    def research_artifact_list(run_id: str, kind: str = "", after: str = "",
+                               limit: int = 100) -> dict[str, Any]:
+        """Page current artifact heads with their immutable IDs and source qualification."""
+        return invoke("artifact_list", {"run_id": run_id, "kind": kind,
+                                        "after": after, "limit": limit})
+
+    @tool()
+    def research_artifact_search(query: str, mode: str = "hybrid", run_id: str = "",
+                                 top: int = 10) -> dict[str, Any]:
+        """Search indexed artifact bodies; report actual semantic and keyword coverage."""
+        return invoke("artifact_search", {"query": query, "mode": mode,
+                                          "run_id": run_id, "top": top})
+
+    @tool(read_only=False)
+    def research_run_create(mode: str, subject: str, prompt: str, owner: str,
+                            options: dict | None = None, scope: dict | None = None,
+                            request_id: str = "") -> dict[str, Any]:
+        """Create a durable Mongo-first run and return its private coordinator lease."""
+        return invoke("run_create", {"mode": mode, "subject": subject, "prompt": prompt,
+                                     "owner": owner, "options": options, "scope": scope,
+                                     "request_id": request_id})
+
+    @tool(read_only=False)
+    def research_run_checkpoint(run_id: str, patch: dict, expected_revision: int,
+                                lease_token: str, owner: str, request_id: str = "") -> dict[str, Any]:
+        """CAS-save scope/options/checkpoint state under the coordinator's fenced lease."""
+        return invoke("run_checkpoint", {"run_id": run_id, "patch": patch,
+            "expected_revision": expected_revision, "lease_token": lease_token,
+            "owner": owner, "request_id": request_id})
+
+    @tool(read_only=False)
+    def research_run_item_put(run_id: str, key: str, kind: str, data: dict,
+                              expected_revision: int, lease_token: str, owner: str,
+                              request_id: str = "") -> dict[str, Any]:
+        """Version one exhaustive ledger row; its run-local CVS never changes global eligibility."""
+        return invoke("run_item_put", {"run_id": run_id, "key": key, "kind": kind, "data": data,
+            "expected_revision": expected_revision, "lease_token": lease_token,
+            "owner": owner, "request_id": request_id})
+
+    @tool(read_only=False)
+    def research_run_lease(run_id: str, action: str, owner: str, token: str = "",
+                           ttl_seconds: int = 900, expected_revision: int | None = None,
+                           request_id: str = "") -> dict[str, Any]:
+        """Acquire, renew or release a run lease; concept leases remain separately required."""
+        return invoke("run_lease", {"run_id": run_id, "action": action, "owner": owner,
+            "token": token, "ttl_seconds": ttl_seconds, "expected_revision": expected_revision,
+            "request_id": request_id})
+
+    @tool(read_only=False)
+    def research_artifact_put(run_id: str, name: str, kind: str, text: str,
+                              expected_revision: int, lease_token: str, owner: str,
+                              metadata: dict | None = None, request_id: str = "") -> dict[str, Any]:
+        """Store an immutable draft artifact; caller labels cannot qualify its assertions."""
+        return invoke("artifact_put", {"run_id": run_id, "name": name, "kind": kind,
+            "text": text, "expected_revision": expected_revision, "lease_token": lease_token,
+            "owner": owner, "metadata": metadata, "request_id": request_id})
+
+    @tool(read_only=False)
+    def research_artifact_index(run_id: str, artifact_ids: list[str], expected_revision: int,
+                                lease_token: str, owner: str, request_id: str = "") -> dict[str, Any]:
+        """Index artifact bodies and verify exact keyword/vector unit coverage without new research."""
+        return invoke("artifact_index", {"run_id": run_id, "artifact_ids": artifact_ids,
+            "expected_revision": expected_revision, "lease_token": lease_token,
+            "owner": owner, "request_id": request_id})
+
+    @tool(read_only=False)
+    def research_compile(run_id: str, concept_ids: list[str], expected_revision: int,
+                          lease_token: str, owner: str, rollup: bool = True,
+                          request_id: str = "") -> dict[str, Any]:
+        """Compile verified current claims into Mongo packs and cumulative family rollups."""
+        return invoke("compile", {"run_id": run_id, "concept_ids": concept_ids,
+            "expected_revision": expected_revision, "lease_token": lease_token,
+            "owner": owner, "rollup": rollup, "request_id": request_id})
 
     return server
 

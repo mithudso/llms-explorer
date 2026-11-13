@@ -398,6 +398,31 @@ def test_smoke_tests_real_semantic_search_both_services_and_pinned_reads():
     assert all(name in client.READ_TOOLS["research"] for name, _ in research.calls)
 
 
+def test_sk_smoke_requires_new_api_and_only_reads_run_inventory():
+    class Runs(SmokeService):
+        def tools(self):
+            names = set(client.READ_TOOLS[self.service])
+            if self.service == "research":
+                names |= {"research_run_create", "research_run_checkpoint", "research_run_item_put",
+                          "research_run_lease", "research_artifact_put", "research_artifact_index",
+                          "research_compile"}
+            return [{"name": name} for name in names] + super().tools()
+
+        def call(self, name, arguments):
+            if name == "research_run_list":
+                self.calls.append((name, arguments))
+                return {"runs": []}
+            return super().call(name, arguments)
+
+    skills, research = Runs("skills"), Runs("research")
+    report = client.smoke_test(skills, research, require_sk=True)
+    assert report["sk"]["run_inventory_read"]
+    assert research.calls[-1] == ("research_run_list", {"limit": 1})
+    assert all(name in client.READ_TOOLS["research"] for name, _ in research.calls)
+    with pytest.raises(client.ClientError, match="sk run and artifact API"):
+        client.smoke_test(SmokeService("skills"), SmokeService("research"), require_sk=True)
+
+
 @pytest.mark.parametrize("failure", [
     "semantic", "pin", "truncated", "wrong-body", "inventory",
     "hit-sha256", "guide-sha256", "resource-sha256",

@@ -39,6 +39,8 @@ READ_TOOLS = {
         "research_search", "research_related", "research_frontier", "research_incomplete",
         "research_peer_seeds", "research_source_lookup", "research_source_get",
         "research_queue_list", "research_lease_list", "research_publication_status",
+        "research_run_get", "research_run_list", "research_run_ledger",
+        "research_artifact_get", "research_artifact_list", "research_artifact_search",
     }),
 }
 _HEADER_NAME = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+\Z")
@@ -289,7 +291,7 @@ def _hits(result):
 
 
 def smoke_test(skills, research, *, skills_query="research-library-mongodb",
-               research_query="MongoDB Atlas vector search"):
+               research_query="MongoDB Atlas vector search", require_sk=False):
     """Exercise both hosted services; emit metadata only and never call mutations."""
     skill_tools, research_tools = skills.tools(), research.tools()
     if len(skill_tools) < 5 or len(research_tools) < 27:
@@ -328,7 +330,19 @@ def smoke_test(skills, research, *, skills_query="research-library-mongodb",
                                      or not _SHA256.fullmatch(expected)
                                      or expected != guide_sha256):
             raise ClientError("The full smoke-test guide failed its SHA256 integrity check")
-    return {
+    run_probe = None
+    if require_sk:
+        required = {"research_run_get", "research_run_list", "research_run_ledger",
+                    "research_artifact_get", "research_artifact_list", "research_artifact_search",
+                    "research_run_create", "research_run_checkpoint", "research_run_item_put",
+                    "research_run_lease", "research_artifact_put", "research_artifact_index",
+                    "research_compile"}
+        if not required <= {tool["name"] for tool in research_tools}:
+            raise ClientError("The research server does not expose the sk run and artifact API")
+        run_probe = research.call("research_run_list", {"limit": 1})
+        if not isinstance(run_probe.get("runs"), list):
+            raise ClientError("The sk run inventory did not return a valid metadata page")
+    result = {
         "verdict": "passed", "native_startup_tested": False, "record_writes": 0,
         "research_provider_calls": 0, "llm_research_turns": 0,
         "skills": {"tool_count": len(skill_tools), "hybrid_hits": len(candidates),
@@ -338,6 +352,9 @@ def smoke_test(skills, research, *, skills_query="research-library-mongodb",
         "research": {"tool_count": len(research_tools), "status_read": isinstance(status, dict),
                      "semantic_hits": len(_hits(research_result)), "semantic": True},
     }
+    if require_sk:
+        result["sk"] = {"run_api": True, "artifact_api": True, "run_inventory_read": True}
+    return result
 
 
 class _Parser(argparse.ArgumentParser):
@@ -373,6 +390,8 @@ def parser():
     smoke = commands.add_parser("smoke-test")
     smoke.add_argument("--skills-query", default="research-library-mongodb")
     smoke.add_argument("--research-query", default="MongoDB Atlas vector search")
+    smoke.add_argument("--require-sk", action="store_true",
+                       help="Also require the run/artifact API and read its run inventory")
     return root
 
 
@@ -386,7 +405,8 @@ def main(argv=None, *, client_factory=None, input_stream=None):
 
         if args.command == "smoke-test":
             result = smoke_test(connect("skills"), connect("research"),
-                                skills_query=args.skills_query, research_query=args.research_query)
+                                skills_query=args.skills_query, research_query=args.research_query,
+                                require_sk=args.require_sk)
         elif args.command == "tools":
             result = {"tools": connect(args.service).tools()}
         elif args.command == "call":
