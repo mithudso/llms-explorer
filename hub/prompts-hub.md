@@ -49,3 +49,7 @@ The user restored Wrangler login and supplied a fine-grained GitHub key for priv
 ## Prompt v8 - 2026-11-13
 - Authorized scope: continue safely repairable synchronization gaps while preserving immutable artifacts, revisions and leases.
 - Delta: reserve the shared run catalog before artifact transfer to avoid repeated late WriteConflict failures. Keep the entire artifact mutation atomic.
+
+## Prompt v9 - 2026-11-13
+- Authorized continuation: repair safely recoverable synchronization gaps without overwriting other workers.
+- Delta: reserve the catalog before the run and version writes too. Preserve transaction rollback, ownership, idempotency and one catalog increment.
