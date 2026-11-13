@@ -486,3 +486,47 @@ def test_empty_artifact_round_trips_and_no_chunks_are_required(runs):
     got = runs.artifact_get(result["artifact"]["_id"])
     assert got["text"] == "" and got["done"] and got["next_offset"] == 0
     assert got["artifact"]["managed_by"] == MANAGED_BY
+
+
+def test_artifact_reserves_catalog_before_chunk_transfer(runs, monkeypatch):
+    made = create(runs)
+    events = []
+    update = runs.store.meta.update_one
+    insert = runs.artifact_chunks.insert_one
+
+    def catalog(*args, **kwargs):
+        events.append("catalog")
+        return update(*args, **kwargs)
+
+    def chunk(*args, **kwargs):
+        events.append("chunk")
+        return insert(*args, **kwargs)
+
+    monkeypatch.setattr(runs.store.meta, "update_one", catalog)
+    monkeypatch.setattr(runs.artifact_chunks, "insert_one", chunk)
+    before = runs._catalog()
+    result = put_artifact(runs, made, body="catalog ordering")
+    assert events.index("catalog") < events.index("chunk")
+    assert events.count("catalog") == 1
+    assert runs._catalog() == before + 1
+    assert result["run"]["revision"] == made["run"]["revision"] + 1
+    head = runs.artifact_heads.find_one({"artifact_id": result["artifact"]["_id"]})
+    assert head["run_revision"] == result["run"]["revision"]
+
+
+def test_failed_artifact_rolls_back_early_catalog_and_run(runs, monkeypatch):
+    made = create(runs)
+    before = runs._catalog()
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("simulated chunk failure")
+
+    monkeypatch.setattr(runs.artifact_chunks, "insert_one", fail)
+    with pytest.raises(RuntimeError, match="simulated chunk failure"):
+        put_artifact(runs, made, body="rollback all writes")
+    assert runs._catalog() == before
+    assert runs.run_get(made["run"]["_id"])["revision"] == made["run"]["revision"]
+    assert runs.run_versions.count_documents({"run_id": made["run"]["_id"]}) == 1
+    assert runs.artifacts.count_documents({}) == 0
+    assert runs.artifact_heads.count_documents({}) == 0
+    assert runs.artifact_chunks.count_documents({}) == 0

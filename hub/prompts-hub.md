@@ -45,3 +45,7 @@ The user restored Wrangler login and supplied a fine-grained GitHub key for priv
   - Use the maintained owner importer conservatively, continue through safely repairable gaps, preserve newer MongoDB edits and holds, and audit completeness.
 - Scope: prevent skipped or missing family endpoints from aborting the owner import; fail closed if reservation discovery changes.
 - Delta: v6 to v7.
+
+## Prompt v8 - 2026-11-13
+- Authorized scope: continue safely repairable synchronization gaps while preserving immutable artifacts, revisions and leases.
+- Delta: reserve the shared run catalog before artifact transfer to avoid repeated late WriteConflict failures. Keep the entire artifact mutation atomic.
