@@ -1985,7 +1985,23 @@ Scope: validate factual auxiliary prose; preserve canonical evidence with option
   - Resolve all existing MongoDB concept-tree areas through independent evidence review before expanding the frontier, including Voyage AI.
 - This delivery: only the accepted Atlas Trigger replacement with change-stream consumers scope; preserve other research, holds and queues.
 
+## Prompt — 2026-11-12 — Complete Salesforce full-suite remaining work (TASK-1517)
+
+- User request: Complete the rest of your tasks.
+- Continue the recorded Salesforce research queue, withheld diagnostic scope and acceptance checks while preserving the shipped baseline and prior attempt history.
+- Semantic indexing remains subject to the earlier explicit pause pending a scoped answer. This research continuation does not authorize Salesforce org changes or a production alert migration.
+
+
+## 2026-11-12 — Global semantic-indexing authorization
+
+User answer: “lift the pause altogether.” Resume normal incremental embedding/indexing and verify current Salesforce artifacts. Preserve existing model contracts, frozen website assets and independently scoped research holds.
+
 ## Prompt v156 - 2026-11-13T01:13:08.325527+00:00
 - User request:
   - Resolve all existing MongoDB concept-tree areas through independent evidence review before expanding the frontier, including Voyage AI.
 - This delivery: only the accepted Container memory limits and allocator cache configuration scope; preserve other research, holds and queues.
+
+
+## 2026-11-13 — Confirm current skill MCP target
+
+The user selected the currently connected MCP database for current skills. Preserve the separate original candidate prototype and its nine immutable seed revisions. Verify current source/release pins through the existing runtime; no prototype or schema migration is requested.

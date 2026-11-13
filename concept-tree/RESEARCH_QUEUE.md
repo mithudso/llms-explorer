@@ -4792,6 +4792,6 @@ frontier research; publication does not manufacture native claim acceptance.
 - [ ] Concept: `Claim-to-source provenance for retrieved expertise` | Parent: `Queryable Research Expertise` | Note: implementation family; native research qualification pending
 - [ ] Concept: `Private skill registry and distribution` | Parent: `Queryable Research Expertise` | Note: implementation family; native research qualification pending
 - [ ] Concept: `Research-guided artifact optimization` | Parent: `Queryable Research Expertise` | Note: implementation family; native research qualification pending
-- [ ] Concept: `Salesforce scheduled Case polling versus event subscriptions` | Parent: `Salesforce Pub/Sub case alerting` | Mode: `dr` | CVS: `4.20`
-- [ ] Concept: `Salesforce Case alert rule versioning and activation semantics` | Parent: `Salesforce Pub/Sub case alerting` | Mode: `dr` | CVS: `4.05`
-- [ ] Concept: `Salesforce Case alert suppression and rearming policy` | Parent: `Salesforce Pub/Sub case alerting` | Mode: `dr` | CVS: `4.00`
+- [x] Concept: `Salesforce scheduled Case polling versus event subscriptions` | Parent: `Salesforce Pub/Sub case alerting` | Mode: `dr` | CVS: `4.20`
+- [x] Concept: `Salesforce Case alert rule versioning and activation semantics` | Parent: `Salesforce Pub/Sub case alerting` | Mode: `dr` | CVS: `4.05`
+- [x] Concept: `Salesforce Case alert suppression and rearming policy` | Parent: `Salesforce Pub/Sub case alerting` | Mode: `dr` | CVS: `4.00`

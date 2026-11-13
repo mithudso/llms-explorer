@@ -215,7 +215,7 @@ def search_writes(repo: Path, packs: dict, redirects: dict) -> tuple[dict, dict]
         writes[binary_path] = b"".join(vectors)
     exclusions = {"version": "1.0.0", "items": [
         {"slug": slug, "concept": packs[slug]["concept"],
-         "reason": "Semantic indexing and embeddings are paused; keyword search includes this concept."}
+         "reason": "Not included in the frozen website semantic snapshot; keyword search includes this concept."}
         for slug in sorted(set(packs) - indexed)]}
     writes[repo / "site/src/data/search-meta-exclusions.json"] = json_text(exclusions, indent=2)
     return writes, {"keyword_concepts": len(keyword), "existing_semantic_rows": len(indexed),
