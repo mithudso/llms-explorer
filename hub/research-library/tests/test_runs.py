@@ -495,7 +495,8 @@ def test_artifact_reserves_catalog_before_chunk_transfer(runs, monkeypatch):
     insert = runs.artifact_chunks.insert_one
 
     def catalog(*args, **kwargs):
-        events.append("catalog")
+        if args[0].get("_id") == "run-catalog":
+            events.append("catalog")
         return update(*args, **kwargs)
 
     def chunk(*args, **kwargs):
@@ -530,3 +531,39 @@ def test_failed_artifact_rolls_back_early_catalog_and_run(runs, monkeypatch):
     assert runs.artifacts.count_documents({}) == 0
     assert runs.artifact_heads.count_documents({}) == 0
     assert runs.artifact_chunks.count_documents({}) == 0
+
+
+def test_new_run_reserves_catalog_before_run_insertion(runs, monkeypatch):
+    events = []
+    update = runs.store.meta.update_one
+    insert = runs.runs.insert_one
+
+    def catalog(*args, **kwargs):
+        if args[0].get("_id") == "run-catalog":
+            events.append("catalog")
+        return update(*args, **kwargs)
+
+    def run(*args, **kwargs):
+        events.append("run")
+        return insert(*args, **kwargs)
+
+    monkeypatch.setattr(runs.store.meta, "update_one", catalog)
+    monkeypatch.setattr(runs.runs, "insert_one", run)
+    create(runs)
+    assert events.index("catalog") < events.index("run")
+    assert events.count("catalog") == 1
+
+
+def test_failed_run_write_rolls_back_reserved_catalog(runs, monkeypatch):
+    made = create(runs)
+    before = runs._catalog()
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("simulated run write failure")
+
+    monkeypatch.setattr(runs.runs, "replace_one", fail)
+    with pytest.raises(RuntimeError, match="simulated run write failure"):
+        runs.run_checkpoint(made["run"]["_id"], {"checkpoint": {"phase": "test"}},
+                            made["run"]["revision"], made["lease_token"], "coordinator")
+    assert runs._catalog() == before
+    assert runs.run_get(made["run"]["_id"])["revision"] == made["run"]["revision"]

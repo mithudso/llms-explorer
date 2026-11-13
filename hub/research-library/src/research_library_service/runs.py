@@ -154,6 +154,12 @@ class ResearchRunStore:
         row.setdefault("created_at", row["updated_at"])
         if len(canonical(row)) > MAX_RUN_BYTES:
             raise ValueError("Run document exceeds its byte limit")
+        # Take the shared catalog write before run/version writes establish a
+        # longer conflict window. The outer transaction rolls everything back.
+        self._claim(self.store.meta, "run-catalog", session)
+        self.store.meta.update_one(self._owned({"_id": "run-catalog"}),
+            {"$setOnInsert": {"managed_by": MANAGED_BY}, "$inc": {"revision": 1}},
+            upsert=True, session=session)
         rid = row["_id"]
         if previous is None:
             self._claim(self.runs, rid, session)
@@ -165,10 +171,6 @@ class ResearchRunStore:
                 raise Conflict("Run revision conflict; refresh before editing")
         self.run_versions.insert_one({**copy.deepcopy(row), "_id": f"{rid}@{row['revision']}",
             "run_id": rid, "actor": actor, "content_sha256": digest(row)}, session=session)
-        self._claim(self.store.meta, "run-catalog", session)
-        self.store.meta.update_one(self._owned({"_id": "run-catalog"}),
-            {"$setOnInsert": {"managed_by": MANAGED_BY}, "$inc": {"revision": 1}},
-            upsert=True, session=session)
         return row
 
     def _token(self, lease, secret):
