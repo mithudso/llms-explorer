@@ -23,7 +23,11 @@ from skill_registry.mongo_store import (
 
 def matches(row, query):
     for key, value in query.items():
-        if key == "$or":
+        if key == "$expr":
+            assert value["$eq"][0] == "$$ROOT"
+            if row != value["$eq"][1]["$literal"]:
+                return False
+        elif key == "$or":
             if not any(matches(row, child) for child in value):
                 return False
         elif isinstance(value, dict) and "$in" in value:
@@ -74,8 +78,11 @@ class Collection:
                 self.docs[query["_id"]] = copy.deepcopy({**query, **update.get("$setOnInsert", {})})
 
     def replace_one(self, query, value, upsert=False):
-        if self.find_one(query) is None and query["_id"] in self.docs:
-            raise ValueError("Duplicate _id")
+        if self.find_one(query) is None:
+            if not upsert:
+                return
+            if query["_id"] in self.docs:
+                raise ValueError("Duplicate _id")
         self.docs[query["_id"]] = copy.deepcopy(value)
 
     def bulk_write(self, operations, ordered=False):
@@ -388,8 +395,363 @@ def test_removed_sources_are_deactivated_without_changing_other_owners(store, sk
     assert store.collection.docs["foreign"]["active"]
     assert store.load(sid)["text"] == guide_text
     (skill / "SKILL.md").write_text(guide_text)
-    assert store.ingest(catalog)["changed"] == 1
-    assert store.collection.docs[sid]["active"]
+    restored = store.ingest(catalog)
+    assert restored["partial"] and restored["conflicts"][0]["candidate_retained"]
+    assert "existing-inactive-or-unknown" in restored["conflicts"][0]["preserved_state"]
+    assert not store.collection.docs[sid]["active"]
+
+
+def test_preexisting_inactive_head_is_not_reactivated_by_unchanged_source(
+        store, skill, roots, tmp_path):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    store.collection.docs[sid].update(active=False, searchable=False, disabled_in=["Codex"])
+    original = copy.deepcopy(store.collection.docs[sid])
+    result = store.ingest(catalog)
+    assert result["partial"] and not result["aborted"] and result["ingested"] == 0
+    assert store.collection.docs[sid] == original
+    conflict = result["conflicts"][0]
+    assert conflict["candidate_retained"] and conflict["current_preserved"]
+    assert set(conflict["preserved_state"]) == {"existing-inactive-or-unknown",
+        "existing-nonrouting-or-unknown", "existing-explicit-disable"}
+
+
+def test_preexisting_disable_survives_changed_source_with_immutable_candidate(
+        store, skill, roots, tmp_path):
+    from skill_registry.util import sha
+
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    store.collection.docs[sid].update(searchable=False, disabled_in=["Codex"])
+    original = copy.deepcopy(store.collection.docs[sid])
+    changed = (skill / "SKILL.md").read_text() + "Source changed while routing remains disabled.\n"
+    (skill / "SKILL.md").write_text(changed)
+    result = store.ingest(catalog)
+    assert result["partial"] and result["ingested"] == 0 and result["unattempted"] == 0
+    assert store.collection.docs[sid] == original
+    conflict = result["conflicts"][0]
+    candidate = store.versions.docs[conflict["candidate_snapshot_id"]]
+    assert candidate["sha256"] == sha(changed.encode())
+    assert candidate["release_sha256"] != original["release_sha256"]
+    assert set(conflict["preserved_state"]) == {"existing-nonrouting-or-unknown",
+                                               "existing-explicit-disable"}
+
+
+def test_preexisting_newer_mongo_guide_preserves_head_and_local_candidate(
+        store, skill, roots, tmp_path):
+    from skill_registry.util import sha
+
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    older_local = (skill / "SKILL.md").read_bytes()
+    original = copy.deepcopy(store.collection.docs[sid])
+    doc = {key: original[key] for key in ("_id", "name", "name_folded", "description",
+        "version", "metadata", "source", "installations", "disabled_in", "activation",
+        "validation_error", "searchable")}
+    store._write(doc, older_local + b"Newer MongoDB edit.\n", [], [])
+    newer = copy.deepcopy(store.collection.docs[sid])
+    result = store.ingest(catalog)
+    assert result["partial"] and result["ingested"] == 0
+    assert store.collection.docs[sid] == newer
+    conflict = result["conflicts"][0]
+    assert set(conflict["preserved_state"]) == {"existing-divergent-or-unbound-guide",
+                                               "existing-divergent-or-unbound-resources"}
+    assert store.versions.docs[conflict["candidate_snapshot_id"]]["sha256"] == sha(older_local)
+
+
+def test_source_guide_with_unchanged_local_binding_can_be_ingested(store, skill, roots, tmp_path):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    head = store.collection.docs[sid]
+    source = skill / "SKILL.md"
+    source.write_text(source.read_text() + "Later local source.\n")
+    result = store.ingest(catalog)
+    assert not result["partial"] and result["changed"] == 1
+    assert store.collection.docs[sid]["release_sha256"] != head["release_sha256"]
+    assert store.collection.docs[sid]["source"]["guide_sha256"] == store.collection.docs[sid]["sha256"]
+
+
+def test_changed_source_without_prior_local_binding_preserves_legacy_head(
+        store, skill, roots, tmp_path):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    store.collection.docs[sid]["source"].pop("guide_sha256")
+    original = copy.deepcopy(store.collection.docs[sid])
+    source = skill / "SKILL.md"
+    source.write_text(source.read_text() + "Local change with unknown common ancestry.\n")
+    result = store.ingest(catalog)
+    assert result["partial"] and result["ingested"] == 0
+    assert store.collection.docs[sid] == original
+    assert result["conflicts"][0]["preserved_state"] == ["existing-divergent-or-unbound-guide"]
+
+
+def legacy_local_head(store, sid):
+    original = store.collection.docs[sid]
+    doc = {key: copy.deepcopy(original[key]) for key in ("_id", "name", "name_folded",
+        "description", "version", "metadata", "source", "installations", "disabled_in",
+        "activation", "validation_error", "searchable")}
+    for key in ("guide_sha256", "release_sha256", "metadata_sha256", "source_sha256"):
+        doc["source"].pop(key, None)
+    store._write(doc, store._read_blob(original["guide"]), original["resources"][1:],
+                 original["exclusions"])
+    return copy.deepcopy(store.collection.docs[sid])
+
+
+def test_unchanged_legacy_head_does_not_gain_metadata_binding_writes(store, skill, roots, tmp_path):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    original = legacy_local_head(store, sid)
+    result = store.ingest(catalog)
+    assert not result["partial"] and result["changed"] == 0
+    assert store.collection.docs[sid] == original
+
+
+def test_legacy_monotonic_resource_addition_keeps_members_aliases_and_db_fields(
+        store, skill, roots, tmp_path):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    original = legacy_local_head(store, sid)
+    old_alias = {**original["installations"][0], "label": "Newer DB label"}
+    store.collection.docs[sid]["installations"][0] = old_alias
+    store.collection.docs[sid]["custom_override"] = {"retain": True}
+    (skill / "references" / "added.md").write_text("Monotonic resource addition.\n")
+    result = store.ingest(catalog)
+    assert not result["partial"] and result["changed"] == 1
+    current = store.collection.docs[sid]
+    assert all(entry in current["resources"] for entry in original["resources"])
+    assert current["installations"][0] == old_alias
+    assert current["custom_override"] == {"retain": True}
+    assert current["source"]["release_sha256"] == current["release_sha256"]
+
+
+@pytest.mark.parametrize("change", ["changed", "removed", "metadata-override", "source-override"])
+def test_legacy_resource_conflict_preserves_head_and_candidate(
+        store, skill, roots, tmp_path, change):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    legacy_local_head(store, sid)
+    resource = skill / "references" / "guide.md"
+    if change == "changed":
+        resource.write_text("Conflicting resource bytes.\n")
+    elif change == "removed":
+        resource.unlink()
+    else:
+        (skill / "references" / "added.md").write_text("Safe addition with a DB override.\n")
+        if change == "metadata-override":
+            store.collection.docs[sid]["description"] = "Newer MongoDB description"
+        else:
+            store.collection.docs[sid]["source"]["private_override"] = True
+    original = copy.deepcopy(store.collection.docs[sid])
+    result = store.ingest(catalog)
+    assert result["partial"] and result["ingested"] == 0
+    assert store.collection.docs[sid] == original
+    assert result["conflicts"][0]["candidate_retained"]
+
+
+@pytest.mark.parametrize("field", ["metadata", "source"])
+def test_bound_local_guide_cannot_clear_newer_mongo_metadata(store, skill, roots, tmp_path, field):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    if field == "metadata":
+        store.collection.docs[sid]["description"] = "Newer MongoDB metadata edit"
+    else:
+        store.collection.docs[sid]["source"]["newer_override"] = True
+    original = copy.deepcopy(store.collection.docs[sid])
+    source = skill / "SKILL.md"
+    source.write_text(source.read_text() + "Also changed locally.\n")
+    result = store.ingest(catalog)
+    assert result["partial"] and store.collection.docs[sid] == original
+    expected = ("existing-divergent-or-unbound-metadata" if field == "metadata"
+                else "existing-local-source-override")
+    assert expected in result["conflicts"][0]["preserved_state"]
+
+
+def test_new_explicit_source_disable_applies_while_preserving_conflicting_mongo_body(
+        store, skill, roots, tmp_path, monkeypatch):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    store.collection.docs[sid]["description"] = "Keep newer MongoDB description"
+    original = copy.deepcopy(store.collection.docs[sid])
+    source = skill / "SKILL.md"
+    source.write_text(source.read_text() + "Conflicting local content.\n")
+    monkeypatch.setattr("skill_registry.mongo_store._codex_disabled", lambda: {str(source)})
+    result = store.ingest(catalog)
+    assert result["partial"] and result["conflicts"][0]["restrictive_disable_applied"]
+    current = store.collection.docs[sid]
+    assert current["sha256"] == original["sha256"]
+    assert current["release_sha256"] == original["release_sha256"]
+    assert current["description"] == original["description"]
+    assert current["resources"] == original["resources"]
+    assert current["source"] == original["source"]
+    assert current["disabled_in"] == ["Codex"] and not current["searchable"]
+    assert "search_text" not in current
+
+
+def test_ingest_current_head_race_preserves_newer_state_and_archives_candidate(
+        store, skill, roots, tmp_path, monkeypatch):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    first = store.ingest(catalog)
+    sid = first["skills"][0]["id"]
+    original = copy.deepcopy(store.collection.docs[sid])
+    (skill / "SKILL.md").write_text((skill / "SKILL.md").read_text() + "A material source edit.\n")
+    later = {**original, "distribution_sha256": "later-writer", "updated_at": "later",
+             "active": False, "searchable": False}
+    publish = store.collection.bulk_write
+
+    def intervene(operations, ordered=False):
+        store.collection.docs[sid] = copy.deepcopy(later)
+        return publish(operations, ordered=ordered)
+
+    monkeypatch.setattr(store.collection, "bulk_write", intervene)
+    result = store.ingest(catalog)
+    assert result["partial"] and not result["aborted"]
+    assert result["ingested"] == 0 and result["unattempted"] == 0
+    assert len(result["failed"]) == 1 and result["deactivated"] == 0
+    conflict = result["conflicts"][0]
+    assert conflict["operation"] == "current-head-conflict" and conflict["candidate_retained"]
+    assert conflict["candidate_release_sha256"] != original["release_sha256"]
+    assert store.versions.docs[conflict["candidate_snapshot_id"]]["skill_id"] == sid
+    assert store.collection.docs[sid] == later
+
+
+def test_ingest_initial_insert_never_replaces_an_intervening_foreign_owner(
+        store, skill, roots, tmp_path, monkeypatch):
+    from skill_registry.util import sha
+
+    sid = "local:" + sha(str(skill / "SKILL.md").encode())
+    later = {"_id": sid, "managed_by": "another-owner", "sentinel": "preserve"}
+    publish = store.collection.bulk_write
+
+    def intervene(operations, ordered=False):
+        store.collection.docs[sid] = copy.deepcopy(later)
+        return publish(operations, ordered=ordered)
+
+    monkeypatch.setattr(store.collection, "bulk_write", intervene)
+    result = store.ingest(Catalog(tmp_path / "catalog", roots))
+    assert result["partial"] and not result["aborted"] and result["ingested"] == 0
+    assert not result["conflicts"][0]["observed_head"]["managed_owner"]
+    assert result["conflicts"][0]["candidate_retained"]
+    assert store.collection.docs[sid] == later
+
+
+@pytest.mark.parametrize("field", ["description", "installations", "new-field", "changed-unknown", "removed-unknown"])
+def test_ingest_head_guard_keeps_metadata_and_alias_edits_without_timestamp_changes(
+        store, skill, roots, tmp_path, monkeypatch, field):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    if field in {"changed-unknown", "removed-unknown"}:
+        store.collection.docs[sid]["unknown_override"] = {"previous": True}
+    later = copy.deepcopy(store.collection.docs[sid])
+    if field == "description":
+        later[field] = "Concurrent MongoDB description"
+    elif field == "installations":
+        later[field][0]["label"] = "Concurrent MongoDB alias label"
+    elif field == "removed-unknown":
+        later.pop("unknown_override")
+    else:
+        later["unknown_override"] = {"newer": True}
+    source = skill / "SKILL.md"
+    source.write_text(source.read_text() + "Source changed concurrently.\n")
+    publish = store.collection.bulk_write
+
+    def intervene(operations, ordered=False):
+        store.collection.docs[sid] = copy.deepcopy(later)
+        return publish(operations, ordered=ordered)
+
+    monkeypatch.setattr(store.collection, "bulk_write", intervene)
+    result = store.ingest(catalog)
+    assert result["partial"] and result["conflicts"][0]["candidate_retained"]
+    assert store.collection.docs[sid] == later
+
+
+def test_ingest_head_guard_preserves_source_and_disable_changes_without_timestamp_edits(
+        store, skill, roots, tmp_path, monkeypatch):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    original = copy.deepcopy(store.collection.docs[sid])
+    (skill / "SKILL.md").write_text((skill / "SKILL.md").read_text() + "A source edit.\n")
+    later = {**original, "source": {"kind": "database", "private": "DO NOT LOG"},
+             "disabled_in": ["Codex"]}
+    publish = store.collection.bulk_write
+
+    def intervene(operations, ordered=False):
+        store.collection.docs[sid] = copy.deepcopy(later)
+        return publish(operations, ordered=ordered)
+
+    monkeypatch.setattr(store.collection, "bulk_write", intervene)
+    result = store.ingest(catalog)
+    assert result["partial"] and result["ingested"] == 0
+    assert store.collection.docs[sid] == later
+    assert "DO NOT LOG" not in json.dumps(result)
+
+
+def test_ingest_never_replaces_a_database_owned_source_with_local_discovery(
+        store, skill, roots, tmp_path):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    sid = store.ingest(catalog)["skills"][0]["id"]
+    store.collection.docs[sid]["source"] = {"kind": "database"}
+    original = copy.deepcopy(store.collection.docs[sid])
+    result = store.ingest(catalog)
+    assert result["partial"] and result["ingested"] == 0
+    assert result["conflicts"][0]["candidate_retained"]
+    assert store.collection.docs[sid] == original
+
+
+def test_ingest_unavailable_root_with_fresh_catalog_preserves_prior_mongo_source(
+        store, skill, roots, tmp_path):
+    first = store.ingest(Catalog(tmp_path / "old-catalog", roots))
+    sid = first["skills"][0]["id"]
+    original = copy.deepcopy(store.collection.docs[sid])
+    skill.parent.rename(tmp_path / "temporarily-unavailable")
+    result = store.ingest(Catalog(tmp_path / "fresh-catalog", roots))
+    assert result["discovered"] == result["ingested"] == result["unattempted"] == 0
+    assert result["partial"] and not result["failed"] and result["deactivated"] == 0
+    assert result["preserved_unavailable_sources"] == [sid]
+    assert result["root_access"] == [{"path": roots[0]["path"], "available": False,
+                                      "error_type": "FileNotFoundError"}]
+    assert store.collection.docs[sid] == original
+
+
+def test_ingest_dangling_source_alias_preserves_prior_mongo_with_fresh_catalog(store, tmp_path):
+    source = tmp_path / "source/example"
+    source.mkdir(parents=True)
+    (source / "SKILL.md").write_text("---\nname: linked\ndescription: Source alias\n---\n")
+    root = tmp_path / "skills"
+    root.mkdir()
+    (root / "linked").symlink_to(source, target_is_directory=True)
+    roots = [{"path": str(root), "label": "Aliases"}]
+    first = store.ingest(Catalog(tmp_path / "old-catalog", roots))
+    sid = first["skills"][0]["id"]
+    original = copy.deepcopy(store.collection.docs[sid])
+    source.rename(source.with_name("temporarily-unavailable"))
+    result = store.ingest(Catalog(tmp_path / "fresh-catalog", roots))
+    assert result["partial"] and result["deactivated"] == 0
+    assert result["preserved_unavailable_sources"] == [sid]
+    assert store.collection.docs[sid] == original
+
+
+def test_deactivation_compare_and_swap_preserves_an_intervening_head(
+        store, roots, skill, tmp_path, monkeypatch):
+    catalog = Catalog(tmp_path / "catalog", roots)
+    first = store.ingest(catalog)
+    sid = first["skills"][0]["id"]
+    original = copy.deepcopy(store.collection.docs[sid])
+    later = {**original, "distribution_sha256": "later-writer", "updated_at": "later"}
+    (skill / "SKILL.md").unlink()
+    update = store.collection.update_many
+
+    def intervene(query, patch):
+        store.collection.docs[sid] = copy.deepcopy(later)
+        return update(query, patch)
+
+    monkeypatch.setattr(store.collection, "update_many", intervene)
+    result = store.ingest(catalog)
+    assert result["partial"] and not result["aborted"] and not result["failed"]
+    assert result["discovered"] == result["ingested"] == result["unattempted"] == 0
+    assert result["deactivated"] == 0
+    assert result["conflicts"] == [{"id": sid, "operation": "deactivation-head-conflict",
+                                    "current_preserved": True}]
+    assert store.collection.docs[sid] == later
 
 
 def test_metadata_catalog_is_stable_paged_and_does_not_expose_guides_or_paths(store):

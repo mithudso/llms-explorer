@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sqlite3
+import stat
 import sys
 import time
 import tomllib
@@ -89,6 +90,40 @@ def _codex_disabled() -> set[str]:
         return set()
 
 
+def _root_access(roots: list[dict]) -> list[dict]:
+    """Keep absent or unreadable configured scopes distinct from empty roots."""
+    result = []
+    for root in roots:
+        path = Path(root["path"]).expanduser().absolute()
+        item = {"path": str(path), "available": False}
+        try:
+            if not stat.S_ISDIR(path.stat().st_mode):
+                raise NotADirectoryError()
+            with os.scandir(path):
+                pass
+            item["available"] = True
+        except (OSError, RuntimeError) as exc:
+            item["error_type"] = type(exc).__name__
+        result.append(item)
+    return result
+
+
+def _unavailable_alias(path: str, root: str) -> bool:
+    """A retained dangling alias does not prove that its source was removed."""
+    source, base = Path(path).absolute(), Path(root).absolute()
+    if not source.is_relative_to(base):
+        return True
+    for candidate in (source, *source.parents):
+        try:
+            if candidate.is_symlink():
+                candidate.stat()
+        except (OSError, RuntimeError):
+            return True
+        if candidate == base:
+            break
+    return False
+
+
 class Catalog:
     def __init__(self, state: Path, roots: list[dict] | None = None):
         self.state = Path(state).expanduser().absolute()
@@ -148,7 +183,12 @@ class Catalog:
         visited = 0
         for root in self.roots:
             base = Path(root["path"]).expanduser().absolute()
-            if not base.exists():
+            try:
+                present = base.exists()
+            except (OSError, RuntimeError) as exc:
+                warnings.append(f"{base}: {type(exc).__name__}")
+                continue
+            if not present:
                 continue
             def walk(path, depth=0, ancestors=frozenset(), resolved=None):
                 nonlocal visited
@@ -185,10 +225,23 @@ class Catalog:
         return found, warnings, "standalone-bounded"
 
     def refresh(self) -> dict:
+        root_access = _root_access(self.roots)
         found, warnings, adapter = self._discover()
         updated = unchanged = 0
         aliases = []
         with self.connect() as db:
+            previous_aliases = [dict(row) for row in db.execute("SELECT path,root FROM aliases")]
+            previous_roots = {row["root"] for row in previous_aliases}
+            for item in root_access:
+                if not item["available"] and (item["path"] in previous_roots
+                        or item["error_type"] != "FileNotFoundError"):
+                    warning = f"{item['path']}: {item['error_type']}"
+                    if warning not in warnings:
+                        warnings.append(warning)
+            discovered_paths = {item["path"] for item in found}
+            for item in previous_aliases:
+                if item["path"] not in discovered_paths and _unavailable_alias(item["path"], item["root"]):
+                    warnings.append(f"{item['path']}: unavailable symbolic-link source")
             for installation in found:
                 path = Path(installation["path"])
                 try:
@@ -229,15 +282,15 @@ class Catalog:
                 db.execute("INSERT OR REPLACE INTO aliases VALUES (?,?,?,?,?)", row)
             stale = db.execute("SELECT id,path FROM skills").fetchall()
             for row in stale:
-                if not Path(row["path"]).is_file() or (
-                    not warnings and db.execute("SELECT 1 FROM aliases WHERE skill_id=?", (row["id"],)).fetchone() is None
-                ):
+                if not warnings and (not Path(row["path"]).is_file() or db.execute(
+                        "SELECT 1 FROM aliases WHERE skill_id=?", (row["id"],)).fetchone() is None):
                     db.execute("DELETE FROM skills WHERE id=?", (row["id"],))
                     db.execute("DELETE FROM aliases WHERE skill_id=?", (row["id"],))
                     db.execute("DELETE FROM skills_fts WHERE id=?", (row["id"],))
             result = {"updated": updated, "unchanged_installations": unchanged,
                       "warnings": warnings[:100], "partial": bool(warnings), "adapter": adapter,
-                      "refreshed_at": time.time(), "roots": len(self.roots)}
+                      "refreshed_at": time.time(), "roots": len(self.roots),
+                      "root_access": root_access}
             db.execute("INSERT OR REPLACE INTO catalog_meta VALUES ('refresh',?)",
                        (json.dumps(result),))
         return dict(result, **self.status())
