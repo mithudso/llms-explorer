@@ -95,7 +95,9 @@ def parser():
     setup = mongo_commands.add_parser("provision")
     setup.add_argument("--wait", type=int, default=0, help="Seconds to wait for search indexes")
     mongo_commands.add_parser("status")
-    mongo_commands.add_parser("ingest")
+    ingest = mongo_commands.add_parser("ingest")
+    ingest.add_argument("--preserve-states", action="store_true",
+                        help="Retain existing inactive and disabled MongoDB skill states")
     cache = mongo_commands.add_parser("cache-hook")
     cache.add_argument("--output", type=Path)
     cache.add_argument("--remote", action="store_true",
@@ -179,6 +181,7 @@ def main():
             elif action == "status":
                 value = store.status()
             elif action == "ingest":
+                store.preserve_states = args.preserve_states
                 value = store.ingest(catalog)
             elif action == "search":
                 value = store.search(args.query, top=args.top, mode=args.mode)

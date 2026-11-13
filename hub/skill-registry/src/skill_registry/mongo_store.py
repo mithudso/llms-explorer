@@ -204,7 +204,8 @@ class MongoStore:
 
     def __init__(self, client=None, database=None, collection=None, *,
                  database_name: str = DATABASE, collection_name: str = COLLECTION,
-                 resource_roots: list[str | Path] | None = None):
+                 resource_roots: list[str | Path] | None = None,
+                 preserve_states: bool = False):
         if collection is not None:
             database = collection.database if database is None else database
         if database is None:
@@ -221,6 +222,7 @@ class MongoStore:
                 except Exception as exc:
                     raise RuntimeError("Cannot initialize the MongoDB skill connection") from exc
             database = client[database_name]
+        self.preserve_states = preserve_states
         self.database = database
         self.collection = collection if collection is not None else database[collection_name]
         self.resources = database[collection_name + "_resources"]
@@ -433,14 +435,22 @@ class MongoStore:
         guide_blob = self._blob(guide, "SKILL.md")
         files = [guide_blob, *sorted(resources, key=lambda r: r["path"])]
         release = sha(canonical({"schema": SCHEMA, "skill_id": doc["_id"], "files": files}))
-        distribution = sha(canonical({"document": doc, "files": files, "exclusions": exclusions}))
         existing = _existing
         if existing is _MISSING:
             existing = self.collection.find_one({"_id": doc["_id"]}, {"managed_by": 1,
                                                  "release_sha256": 1, "created_at": 1,
-                                                 "distribution_sha256": 1})
+                                                 "distribution_sha256": 1, "active": 1,
+                                                 "disabled_in": 1, "searchable": 1})
         if existing is not None and existing.get("managed_by") != MANAGED_BY:
             raise ValueError("Skill identity belongs to another collection owner")
+        active = True
+        if self.preserve_states and existing is not None:
+            active = existing.get("active", True)
+            disabled = sorted(set(doc.get("disabled_in", [])) | set(existing.get("disabled_in", [])))
+            doc = {**doc, "disabled_in": disabled}
+            if not active or disabled:
+                doc["searchable"] = False
+        distribution = sha(canonical({"document": doc, "files": files, "exclusions": exclusions}))
         if _batch is None:
             self._flush_resources()
         now = _now()
@@ -453,7 +463,7 @@ class MongoStore:
                "exclusions": exclusions, "resource_complete": not exclusions,
                "search_text": search_text if doc.get("searchable", True) else "",
                "search_text_truncated": len(search_bytes) > MAX_SEARCH_BYTES,
-               "active": True, "created_at": (existing or {}).get("created_at", now),
+               "active": active, "created_at": (existing or {}).get("created_at", now),
                "updated_at": now, "embedding": {"provider": "voyage-ai", "model": MODEL,
                                                 "mode": "atlas-autoEmbed", "field": "search_text"}}
         if not doc.get("searchable", True):
@@ -462,7 +472,7 @@ class MongoStore:
             doc.pop("search_text", None)
         snapshot_id = sha(canonical([doc["_id"], release]))
         changed = (existing is None or existing.get("distribution_sha256") != distribution
-                   or existing.get("active") is False)
+                   or (active and existing.get("active") is False))
         result = {"id": doc["_id"], "skill_id": doc["_id"], "name": doc["name"],
                   "sha256": doc["sha256"], "release_sha256": release, "changed": changed,
                   "resources": len(files), "exclusions": exclusions,
@@ -516,7 +526,8 @@ class MongoStore:
         # One bounded metadata cursor avoids one network read per installed skill.
         existing = {doc["_id"]: doc for doc in self.collection.find({"managed_by": MANAGED_BY},
                     {"managed_by": 1, "release_sha256": 1, "distribution_sha256": 1,
-                     "created_at": 1, "source": 1, "installations": 1, "active": 1})}
+                     "created_at": 1, "source": 1, "installations": 1, "active": 1,
+                     "disabled_in": 1, "searchable": 1})}
         self._preload_blobs()
         results, failed, batch = [], [], []
         fatal = None

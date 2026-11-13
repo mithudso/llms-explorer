@@ -33,3 +33,9 @@ The user restored Wrangler login and supplied a fine-grained GitHub key for priv
 - User request:
   - This research should go directly into the graph db and as llms files, that should be the shared repo and source of truth.
 - Delegated prerequisite: accept canonical v3 single-file llms.txt packs in research-expertise after the existing facts/full priority. Preserve path containment and imported qualification. Deliver source only; installation and graph ingestion remain with the parent task.
+
+## Prompt v6 - 2026-11-13
+- User request:
+  - Synchronize skills using the installed skill-registry CLI. Retain legitimate database-only skills and existing disabled or archived states.
+- Implementation scope: add an opt-in conservative ingestion mode that preserves existing inactive and disabled states while retaining immutable release history.
+- Delta: v5 to v6. Private source inventories and synchronization receipts remain outside Git.
