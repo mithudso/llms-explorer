@@ -1,9 +1,9 @@
 # Mounted-home agent configuration sync prompt
 
-- Version: 1.0.0
-- Delta: Initial prompt and execution-scope record.
+- Version: 1.1.0
+- Delta: 1.0.0 to 1.1.0; record interrupted copying and authentication-blocked continuation.
 - Updated: 2026-11-13
-- Status: IN_PROGRESS
+- Status: INCOMPLETE_AUTH_BLOCKED
 - Tracking: Configuration sync task `TASK-1465`; active copy stage `TASK-1468`.
 - Repository record: `/Users/mitch.hudson/dev/llms-explorer/prompts/agent-config-sync.md`.
 
@@ -17,8 +17,9 @@ Perform a two way sync with the system mounted on /Volumes/mitch/  and sync all 
 
 Synchronize agent definitions and their necessary supporting assets between the
 primary home `/Users/mitch.hudson` and the mounted home `/Volumes/mitch`.
-Preserve files found on only one side. Select the newer definition by modification date when the same item differs. Record an
-explicit deterministic tie decision and preserve both original versions when
+Preserve files found on only one side. Select the newer definition by
+modification date when the same item differs. Record an explicit deterministic
+tie decision and preserve both original versions when
 there is no newer timestamp.
 
 Merge named configuration entries so each system retains its unique skills,
@@ -45,3 +46,18 @@ for the current stage, aggregate evidence, remaining work, and delivery status.
 The memory record is a checkpoint until final verification and delivery finish.
 Private configuration contents, authentication values, raw artifacts, and helper
 execution receipts remain outside this repository.
+
+## Current execution state
+
+Synchronization is incomplete. The SMB mount disconnected twice. A saved Finder
+reconnect worked temporarily, then the mount disappeared again. A direct
+`mount_smbfs -N` attempt returned 77 with an authentication failure. The SSH
+fallback returned 255 because host-key verification was unavailable. Connection
+URLs, host values, and credentials remain private.
+
+The Finder authentication request is pending; no user reply is recorded at this
+checkpoint. No structured configuration merges have been applied. Resume only
+after verifying the intended filesystem is mounted at `/Volumes/mitch` and its
+device identity matches the target. A directory at that path alone is not proof
+of a mounted filesystem. Inspect private receipts and reread current file state
+before retrying interrupted operations.

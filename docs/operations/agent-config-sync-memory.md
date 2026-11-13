@@ -1,9 +1,9 @@
 # Mounted-home agent configuration sync memory
 
-- Version: 1.0.0
-- Delta: Initial recoverable execution checkpoint.
+- Version: 1.1.0
+- Delta: 1.0.0 to 1.1.0; record interrupted copy evidence, mount authentication failures, and guarded continuation.
 - Updated: 2026-11-13
-- Status: IN_PROGRESS
+- Status: INCOMPLETE_AUTH_BLOCKED
 - Repository record: `/Users/mitch.hudson/dev/llms-explorer/docs/operations/agent-config-sync-memory.md`.
 
 ## Assignment
@@ -11,8 +11,8 @@
 The user requested a two-way sync of skills, rules, hooks, plugins, and MCP
 servers between `/Users/mitch.hudson` and `/Volumes/mitch`. The mounted machine
 uses `/Users/mitch` as its native runtime home. Files present on only one side
-must survive. Modification date selects the winner for conflicting definitions. The exact
-commissioned text is in the [prompt record](../../prompts/agent-config-sync.md).
+must survive. Modification date selects the winner for conflicting definitions.
+The exact commissioned text is in the [prompt record](../../prompts/agent-config-sync.md).
 
 This record covers agent configuration and necessary supporting assets. It does
 not authorize research execution, copying account/session databases, or forcing
@@ -40,34 +40,65 @@ Private configuration values and research bodies are not repository artifacts.
 
 ## Checkpoint evidence
 
-The parent agent reported these aggregate counts for this checkpoint:
+The earlier inventory and topology checkpoint had these parent-reported counts:
 
-| Measure | Checkpoint result |
+| Measure | Earlier checkpoint result |
 | --- | ---: |
 | Primary inventory nodes | 86,344 |
 | Mounted inventory nodes | 203,124 |
-| Directory topology operations completed | 33,769 |
-| Link topology operations completed | 1,914 |
-| File comparisons in the active pass | 189,363 |
-| Passing fixture checks | 66 |
+| Directory topology checks completed | 33,769 |
+| Link topology checks completed | 1,914 |
+| File comparisons in the planned pass | 189,363 |
+| Fixture checks passing at the earlier checkpoint | 66 |
 
-Topology completion does not establish complete file synchronization. The file
-comparison/copy pass is running. Configuration application, final residual-copy
-verification, and native discovery checks remain outstanding. These numbers
-must not be presented as a completed-sync receipt.
+The interrupted round-two receipt has these results:
 
-The fixture checks cover merge behavior, home-path mapping, SSH remote paths,
-mtime precedence, original-byte backups, concurrent-write rejection, and
-preservation of machine-local state. Final verification must use the actual
-post-sync inventories and receipts.
+| Measure | Round-two receipt |
+| --- | ---: |
+| Verified writes | 80 |
+| Verified bytes | 36,446,330 |
+| TimeoutError outcomes | 184,271 |
+
+Round two did not complete successfully. The 80 verified writes are the writes
+recorded in that receipt, not an exact total for the overall sync. Earlier copy
+attempts were not fully journaled and may have applied additional writes. A
+fresh comparison after remounting is required to establish the actual state.
+The directory/link counts describe completed topology checks, not exact counts
+of created directories or links. Topology counts and fixture results do not
+establish synchronized file content.
+
+No structured configuration merges have been applied. Final residual-copy,
+protected-state, and native-discovery verification remain outstanding.
+
+New mount/device identity guards and nonzero failure exits were implemented in
+the private driver. Topology execution now journals every outcome and stops
+scheduling after `MountUnavailable`. The parent agent fixed receipt-directory
+handling and confirmed that the current 73-case suite passes with exit code 0.
+An independent guard review is still active; findings may require additional
+checks. This passing fixture result does not establish a successfully mounted
+target or completed synchronization.
+
+## Authentication blocker
+
+The SMB filesystem disconnected twice. A saved Finder reconnect succeeded
+temporarily, then the mount disappeared again. The direct `mount_smbfs -N`
+attempt returned 77 for authentication failure. An SSH fallback returned 255
+because host-key verification was unavailable. The public record retains only
+these outcomes, not the server values, saved URL, or authentication material.
+
+An asynchronous request for Finder authentication is pending. No user reply is
+recorded at this checkpoint. A directory named `/Volumes/mitch` is not sufficient
+proof of the intended mount. Verify the mounted filesystem and device identity
+before any further target writes. Do not work around authentication or SSH
+host-key checks.
 
 ## Tracking state
 
 | Task | Responsibility | Checkpoint state |
 | --- | --- | --- |
-| `TASK-1465` | Complete mounted-home agent configuration sync | In progress |
+| `TASK-1465` | Complete mounted-home agent configuration sync | Open; parent is not claimed |
 | `TASK-1467` | Inventory and sync planning | Done |
-| `TASK-1468` | Definition asset copy | Claimed; copy/comparison pass active |
+| `TASK-1468` | Definition asset copy | Claimed; incomplete and waiting for authenticated remount |
 | `TASK-1469` | Structured configuration merge | Pending |
 | `TASK-1470` | Installed parity verification and record delivery | Pending; root will claim after copy and configuration stages |
 
@@ -87,22 +118,32 @@ private artifact bodies, and helper execution logs out of Git and PR messages.
 
 ## Remaining work
 
-1. Finish the active file comparison/copy pass and inspect its complete receipt.
-2. Reconcile recoverable residual differences while preserving backups and
-   concurrent edits.
-3. Apply and verify the structured configuration merges with the destination's
+1. Complete Finder authentication, then verify that the intended filesystem and
+   expected device are mounted at `/Volumes/mitch`.
+2. Finish the independent mount-guard review. If it produces changes, rerun the
+   complete current suite and record the actual result.
+3. Re-inventory both sides after remounting. Compare current source/destination
+   metadata and content against the private receipts. Do not infer copy success
+   from earlier planned operations or reuse an unchecked stale plan.
+4. Finish recoverable residual copying with original-byte backups, timestamp
+   precedence, mount guards, and concurrent-edit checks. Establish complete
+   accounting that includes the unjournaled earlier attempts.
+5. Apply and verify the structured configuration merges with each destination's
    native paths and host-specific state intact.
-4. Verify referenced assets, protected-state preservation, final inventory
+6. Verify referenced assets, protected-state preservation, final inventory
    accounting, and fresh native discovery where the runtime is available.
-5. Update this memory and the prompt record with the final outcome. Increment
-   their versions and Delta fields when those outcomes are recorded.
-6. Run the repository checks required for these records, publish the final PR
-   scope and evidence, wait for final checks, merge, verify the remote default
-   branch content, and clean only the task-owned merged worktree and branch.
+7. Update both versioned records with the final evidence, incrementing their
+   versions and Delta fields. Keep them truthfully incomplete until the required
+   work is verified.
+8. Update the draft PR with the final scope and evidence, wait for final checks,
+   merge, verify the remote default branch content, and clean only the
+   task-owned merged worktree and branch. The parent agent owns delivery and
+   tracker completion.
 
 ## Delivery state
 
-A recoverable checkpoint is being prepared on `codex/agent-config-sync-1465`.
-Its PR must remain a draft while synchronization and verification are active.
-The record will gain the actual PR URL, final merge identity, final aggregate
-results, and any remaining limits after the parent agent provides them.
+The recoverable checkpoint is on `codex/agent-config-sync-1465` in draft
+[PR #363](https://github.com/mithudso/llms-explorer/pull/363). Synchronization is
+incomplete and authentication-blocked. No merge or tracker completion is
+claimed. Keep the PR draft until the remaining synchronization, validation,
+and delivery requirements are satisfied.
