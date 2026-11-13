@@ -1,9 +1,9 @@
 # Mounted-home agent configuration sync memory
 
-- Version: 1.1.0
-- Delta: 1.0.0 to 1.1.0; record interrupted copy evidence, mount authentication failures, and guarded continuation.
+- Version: 1.2.0
+- Delta: 1.1.0 to 1.2.0; record authenticated recovery, guarded round-three progress, and the current fixture checkpoint.
 - Updated: 2026-11-13
-- Status: INCOMPLETE_AUTH_BLOCKED
+- Status: IN_PROGRESS
 - Repository record: `/Users/mitch.hudson/dev/llms-explorer/docs/operations/agent-config-sync-memory.md`.
 
 ## Assignment
@@ -61,8 +61,8 @@ The interrupted round-two receipt has these results:
 
 Round two did not complete successfully. The 80 verified writes are the writes
 recorded in that receipt, not an exact total for the overall sync. Earlier copy
-attempts were not fully journaled and may have applied additional writes. A
-fresh comparison after remounting is required to establish the actual state.
+attempts were not fully journaled and may have applied additional writes. The guarded pass after authenticated remounting is active; its final
+comparison is still required to establish the actual state.
 The directory/link counts describe completed topology checks, not exact counts
 of created directories or links. Topology counts and fixture results do not
 establish synchronized file content.
@@ -70,27 +70,51 @@ establish synchronized file content.
 No structured configuration merges have been applied. Final residual-copy,
 protected-state, and native-discovery verification remain outstanding.
 
-New mount/device identity guards and nonzero failure exits were implemented in
-the private driver. Topology execution now journals every outcome and stops
-scheduling after `MountUnavailable`. The parent agent fixed receipt-directory
-handling and confirmed that the current 73-case suite passes with exit code 0.
-An independent guard review is still active; findings may require additional
-checks. This passing fixture result does not establish a successfully mounted
-target or completed synchronization.
+## Authenticated recovery and active round three
 
-## Authentication blocker
+The user confirmed Finder authentication. The parent agent verified the SMB
+mount, successful read probe, native home, and distinct device identity. The
+previous authentication blocker is resolved at this checkpoint. Mount identity
+must continue to be checked before target writes; the existence of the path
+`/Volumes/mitch` alone is insufficient.
 
-The SMB filesystem disconnected twice. A saved Finder reconnect succeeded
-temporarily, then the mount disappeared again. The direct `mount_smbfs -N`
-attempt returned 77 for authentication failure. An SSH fallback returned 255
-because host-key verification was unavailable. The public record retains only
-these outcomes, not the server values, saved URL, or authentication material.
+The guarded round-three copy pass is active with a complete per-outcome journal.
+The parent-reported progress snapshot was:
 
-An asynchronous request for Finder authentication is pending. No user reply is
-recorded at this checkpoint. A directory named `/Volumes/mitch` is not sufficient
-proof of the intended mount. Verify the mounted filesystem and device identity
-before any further target writes. Do not work around authentication or SSH
-host-key checks.
+| Measure | Active snapshot; not a final receipt |
+| --- | --- |
+| Checks observed | Approximately 20,500 of 189,363 planned |
+| Verified writes observed | 2,374 at the reported snapshot |
+| Errors observed | None at the reported snapshot |
+
+These progress observations are approximate. They do not establish final write
+counts, total copied bytes, complete parity, or a successful full sync. The
+private journal and final verification receipts must establish those outcomes.
+Earlier unjournaled attempts still prevent an exact historical overall-write
+claim.
+
+The private implementation now uses file-descriptor-anchored directory creation,
+temporary-file creation, replacement, and temporary-file cleanup. Parent
+traversal avoids following symlinks and checks device/inode identity. Topology
+execution journals every outcome and stops scheduling after `MountUnavailable`.
+All submitted batch results are drained. Configuration processing retains a
+sticky abort, outcome journal, and nonzero failure exits.
+
+The parent agent confirmed that the completed 92-case fixture suite passes with
+exit code 0, including 12 finalized inventory tests. Verifier work remains
+active, so this is the current passing checkpoint rather than a final test
+claim. No structured configuration merges have been applied. Private helper
+source code remains outside Git.
+
+## Earlier connection failures
+
+Before authenticated recovery, the SMB filesystem disconnected twice. A saved
+Finder reconnect succeeded temporarily, then the mount disappeared. The direct
+`mount_smbfs -N` attempt returned 77 for authentication failure. An SSH fallback
+returned 255 because host-key verification was unavailable. These are historical
+connection outcomes; they no longer describe the current authentication state.
+The public record excludes server values, the saved URL, and authentication
+material. Authentication and SSH host-key checks were not bypassed.
 
 ## Tracking state
 
@@ -98,7 +122,7 @@ host-key checks.
 | --- | --- | --- |
 | `TASK-1465` | Complete mounted-home agent configuration sync | Open; parent is not claimed |
 | `TASK-1467` | Inventory and sync planning | Done |
-| `TASK-1468` | Definition asset copy | Claimed; incomplete and waiting for authenticated remount |
+| `TASK-1468` | Definition asset copy | Claimed; guarded round-three copy pass active |
 | `TASK-1469` | Structured configuration merge | Pending |
 | `TASK-1470` | Installed parity verification and record delivery | Pending; root will claim after copy and configuration stages |
 
@@ -118,23 +142,24 @@ private artifact bodies, and helper execution logs out of Git and PR messages.
 
 ## Remaining work
 
-1. Complete Finder authentication, then verify that the intended filesystem and
-   expected device are mounted at `/Volumes/mitch`.
-2. Finish the independent mount-guard review. If it produces changes, rerun the
-   complete current suite and record the actual result.
-3. Re-inventory both sides after remounting. Compare current source/destination
-   metadata and content against the private receipts. Do not infer copy success
-   from earlier planned operations or reuse an unchecked stale plan.
-4. Finish recoverable residual copying with original-byte backups, timestamp
-   precedence, mount guards, and concurrent-edit checks. Establish complete
-   accounting that includes the unjournaled earlier attempts.
+1. Finish the guarded round-three copy pass and inspect its complete outcome
+   journal. Reverify the intended filesystem and device at `/Volumes/mitch`
+   before further target writes.
+2. Finish the active verifier work and independent review. If they produce
+   changes, rerun the relevant current suite and record the actual result.
+3. Complete the post-remount inventory comparison. Recheck source/destination
+   metadata and content against the private receipts; an earlier planned
+   operation is not proof of a completed copy.
+4. Reconcile recoverable residual differences with original-byte backups,
+   timestamp precedence, mount guards, and concurrent-edit checks. Retain honest
+   accounting for the earlier unjournaled attempts.
 5. Apply and verify the structured configuration merges with each destination's
    native paths and host-specific state intact.
 6. Verify referenced assets, protected-state preservation, final inventory
    accounting, and fresh native discovery where the runtime is available.
 7. Update both versioned records with the final evidence, incrementing their
-   versions and Delta fields. Keep them truthfully incomplete until the required
-   work is verified.
+   versions and Delta fields. Keep the result incomplete until the required
+   synchronization and verification finish.
 8. Update the draft PR with the final scope and evidence, wait for final checks,
    merge, verify the remote default branch content, and clean only the
    task-owned merged worktree and branch. The parent agent owns delivery and
@@ -143,7 +168,8 @@ private artifact bodies, and helper execution logs out of Git and PR messages.
 ## Delivery state
 
 The recoverable checkpoint is on `codex/agent-config-sync-1465` in draft
-[PR #363](https://github.com/mithudso/llms-explorer/pull/363). Synchronization is
-incomplete and authentication-blocked. No merge or tracker completion is
-claimed. Keep the PR draft until the remaining synchronization, validation,
-and delivery requirements are satisfied.
+[PR #363](https://github.com/mithudso/llms-explorer/pull/363). Authentication has
+recovered and guarded copying is in progress. Synchronization and configuration
+application are not complete. No merge or tracker completion is claimed. Keep
+the PR draft until the remaining synchronization, validation, and delivery
+requirements are satisfied.

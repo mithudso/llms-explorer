@@ -1,9 +1,9 @@
 # Mounted-home agent configuration sync prompt
 
-- Version: 1.1.0
-- Delta: 1.0.0 to 1.1.0; record interrupted copying and authentication-blocked continuation.
+- Version: 1.2.0
+- Delta: 1.1.0 to 1.2.0; record authenticated recovery and the active guarded copy checkpoint.
 - Updated: 2026-11-13
-- Status: INCOMPLETE_AUTH_BLOCKED
+- Status: IN_PROGRESS
 - Tracking: Configuration sync task `TASK-1465`; active copy stage `TASK-1468`.
 - Repository record: `/Users/mitch.hudson/dev/llms-explorer/prompts/agent-config-sync.md`.
 
@@ -49,15 +49,23 @@ execution receipts remain outside this repository.
 
 ## Current execution state
 
-Synchronization is incomplete. The SMB mount disconnected twice. A saved Finder
-reconnect worked temporarily, then the mount disappeared again. A direct
-`mount_smbfs -N` attempt returned 77 with an authentication failure. The SSH
-fallback returned 255 because host-key verification was unavailable. Connection
-URLs, host values, and credentials remain private.
+The user confirmed Finder authentication. The parent agent verified the SMB
+mount, a read probe, the mounted machine's native home, and the target's distinct
+device identity. The guarded round-three copy pass is active. The reported
+snapshot was approximately 20,500 of 189,363 planned checks and 2,374 verified writes with no errors
+observed at that point. These are approximate progress observations, not final
+counts or a completed-sync receipt.
 
-The Finder authentication request is pending; no user reply is recorded at this
-checkpoint. No structured configuration merges have been applied. Resume only
-after verifying the intended filesystem is mounted at `/Volumes/mitch` and its
-device identity matches the target. A directory at that path alone is not proof
-of a mounted filesystem. Inspect private receipts and reread current file state
-before retrying interrupted operations.
+No structured configuration merges have been applied. The private executor now
+anchors directory creation, temporary files, replacement, and temporary-file
+cleanup to directory file descriptors. It checks parent traversal without
+following symlinks and verifies device/inode identity. It journals every outcome
+and drains all submitted batch results. Configuration processing uses a sticky
+abort, outcome journal, and nonzero failure exits.
+
+The current completed fixture suite has 92 passing checks with exit code 0,
+including 12 finalized inventory tests. Verifier work remains active. Final
+copying, inventory reconciliation, configuration application,
+and native verification remain outstanding. Verify mount identity again before
+continuation and inspect current private receipts before retrying an operation.
+The implementation and detailed configuration data remain outside Git.
