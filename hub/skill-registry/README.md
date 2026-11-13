@@ -350,3 +350,9 @@ An ingestion receipt accounts for every discovered guide, failed or excluded
 item, resource exclusion, and unpublished remainder after a transport failure.
 Rerun ingestion after correcting the failure; upserts and content hashes make the
 operation recoverable. Readiness alone does not prove every source is ingested.
+
+For conservative cross-host synchronization, use `skill-registry mongo ingest
+--preserve-states`. It retains existing inactive records and disabled markers while
+versioning changed guides and resources. Disabled or inactive records do not gain
+search text or become routing candidates. Omitting the flag retains ordinary
+source-reappearance behavior.

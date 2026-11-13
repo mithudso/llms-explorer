@@ -285,7 +285,8 @@ class MongoStore:
 
     def __init__(self, client=None, database=None, collection=None, *,
                  database_name: str = DATABASE, collection_name: str = COLLECTION,
-                 resource_roots: list[str | Path] | None = None):
+                 resource_roots: list[str | Path] | None = None,
+                 preserve_states: bool = False):
         if collection is not None:
             database = collection.database if database is None else database
         if database is None:
@@ -302,6 +303,7 @@ class MongoStore:
                 except Exception as exc:
                     raise RuntimeError("Cannot initialize the MongoDB skill connection") from exc
             database = client[database_name]
+        self.preserve_states = preserve_states
         self.database = database
         self.collection = collection if collection is not None else database[collection_name]
         self.resources = database[collection_name + "_resources"]
@@ -520,6 +522,13 @@ class MongoStore:
             existing = self.collection.find_one({"_id": doc["_id"]})
         if existing is not None and existing.get("managed_by") != MANAGED_BY:
             raise ValueError("Skill identity belongs to another collection owner")
+        active = True
+        if self.preserve_states and existing is not None:
+            active = existing.get("active") is True
+            doc["disabled_in"] = sorted(set(doc.get("disabled_in", []))
+                                         | set(existing.get("disabled_in", [])))
+            if not active or doc["disabled_in"] or existing.get("searchable") is not True:
+                doc["searchable"] = False
         local_conflicts = (_local_publication(existing, doc, files, release)
                            if _local_ingest else [])
         distribution = sha(canonical({"document": doc, "files": files, "exclusions": exclusions}))
@@ -533,7 +542,7 @@ class MongoStore:
                "exclusions": exclusions, "resource_complete": not exclusions,
                "search_text": search_text if doc.get("searchable", True) else "",
                "search_text_truncated": len(search_bytes) > MAX_SEARCH_BYTES,
-               "active": True, "created_at": (existing or {}).get("created_at", now),
+               "active": active, "created_at": (existing or {}).get("created_at", now),
                "updated_at": now, "embedding": {"provider": "voyage-ai", "model": MODEL,
                                                 "mode": "atlas-autoEmbed", "field": "search_text"}}
         if not doc.get("searchable", True):
@@ -542,14 +551,14 @@ class MongoStore:
             doc.pop("search_text", None)
         snapshot_id = sha(canonical([doc["_id"], release]))
         changed = (existing is None or existing.get("distribution_sha256") != distribution
-                   or existing.get("active") is False)
+                   or (active and existing.get("active") is False))
         result = {"id": doc["_id"], "skill_id": doc["_id"], "name": doc["name"],
                   "sha256": doc["sha256"], "release_sha256": release, "changed": changed,
                   "resources": len(files), "exclusions": exclusions,
                   "resource_complete": not exclusions}
         preserved_state = local_conflicts
         if existing is not None:
-            if existing.get("active") is not True:
+            if not self.preserve_states and existing.get("active") is not True:
                 preserved_state.append("existing-inactive-or-unknown")
             if existing.get("searchable") is not True and doc.get("searchable", True):
                 preserved_state.append("existing-nonrouting-or-unknown")
