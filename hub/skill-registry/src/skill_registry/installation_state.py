@@ -59,6 +59,32 @@ class InstallationResolver:
                                                2 * 1024 * 1024).decode())
         except (OSError, ValueError):
             config = {}
+        marketplaces = config.get("marketplaces", {})
+        if isinstance(marketplaces, dict):
+            for entry in marketplaces.values():
+                if not isinstance(entry, dict):
+                    continue
+                source = entry.get("source")
+                value = source if entry.get("source_type") == "local" else None
+                if isinstance(source, dict) and source.get("source") == "local":
+                    value = source.get("path")
+                if not isinstance(value, str) or not Path(value).expanduser().is_absolute():
+                    continue
+                base = _path(value)
+                candidates = {base}
+                try:
+                    candidates.add(base.resolve())
+                except (OSError, RuntimeError):
+                    pass
+                # Marketplace availability is not installation evidence. Mark
+                # explicit source trees as plugin locations even when the
+                # native installed-only command is unavailable; retain them
+                # without inventing a user overlay or enabling an archive.
+                for candidate in candidates:
+                    if (candidate != self.codex_home and candidate != self.home
+                            and candidate not in self.home.parents
+                            and candidate not in self.plugin_bases):
+                        self.plugin_bases.append(candidate)
         plugins = config.get("plugins", {})
         if isinstance(plugins, dict):
             for identity, entry in plugins.items():
