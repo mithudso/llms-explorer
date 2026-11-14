@@ -115,7 +115,7 @@ def ensure_tunnel():
             "tunnel": tunnel["id"],
             "credentials-file": str(credential),
             "ingress": [
-                {"hostname": hostname, "service": "http://127.0.0.1:3031"},
+                {"hostname": hostname, "service": "http://127.0.0.1:13031"},
                 {"service": "http_status:404"},
             ],
         },
