@@ -1,0 +1,63 @@
+name: llmsx-observability
+services:
+  grafana:
+    image: llmsx-fleet-grafana:${OBSERVABILITY_REVISION:-local}
+    build: {context: ., target: grafana}
+    restart: unless-stopped
+    ports: ["127.0.0.1:13031:3000"]
+    environment:
+      GF_SERVER_ROOT_URL: ${DASHBOARD_URL:-https://ops.llmsx.org}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/private/grafana-password
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: lax
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_METRICS_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /opt/fleet/dashboards/fleet.json
+      GF_SECURITY_ALLOW_EMBEDDING: "false"
+    volumes:
+      - grafana:/var/lib/grafana
+      - credentials:/run/private:ro
+    mem_limit: 768m
+    logging: &logs
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  prometheus:
+    image: llmsx-fleet-prometheus:${OBSERVABILITY_REVISION:-local}
+    build: {context: ., target: prometheus}
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus", "--storage.tsdb.retention.time=30d", "--storage.tsdb.retention.size=5GB", "--web.enable-remote-write-receiver"]
+    ports: ["127.0.0.1:9091:9090"]
+    volumes:
+      - prometheus:/prometheus
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    mem_limit: 1g
+    logging: *logs
+  blackbox:
+    image: llmsx-fleet-blackbox:${OBSERVABILITY_REVISION:-local}
+    build: {context: ., target: blackbox}
+    restart: unless-stopped
+    command: ["--config.file=/etc/blackbox/blackbox.yml"]
+    mem_limit: 128m
+    logging: *logs
+  loki:
+    image: llmsx-fleet-loki:${OBSERVABILITY_REVISION:-local}
+    build: {context: ., target: loki}
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki.yml"]
+    ports: ["127.0.0.1:3140:3100"]
+    volumes:
+      - loki:/loki
+    mem_limit: 768m
+    logging: *logs
+volumes:
+  credentials:
+    external: true
+    name: llmsx-observability-credentials
+  grafana:
+  prometheus:
+  loki:

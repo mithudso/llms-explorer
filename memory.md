@@ -1,5 +1,25 @@
 # Memory
 
+## v0.22.198 — 2026-11-14 fleet monitoring live and verified boundaries
+
+Version: 0.22.198. Delta: v0.22.197 to v0.22.198; prompt v151; TASK-1488. Delivery record: https://github.com/mithudso/llms-explorer/pull/371 ; inspect its live status for remote delivery.
+
+The private Grafana console is https://ops.llmsx.org . Immutable native releases and the dedicated Python venv live under /Users/mitch/.local/share/llmsx-observability. The private deployment.json records the exact installed revision; acceptance/receipt.json records independent browser acceptance and shipping-receipt.json records final delivery. Grafana uses loopback13031, Prometheus9091, collector9321 and Loki3140. Three owned user LaunchAgents supervise the stack, collector and dedicated tunnel. Configuration is baked into images because Docker Desktop host bind mounts stalled. Preserve all named monitoring volumes and provider credentials. The installer preserves unchanged agents and retries asynchronous launchd registration.
+
+Six public websites and discovered origins, processes, databases and tunnels are monitored. All nine Prometheus targets scrape successfully. Google Analytics returns LLMSX data; Cloudflare daily traffic and Worker metrics return real rows. Loki receives structured monitoring events. The independent Cloudflare watchdog records nine checks each minute into its own seven-day D1 history; repeated scheduled samples were verified. The standards, logging schema, inventory and remaining coverage gaps are versioned under ops/observability and docs/operations/observability.md. Code and browser checks caught and repaired misleading status colors, obscured table columns, Grafana metrics exposure and empty-watchdog-history detection. A CI-only hash-order difference in generated table configuration was fixed and tested across hash seeds.
+
+Operational findings: existing All Workers Access redirects public LLMSX and game traffic to sign-in; SKaaS public DNS is not yet deployed. The origin Mac has approximately43GiB free of1.8TiB (about2.3percent). No cleanup, application launch, payment or trading changes were made. Missing revenue remains unknown. Remaining integration work: separate AdSense read-only authorization, GA4 property mappings/access for other projects, a chosen external alert destination, application log adoption, authenticated deep readiness, job heartbeats, multiplayer journeys and restore drills. These are explicit gaps, not completed coverage. Stele writes after its transport disconnected are queued in the private outbox; do not duplicate or silently claim their replay.
+
+
+## v0.22.197 — 2026-11-14 fleet operations dashboard in progress
+
+Version: 0.22.197. Delta: v0.22.196 to v0.22.197; prompt v151; TASK-1488.
+
+Build a private Grafana OSS dashboard with Prometheus, blackbox probes and Loki. Use an isolated worktree because the original checkout has active concurrent edits. Preserve legacy LLMS-Explorer account routing, paused embeddings, billing and trading launch gates. Inventory found Mac-hosted LLMSX API and MoreLube origins, Cloudflare Workers/D1/Durable Objects for Oraclebot and the game, and an undeployed SKaaS production domain. Google Analytics read access works for LLMSX. AdSense scope is absent. Public probes must detect Cloudflare Access login redirects and never count them as website success. Dependency configuration is not proof of readiness.
+
+Remaining: finish versioned inventory and collector, provision and validate stack and private hosting, verify data and failures, run required checks and deliver via PR. Record exact integration and external-monitoring gaps. Private credentials remain outside Git.
+
+
 ## Salesforce full-suite mapped completion — 2026-11-12
 
 The authorized continuation reaches SATURATED-COVERAGE (map-bounded):23 complete concepts,342 source statements,40 scored candidates,17 skips and no queued/partial concept. Final source/readers answer14/14 competency questions; final navigation blind2 passes 0 High/Medium/Low. The one old permission-delay correction has a fresh bound native v4 acceptance;341 other corpus units and original immutable history remain preserved. Proposed policy, Omni qualification and device-recovery contracts are explicit/unimplemented, with runtime traces unexecuted.
