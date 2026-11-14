@@ -720,17 +720,26 @@ class Collector:
                 headers={"Authorization": "Bearer " + path.read_text().strip()},
             )
             checks = result["checks"]
-            for check in checks:
-                labels = {"project": check["name"], "phase": check["phase"]}
-                for key, metric in {
-                    "success": "success",
-                    "checked_at": "checked_timestamp_seconds",
-                    "status": "http_status",
-                    "duration": "duration_seconds",
-                }.items():
-                    rows.append(
-                        sample("fleet_watchdog_" + metric, check[key], **labels)
+            by_name = {check["name"]: check for check in checks}
+            for target in self.inventory.get("watchdog_targets", []):
+                labels = {"project": target["name"], "phase": target["phase"]}
+                check = by_name.get(target["name"])
+                rows.append(
+                    sample(
+                        "fleet_watchdog_checked_timestamp_seconds",
+                        check["checked_at"] if check else 0,
+                        **labels,
                     )
+                )
+                if check:
+                    for key, metric in {
+                        "success": "success",
+                        "status": "http_status",
+                        "duration": "duration_seconds",
+                    }.items():
+                        rows.append(
+                            sample("fleet_watchdog_" + metric, check[key], **labels)
+                        )
             self.integration(rows, "fleet", "watchdog", True, True, bool(checks))
         except (OSError, ValueError, KeyError, TypeError):
             self.integration(rows, "fleet", "watchdog", True, False)

@@ -327,7 +327,6 @@ def install(revision, publish):
             {
                 "revision": sha,
                 "dashboard": "https://ops.llmsx.org",
-                "credentials_file": str(password),
                 "state": str(RUNTIME),
             }
         )

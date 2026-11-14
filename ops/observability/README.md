@@ -27,7 +27,7 @@ Install reviewed, committed source on macOS:
 python3 ops/observability/manage.py install --revision HEAD --publish
 ```
 
-The installer prints the private credential-file location, not the password.
+The installer prints the private runtime directory, never the password.
 It starts an isolated Compose project and three owned user LaunchAgents. An
 existing dashboard hostname or tunnel without matching owned credentials is
 refused, never overwritten. Local metrics and logs are not exposed publicly.

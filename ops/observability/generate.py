@@ -256,10 +256,7 @@ def generate():
                     "noValue": "Unknown / no data",
                     "thresholds": {
                         "mode": "absolute",
-                        "steps": [
-                            {"color": "red", "value": None},
-                            {"color": "green", "value": 1},
-                        ],
+                        "steps": [{"color": "blue", "value": None}],
                     },
                 },
                 "overrides": [],
@@ -555,6 +552,142 @@ def generate():
         9,
         description="Prometheus rules run locally. External notifications require an explicitly configured destination; an off-host watchdog remains necessary for Mac/network failure.",
     )
+    health_thresholds = {
+        "Public sites responding / 6": [(None, "red"), (6, "green")],
+        "Firing alerts": [(None, "green"), (1, "red")],
+        "Backend checks failing": [(None, "green"), (1, "red")],
+        "Known coverage gaps": [(None, "green"), (1, "orange")],
+        "Missing backend observations": [(None, "green"), (1, "red")],
+        "Monitoring scrape failures": [(None, "green"), (1, "red")],
+        "Production host CPU": [(None, "green"), (0.85, "orange"), (0.95, "red")],
+        "Production host memory": [(None, "green"), (0.85, "orange"), (0.90, "red")],
+        "Production host free disk": [(None, "red"), (0.05, "orange"), (0.15, "green")],
+        "Worker errors / previous 5 minutes": [(None, "green"), (1, "red")],
+    }
+    table_fields = {
+        "Public website checks": [
+            ("project", "Project"),
+            ("Value", "Status"),
+            ("instance", "URL"),
+            ("phase", "Phase"),
+        ],
+        "Independent off-host checks": [
+            ("project", "Project"),
+            ("Value", "Status"),
+            ("phase", "Phase"),
+        ],
+        "Independent check age": [
+            ("project", "Project"),
+            ("Value", "Age"),
+            ("phase", "Phase"),
+        ],
+        "Backends, database queries, origins and processes": [
+            ("project", "Project"),
+            ("Value", "Status"),
+            ("service", "Service"),
+            ("kind", "Check"),
+            ("phase", "Phase"),
+        ],
+        "Launch flags (enabled / disabled)": [
+            ("project", "Project"),
+            ("Value", "State"),
+            ("capability", "Capability"),
+        ],
+        "Telemetry connection status": [
+            ("project", "Project"),
+            ("Value", "Status"),
+            ("source", "Source"),
+        ],
+        "Provider data age": [
+            ("project", "Project"),
+            ("Value", "Age"),
+            ("source", "Source"),
+        ],
+        "Cloudflare requests · yesterday UTC": [
+            ("project", "Project"),
+            ("Value", "Requests"),
+            ("period", "Period"),
+        ],
+        "Cloudflare page views · yesterday UTC": [
+            ("project", "Project"),
+            ("Value", "Page views"),
+            ("period", "Period"),
+        ],
+        "Revenue source authorization": [
+            ("source", "Source"),
+            ("Value", "Authorization"),
+        ],
+        "Backend coverage and remaining gaps": [
+            ("project", "Project"),
+            ("component", "Component"),
+            ("coverage", "Coverage"),
+            ("kind", "Kind"),
+        ],
+        "Active alerts": [
+            ("severity", "Severity"),
+            ("alertname", "Alert"),
+            ("project", "Project"),
+            ("service", "Service"),
+            ("instance", "Instance"),
+        ],
+    }
+    for p in panels:
+        if p["title"] in health_thresholds:
+            p["fieldConfig"]["defaults"]["thresholds"]["steps"] = [
+                {"value": value, "color": color}
+                for value, color in health_thresholds[p["title"]]
+            ]
+        if p["type"] == "table":
+            fields = table_fields[p["title"]]
+            keep = {name for name, _ in fields}
+            all_fields = {
+                "Time",
+                "__name__",
+                "instance",
+                "job",
+                "phase",
+                "project",
+                "service",
+                "kind",
+                "capability",
+                "source",
+                "period",
+                "component",
+                "coverage",
+                "Value",
+                "alertstate",
+                "severity",
+                "alertname",
+            }
+            p["transformations"] = [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {name: True for name in all_fields - keep},
+                        "indexByName": {name: n for n, (name, _) in enumerate(fields)},
+                        "renameByName": dict(fields),
+                    },
+                }
+            ]
+            p["options"] = {
+                "showHeader": True,
+                "cellHeight": "sm",
+                "footer": {"show": False},
+            }
+            for name in ("Status", "State", "Authorization"):
+                p["fieldConfig"]["overrides"].append(
+                    {
+                        "matcher": {"id": "byName", "options": name},
+                        "properties": [
+                            {"id": "custom.width", "value": 150},
+                            {
+                                "id": "custom.cellOptions",
+                                "value": {"type": "color-text"},
+                            },
+                        ],
+                    }
+                )
+
     write(
         "grafana/dashboards/fleet.json",
         {

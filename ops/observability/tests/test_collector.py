@@ -171,6 +171,27 @@ class FleetChecks(unittest.TestCase):
                 )
             )
 
+    def test_empty_watchdog_history_exposes_never_observed_targets(self):
+        inventory = {
+            "watchdog_url": "https://watchdog.example/status",
+            "watchdog_targets": [{"name": "test", "phase": "production"}],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "watchdog-token").write_text("fixture-secret")
+            c = collector.Collector(inventory, root / "state")
+            with patch.object(collector, "request_json", return_value={"checks": []}):
+                rows = c.watchdog()
+            self.assertTrue(
+                any(
+                    name == "fleet_watchdog_checked_timestamp_seconds" and value == 0
+                    for name, value, _ in rows
+                )
+            )
+            self.assertFalse(
+                any(name == "fleet_watchdog_success" for name, _, _ in rows)
+            )
+
     def test_snapshots_are_replaced_on_failure_and_readiness_expires(self):
         inventory = {
             k: [] for k in ["sites", "checks", "launchd", "databases", "tunnels"]
