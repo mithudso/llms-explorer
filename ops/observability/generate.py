@@ -663,7 +663,9 @@ def generate():
                 {
                     "id": "organize",
                     "options": {
-                        "excludeByName": {name: True for name in all_fields - keep},
+                        "excludeByName": {
+                            name: True for name in sorted(all_fields - keep)
+                        },
                         "indexByName": {name: n for n, (name, _) in enumerate(fields)},
                         "renameByName": dict(fields),
                     },

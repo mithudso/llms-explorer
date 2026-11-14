@@ -141,18 +141,46 @@ def launch(label, arguments, environment=None):
             **(environment or {}),
         },
     }
+    domain = f"gui/{os.getuid()}"
+    target = domain + "/" + label
+    previous = plistlib.loads(path.read_bytes()) if path.is_file() else None
+    loaded = run("/bin/launchctl", "print", target, check=False, capture_output=True)
+    if previous == body and loaded.returncode == 0:
+        return  # An unchanged tunnel does not need a connection-disrupting restart.
     path.write_bytes(plistlib.dumps(body))
     path.chmod(0o600)
-    domain = f"gui/{os.getuid()}"
-    # Reconfigure only this stack's owned agents; absent jobs are normal.
-    run(
-        "/bin/launchctl",
-        "bootout",
-        domain + "/" + label,
-        check=False,
-        capture_output=True,
-    )
-    run("/bin/launchctl", "bootstrap", domain, str(path))
+    if loaded.returncode == 0:
+        run("/bin/launchctl", "bootout", target, check=False, capture_output=True)
+        for _ in range(25):
+            if (
+                run(
+                    "/bin/launchctl", "print", target, check=False, capture_output=True
+                ).returncode
+                != 0
+            ):
+                break
+            time.sleep(0.2)
+    # launchd can acknowledge bootout before registration is ready again.
+    for _ in range(10):
+        result = run(
+            "/bin/launchctl",
+            "bootstrap",
+            domain,
+            str(path),
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            return
+        if (
+            run(
+                "/bin/launchctl", "print", target, check=False, capture_output=True
+            ).returncode
+            == 0
+        ):
+            return
+        time.sleep(0.5)
+    result.check_returncode()
 
 
 def release(revision):

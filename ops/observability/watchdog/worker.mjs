@@ -41,6 +41,7 @@ export async function probe(target, fetcher = fetch) {
   try {
     const options = {redirect: "manual", signal: AbortSignal.timeout(12000), headers: {"User-Agent": "LLMSX-Offhost-Watchdog/1.0"}};
     let response = await fetcher(target.url, options);
+    status = response.status;
     if (target.redirectHost && [301, 302, 307, 308].includes(response.status)) {
       const next = new URL(response.headers.get("Location"), target.url);
       await response.body?.cancel();
