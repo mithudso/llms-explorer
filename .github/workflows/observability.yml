@@ -1,0 +1,33 @@
+name: Fleet observability
+on:
+  pull_request:
+    paths: ["ops/observability/**", "docs/operations/**", ".github/workflows/observability.yml"]
+  push:
+    branches: [main]
+    paths: ["ops/observability/**", "docs/operations/**", ".github/workflows/observability.yml"]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: {python-version: "3.13"}
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-node@v7
+        with: {node-version: "22"}
+      - run: python3 -m unittest discover -s ops/observability/tests -v
+      - run: node --test ops/observability/watchdog/worker.test.mjs
+      - run: uvx ruff check ops/observability
+      - run: uvx ruff format --check ops/observability
+      - name: Generated configuration matches inventory
+        run: |
+          python3 ops/observability/generate.py
+          git diff --exit-code -- ops/observability
+      - name: Validate Prometheus configuration and alert expressions
+        run: |
+          docker build --target prometheus -t llmsx-fleet-prometheus:check ops/observability
+          docker run --rm --entrypoint /bin/promtool llmsx-fleet-prometheus:check check config /etc/prometheus/prometheus.yml
+      - name: Validate Compose configuration without starting services
+        run: docker compose -f ops/observability/compose.yaml config --quiet

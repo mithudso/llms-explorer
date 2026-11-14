@@ -1,5 +1,12 @@
 # Prompts Log
 
+## Prompt v151 — 2026-11-14 fleet monitoring and standards
+
+Version: 151. Delta: v150 to v151; TASK-1488.
+
+Create a monitoring and metrics dashboard using whatever the best opensource monitoring and graphing system is out there right now, host it on llms-explorer and have it check the status of this website, llmsx.org, oraclebot.io, thatswhatshesaid.games, morelube.com, skaas.io, and include all the servers and backend work needed for all of them. Also pull in web traffic metrics from google and cloudflare, and have an ads revenue section. I want a single pane of glass to tell me if everything is functional, if there are any error, etc. I will need central logging for all of them soon. That means I'm going to need standards for logging, monitoring, reporting, and detection that apply to all the projects.
+
+
 ## Prompt v150 — 2026-11-11 skill optimizer agent fan-out
 
 Version:150. Delta:v149 to v150; TASK-1372.

@@ -1,0 +1,200 @@
+import importlib.util
+import json
+import tempfile
+import threading
+import time
+import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location("fleet_collector", ROOT / "collector.py")
+collector = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(collector)
+
+
+class Upstream(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/login-redirect":
+            self.send_response(302)
+            self.send_header("Location", "/login")
+            self.end_headers()
+            return
+        self.send_response(200)
+        self.send_header(
+            "Content-Type", "text/html" if self.path == "/login" else "application/json"
+        )
+        self.end_headers()
+        self.wfile.write(
+            b"<html>Cloudflare Access</html>"
+            if self.path == "/login"
+            else json.dumps({"status": "ready", "billing": False}).encode()
+        )
+
+    def do_POST(self):
+        self.server.payloads.append(
+            json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        )
+        self.send_response(204)
+        self.end_headers()
+
+    def log_message(self, *_):
+        pass
+
+
+class FleetChecks(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
+        cls.server.payloads = []
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+        cls.base = f"http://127.0.0.1:{cls.server.server_port}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join()
+
+    def test_access_login_is_never_backend_health(self):
+        for path in ["/login", "/login-redirect"]:
+            ok, _, _, _ = collector.check_http(
+                {"url": self.base + path, "expect": {"status": "ready"}}
+            )
+            self.assertFalse(ok)
+
+    def test_valid_json_with_wrong_state_fails(self):
+        ok, _, _, _ = collector.check_http(
+            {"url": self.base + "/", "expect": {"status": "ok"}}
+        )
+        self.assertFalse(ok)
+
+    def test_disabled_capability_is_preserved(self):
+        ok, status, _, flags = collector.check_http(
+            {
+                "url": self.base + "/",
+                "expect": {"status": "ready"},
+                "capabilities": ["billing"],
+            }
+        )
+        self.assertTrue(ok)
+        self.assertEqual(status, 200)
+        self.assertEqual(flags, {"billing": 0})
+
+    def test_metric_labels_cannot_inject_new_series(self):
+        result = collector.render_metrics(
+            [collector.sample("test", 1, project='bad"\nvalue\\')]
+        ).decode()
+        self.assertIn('project="bad\\"\\nvalue\\\\"', result)
+        self.assertEqual(len(result.splitlines()), 3)
+        with self.assertRaises(ValueError):
+            collector.sample("test", float("nan"))
+
+    def event(self, n=0):
+        return {
+            "timestamp": time.time(),
+            "severity": "info",
+            "service_name": "fleet-collector",
+            "service_version": "test",
+            "project": "fleet",
+            "environment": "production",
+            "event": "test.event",
+            "duration_ms": n,
+        }
+
+    def test_log_allowlist_removes_secrets_and_validates_values(self):
+        clean = collector.validate_log(
+            {
+                **self.event(),
+                "authorization": "private",
+                "payload": {"secret": "private"},
+            }
+        )
+        self.assertNotIn("authorization", clean)
+        self.assertNotIn("payload", clean)
+        with self.assertRaises(ValueError):
+            collector.validate_log({**self.event(), "error_type": "Bearer secret"})
+
+    def test_durable_spool_survives_failure_and_delivers_to_real_http_receiver(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "queue.sqlite"
+            spool = collector.LogSpool(path, limit=2)
+            for n in range(3):
+                spool.append(self.event(n))
+            self.assertEqual(spool.stats(), (2, 1))
+            with self.assertRaises(OSError):
+                spool.push("http://127.0.0.1:1")
+            reopened = collector.LogSpool(path, limit=2)
+            self.assertEqual(reopened.stats(), (2, 1))
+            self.assertTrue(reopened.push(self.base))
+            self.assertEqual(reopened.stats(), (0, 1))
+            self.assertEqual(
+                [
+                    json.loads(v[1])["duration_ms"]
+                    for v in self.server.payloads[-1]["streams"][0]["values"]
+                ],
+                [1, 2],
+            )
+
+    def test_missing_ads_authorization_never_emits_zero_money(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            c = collector.Collector({"sites": []}, Path(tmp))
+            rows = c.ads()
+            self.assertNotIn("fleet_ads_estimated_earnings", [r[0] for r in rows])
+            configured = [r[1] for r in rows if r[0] == "fleet_integration_configured"]
+            self.assertEqual(configured, [0, 0])
+
+    def test_no_rows_from_cloudflare_is_not_zero_traffic(self):
+        inv = {
+            "sites": [{"project": "test", "zone_id": "zone"}],
+            "workers": [],
+            "databases": [],
+            "tunnels": [],
+        }
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch.object(collector, "cf_json", return_value=[]),
+        ):
+            c = collector.Collector(inv, Path(tmp))
+            c.graphql = lambda q: (
+                {"zones": [{"httpRequests1dGroups": []}]}
+                if "zones(" in q
+                else {"accounts": [{"workersInvocationsAdaptive": []}]}
+            )
+            rows = c.cloudflare()
+            self.assertFalse(any(r[0] == "fleet_cloudflare_requests" for r in rows))
+            self.assertTrue(
+                any(
+                    r[0] == "fleet_integration_data_present" and r[1] == 0 for r in rows
+                )
+            )
+
+    def test_snapshots_are_replaced_on_failure_and_readiness_expires(self):
+        inventory = {
+            k: [] for k in ["sites", "checks", "launchd", "databases", "tunnels"]
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            c = collector.Collector(inventory, Path(tmp))
+            self.assertFalse(c.ready())
+            c.cycles["fast"] = time.time()
+            self.assertTrue(c.ready())
+            c.cycles["fast"] = time.time() - 181
+            self.assertFalse(c.ready())
+            c.snapshots["fast"] = [collector.sample("untrustworthy_old_value", 1)]
+
+            def fail():
+                c.stop.set()
+                raise ValueError("secret must never be logged")
+
+            c.loop("fast", fail)
+            self.assertNotIn(b"untrustworthy_old_value", c.metrics())
+            self.assertNotIn(
+                "secret must never be logged",
+                (Path(tmp) / "collector.jsonl").read_text(),
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()

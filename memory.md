@@ -1,5 +1,14 @@
 # Memory
 
+## v0.22.197 — 2026-11-14 fleet operations dashboard in progress
+
+Version: 0.22.197. Delta: v0.22.196 to v0.22.197; prompt v151; TASK-1488.
+
+Build a private Grafana OSS dashboard with Prometheus, blackbox probes and Loki. Use an isolated worktree because the original checkout has active concurrent edits. Preserve legacy LLMS-Explorer account routing, paused embeddings, billing and trading launch gates. Inventory found Mac-hosted LLMSX API and MoreLube origins, Cloudflare Workers/D1/Durable Objects for Oraclebot and the game, and an undeployed SKaaS production domain. Google Analytics read access works for LLMSX. AdSense scope is absent. Public probes must detect Cloudflare Access login redirects and never count them as website success. Dependency configuration is not proof of readiness.
+
+Remaining: finish versioned inventory and collector, provision and validate stack and private hosting, verify data and failures, run required checks and deliver via PR. Record exact integration and external-monitoring gaps. Private credentials remain outside Git.
+
+
 ## Salesforce full-suite mapped completion — 2026-11-12
 
 The authorized continuation reaches SATURATED-COVERAGE (map-bounded):23 complete concepts,342 source statements,40 scored candidates,17 skips and no queued/partial concept. Final source/readers answer14/14 competency questions; final navigation blind2 passes 0 High/Medium/Low. The one old permission-delay correction has a fresh bound native v4 acceptance;341 other corpus units and original immutable history remain preserved. Proposed policy, Omni qualification and device-recovery contracts are explicit/unimplemented, with runtime traces unexecuted.
