@@ -1,5 +1,14 @@
 # Memory
 
+## v0.22.199 — 2026-11-15 public-site Cloudflare Access repair
+
+- TASK-1496: the user authorized restoring public access after the legacy Cloudflare sign-in callback returned 404. Both public roots matched the account-wide All Workers Access audience.
+- A hostname bypass alone did not override All Workers. Pages exposes a production script name, but Access rejected it as a Worker destination with error 12130. Narrowed the existing application to four previously unassigned production Workers plus all preview Workers. Four existing specific applications retain the other four production Workers. The original reusable allow policy, session/security flags and the other five original Access applications are unchanged.
+- Added a bypass limited to llmsx.org, llms-explorer.com and www.llms-explorer.com. Canonical public traffic now returns 200; the legacy root returns 301 to the canonical root. Existing application account authentication and the canonical/legacy account-route split remain in place.
+- Future production Workers must be added explicitly to this inventory or an appropriate Worker-specific Access application. All future preview deployments retain blanket protection.
+- Independent live acceptance passes the homepage, concepts, downloads, legacy public redirect and legacy account routing. Private watchdog and analysis runtime requests return 401; the webhook Worker requires Access. All eight production Workers remain covered. Private configuration snapshots, failed-attempt details and rollback settings remain outside Git. The original checkout and concurrent fleet work are untouched. Privacy and whitespace checks pass; checked PR delivery remains the final gate.
+- Delta: memory 0.22.198 to 0.22.199; prompt v158. This entry records a configuration repair; no application code or research state changed.
+
 ## v0.22.198 — 2026-11-14 fleet monitoring live and verified boundaries
 
 Version: 0.22.198. Delta: v0.22.197 to v0.22.198; prompt v151; TASK-1488. Delivery record: https://github.com/mithudso/llms-explorer/pull/371 ; inspect its live status for remote delivery.
