@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v158 — 2026-11-15 public-site Cloudflare Access repair
+
+Original user request: "Can you do that?" This approves the preceding proposal to remove the public site from the blanket All Workers sign-in requirement.
+
+Restore public LLMSX access by adding a scoped Cloudflare Access exception for the public website. Preserve authentication for private Workers, existing account routing, and unrelated work; verify the live result and publish the repair record.
+
+Tracking: TASK-1496. Delta: prompt v157 to v158.
+
 ## Prompt v151 — 2026-11-14 fleet monitoring and standards
 
 Version: 151. Delta: v150 to v151; TASK-1488.
