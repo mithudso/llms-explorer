@@ -75,6 +75,40 @@ def test_preflight_rejects_before_any_model(case, failure):
     assert len(failures) == 1 and failures[0]['claim_id'].startswith('clm:')
 
 
+@pytest.mark.parametrize('separator', ['\r\n', '\r'])
+def test_snapshot_offsets_preserve_original_line_endings(case, separator):
+    shared, manifest, doc, root = case
+    prefix = 'Préface' + separator
+    claim = doc['claims'][0]
+    quote = claim['text']
+    body = (prefix + quote + separator).encode('utf-8')
+    (root / 'source.txt').write_bytes(body)
+    claim['evidence'][0].update(start=len(prefix), end=len(prefix) + len(quote),
+                                snapshot_sha256=gate.digest(body))
+    attempt = root / 'attempt'
+    packet = gate.prepare(shared, manifest, attempt, 0, 0)
+    assert (attempt / packet['sources'][claim['sources'][0]]['file']).read_bytes() == body
+    assert gate.validate(packet, response(packet), attempt)['all_supported']
+
+
+@pytest.mark.parametrize('filename', ['packet.json', 'validation.json'])
+def test_malformed_attempt_does_not_hide_older_exact_review(case, filename):
+    shared, manifest, _, root = case
+    old = root / 'gate/attempts/1'
+    packet = gate.prepare(shared, manifest, old, 0, 0)
+    (old / 'verdicts.json').write_text(json.dumps(response(packet)))
+    receipt = json.dumps({'validated': True, 'packet_sha256': packet['packet_sha256']})
+    (old / 'validation.json').write_text(receipt)
+    broken = root / 'gate/attempts/2'
+    broken.mkdir()
+    (broken / 'packet.json').write_text(json.dumps(packet))
+    (broken / 'verdicts.json').write_text(json.dumps(response(packet)))
+    (broken / 'validation.json').write_text(receipt)
+    (broken / filename).write_text('null')
+    current = gate.prepare(shared, manifest, root / 'gate/attempts/3', 0, 0)
+    assert len(current['reused_verdicts']) == 1
+
+
 def test_semantic_supported_cannot_override_missing_field(case):
     shared, manifest, doc, root = case
     packet = gate.prepare(shared, manifest, root / 'attempt', 0, 0)

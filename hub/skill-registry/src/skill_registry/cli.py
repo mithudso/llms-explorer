@@ -123,7 +123,7 @@ def parser():
 
 
 def _print(value):
-    print(json.dumps(value, indent=2, ensure_ascii=False))
+    print(json.dumps(value, indent=2, ensure_ascii=False), flush=True)
 
 
 def _mongo_watch_summary(receipt):
@@ -196,8 +196,15 @@ def main():
                     raise ValueError("watch interval must be 5..86400 seconds")
                 next_cache_refresh = 0.0
                 while not stop_event.is_set():
+                    failed = False
                     try:
                         value = store.ingest(catalog, stop_event=stop_event)
+                    except Exception as exc:
+                        # Driver error strings can contain private connection details.
+                        failed = True
+                        value = {"status": "failed" if args.once else "retry_pending",
+                                 "error_type": type(exc).__name__}
+                    else:
                         if args.refresh_hook_cache:
                             incomplete = (value.get("partial") or value.get("aborted")
                                 or value.get("cancelled")
@@ -208,14 +215,21 @@ def main():
                                                        "reason": "ingest-incomplete"}
                             elif time.monotonic() >= next_cache_refresh:
                                 from .hook_cache import refresh_cache
-                                value["hook_cache"] = refresh_cache(store)
-                                next_cache_refresh = time.monotonic() + 900
-                    except Exception as exc:
-                        # Preserve the last published projection and retry; driver
-                        # error strings can contain private connection details.
-                        value = {"status": "retry_pending", "error_type": type(exc).__name__}
+                                try:
+                                    value["hook_cache"] = refresh_cache(store)
+                                except Exception as exc:
+                                    failed = True
+                                    value["hook_cache"] = {"refreshed": False, "preserved": True,
+                                                           "reason": "refresh-failed",
+                                                           "error_type": type(exc).__name__}
+                                else:
+                                    next_cache_refresh = time.monotonic() + 900
                     _print(_mongo_watch_summary(value))
-                    if args.once or stop_event.wait(args.interval):
+                    if args.once:
+                        if failed and not received_signal:
+                            raise SystemExit(2)
+                        break
+                    if stop_event.wait(args.interval):
                         break
             else:
                 raise ValueError("Unsupported MongoDB command")

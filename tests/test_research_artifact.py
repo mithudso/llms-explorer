@@ -47,9 +47,13 @@ def test_build_retains_equal_text_with_distinct_complete_identities(tmp_path, ke
     assert len({c['canonical_claim_id'] for c in result['documents']['c']['claims']}) == 2
 
 
-def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_and_download(tmp_path, monkeypatch):
+@pytest.mark.parametrize('separator', [' ', '\u2028', '\u2029', '\u0085'])
+def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_and_download(
+    tmp_path, monkeypatch, separator,
+):
     root = Path(__file__).resolve().parents[1]
     monkeypatch.setenv('LLMS_EXPLORER_REPO', str(root))
+    monkeypatch.syspath_prepend(str(root / 'scripts'))
     def load(name, relative):
         module_spec = importlib.util.spec_from_file_location(name, root / relative)
         module = importlib.util.module_from_spec(module_spec)
@@ -59,13 +63,24 @@ def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_a
     compiler = load('identity_projection_compiler', 'scripts/codex_dr_artifacts.py')
     reader = load('identity_projection_reader', 'site/tools/gen_concepts.py')
     downloads = load('identity_projection_downloads', 'site/tools/gen_concept_facts.py')
-    claim = {'text': 'The same precise claim.', 'confidence': 'high', 'validation_status': 'SUPPORTED',
+    claim = {'text': 'The same precise' + separator + 'claim.', 'confidence': 'high', 'validation_status': 'SUPPORTED',
              'verified_as_of': '2025-09-17'}
     claims = [{**claim, 'sources': ['https://example.test/#original-fragment', f'https://secondary.test/{n}'],
                'canonical_claim_id': f'clm:{n}', 'evidence_ids': [f'ev:{n}'], 'temporal': {'applicability_version': 'v4'}} for n in range(2)]
     pack_dir = tmp_path / 'c.llms'
     compiler.compile_claims(lca, pack_dir, 'C', 'c', [{'concept': 'C', 'claims': claims}],
                             'COMPLETED', artifact_sha='a' * 64, concept_id='concept:c')
+    files = {name: (pack_dir / name).read_text(encoding='utf-8') for name in compiler.PACK_FILES}
+    records = files['units.jsonl'].splitlines()
+    assert len(records) == 2
+    raw_units = ''.join(json.dumps(json.loads(record), ensure_ascii=False) + '\n' for record in records)
+    raw_files = {**files, 'units.jsonl': raw_units}
+    public_files = compiler.public_pack_files(root, tmp_path, raw_files, lca)
+    projected = artifact.public_projection(public_files)
+    assert artifact.public_projection(raw_files) == projected
+    (pack_dir / 'units.jsonl').write_text(raw_units, encoding='utf-8')
+    expected_text = claim['text'] + ' (high confidence) (verified as of 2025-09-17)'
+    assert [row['text'] for row in projected['claims']] == [expected_text, expected_text]
     pack = reader.build_one(pack_dir)
     facts = [fact for facet in pack['facets'] for fact in facet['facts']]
     assert len(facts) == 2
@@ -79,7 +94,8 @@ def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_a
         assert fact['also'] == original['sources'][1:]
     text_download = downloads.render_facts(public['claims'])
     assert all(source in text_download for claim in claims for source in claim['sources'])
-    units = [json.loads(line) for line in (pack_dir / 'units.jsonl').read_text().splitlines()]
+    with (pack_dir / 'units.jsonl').open(encoding='utf-8') as source:
+        units = [json.loads(line) for line in source]
     for unit, source in zip(units, claims):
         assert unit['id'] == source['canonical_claim_id']
         assert unit['evidence_ids'] == source['evidence_ids']
@@ -88,8 +104,8 @@ def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_a
         assert unit['also'] == source['sources'][1:]
         assert unit['anchor'] == ''
         for filename in ('llms-full.txt', 'llms-small.txt', 'llms-facts.txt'):
-            exported = (pack_dir / filename).read_text()
-            assert unit['text'] in exported
+            exported = (pack_dir / filename).read_text(encoding="utf-8")
+            assert unit['text'].replace(separator, ' ') in exported
             assert unit['source_url'] in exported
 
 

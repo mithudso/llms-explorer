@@ -175,26 +175,28 @@ def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadat
     out.mkdir(parents=True, exist_ok=True)
     rows = [dict(row, matched=[name], relations=[row.get("relation", "about")],
                  facet=row.get("facet", row.get("section", "facts")), keep=True) for row in rows]
-    (out / "pool.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
+    (out / "pool.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     lexicon = {"concept": name, "slug": slug,
                "terms": [{"term": name, "relation": "self"}], "exclude": []}
     lexicon_path = out / "lexicon.json"
-    lexicon_path.write_text(json.dumps(lexicon))
+    lexicon_path.write_text(json.dumps(lexicon), encoding="utf-8")
     with redirect_stdout(io.StringIO()):
         lca.main(["compile", "--out", str(out), "--concept", name,
                   "--lexicon", str(lexicon_path), "--keep-lead-ins",
                   "--rights", "quote", "--budget-tokens", str(metadata.get("budget_tokens", 8000)),
                   "--summary", metadata.get("summary", f"Source-anchored research for {name}.")])
     manifest_path = out / "manifest.json"
-    manifest = json.loads(manifest_path.read_text())
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest["kept_units"] != len(rows):
         raise ValueError(f"{name}: llms compilation lost claims ({len(rows)} -> {manifest['kept_units']})")
-    full = (out / "llms-full.txt").read_text()
+    full = (out / "llms-full.txt").read_text(encoding="utf-8")
     for row in rows:
         if re.sub(r"\s+", " ", row["text"]).strip() not in full:
             raise ValueError(f"{name}: llms compilation clipped claim {row['id']}")
     by_id = {row["id"]: row for row in rows}
-    compiled_units = [json.loads(line) for line in (out / "units.jsonl").read_text().splitlines() if line.strip()]
+    units_path = out / "units.jsonl"
+    with units_path.open(encoding="utf-8") as source:
+        compiled_units = [json.loads(line) for line in source if line.strip()]
     if {row["id"] for row in compiled_units} != set(by_id):
         raise ValueError(f"{name}: llms compilation changed canonical identities")
     for unit in compiled_units:
@@ -202,37 +204,43 @@ def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadat
         if any(unit.get(key) != source.get(key) for key in ("text", "source_url", "also", "anchor")):
             raise ValueError(f"{name}: llms compilation changed canonical text or citations for {unit['id']}")
         unit.update({key: source[key] for key in ("canonical_concept_id", "validation_status", "origin_validation_status", "evidence_ids", "origin_evidence_ids", "remediation", "publication_redacted", "temporal") if key in source})
-    (out / "units.jsonl").write_text("".join(json.dumps(unit, ensure_ascii=False) + "\n" for unit in compiled_units))
+    # Older readers call splitlines(), which also treats these JSON string characters as newlines.
+    escapes = str.maketrans({"\u0085": r"\u0085", "\u2028": r"\u2028", "\u2029": r"\u2029"})
+    with units_path.open("w", encoding="utf-8") as destination:
+        for unit in compiled_units:
+            destination.write(json.dumps(unit, ensure_ascii=False).translate(escapes) + "\n")
     # The compiler lists undefined terms twice: as unsourced bold entries and
     # in its explicit research-gap section. Keep the gap section, so a missing
     # definition never masquerades as a sourced vocabulary entry (lint C6).
     vocabulary_path = out / "llms-vocabulary.txt"
-    vocabulary = "\n".join(line for line in vocabulary_path.read_text().splitlines()
+    vocabulary = "\n".join(line for line in vocabulary_path.read_text(encoding="utf-8").splitlines()
                            if not (line.startswith("- **") and not re.search(r"https?://", line))) + "\n"
-    vocabulary_path.write_text(vocabulary)
+    vocabulary_path.write_text(vocabulary, encoding="utf-8")
     manifest["files"]["llms-vocabulary.txt"] = {"bytes": len(vocabulary.encode()),
                                                  "tokens": lca._tokens_of(vocabulary)}
     generated = metadata.get("generated", manifest["generated"])
     for filename in PACK_FILES:
         if filename.endswith(".txt"):
             path = out / filename
-            path.write_text(path.read_text().replace("· generated " + manifest["generated"], "· generated " + generated))
-    graph = json.loads((out / "concept-graph.json").read_text())
+            catalogue = path.read_text(encoding="utf-8")
+            catalogue = catalogue.replace("· generated " + manifest["generated"], "· generated " + generated)
+            path.write_text(catalogue, encoding="utf-8")
+    graph = json.loads((out / "concept-graph.json").read_text(encoding="utf-8"))
     graph["generated"] = generated
-    (out / "concept-graph.json").write_text(json.dumps(graph, indent=1, ensure_ascii=False) + "\n")
+    (out / "concept-graph.json").write_text(json.dumps(graph, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     # These catalogues synthesize multiple sources. Their document owner is the
     # concept reader, while each unchanged unit retains its external citation.
     site = load_module("codex_pack_site_urls", repository() / "site/tools/gen_concept_facts.py")
     reader_url = f"{site.default_site_url()}/tree/{slug}/"
     for filename in ("llms-full.txt", "llms-small.txt"):
         path = out / filename
-        catalogue = path.read_text()
+        catalogue = path.read_text(encoding="utf-8")
         if filename == "llms-full.txt" and metadata.get("narrative"):
             # Keep complete authored prose outside units and the short index
             # summary. Recompiling a scrubbed public pack follows this same path.
             catalogue = catalogue.rstrip() + "\n\n" + site.render_narrative(metadata["narrative"])
         path.write_text(render_full([Document(name, reader_url, catalogue)],
-                                    title=name, generated=generated))
+                                    title=name, generated=generated), encoding="utf-8")
     # Describe the emitted vocabulary and graph, without inventing definitions
     # or neighbours. Keep the compiler's navigation through the shared parser.
     defined = sum(bool(parsed and parsed[2]) for line in vocabulary.splitlines()
@@ -245,25 +253,25 @@ def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadat
         "llms-vocabulary.txt": f"{defined} defined terms; {undefined} named, not yet defined terms",
         "concept-graph.json": f"{len(graph['nodes'])} nodes; {len(graph['edges'])} relation edges",
     }
-    index = parse_index((out / "llms.txt").read_text())
+    index = parse_index((out / "llms.txt").read_text(encoding="utf-8"))
     entries = []
     for entry in index["entries"]:
         description = descriptions.get(entry["url"], entry["notes"])
         if entry["url"] in descriptions and entry["url"].endswith(".txt"):
-            description += f" — ≈{lca._tokens_of((out / entry['url']).read_text())} tokens"
+            description += f" — ≈{lca._tokens_of((out / entry['url']).read_text(encoding="utf-8"))} tokens"
         url = entry["url"]
         if entry["section"] == "Facets":
             url = "llms-full.txt#" + heading_slug(entry["name"])
         entries.append(IndexEntry(entry["name"], url, description, entry["section"],
                                   optional=entry["section"] == "Optional"))
     (out / "llms.txt").write_text(render_index(entries, title=index["h1"][0][1],
-        summary=" ".join(text for _, text in index["blockquote"]), generated=generated))
+        summary=" ".join(text for _, text in index["blockquote"]), generated=generated), encoding="utf-8")
     manifest.update({key: value for key, value in metadata.items() if key not in manifest})
     manifest["generated"] = generated
     for filename in manifest["files"]:
-        text = (out / filename).read_text()
+        text = (out / filename).read_text(encoding="utf-8")
         manifest["files"][filename] = {"bytes": len(text.encode()), "tokens": lca._tokens_of(text)}
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     if any(not (out / filename).is_file() for filename in PACK_FILES):
         raise ValueError(f"{name}: llms compiler did not produce all required files")
 
@@ -275,7 +283,7 @@ def public_pack_files(repo: Path, hub: Path, files: dict, lca, withheld=()) -> d
     cache = hub / "research/.site-public-references.json"
     blocked = set(withheld)
     if cache.is_file():
-        blocked.update(key for key, value in json.loads(cache.read_text()).items() if not value["public"])
+        blocked.update(key for key, value in json.loads(cache.read_text(encoding="utf-8")).items() if not value["public"])
     terms = [*scrub.gate.denylist(), *blocked]
     original_metadata = json.loads(files["manifest.json"])
     metadata = website.publication_pack(original_metadata, scrub, terms)
@@ -283,11 +291,11 @@ def public_pack_files(repo: Path, hub: Path, files: dict, lca, withheld=()) -> d
         if any(assertion.get(key) != original.get(key) for key in ("text", "sources")):
             assertion.setdefault("originValidationStatus", original["validationStatus"])
             assertion["validationStatus"] = "REDACTED-PROJECTION"
-    rows = [website.publication_pack(json.loads(line), scrub, terms)
-            for line in files["units.jsonl"].splitlines() if line.strip()]
-    originals = {row["id"]: row for row in map(json.loads, files["units.jsonl"].splitlines()) if row}
-    for row in rows:
-        original = originals[row["id"]]
+    originals = [json.loads(line) for line in files["units.jsonl"].split("\n") if line.strip()]
+    rows = []
+    for original in originals:
+        row = website.publication_pack(original, scrub, terms)
+        rows.append(row)
         if any(row.get(key) != original.get(key) for key in ("text", "source_url", "also")) and "validation_status" in row:
             if row["validation_status"] == "REMEDIATED-PROJECTION":
                 row["publication_redacted"] = True
@@ -299,7 +307,7 @@ def public_pack_files(repo: Path, hub: Path, files: dict, lca, withheld=()) -> d
     with tempfile.TemporaryDirectory(prefix="public-dr-pack-") as temporary:
         out = Path(temporary)
         compile_rows(lca, out, metadata["concept"], metadata["slug"], rows, metadata)
-        return {filename: (out / filename).read_text() for filename in PACK_FILES}
+        return {filename: (out / filename).read_text(encoding="utf-8") for filename in PACK_FILES}
 
 
 def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: str,

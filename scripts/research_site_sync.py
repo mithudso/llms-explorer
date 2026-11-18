@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Audit or refresh publishable concept research in the website checkout.
 
-The default is read-only. --apply merges the hub tree and renders concept JSON,
+The default leaves published files unchanged and needs a writable checkout
+lock under tmp/. --apply merges the hub tree and renders concept JSON,
 tree JSON, context JSON and facts downloads together. Existing website-only
 research stays intact. Source-library snapshots and source mirrors never enter
 the website. --check exits 1 if generated content needs refreshing.
@@ -42,9 +43,15 @@ def json_text(value, indent=1, sort_keys=False):
     return json.dumps(value, ensure_ascii=False, indent=indent, sort_keys=sort_keys) + "\n"
 
 
+def tree_snapshot(path: Path) -> tuple[list[dict], str]:
+    raw = path.read_bytes()
+    value = json.loads(raw.decode("utf-8"))
+    nodes = value if isinstance(value, list) else value.get("nodes", [])
+    return nodes, hashlib.sha256(raw).hexdigest()
+
+
 def nodes_at(path: Path) -> list[dict]:
-    value = read_json(path)
-    return value if isinstance(value, list) else value.get("nodes", [])
+    return tree_snapshot(path)[0]
 
 
 def merge_nodes(destination: list[dict], source: list[dict]) -> list[dict]:
@@ -70,10 +77,12 @@ def merge_nodes(destination: list[dict], source: list[dict]) -> list[dict]:
                         absorbed[old] = target
     result = copy.deepcopy(destination)
     by_name = {node["concept"]: node for node in result}
-    taken = {node.get("slug") for node in result}
+    by_owner_slug = {}
+    for node in result:
+        by_owner_slug.setdefault(node.get("slug"), node)
     for incoming in source:
         name = incoming["concept"]
-        owner = next((node for node in result if node.get("slug") == incoming.get("slug")), None)
+        owner = by_owner_slug.get(incoming.get("slug"))
         if name not in by_name and owner:
             if owner["concept"].casefold() in {alias.casefold() for alias in incoming.get("aliases", [])}:
                 old = owner["concept"]
@@ -85,12 +94,11 @@ def merge_nodes(destination: list[dict], source: list[dict]) -> list[dict]:
                 name = owner["concept"]
         if name not in by_name:
             node = copy.deepcopy(incoming)
-            if node.get("slug") in taken:
-                owner = next(item["concept"] for item in result if item.get("slug") == node.get("slug"))
-                raise ValueError(f"concept slug collision: {node['slug']} ({owner!r} vs {name!r})")
+            if owner is not None:
+                raise ValueError(f"concept slug collision: {node['slug']} ({owner['concept']!r} vs {name!r})")
             result.append(node)
             by_name[name] = node
-            taken.add(node.get("slug"))
+            by_owner_slug[node.get("slug")] = node
             continue
         node = by_name[name]
         for key in ("childConcepts", "aliases", "slugAliases"):
@@ -247,10 +255,14 @@ def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
     return clean(pack)
 
 
+def plain_slug(slug: object) -> bool:
+    return isinstance(slug, str) and bool(slug) and slug not in (".", "..") and Path(slug).name == slug
+
+
 def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None = None,
          withheld: tuple | list = (), authoritative_slugs=(), only_slugs=()) -> tuple[dict, dict[Path, str]]:
     only_slugs = set(only_slugs)
-    if any(not slug or Path(slug).name != slug or slug in (".", "..") for slug in only_slugs):
+    if any(not plain_slug(slug) for slug in only_slugs):
         raise ValueError("reader scope must contain plain concept slugs")
     sys.path.insert(0, str(repo / "scripts"))
     scrub = module("research_site_scrub", repo / "scripts/publish_scrub.py")
@@ -258,10 +270,11 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     tree = module("research_site_tree", repo / "site/tools/gen_tree.py")
     context = module("research_site_context", repo / "site/tools/gen_context.py")
     facts = module("research_site_facts", repo / "site/tools/gen_concept_facts.py")
-    current_nodes = nodes_at(repo / "concept-tree/tree.json")
-    hub_nodes = nodes_at(hub / "concept-tree/tree.json")
-    tree_hashes = {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
-                   for path in (repo / "concept-tree/tree.json", hub / "concept-tree/tree.json")}
+    current_tree = repo / "concept-tree/tree.json"
+    hub_tree = hub / "concept-tree/tree.json"
+    current_nodes, current_hash = tree_snapshot(current_tree)
+    hub_nodes, hub_hash = tree_snapshot(hub_tree)
+    tree_hashes = {str(current_tree): current_hash, str(hub_tree): hub_hash}
     # A separate unfinished publication can own otherwise qualified local data.
     # Deferring its public projection must never remove the private hub node.
     deferred = {name.strip() for name in os.environ.get("RESEARCH_SITE_DEFER_CONCEPTS", "").splitlines()
@@ -335,12 +348,14 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
             if candidate is None or not candidate.get("facets"):
                 classifications[str(path.relative_to(root))] = "non-renderable"
                 continue
+            slug = candidate["slug"]
+            if not plain_slug(slug):
+                raise ValueError(f"pack manifest slug must be a plain concept slug: {path.name}")
             if private_pack(candidate):
                 classifications[path.name] = "excluded"
                 if root == repo / "outputs/llms-concepts":
                     excluded_repository_packs.append(path)
                 continue
-            slug = candidate["slug"]
             previous = selected.get(slug)
             owner = owners.get(slug)
             compatible_owner = owner and owner["concept"].casefold() in (
@@ -424,15 +439,16 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
         if node.get("summary"):
             node["summary"] = scrub.scrub_public_text(str(node["summary"]),
                                                       [*scrub.gate.denylist(), *withheld])
-    missing = only_slugs - set(selected)
+    missing = only_slugs - (selected.keys() | pack_aliases.keys())
     if missing:
         raise ValueError("scoped reader packs not found: " + ", ".join(sorted(missing)))
+    output_slugs = {pack_aliases.get(slug, slug) for slug in only_slugs}
     selected = {slug: publication_pack(pack, scrub, [*scrub.gate.denylist(), *withheld])
-                if not only_slugs or slug in only_slugs else pack for slug, pack in selected.items()}
+                if not output_slugs or slug in output_slugs else pack for slug, pack in selected.items()}
     writes = dict(recovered_writes)
     writes.update({path: None for path in excluded_repository_packs})
     for slug, pack in selected.items():
-        if only_slugs and slug not in only_slugs:
+        if output_slugs and slug not in output_slugs:
             continue
         if slug not in site_packs:
             new.append(slug)
