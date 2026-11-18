@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.203 — 2026-11-18 code and repository bootstrap audits
+
+- TASK-1508 recorded the exact deployed UI repair through PR 383. Live representative reflow and graph recovery passed in Chromium and WebKit. Native Chromium passed graph keyboard search. WebKit native rendering and assistive-technology evidence remain open.
+- The code audit statically screened 50 selected sources and deeply reviewed five. Verified repairs protect evidence bytes and older reviews, site tree refresh, research JSONL and skill registry synchronization. The tracked ledger reports 62 of 931 current sources. It leaves uncovered source and checks eligible for continuation.
+- Repo-bootstrapper reconfirmed 48 previous manifest paths, added MongoDB research navigation and CI coverage, and validated 38 source-index paths. Historical operations coverage remains partial. The code and bootstrap audit reports hold exact scope and remaining work.
+- Delta from memory v0.22.202 to v0.22.203. Prompt v160.
+
 ## v0.22.202 — 2026-11-18 site UI optimizer
 
 - TASK-1508 delivered the prose phase through PR 382. Production verification checked the exact deployed revision, both privacy formats, and nine additional public pages.

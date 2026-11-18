@@ -5,7 +5,7 @@
 The test suite enforces the following principles:
 - **Meaningful assertions**: Tests must verify real observable behavior and state, rejecting superficial coverage gaming.
 - **Hermetic environments**: Tests run against isolated Postgres databases or temporary directory structures.
-- **Database guarantees**: All database tests run against PostgreSQL to test triggers, constraints, and JSONB queries.
+- **Database guarantees**: API database tests use PostgreSQL to verify triggers, constraints, and JSONB queries. The standalone research packages document their own offline fixtures and optional database checks.
 
 ## Test Suites
 
@@ -71,6 +71,20 @@ target is meaningful assertions for changed and risky behavior, including
 errors and logs. Passing unit tests does not measure research answer quality,
 retrieval recall or semantic entailment. Those require separate datasets and
 independent evidence review.
+
+## Standalone MongoDB research library
+
+The [package guide](../hub/research-library/README.md) documents its offline and
+opt-in verification. CI exercises the frozen package on Python 3.11 and 3.13
+with temporary roots and fake providers. The coworker-kit suite also compares
+documented tools and default arguments against both MongoDB-backed MCP tool
+registrations. Live service health requires separate verification.
+
+```sh
+uv run --directory hub/research-library --frozen ruff check src tests scripts client
+uv run --directory hub/research-library --frozen pytest -q
+uv run --directory hub/research-library --frozen python -m pytest -q ../../tests/test_research_library_coordination.py
+```
 
 ## Skill registry and hosted optimizer broker
 

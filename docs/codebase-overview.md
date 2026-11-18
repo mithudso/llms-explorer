@@ -86,6 +86,17 @@ This document maps the entire repository structure by directory and module.
 The package guide and [wiki entry](subsystems/research-expertise.md) describe
 command ownership and preserve the distinction between capture and validation.
 
+## MongoDB research library
+
+- [Package guide](../hub/research-library/README.md) for the separately locked
+  shared research library, client setup and verification.
+- [Storage and draft revisions](../hub/research-library/src/research_library_service/store.py),
+  [MCP entrypoint](../hub/research-library/src/research_library_service/mcp_server.py)
+  and [proof-bound compilation](../hub/research-library/src/research_library_service/compilation.py).
+- [Documentation distillation skill](../.agents/skills/llms-full-to-mongodb/SKILL.md)
+  inventories the input and routes research records and skill releases to their
+  respective services.
+
 ## Skill registry and optimizer broker
 
 - `hub/skill-registry/`: independently locked Python package with its own README

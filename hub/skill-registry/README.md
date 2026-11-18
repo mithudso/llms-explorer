@@ -239,6 +239,10 @@ it checks cancellation between guides and exits after any in-flight bounded
 operation. Its JSON receipts belong in private runtime logs.
 If an ingest is partial or aborted, watch mode also preserves the previous hook
 cache and reports `ingest-incomplete` instead of replacing it with partial data.
+Cycle receipts flush as soon as they are written. A one-shot watch exits with
+status 2 when ingestion or the requested cache refresh raises an error. If
+ingestion succeeded before the cache error, the receipt retains the ingest
+counts and reports the cache failure separately.
 
 The store provisions a Voyage `autoEmbed` vector index on `search_text` and an
 Atlas Search text index. Atlas maintains document and query embeddings. Search

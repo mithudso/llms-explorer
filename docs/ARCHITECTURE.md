@@ -67,6 +67,15 @@ checks grant no native evidence qualification. Search rechecks canonical hashes
 and returns unreviewed status explicitly. See [the package guide](../hub/research-expertise/README.md)
 and [the native concept contracts](architecture/concept-knowledge-contracts.md).
 
+## Shared MongoDB research library
+
+The [MongoDB research library](../hub/research-library/README.md) owns shared
+concepts, exact source evidence, working revisions and native artifacts. The
+[SK Research workflows](sk-research.md) coordinate shared work through its
+MCP interface. Trusted publication runs against exact stored inputs. Artifact
+indexing records its own coverage separately. The local research expertise
+component has a separate Neo4j capture and retrieval contract.
+
 ## Skill source and immutable release decision
 
 The standalone `hub/skill-registry/` package keeps source guides authoritative.

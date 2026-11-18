@@ -7,6 +7,7 @@ repository. The rules are in [`CLAUDE.md`](CLAUDE.md).
 
 ## Start here
 
+- [SK Research](sk-research.md) for the MongoDB-first research workflow and its shared library.
 - Research capture, evidence boundaries and local Neo4j retrieval: [[research-expertise]]
 - Skill sources, private releases and optional optimizer jobs: [[skill-registry]]
 - Site styling, the logo or the concept tree page: [[site-design-tokens]]
@@ -22,6 +23,7 @@ repository. The rules are in [`CLAUDE.md`](CLAUDE.md).
 
 ## subsystems
 
+- [MongoDB research library](../hub/research-library/README.md) and [llms-full.txt distillation](../.agents/skills/llms-full-to-mongodb/SKILL.md).
 - [[research-expertise]] -- canonical capture, projection, retrieval and validation boundaries
 - [[skill-registry]] -- source lookup, private releases and candidate-worker boundaries
 - [[tree-publication]] -- API proposal commits, file journals and recovery limits
@@ -39,6 +41,7 @@ repository. The rules are in [`CLAUDE.md`](CLAUDE.md).
 
 ## history
 
+- [18 November repository bootstrap audit](repo-bootstrap-audit-2026-11-18.md)
 - [[repo-bootstrap-audit-2026-11-11]] -- scoped repository maintenance and actual coverage
 
 

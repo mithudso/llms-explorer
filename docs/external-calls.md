@@ -1,13 +1,17 @@
 # External Calls Inventory
 
+This is a partial inventory. The legacy [operations registry](operations-registry.json)
+and [tool inventory](tool-inventory.json) describe historical subsets. Current
+component contracts are linked below.
+
 | Component | Target Service | Transport | Error Handling | Retry Policy |
 |---|---|---|---|---|
-| `api/explorer_api/billing.py` | Stripe API | HTTPS REST (`stripe` SDK) | `stripe.error.StripeError` | Handled via webhook idempotency & exponential backoff |
+| `api/explorer_api/billing.py` | Stripe API | HTTPS REST (`stripe` SDK) | `stripe.error.StripeError` | No application-level outbound retry configured here. Webhook idempotency handles incoming events. |
 | `api/explorer_api/auth.py` | GitHub OAuth | HTTPS REST (`httpx`) | `auth.OAuthError` | Fast fail on bad authorization code |
 | `api/explorer_api/auth.py` | Google OAuth | HTTPS REST (`httpx`) | `auth.OAuthError` | Fast fail on bad authorization code |
 | `api/explorer_api/routes/skills.py` | Anthropic Claude API | HTTPS REST (`anthropic` SDK) | `anthropic.APIError` / `gw.GatewayRefusal` | Fail on provider error; ledger records all attempts (component 16 §1) |
 | `hub/scripts/embed_core.py` | Ollama Hosts | HTTP REST (`urllib`) | ConnectionError / Timeout | Weighted failover across cluster nodes |
-| `hub/scripts/llms_full_catalog.py` | External Documentation Sites | HTTPS GET (`urllib`) | Log and skip | Single retry on HTTP 5xx |
+| `hub/scripts/llms_full_catalog.py` | External Documentation Sites | HTTPS GET (`urllib`) | Log and skip | Two attempts by default for transport failures and retryable HTTP errors. HTTP 401, 403, 404, 410 and 451 stop immediately. |
 
 ## Research expertise boundary
 
@@ -26,3 +30,14 @@ The broader inventory still needs call-level source anchors, logger/test/retry
 coverage and an accurate generated operations map. A new generic registry and
 dashboard would be a separate architecture change; this audit does not invent
 those surfaces.
+
+## Current component inventories
+
+- The [fleet observability inventory](../ops/observability/inventory.json) records
+  monitored services and gaps. The [operating standard](operations/observability.md)
+  describes its ownership, checks and log fields.
+- The [research library package](../hub/research-library/README.md) records its
+  MongoDB, Atlas Search and publication boundaries. The
+  [coworker kit tests](../hub/research-library/tests/test_coworker_kit.py) check
+  documented tool names and defaults against source. Repository-wide call,
+  remediation and datastore-readback coverage remains open.

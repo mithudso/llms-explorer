@@ -99,3 +99,11 @@
 - [Its guide](../native/speculative-mlx/README.md) owns Apple Silicon, native
   library discovery, build/preflight and numerical qualification limits.
   A documentation audit does not launch a model or qualify hardware behavior.
+
+## 10. MongoDB research library
+
+The independently locked package stores versioned concepts, evidence snapshots,
+claims, research runs, and generated artifacts. Research workflows use its
+MCP connection. Trusted publication and artifact indexing have separate
+verification. See the [package guide](../hub/research-library/README.md) and
+[distillation skill](../.agents/skills/llms-full-to-mongodb/SKILL.md).
