@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v159 — 2026-11-18 llms-full.txt distillation skill
+
+> Create a skill that turns an llms-full.txt file and distills it into research and skill files as they exist on in the mongodb database. This is a good example: https://py.sdk.modelcontextprotocol.io/llms-full.txt
+
+Create a reusable workflow for a local file or URL. Route source-bound research to the research library and procedural guides to the skill registry. Use the example to verify a read-only preview.
+
+Tracking TASK-1504. Delta from prompt v158 to v159.
+
 ## Prompt v158 — 2026-11-15 public-site Cloudflare Access repair
 
 Original user request: "Can you do that?" This approves the preceding proposal to remove the public site from the blanket All Workers sign-in requirement.

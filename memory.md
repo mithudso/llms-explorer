@@ -1,5 +1,13 @@
 # Memory
 
+## v0.22.200 — 2026-11-18 llms-full.txt distillation skill
+
+- TASK-1504 adds the project skill `llms-full-to-mongodb` and its Claude alias. The workflow inventories and distills the supplied documentation, saves evidence-bound research drafts through the research library, and packages task-specific guides through the skill registry. Trusted research finalization and MongoDB skill readback have their own receipts.
+- The span helper preserves UTF-8 snapshot hashes and exclusive Unicode offsets. An independent preview inventoried 54 sections and verified seven evidence spans for the mounted MCP Python SDK server workflow. The SDK example ran in preview mode. Resolve a topic ID or scope IDs before making the research library's narrow search calls.
+- The repository's skill-page parity test records the private registry distribution reason for this guide. Codex discovery and pinned MongoDB readback verified the guide and both resources against the reviewed source.
+- Continue from the immutable Git and registry receipts on TASK-1504. A future persisted distillation needs the authorized input and destination. Drafts retain publisher provenance and qualification gaps.
+- Delta from memory v0.22.199 to v0.22.200. Prompt v159.
+
 ## v0.22.199 — 2026-11-15 public-site Cloudflare Access repair
 
 - TASK-1496: the user authorized restoring public access after the legacy Cloudflare sign-in callback returned 404. Both public roots matched the account-wide All Workers Access audience.
