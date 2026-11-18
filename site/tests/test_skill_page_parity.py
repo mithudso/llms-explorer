@@ -18,6 +18,7 @@ CONTENT_DIR = SITE / "src" / "content" / "skills"
 UNPUBLISHED = {
     "notes-to-llms": "superseded by notes-to-llms-txt; kept for existing installs",
     "document-formats": "general-purpose file-format skill, outside the site's llms.txt narrative",
+    "llms-full-to-mongodb": "operator workflow distributed through the private MongoDB skill registry",
 }
 
 
