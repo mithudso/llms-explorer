@@ -189,8 +189,9 @@ def _source(shared, url: str, out: Path, fetch: bool, pin: tuple[str, str] | Non
         metadata = shared.lib_find(url) if result.get("ok") else None
     if not metadata or not metadata.get("text_path"):
         return {"url": url, "source_id": shared.source_id(url), "available": False}
-    text = Path(metadata["text_path"]).read_text(encoding="utf-8")
-    sha = digest(text.encode())
+    raw = Path(metadata["text_path"]).read_bytes()
+    text = raw.decode("utf-8")
+    sha = digest(raw)
     if not text.strip() or metadata.get("sha256") != sha:
         raise ValueError(f"source snapshot hash mismatch: {url}")
     destination = out / "evidence" / f"{sha}.txt"
@@ -386,7 +387,8 @@ def reusable_judgments(shared, manifest, packet, root):
             receipt = json.loads((previous / 'validation.json').read_text())
             old = json.loads((previous / 'packet.json').read_text())
             response = json.loads((previous / 'verdicts.json').read_text())
-            if (old.get('schema') != packet.get('schema')
+            if (not isinstance(old, dict) or not isinstance(receipt, dict)
+                    or old.get('schema') != packet.get('schema')
                     or old.get('schema') not in (STRICT_SCHEMA, SCHEMA, LEGACY_SCHEMA)
                     or receipt.get('packet_sha256') != old.get('packet_sha256')):
                 continue
@@ -505,10 +507,10 @@ def evidence_text(packet: dict, root: Path, source: dict) -> str:
     path = (root / source["file"]).resolve()
     if not path.is_relative_to(root.resolve()):
         raise ValueError("gate evidence escapes its immutable snapshot directory")
-    text = path.read_text(encoding="utf-8")
-    if digest(text.encode()) != source["snapshot_sha256"]:
+    raw = path.read_bytes()
+    if digest(raw) != source["snapshot_sha256"]:
         raise ValueError("gate evidence snapshot changed")
-    return text
+    return raw.decode("utf-8")
 
 
 def validate_judgment(packet: dict, claim: dict, judgment: dict, root: Path) -> str:

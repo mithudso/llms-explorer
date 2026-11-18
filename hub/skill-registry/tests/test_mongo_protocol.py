@@ -185,6 +185,39 @@ def test_watch_preserves_cache_on_partial_ingest(monkeypatch, capsys, receipt):
         assert calls == [True] and result["hook_cache"]["refreshed"]
 
 
+@pytest.mark.parametrize("failing_stage", ["ingest", "cache"])
+def test_mongo_watch_once_exits_nonzero_and_preserves_completed_accounting(
+        monkeypatch, capsys, failing_stage):
+    from skill_registry import cli, hook_cache
+
+    class Store:
+        def ingest(self, catalog, stop_event=None):
+            if failing_stage == "ingest":
+                raise TimeoutError("private connection detail")
+            return {"ingested": 4, "changed": 1}
+
+    def fail_cache(store):
+        raise OSError("private cache path")
+
+    monkeypatch.setattr(cli, "Service", lambda state: SimpleNamespace(
+        config={}, catalog=object(), jobs=object(), mongo=lambda: Store()))
+    monkeypatch.setattr(hook_cache, "refresh_cache", fail_cache)
+    monkeypatch.setattr(sys, "argv", ["skill-registry", "mongo", "watch", "--once",
+                                      "--refresh-hook-cache"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+
+    capture = capsys.readouterr()
+    assert exc.value.code == 2 and "private" not in capture.out + capture.err
+    receipt = json.loads(capture.out)
+    if failing_stage == "ingest":
+        assert receipt == {"status": "failed", "error_type": "TimeoutError"}
+    else:
+        assert receipt["ingested"] == 4 and receipt["changed"] == 1
+        assert receipt["hook_cache"] == {
+            "refreshed": False, "preserved": True, "reason": "refresh-failed", "error_type": "OSError"}
+
+
 def test_mongo_watch_sigterm_reaches_active_ingest_and_preserves_cache(monkeypatch, capsys):
     from skill_registry import cli, hook_cache
     observed = []

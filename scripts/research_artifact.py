@@ -163,7 +163,7 @@ def verify(artifact):
 def public_projection(files):
     """Project only already-scrubbed compiled units; never copy source bodies."""
     manifest = json.loads(files['manifest.json'])
-    rows = [json.loads(line) for line in files['units.jsonl'].splitlines() if line.strip()]
+    rows = [json.loads(line) for line in files['units.jsonl'].split('\n') if line.strip()]
     result = {'schema': 'research-public-artifact/v1', 'concept': manifest['concept'], 'slug': manifest['slug'],
               'canonical_concept_id': manifest.get('canonical_concept_id'),
               'canonical_artifact_sha256': manifest.get('canonical_artifact_sha256'),

@@ -54,7 +54,8 @@ def plan(repo: Path, hub: Path, withheld=()):
             if not (source / "manifest.json").is_file() or not (source / "units.jsonl").is_file():
                 continue
             metadata = json.loads((source / "manifest.json").read_text())
-            rows = [json.loads(line) for line in (source / "units.jsonl").read_text().splitlines() if line.strip()]
+            with (source / "units.jsonl").open(encoding="utf-8") as units:
+                rows = [json.loads(line) for line in units if line.strip()]
             if not rows or any(row.get("origin") != "dr" for row in rows):
                 continue
             destination = roots[label] / source.name

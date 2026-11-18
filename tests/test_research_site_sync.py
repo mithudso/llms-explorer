@@ -437,6 +437,49 @@ class SiteSyncTests(unittest.TestCase):
         self.assertIn("[source](https://example.test/primary)", markdown)
         self.assertIn("[also](https://example.test/secondary)", markdown)
 
+    def test_refresh_replans_if_tree_changes_during_parse(self):
+        self.save_pack()
+        path = self.repo / 'concept-tree/tree.json'
+        before = path.read_bytes()
+        next_tree = [node('Root', 'root'), node('Other writer', 'other-writer')]
+        original_loads = json.loads
+        changed = False
+
+        def load_and_update(value, *args, **kwargs):
+            nonlocal changed
+            if not changed and value in (before, before.decode()):
+                changed = True
+                path.write_text(json.dumps(next_tree))
+            return original_loads(value, *args, **kwargs)
+
+        with patch.object(json, 'loads', load_and_update):
+            website.sync(self.repo, self.hub, apply=True)
+
+        self.assertTrue(changed)
+        self.assertEqual({row['slug'] for row in json.loads(path.read_text())},
+                         {'root', 'new-concept', 'other-writer'})
+
+    def test_scoped_refresh_writes_canonical_reader_for_exported_alias(self):
+        record = {**node('Canonical name', 'canonical'), 'aliases': ['Old name']}
+        for root in (self.repo, self.hub):
+            (root / 'concept-tree/tree.json').write_text(json.dumps([record]))
+        self.save_pack('Old name', 'old-name')
+        report = website.sync(self.repo, self.hub, apply=True, only_slugs=['old-name'])
+        self.assertEqual(report['reader_scope'], ['old-name'])
+        self.assertEqual(report['pack_slug_aliases'], {'old-name': 'canonical'})
+        projected = json.loads((self.repo / 'site/src/data/concepts/canonical.json').read_text())
+        self.assertEqual((projected['slug'], projected['concept']), ('canonical', 'Canonical name'))
+        self.assertFalse((self.repo / 'site/src/data/concepts/old-name.json').exists())
+
+    def test_plan_rejects_a_pack_slug_with_path_components(self):
+        self.save_pack()
+        path = self.hub / 'llms-concepts/new-concept.llms/manifest.json'
+        metadata = json.loads(path.read_text())
+        metadata['slug'] = 'nested/invalid'
+        path.write_text(json.dumps(metadata))
+        with self.assertRaisesRegex(ValueError, 'pack manifest slug'):
+            website.plan(self.repo, self.hub)
+
     def test_scoped_refresh_rejects_unknown_or_unsafe_reader_names(self):
         for slug in ("missing", "../escape"):
             with self.subTest(slug=slug), self.assertRaises(ValueError):

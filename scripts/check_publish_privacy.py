@@ -189,7 +189,8 @@ def allowlist():
     p = os.path.join(REPO, ".privacy-allowlist")
     if not os.path.exists(p):
         return []
-    return [l.strip() for l in open(p) if l.strip() and not l.startswith("#")]
+    with open(p, encoding="utf-8") as source:
+        return [line.strip() for line in source if line.strip() and not line.startswith("#")]
 
 
 def denylist():
@@ -197,7 +198,8 @@ def denylist():
     terms = []
     p = os.path.join(REPO, ".privacy-denylist")
     if os.path.exists(p):
-        terms += [l.strip() for l in open(p) if l.strip() and not l.startswith("#")]
+        with open(p, encoding="utf-8") as source:
+            terms += [line.strip() for line in source if line.strip() and not line.startswith("#")]
     terms += [t.strip() for t in os.environ.get("PRIVACY_DENYLIST", "").split(",")
               if t.strip()]
     return [t for t in terms if len(t) >= 2]

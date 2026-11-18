@@ -79,6 +79,7 @@ cd site && npm run build
 ## Documentation
 - [Maintained documentation wiki](docs/index.md): navigation and source verification rules.
 - [Research expertise](hub/research-expertise/README.md): local capture, graph/semantic retrieval and MCP.
+- [MongoDB research library](hub/research-library/README.md) for shared research records and evidence-bound publication.
 - [Skill registry](hub/skill-registry/README.md): lexical lookup, pinned bundles, hosted account access and optional local workers.
 - `docs/ARCHITECTURE.md`: High-level system design.
 - `docs/DEVELOPMENT.md`: Prerequisites and environment setup.

@@ -94,6 +94,12 @@ downloads and production corpus writes are not prerequisites. Installation,
 capture, reingestion and model migration are separate operations documented in
 [the package guide](../hub/research-expertise/README.md).
 
+## Standalone MongoDB research library
+
+Its [package guide](../hub/research-library/README.md) owns private runtime
+setup and migration. Use the package's frozen lockfile and offline checks in
+[Testing](TESTING.md#standalone-mongodb-research-library) for development.
+
 ## Standalone skill registry
 
 ```sh

@@ -1,4 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Event
 
 import pytest
 
@@ -81,6 +83,74 @@ def test_dangling_previously_known_alias_preserves_catalog(tmp_path):
     assert result["partial"]
     assert result["counts"] == {"skills": 1, "installations": 1, "invalid_skills": 0}
     assert "unavailable symbolic-link source" in result["warnings"][0]
+
+
+def test_refresh_cannot_reconcile_an_older_scan_after_a_newer_one(skill, roots, tmp_path, monkeypatch):
+    older = Catalog(tmp_path / "state", roots)
+    newer = Catalog(tmp_path / "state", roots)
+    older.refresh()
+    scanned, newer_started, release = Event(), Event(), Event()
+    discover = older._discover
+
+    def pause_after_scan():
+        result = discover()
+        scanned.set()
+        assert release.wait(5)
+        return result
+
+    def refresh_newer():
+        newer_started.set()
+        return newer.refresh()
+
+    monkeypatch.setattr(older, "_discover", pause_after_scan)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(older.refresh)
+        try:
+            assert scanned.wait(5)
+            added = skill.parent / "added"
+            added.mkdir()
+            (added / "SKILL.md").write_text("---\nname: added\ndescription: Newly discovered guide\n---\n")
+            second = pool.submit(refresh_newer)
+            assert newer_started.wait(5)
+            # An uncoordinated second refresh commits while the first scan is paused.
+            from concurrent.futures import TimeoutError
+            try:
+                second.result(timeout=0.5)
+            except TimeoutError:
+                pass
+        finally:
+            release.set()
+        assert not first.result(timeout=5)["partial"]
+        assert not second.result(timeout=5)["partial"]
+
+    assert older.status()["counts"]["skills"] == 2
+
+
+def test_partial_ingest_preserves_alias_until_target_can_be_indexed(tmp_path):
+    root = tmp_path / "skills"
+    root.mkdir()
+    original = tmp_path / "original"
+    invalid = tmp_path / "invalid"
+    for source in (original, invalid):
+        source.mkdir()
+    (original / "SKILL.md").write_text("---\nname: original\ndescription: Original guide\n---\n")
+    (invalid / "SKILL.md").write_bytes(b"\xff")
+    alias = root / "alias"
+    alias.symlink_to(original, target_is_directory=True)
+    catalog = Catalog(tmp_path / "state", [{"path": str(root)}])
+    catalog.refresh()
+    alias.unlink()
+    alias.symlink_to(invalid, target_is_directory=True)
+    (root / "another").symlink_to(invalid, target_is_directory=True)
+
+    receipt = catalog.refresh()
+
+    assert receipt["partial"]
+    assert receipt["counts"] == {"skills": 1, "installations": 1, "invalid_skills": 0}
+    hit = catalog.lookup("original", refresh=False)["hits"][0]
+    assert [item["path"] for item in hit["installations"]] == [str(alias / "SKILL.md")]
+    (invalid / "SKILL.md").write_text("---\nname: current\ndescription: Current guide\n---\n")
+    assert catalog.refresh()["counts"] == {"skills": 1, "installations": 2, "invalid_skills": 0}
 
 
 @pytest.mark.parametrize("query,top", [("", 5), ("word", True), ("word", 21), ("x" * 2001, 5)])

@@ -284,7 +284,8 @@ def build_one(pack_dir: Path) -> dict[str, Any] | None:
         pack["canonicalArtifactSha256"] = manifest["canonical_artifact_sha256"]
         pack["canonicalConceptId"] = manifest.get("canonical_concept_id")
         units_path = pack_dir / "units.jsonl"
-        units = [json.loads(line) for line in units_path.read_text().splitlines() if line.strip()]
+        with units_path.open(encoding="utf-8") as source:
+            units = [json.loads(line) for line in source if line.strip()]
         pack["facets"] = canonical_facets(units)
         if manifest.get("narrative"):
             pack["narrative"] = manifest["narrative"]
