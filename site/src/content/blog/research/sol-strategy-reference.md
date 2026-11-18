@@ -18,7 +18,7 @@ evidenceNote: "Editorial review does not independently reproduce the original ex
 > recommendation to trade anything. Simulated past performance does not predict future results.
 > Performance figures below are archived outputs attributed to the original author’s runs, not newly reproduced results. `SPEC-ONLY` marks mechanisms that were not run at that stage. It does not assert that every literature estimate or methodological statement was independently verified.
 
-**Companion document:** “Historical SOL strategy rankings and robustness checks” (forthcoming, planned 2026-11-18) holds the three ranked lists.
+**Companion document:** [Historical SOL strategy rankings and robustness checks](/blog/research/sol-strategy-rankings/) holds the three ranked lists.
 **Original specification:** `PROMPT_STRATEGIES.md` in the source checkout; it is not bundled with this article.
 
 ---
@@ -43,13 +43,10 @@ own entry.
 
 Evaluation uses **combinatorial purged cross-validation** (8 blocks, k=2, 28 nominal paths, usually 15 or 21 usable paths after warm-up). The later phase covered **25 registered strategies**, the original 16 plus nine implemented from the earlier spec-only cards. The retained outputs contain **1,121 configurations**:
 
-- **PBO is 0.343 / 0.700 / 0.700** (short / medium / long). Calibrated against constructed
-  controls in the test suite, **pure noise gives 0.500 and a genuinely ordered signal set gives
-  0.000** — so at the daily horizons in-sample rank is *anti*-informative.
-- **At the short horizon not one of the 25 has a positive median path Sharpe.** The best,
-  `stoch_14_3` at −0.341, still loses.
+- The probability of backtest overfitting (PBO) was **0.343 / 0.700 / 0.700** at the short, medium and long horizons. In the test controls, pure noise averaged **0.500** and the ordered signal set gave **0.000**. At each daily horizon, the in-sample winner ranked below the out-of-sample candidate median in 70% of tested splits.
+- **At the short horizon, none of the 25 strategies had a positive median path Sharpe.** `stoch_14_3` had the highest value, at −0.341.
 - Growing the search 16 → 25 raised PBO by **+0.100 (medium) and +0.150 (long)** once the
-  coincident block-set change is held fixed. Candidate count and candidate composition both changed, so this is not an isolated causal estimate of search-size effects. Full decomposition in “Historical SOL strategy rankings and robustness checks” (forthcoming, planned 2026-11-18).
+  coincident block-set change is held fixed. Candidate count and candidate composition both changed, so this is not an isolated causal estimate of search-size effects. Full decomposition in [Historical SOL strategy rankings and robustness checks](/blog/research/sol-strategy-rankings/).
 - Best rows now: `hurst_switch` (medium, +0.699, 93% of paths positive), `obv_trend_60` (long,
   +0.774, 81%), `vol_regime` (long, +0.696, 80%). All three were spec-only or untested before.
 - The highest median Sharpe in the retained pair tables — `all(dual_momentum+vol_regime)`, long, **+1.345** on
@@ -61,11 +58,11 @@ out-of-sample Sharpe and 47 (8%) that made money**, with in-sample rank *inverte
 out-of-sample at the medium horizon (Spearman **−0.423**). One relevant confound is that the **highest close
 in the entire series (\$261.99) is bar 1311 — the final in-sample bar**, so the split separates
 the bull market from the bear leg to within a single bar. Full tables and the method contrast in
-“Historical SOL strategy rankings and robustness checks” (forthcoming, planned 2026-11-18).
+[Historical SOL strategy rankings and robustness checks](/blog/research/sol-strategy-rankings/).
 
 **Consequence for reading this document:** each entry's `Measured` block quotes single-split
 figures, which are evidence about *one regime transition*. Prefer the CPCV distribution in
-“Historical SOL strategy rankings and robustness checks” (forthcoming, planned 2026-11-18) List 1 when deciding anything.
+[Historical SOL strategy rankings and robustness checks](/blog/research/sol-strategy-rankings/) List 1 when comparing reported strategies.
 
 ### Horizon definitions
 
@@ -75,10 +72,11 @@ figures, which are evidence about *one regime transition*. Prefer the CPCV distr
 | **Medium** | 1d | medium (20/50) | ~1–8 weeks | `data/SOL_1d.csv`, 1,875 bars, 2021-06-17→2026-08-04, clean |
 | **Long** | 1d | slow (50/200) | ~3–12 months | same daily file, slow parameters |
 
-### Universal backtest requirements
+<span id="universal-backtest-requirements"></span>
 
-These apply to every entry below and are enforced by the harness (`backtester/`), not left to
-the strategy author:
+### Requirements for the original measured cards
+
+The original harness (`backtester/`) enforced these rules for the implemented strategies:
 
 - **Signal at bar *t* reads only data ≤ *t*; the fill happens at bar *t+1*'s open.** Enforced
   structurally: strategies receive a `BarWindow` whose accessors return `arr[:i+1]`, through the documented accessors. This limits ordinary strategy access but is not a security sandbox for arbitrary Python or NumPy code. The original test suite includes a deliberately cheating strategy that is expected to raise.
@@ -87,7 +85,7 @@ the strategy author:
 - **Costs on the fill:** 6bps taker fee + 2bps slippage on notional, at the executed price.
 - **Warm-up produces no trades.** The first tradeable bar is the first at which every indicator
   is fully defined.
-- **70/30 walk-forward**, with the out-of-sample slice starting `warmup` bars early so
+- **Original 70/30 walk-forward**, with the out-of-sample slice starting `warmup` bars early so
   indicators warm from trailing in-sample bars (reading earlier history is not look-ahead;
   starting cold would discard real out-of-sample data).
 - **Evidence floor:** fewer than 10 out-of-sample trades ⇒ listed, never ranked.
@@ -103,7 +101,7 @@ a cross-sectional peer universe, options-implied volatility, social sentiment.
 
 ## TIER 1 — MEASURED (16 mechanisms)
 
-Implemented in `backtester/core/strategies/`, registered, executed. Real output attached.
+The original study implemented, registered and ran these mechanisms in `backtester/core/strategies/`. The cards below report archived outputs.
 Symbols: `C` = close series, `H`/`L` = high/low, `V` = volume, `n` = window length,
 `c_t` = close at bar *t*.
 
@@ -407,8 +405,8 @@ volume to distinguish accumulation from distribution.
 
 ## 10. Stochastic Oscillator with Turn-Up Confirmation — `oscillator-reversion` · MEASURED
 
-**What it is.** Long when %K is oversold **and** already above %D (turning up).
-**Looks for.** Position within the recent range, plus evidence the turn has begun.
+**What it is.** The backtest takes a long position when %K is oversold and above %D.
+**Looks for.** The oscillator's position within the recent range and its level relative to %D.
 
 **Equation.**
 ```
@@ -448,7 +446,7 @@ enter if c_t < mid_t - k*sd_t ;  exit if c_t > mid_t
 > `sqrt(n/(n-1)) ≈ 1.026` at n=20. The exits are exactly equivalent (`c > mid` ⟺ `z > 0`).
 > **These are one mechanism at two thresholds, not two signals** — and because both are in the
 > sweep, several "cross-family" pairs and two identical `+2.555` triples are double-counting it.
-> Verified from source, not assumed. See “Historical SOL strategy rankings and robustness checks” (forthcoming, planned 2026-11-18) List 3.
+> Verified from source, not assumed. See [Historical SOL strategy rankings and robustness checks](/blog/research/sol-strategy-rankings/) List 3.
 
 **Data.** Close only. **Available.** **Deps.** None. **Warm-up.** `n` bars.
 
@@ -544,8 +542,7 @@ target_t = 1 if OBV_t > SMA(n) of OBV  else 0
 
 **Works when.** Volume genuinely leads price. OBV uses the sign of price changes as well as volume. It can add volume-weighted directional information, but is not price-blind or statistically independent of price signals.
 **Fails when.** Volume data is unreliable or venue-fragmented (a real crypto problem). OBV is
-also a running cumulative sum, so it is **path-dependent and level-arbitrary** — only its slope
-relative to its own average carries information.
+cumulative. Its level depends on its accumulation history and starting value. This rule compares the level with its own trailing average.
 
 **Backtest notes.** Because OBV is cumulative from an arbitrary origin, its absolute level is
 meaningless and any comparison must be to its own history. Splitting the series (as walk-forward
@@ -581,7 +578,7 @@ reacts with a lag equal to the vol window.
 standalone strategy — and that is exactly what was not done here.** It is the only candidate in
 the set intended to alter exposure sizing rather than select a different direction. That does not make its returns statistically orthogonal to direction. The
 untested wrapper configuration is the most obvious gap in this sweep.
-**Pairs with.** Everything, multiplicatively. See “Historical SOL strategy rankings and robustness checks” (forthcoming, planned 2026-11-18) List 2 #8.
+**Pairs with.** Everything, multiplicatively. See [Historical SOL strategy rankings and robustness checks](/blog/research/sol-strategy-rankings/) List 2 #8.
 
 **Implementation.** `core/strategies/signals.py::VolTargetTrend`.
 **Measured.** Medium: IS +15.7% → **OOS −31.1%**, 73 OOS trades. Short: OOS −0.519, numerically
@@ -625,9 +622,7 @@ across 694 trades. Long: OOS −26.5%, 143 trades.
 
 ## TIER 2 — SPEC-ONLY (26 mechanisms, numbered 17–42)
 
-**Not implemented and not run. No performance figures — none are given below, deliberately.**
-Each entry names the equation, what it needs, and the specific data gap that prevented
-measurement. Ordered by family.
+At the original 16-mechanism stage, these 26 cards described mechanisms the study had neither implemented nor measured. Nine entered the later 25-strategy sweep summarized above. The cards retain the original setup and data requirements, grouped by family.
 
 ## Momentum & trend
 
@@ -655,9 +650,8 @@ never be read as a current signal.
 ## Mean-reversion & statistical
 
 **22. Pairs trading / cointegration vs ETH or BTC.** The rigorous version of #12.
-Engle-Granger two-step: regress `X = beta*Y + eps`, ADF-test the residual for stationarity; if
-`p < 0.05` a cointegrating relation exists. `Spread = X - beta*Y`, trade its z-score: enter
-±2.0, exit toward 0, stop ±3.0. Johansen is preferred for 3+ assets (order-invariant).
+The [Engle–Granger cointegration test](https://www.statsmodels.org/stable/generated/statsmodels.tsa.stattools.coint.html) assumes two I(1) price series. It fits a long-run regression, `X = beta*Y + eps`, then tests the residual using cointegration-test critical values. With the test's assumptions satisfied, `p < 0.05` rejects the null of no cointegration at the 5% level. `Spread = X - beta*Y`, trade its z-score: enter
+±2.0, exit toward 0, stop ±3.0. The Johansen procedure can test for cointegration in a multivariate system.
 Practitioner heuristic: require cointegration across 3-, 6-, and 12-month rolling windows.
 **Gap: no peer price series.** Primary risk is convergence failure — the relation breaks and the
 spread keeps diverging.
@@ -671,9 +665,7 @@ fixing it per window. Addresses the corpus-noted instability of static hedge rat
 **Gap: no peer series.**
 
 **25. Variance-ratio / Hurst exponent regime test.** `H < 0.5` mean-reverting, `H > 0.5`
-trending. A *meta*-signal that selects which family to run. **Gap: implementable now — and
-this is the highest-value unimplemented item in this tier**, because the entire measured sweep
-shows trend and reversion inverting between regimes.
+trending. A *meta*-signal that selects which family to run. **Original 16-mechanism stage:** the study identified this as a priority for future implementation because trend and reversion results inverted across regimes. The later sweep included `hurst_switch`.
 
 **26. Volatility-regime HMM.** Two-or-three-state hidden Markov model on realised volatility,
 switching the active strategy family. **Gap: implementable now.**
@@ -779,14 +771,18 @@ wrappers, not signals; cards in `backtester/strategy_cards/lev_*.md`. SOL daily 
 
 ## Reliable triggers (registered: `trigger_trade`)
 
-`research/triggers.py` mines conjunctions of up to three causal conditions (MACD, RSI zones, MA slope,
+`research/triggers.py` tested conjunctions of up to three conditions evaluated at signal time (MACD, RSI zones, MA slope,
 Bollinger touches, z-scores, volume spikes, OBV/balance proxies, ATR expansion, consecutive candles, gaps,
 funding extremes, drawdown) for how often the next 1 to 10 bars go the predicted way, against the base rate,
 with a fixed later validation period, FDR control, stability and cross-asset gates. `trigger_trade` trades one
 (entry next open, exit at the horizon or a MAE-derived stop). Result on SOL: no trigger qualified as reliable
 out of sample. See `research/RELIABLE_SIGNALS.md`; card `backtester/strategy_cards/trigger_trade.md`.
 
-## Reproducing everything
+<span id="reproducing-everything"></span>
+
+## Original study commands
+
+These commands record the original procedures and require the original source and data cache.
 
 ```bash
 python3 -m backtester.core.fetch --asset SOL --interval 1d --start 2021-01-01
@@ -797,7 +793,4 @@ python3 research/verify_numbers.py                       # parsed archived figur
 python3 -m unittest discover -s backtester/tests -t .    # original report listed 409 tests; not rerun for this publication
 ```
 
-> Educational and research use only. **NOT investment advice.** Nothing in this document is
-> evidence that any listed mechanism is profitable. The measured evidence is that on this asset
-> and this window, 8% of 595 rankable configurations made money, and in-sample rank did not
-> predict out-of-sample rank.
+> For research and education only. In the earlier single split, 47 of 595 rankable configurations (8%) made money on this asset and window. At the medium horizon, in-sample and out-of-sample Sharpe ranks had a negative association (Spearman −0.423).

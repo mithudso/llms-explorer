@@ -141,3 +141,13 @@ Iteration3 revisited structure/completeness, technical correctness, operational 
 | `results.json` | `e4d62bbfe4ed947564fbdb18aa070c2681042cd684c9b7f5028bdd55543d0dcd` | Existing source record; archived code is not an exact run implementation pin |
 
 Iteration2 document SHA256: `91151053730df7913e03169d8212c3e9dd0d98feb92def73cfb778202c16c334`. Iteration3 document SHA256 after raw read-back: `de94155f5f3a8c1a99b2fdf4ede1dad5836e3604052bb8ec63bb02b8fa6ee007`. Independent targeted-closure verdict: **pending**.
+
+## Editorial review update — 2026-11-18
+
+Distinguished cached sources from citations, used the observed cached-source ratio, scoped judge verdicts to sampled assertions, and resolved a duplicate page heading.
+
+A separate full manuscript read checked the altered claims against the retained sources and rechecked the final edits after resolving dissent. Earlier original-source limits continue to apply. The study was not rerun. The original publication ledger retains the first released document hash.
+
+- Previously approved document SHA-256: `de94155f5f3a8c1a99b2fdf4ede1dad5836e3604052bb8ec63bb02b8fa6ee007`
+- Revised document SHA-256: `a29a8b4debe29e1b38f861ea62ae084710902ca981b8870d94d955b8e8ccbc8c`
+- Previously approved report SHA-256: `f1428c66c362d5dd69799e6e244c81816023383d4db12f3376483522a3294180`

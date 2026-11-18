@@ -8,7 +8,7 @@ evidenceStatus: unverified
 evidenceNote: "Editorial review does not independently reproduce the original experiment. Results retain the source study’s dates, assumptions and limitations."
 ---
 
-# vLLM vs mlx-lm on M5 Max, and eGPU usability (2026-10-09)
+## vLLM vs mlx-lm on M5 Max, and eGPU usability (2026-10-09)
 
 Historical single-host benchmark: **2026-10-09**. Publication review inspected saved summaries. eGPU inspection was detection only; no experiment was rerun. These results do not qualify today’s runtime or device.
 
@@ -68,8 +68,8 @@ Batch-8 aggregate throughput, and startup:
 
 Evidence: `egpu-detection.json`. This was a detection-only test. At study time a separate macuda llama-server owned the card and a fault marker was present, so this experiment did not open the device.
 
-- **mlx-lm:** `mx.cuda.is_available()` = False. The MLX CUDA backend (`mlx-cuda-13`) ships wheels only for Linux and Windows. On macOS MLX runs on Metal (the M5 Max GPU) only.
-- **vLLM:** the macOS PyTorch 2.13 build has no CUDA (`torch.backends.cuda.is_built()` = False). vLLM's CUDA platform therefore can't load. On macOS vLLM resolves to `MetalPlatform` (vllm-metal → MLX → Apple GPU) or CPU.
+- **mlx-lm:** In the tested build, `mx.cuda.is_available()` returned `False`. The benchmark used Metal on the M5 Max GPU. The study records Linux and Windows wheels for `mlx-cuda-13` at the time.
+- **vLLM:** The tested macOS PyTorch 2.13 build reported `torch.backends.cuda.is_built()` as `False`. The probe reported `MetalPlatform` (vllm-metal through MLX). These probes did not open the eGPU.
 - The study’s macuda configuration (TinyGPU userspace CUDA) supported llama.cpp and stable-diffusion.cpp; it did not provide the PyTorch/vLLM path tested here. This is a dated configuration observation.
 
 The original study records prior llama.cpp/macuda eGPU client timings. They were not reproduced in this detection-only experiment and are historical reference figures with GGUF Q4_K_M at 32k context, so they are a different quant and only roughly comparable:

@@ -338,3 +338,13 @@ The standalone standard-library read-only recomputation completed exit **0** and
 **CLEAN — full-depth editorial/source review for historical archival publication at the accepted manuscript SHA.** All original independent findings and five batch consistency checks are closed. Historical and source-availability limitations remain. No investment-performance or deployed-product certification is made.
 
 Snapshot & rollback: exact report baselines, manuscript snapshots and literal restore commands are retained in the private run receipt; no local machine paths are exposed in this shareable report.
+
+## Editorial review update — 2026-11-18
+
+Corrected the medium-horizon geometry range, clarified parameter and geometry checks, scoped the unleveraged cost model and earlier single-split result, and distinguished archival verification from reproducing the experiment.
+
+A separate full manuscript read checked the altered claims against the retained sources and rechecked the final edits after resolving dissent. Earlier original-source limits continue to apply. The study was not rerun. The original publication ledger retains the first released document hash.
+
+- Previously approved document SHA-256: `feeaf5c78eb617c1bbe898b3710aa6b1cb311f9184defc0f9f15386f7feaeeb3`
+- Revised document SHA-256: `f0df4f636c60cf537e5d9caf89362e7a88b29ba8c72cb5a0358318be54d43d5f`
+- Previously approved report SHA-256: `2c06c5a816e6d04453578675913c9c2a74e8be106e5250b2d7dd5d889c137278`
