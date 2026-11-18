@@ -17,9 +17,11 @@ does not advance that file's ledger hash.
 | Research artifacts | Parse UTF-8 JSONL by physical lines and escape the three Unicode separator characters in newly written DR JSONL for existing readers. Declare UTF-8 on compiled pack and privacy-list I/O. | Exact claims and citations survive compilation, revalidation, public projection, site reads and reimport, including under an ASCII locale. |
 | Skill registry | Serialize refresh discovery and reconciliation, retain valid aliases on partial reads, share one Codex settings read per lookup, flush cycle receipts and keep completed ingestion accounting when cache refresh fails. | Isolated SQLite and CLI failure regressions. One-shot watch errors exit with status 2. |
 
-The final code passed 1,067 research, script and site tests plus 15 subtests,
-and 69 focused skill registry tests. Maintained Ruff checks and all 57 Codex
-adapter comparisons passed. The local full Hub test attempt lacked dependencies
+The main repair batch passed 1,067 research, script and site tests plus 15
+subtests, and 69 focused skill registry tests. Python 3.11 CI then caught a
+syntax regression in the artifact compiler. The corrected candidate passed
+294 focused tests, a Python 3.11 ASCII-locale compile and public projection,
+maintained Ruff checks and all 57 Codex adapter comparisons. The local full Hub test attempt lacked dependencies
 in its initial environment. Full package CI is a separate gate. Repository-wide
 dependency risk and test parallelization reviews remain open. No model-backed
 or embedding evaluation belongs to these code contracts.

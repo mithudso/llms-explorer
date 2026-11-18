@@ -258,7 +258,8 @@ def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadat
     for entry in index["entries"]:
         description = descriptions.get(entry["url"], entry["notes"])
         if entry["url"] in descriptions and entry["url"].endswith(".txt"):
-            description += f" — ≈{lca._tokens_of((out / entry['url']).read_text(encoding="utf-8"))} tokens"
+            token_count = lca._tokens_of((out / entry["url"]).read_text(encoding="utf-8"))
+            description += f" — ≈{token_count} tokens"
         url = entry["url"]
         if entry["section"] == "Facets":
             url = "llms-full.txt#" + heading_slug(entry["name"])

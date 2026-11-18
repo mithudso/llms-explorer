@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.204 — 2026-11-18 final optimizer verification
+
+- Kept all graph data. Reducing WebGL geometry let WebKit on this test machine render 9,165 nodes and 9,348 links and open details by keyboard. Chromium and missing-renderer recovery also passed. The UI still needs manual assistive-technology and remaining selected-method evidence before a convergence claim.
+- Python 3.11 CI caught a syntax regression in the artifact compiler. The corrected source and Codex mirror passed Python 3.11 compilation, an ASCII-locale end-to-end artifact smoke check and 294 focused tests.
+- Delivery and remaining audit scope are tracked on TASK-1508 and in the code and bootstrap reports. Delta from memory v0.22.203 to v0.22.204. Prompt v160.
+
 ## v0.22.203 — 2026-11-18 code and repository bootstrap audits
 
 - TASK-1508 recorded the exact deployed UI repair through PR 383. Live representative reflow and graph recovery passed in Chromium and WebKit. Native Chromium passed graph keyboard search. WebKit native rendering and assistive-technology evidence remain open.
