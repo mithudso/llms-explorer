@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.202 — 2026-11-18 site UI optimizer
+
+- TASK-1508 delivered the prose phase through PR 382. Production verification checked the exact deployed revision, both privacy formats, and nine additional public pages.
+- The UI sweep repaired horizontal reflow, added explicit key revocation confirmation and recovery feedback, and preserved every graph relationship while allowing cyclic graph data to render in Free layout.
+- Chromium and WebKit completed 3,094 ordinary route checks at 320 and 1,440 pixels with no document-wide overflow. Chromium also passed 3D startup, keyboard search, details reflow and unavailable-renderer fallback. Interactive WebKit 3D and full assistive-technology evidence remain open. UI optimizer status NEEDS_EVIDENCE.
+- Full site build, Astro check and all 394 site tests passed. Continue with code optimization and repo-bootstrapper. Delta from memory v0.22.201 to v0.22.202. Prompt v160.
+
 ## v0.22.201 — 2026-11-18 site and repository optimizers
 
 - TASK-1508 starts with document deep optimization on the current LLMSX production site. It then calls for deep UI optimization to convergence, repo-wide code deep optimization and the repo-bootstrapper, in that order.

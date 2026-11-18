@@ -124,23 +124,43 @@ for (const f of tree.frontier) {
   graphLinks.push({ source: f.parent_slug ?? frontierId(parentFrontier!), target: id });
 }
 
-const payload = JSON.stringify({ nodes: graphNodes, links: graphLinks }).replace(/</g, "\\u003c");
+// Keep every published relationship. Directional layouts require a DAG, but
+// the free layout can render a corpus that contains circular relationships.
+const incoming = new Map(graphNodes.map(node => [node.id, 0]));
+const outgoing = new Map(graphNodes.map(node => [node.id, [] as string[]]));
+for (const { source, target } of graphLinks) {
+  if (!outgoing.has(source) || !incoming.has(target)) continue;
+  outgoing.get(source)!.push(target);
+  incoming.set(target, incoming.get(target)! + 1);
+}
+const ready = [...incoming].filter(([, count]) => count === 0).map(([id]) => id);
+for (let i = 0; i < ready.length; i++) {
+  for (const child of outgoing.get(ready[i])!) {
+    const remaining = incoming.get(child)! - 1;
+    incoming.set(child, remaining);
+    if (remaining === 0) ready.push(child);
+  }
+}
+const directional = ready.length === incoming.size;
+const payload = JSON.stringify({ nodes: graphNodes, links: graphLinks, directional }).replace(/</g, "\\u003c");
 const counts = `${graphNodes.length} nodes · ${graphLinks.length} links`;
 ---
 
 <div id="tree3d">
   <div id="tree3d-graph"></div>
   <div id="tree3d-panel">
-    <input id="tree3d-search" placeholder="Search a concept…" autocomplete="off" />
+    <input id="tree3d-search" aria-label="Search concepts in the 3D graph" placeholder="Search a concept…" autocomplete="off" />
     <div class="row">
-      <button data-mode="radialout" class="active">Radial</button>
-      <button data-mode="td">Top-down</button>
-      <button data-mode="null">Free</button>
+      <button data-mode="radialout" class:list={{ active: directional }} aria-pressed={directional ? "true" : "false"} disabled={!directional}>Radial</button>
+      <button data-mode="td" aria-pressed="false" disabled={!directional}>Top-down</button>
+      <button data-mode="null" class:list={{ active: !directional }} aria-pressed={directional ? "false" : "true"}>Free</button>
     </div>
     <p class="muted">{counts} · click a node to isolate it · drag to rotate · scroll to zoom</p>
+    {!directional && <p class="muted">Some relationships form loops, so this graph uses the free layout.</p>}
+    <p id="tree3d-status" role="status"></p>
   </div>
   <div id="tree3d-details"></div>
-  <div id="tree3d-count"></div>
+  <div id="tree3d-count" role="status"></div>
 </div>
 
 <noscript>
@@ -164,7 +184,10 @@ const counts = `${graphNodes.length} nodes · ${graphLinks.length} links`;
   #tree3d-panel .row { display: flex; gap: 6px; margin-top: 6px; }
   #tree3d-panel .row button { flex: 1; cursor: pointer; background: #1b2533; color: #cdd6e3; border: 1px solid #2a3344; border-radius: 6px; padding: 5px 6px; font-size: 11px; }
   #tree3d-panel .row button.active { background: #2d6cdf; border-color: #2d6cdf; color: #fff; }
+  #tree3d-panel .row button:disabled { opacity: .65; cursor: default; }
+  #tree3d-status:empty { margin: 0; }
   #tree3d-details { position: absolute; top: 10px; right: 10px; z-index: 11; width: 290px; max-height: calc(100% - 20px); overflow: auto; display: none; background: rgba(16,20,28,.94); border: 1px solid #2a3344; border-radius: 10px; padding: 12px 14px; color: #dfe7f2; font: 12px/1.5 system-ui, sans-serif; }
+  #tree3d-panel, #tree3d-details { max-width: calc(100% - 20px); }
   #tree3d-details h2 { font-size: 15px; margin: 4px 16px 2px 0; }
   #tree3d-details dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 8px 0; }
   #tree3d-details dt { color: #8b97a8; }
@@ -178,9 +201,10 @@ const counts = `${graphNodes.length} nodes · ${graphLinks.length} links`;
 
 <script src="/vendor/concept-tree-3d.bundle.js" is:inline></script>
 <script is:inline>
-  (function () {
+  function startTreeGraph() {
     var el = document.getElementById("tree3d-graph");
-    if (!el || typeof window.ForceGraph3D !== "function") return;
+    if (!el) return;
+    if (typeof window.ForceGraph3D !== "function") throw new Error("Missing graph renderer");
     var DATA = JSON.parse(document.getElementById("concept-tree-3d-data").textContent);
     var byId = new Map(DATA.nodes.map(function (n) { return [n.id, n]; }));
     var details = document.getElementById("tree3d-details");
@@ -188,8 +212,9 @@ const counts = `${graphNodes.length} nodes · ${graphLinks.length} links`;
     var focusId = null;
 
     function label(n) {
+      if (!n.isRoot && n.state !== "domain") return null;
       var s = new window.SpriteText(n.name);
-      s.color = n.isRoot ? "#ffffff" : n.state === "frontier" ? "#8b97a8" : n.isGroup ? n.color : "#d4e2f4";
+      s.color = n.isRoot ? "#ffffff" : n.color;
       s.textHeight = n.isRoot ? 8 : n.isGroup ? 4.5 : 3;
       s.backgroundColor = "rgba(11,14,20,0.5)";
       s.padding = 1;
@@ -213,7 +238,7 @@ const counts = `${graphNodes.length} nodes · ${graphLinks.length} links`;
       .linkWidth(0.9)
       .linkOpacity(0.55)
       .linkCurvature(0.06)
-      .dagMode("radialout")
+      .dagMode(DATA.directional ? "radialout" : null)
       .dagLevelDistance(60)
       .nodeThreeObjectExtend(true)
       .nodeThreeObject(label)
@@ -304,8 +329,10 @@ const counts = `${graphNodes.length} nodes · ${graphLinks.length} links`;
       b.onclick = function () {
         document.querySelectorAll("#tree3d-panel [data-mode]").forEach(function (x) {
           x.classList.remove("active");
+          x.setAttribute("aria-pressed", "false");
         });
         b.classList.add("active");
+        b.setAttribute("aria-pressed", "true");
         Graph.dagMode(b.dataset.mode === "null" ? null : b.dataset.mode);
         Graph.d3ReheatSimulation();
       };
@@ -320,5 +347,15 @@ const counts = `${graphNodes.length} nodes · ${graphLinks.length} links`;
     });
 
     render();
-  })();
+  }
+  try {
+    startTreeGraph();
+  } catch {
+    document.getElementById("tree3d-status").textContent =
+      "Could not start the 3D view. Use the tree browser link on this page.";
+    document.getElementById("tree3d-search").disabled = true;
+    document.querySelectorAll("#tree3d-panel [data-mode]").forEach(function (button) {
+      button.disabled = true;
+    });
+  }
 </script>

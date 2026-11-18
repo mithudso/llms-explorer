@@ -19,6 +19,8 @@ const description = "Create, list and revoke the scoped keys that authenticate t
     between a leaked token that reads and one that spends.
   </p>
 
+  <p id="keys-status" class="keys-status" role="status"></p>
+  <p id="fresh-key" class="fresh-key" hidden></p>
   <div class="island" id="keys-table" data-island="keys" hidden></div>
 
   <div data-signed-out id="keys-signed-out">
@@ -46,6 +48,9 @@ const description = "Create, list and revoke the scoped keys that authenticate t
     const api = nav ? nav.getAttribute("data-api") : "";
     const panel = document.getElementById("keys-table") as HTMLElement;
     const out = document.getElementById("keys-signed-out") as HTMLElement;
+    const status = document.getElementById("keys-status") as HTMLElement;
+    const fresh = document.getElementById("fresh-key") as HTMLElement;
+    let pending = false;
 
     interface ApiKey {
       id: string;
@@ -56,6 +61,19 @@ const description = "Create, list and revoke the scoped keys that authenticate t
 
     const call = (path: string, init?: RequestInit) =>
       fetch(api + path, { credentials: "include", headers: { accept: "application/json" }, ...init });
+
+    async function withKeyAction(action: () => Promise<void>) {
+      if (pending) return;
+      pending = true;
+      const buttons = Array.from(panel.querySelectorAll("button"));
+      buttons.forEach(button => { button.disabled = true; });
+      try {
+        await action();
+      } finally {
+        pending = false;
+        buttons.forEach(button => { button.disabled = false; });
+      }
+    }
 
     function row(key: ApiKey, onRevoke: (id: string) => void) {
       const tr = document.createElement("tr");
@@ -68,6 +86,7 @@ const description = "Create, list and revoke the scoped keys that authenticate t
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = "Revoke";
+      button.setAttribute("aria-label", `Revoke key ${key.prefix}`);
       button.addEventListener("click", () => onRevoke(key.id));
       cell.appendChild(button);
       tr.appendChild(cell);
@@ -75,44 +94,77 @@ const description = "Create, list and revoke the scoped keys that authenticate t
     }
 
     async function revoke(id: string) {
-      await call(`/api/keys/${id}`, { method: "DELETE" });
-      load();
+      if (!window.confirm("Revoke this key? It will stop working immediately.")) return;
+      status.textContent = "Revoking key…";
+      try {
+        const response = await call(`/api/keys/${encodeURIComponent(id)}`, { method: "DELETE" });
+        if (!response.ok) {
+          status.textContent = "The service could not revoke this key.";
+          return;
+        }
+        await load("Key revoked.");
+      } catch {
+        status.textContent = "Could not confirm revocation. Refresh the list to check the key.";
+      }
     }
 
     async function create() {
-      const r = await call("/api/keys", {
-        method: "POST",
-        headers: { accept: "application/json", "content-type": "application/json" },
-        body: JSON.stringify({ scopes: ["read"] }),
-      });
-      if (!r.ok) return;
-      const made = await r.json();
-      const note = document.createElement("p");
-      note.className = "fresh-key";
-      note.textContent = `Copy this now — it is not shown again: ${made.key}`;
-      load(note);
+      status.textContent = "Creating read key…";
+      try {
+        const response = await call("/api/keys", {
+          method: "POST",
+          headers: { accept: "application/json", "content-type": "application/json" },
+          body: JSON.stringify({ scopes: ["read"] }),
+        });
+        if (!response.ok) throw new Error("Key creation request failed");
+        const made = await response.json();
+        if (typeof made.key !== "string" || !made.key) throw new Error("Missing created key");
+        fresh.textContent = `Copy this now — it is not shown again: ${made.key}`;
+        fresh.hidden = false;
+        await load("Read key created.");
+      } catch {
+        status.textContent = "Could not confirm key creation. Refresh the list before trying again.";
+      }
     }
 
-    async function load(keep?: HTMLElement) {
-      const r = await call("/api/keys");
-      if (!r.ok) return;                       // 401: the signed-out fallback stands
-      const keys = (await r.json()) as ApiKey[];
+    async function load(success = "") {
+      status.textContent = success || "Loading API keys…";
+      let keys: ApiKey[];
+      try {
+        const response = await call("/api/keys");
+        if (response.status === 401) {
+          panel.hidden = true;
+          out.hidden = false;
+          status.textContent = success;
+          return;
+        }
+        if (!response.ok) throw new Error("Key list request failed");
+        const payload = await response.json();
+        if (!Array.isArray(payload)) throw new Error("Invalid key list");
+        keys = payload;
+      } catch {
+        out.hidden = true;
+        const failure = "Could not load the key list. Refresh the page to try again.";
+        status.textContent = success ? `${success} ${failure}` : failure;
+        return;
+      }
       const table = document.createElement("table");
       const head = document.createElement("tr");
-      for (const label of ["Prefix", "Scopes", "Created", ""]) {
+      for (const label of ["Prefix", "Scopes", "Created", "Actions"]) {
         const th = document.createElement("th");
         th.textContent = label;
         head.appendChild(th);
       }
       table.appendChild(head);
-      for (const key of keys) table.appendChild(row(key, revoke));
+      for (const key of keys) table.appendChild(row(key, id => withKeyAction(() => revoke(id))));
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = "Create a read key";
-      button.addEventListener("click", create);
-      panel.replaceChildren(...(keep ? [keep] : []), table, button);
+      button.addEventListener("click", () => withKeyAction(create));
+      panel.replaceChildren(table, button);
       panel.hidden = false;
       out.hidden = true;
+      status.textContent = success;
     }
 
     load();
@@ -120,6 +172,7 @@ const description = "Create, list and revoke the scoped keys that authenticate t
 </Base>
 
 <style>
+  .keys-status:empty { margin: 0; }
   .island table { border-collapse: collapse; }
   .island th, .island td { text-align: left; padding: .2rem .8rem .2rem 0; }
   .fresh-key { font-family: monospace; word-break: break-all; }
