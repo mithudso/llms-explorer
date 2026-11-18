@@ -23,7 +23,8 @@ Install the skill using the command on this page, then configure the research
 library MCP server in the agent's own client. An operator must provide a working
 server endpoint and the appropriate private capability. A reader can inspect the
 managed corpus; a writer can also edit drafts and reserve work. Installing the
-skill does not provision MongoDB, issue credentials or start research.
+skill does not provision MongoDB, issue credentials or start research. Ask the
+agent to run `research_status` to check that the client can read the library.
 
 The [operator runbook](https://github.com/mithudso/llms-explorer/blob/main/hub/research-library/README.md)
 and [MCP client guide](https://github.com/mithudso/llms-explorer/blob/main/hub/research-library/MCP.md)
@@ -36,7 +37,8 @@ private material and store capabilities in the client's protected configuration.
 Use research-library-mongodb to inspect gaps around query planning. Search
 broadly and within that family before proposing new concepts. Include unscored
 and held frontier entries, read relevant peer sources, and report incomplete
-coverage. Reserve only the concepts needed for the authorized research.
+coverage. Report candidates and gaps. Leave reservations and edits for a
+separately authorized assignment.
 ```
 
 The agent pages the inventory and frontier, compares semantic and keyword
@@ -50,7 +52,9 @@ channel remains a coverage gap rather than proof that a candidate is novel.
 Research leases expire and require renewal. Edits also require current revisions;
 changing a family relationship reserves every affected endpoint together.
 Reparenting includes the child, old parent and new parent. Held work and STOP
-markers stay visible without being resumed automatically.
+markers stay visible without being resumed automatically. Release your leases
+when the work ends. If a publication job has taken ownership of a lease, leave
+it with that job.
 
 Claims retain logical lineage and immutable versions. Sources retain exact
 snapshot hashes and quotation spans when their current content changes. A

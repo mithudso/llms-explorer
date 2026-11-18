@@ -8,7 +8,7 @@ evidenceStatus: unverified
 evidenceNote: "Editorial review does not independently reproduce the original experiment. Results retain the source study’s dates, assumptions and limitations."
 ---
 
-# /dr model × effort matrix — 2026-10-13
+## /dr model × effort matrix — 2026-10-13
 
 Single-concept experiment, **2026-10-13**. Names, versions, prices and availability are historical. Claim counts measure volume; failed and unavailable cells remain visible.
 
@@ -71,12 +71,12 @@ Each single-model gate run cost $0.39–0.70 on top of the research cost (Opus 5
 ## What the numbers say
 
 1. **No sampled assertion from the 21 Claude/OpenAI cells received a CONTRADICTED verdict.** This does not establish that every produced claim was correct. Every CONTRADICTED verdict came from Antigravity (2 of 3 cells) or the local models (4 of 6 cells). Qwen 3.5 35B produced one contradicted claim at every effort level.
-2. **Higher effort was associated with more output in the Claude cells.** For Claude, low → max raised claims 2–5× and sources 2–3×, while the gate rate stayed 90–100% throughout. The low-effort misses were UNVERIFIED or NOT-IN-SOURCE, not CONTRADICTED.
-3. **Largest claim counts in this single-concept sample:** Sonnet 5.5 max (39 claims, 16 sources, $2.43) and Opus 5.5 max (28 claims, 22 high-confidence, $3.12). Fable 5.1 max cited the most sources (17) and was the fastest Claude max run (534 s).
+2. **Higher effort was associated with more output in the Claude cells.** For Claude, low to max effort raised claim counts 2–5× and cached-source counts about 2.0–5.3×. The gate rate stayed 90–100%. The low-effort misses were UNVERIFIED or NOT-IN-SOURCE, not CONTRADICTED.
+3. **Largest claim counts in this single-concept sample:** Sonnet 5.5 max (39 claims, 16 sources, $2.43) and Opus 5.5 max (28 claims, 22 high-confidence, $3.12). Fable 5.1 max cached the most sources (17) and was the fastest Claude max run (534 s).
 4. **Lowest recorded Claude research cost per output claim in this sample:** Haiku 5.5. At low effort it produced 12 claims, 10/10 supported, for $0.08. At max it produced 26 claims for $0.46. Sonnet and Opus at high (~160 s, 14–15 claims, 10/10) are the efficient middle.
 5. **OpenAI produced fewer claim rows in this sample.** All judged assertions in its nine cells were SUPPORTED; this is sampled source support, not full-output accuracy. However, claims plateaued at 6–12, and higher effort added few claim rows. GPT-6 Astra marked almost no claim as high-confidence at high/max.
 6. **Antigravity had the fewest claim rows and the only sampled cloud contradictions in this run.** It produced the fewest claims (4–8), the only cloud contradictions, and the GPT-OSS run skipped the negation round. GPT-OSS also hit a provider 503 on the first try; the retry succeeded.
-7. **Local:** Gemma 31B had fewer sampled contradictions than Qwen 35B in these six cells; this single topic cannot establish a general safety ranking. It was 9/9 and 10/10 at low/high, with one contradiction at max. Qwen 35B gave more claims but was wrong once per run. Local low/high runs took longer than most Claude low/high cells; max timings overlap, and effort barely changed local output.
+7. **Local:** Gemma 31B had fewer sampled contradictions than Qwen 35B in these six cells; this single topic cannot establish a general safety ranking. It was 9/9 and 10/10 at low/high, with one contradiction at max. Qwen 35B produced more claim rows, and the judge marked one sampled assertion CONTRADICTED at each effort level. Local low/high runs took longer than most Claude low/high cells; max timings overlap, and effort barely changed local output.
 
 ## Staged pipeline lane (added 2026-10-13)
 

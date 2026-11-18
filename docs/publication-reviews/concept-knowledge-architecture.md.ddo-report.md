@@ -117,3 +117,13 @@ Independent blind exit review is pending. Private research artifacts are not bun
 - Original private snapshot remains immutable; exact restoration command is in the private worklog.
 
 The parent owns publication-approval JSON and binds the final document and report hashes only after independent blind review. **Do not interpret this candidate report as a CLEAN or approved gate.**
+
+## Editorial review update — 2026-11-18
+
+Added a plain-language description of the proposed retrieval flow, expanded reciprocal rank fusion, and resolved a duplicate page heading.
+
+A separate full manuscript read checked the altered claims against the retained sources and rechecked the final edits after resolving dissent. Earlier original-source limits continue to apply. The study was not rerun. The original publication ledger retains the first released document hash.
+
+- Previously approved document SHA-256: `8ba89911d48176b3de75fda5f0e93b3fc28cf9fa5d84b8449819cc071bee725b`
+- Revised document SHA-256: `9c0713fa8d818cfb3661c027f6e11a3611eacb20223ff367399422e6ef6f62df`
+- Previously approved report SHA-256: `f856e546f356c6063853b71ff83c5c4aba29b182ac18015ee486deb16d773a50`

@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.201 — 2026-11-18 site and repository optimizers
+
+- TASK-1508 starts with document deep optimization on the current LLMSX production site. It then calls for deep UI optimization to convergence, repo-wide code deep optimization and the repo-bootstrapper, in that order.
+- Use the clean published baseline and an isolated audit worktree. Preserve cited research text, publication status and independent prior findings. Carry forward only receipts that match the current source. The initial public sitemap contains 200 URLs. Route discovery also has to account for accessible pages the sitemap omits.
+- The prose audit revised seven research manuscripts with fresh exact editorial approvals, reconciled HTML and Markdown privacy notices, clarified a MongoDB workflow and regenerated one stale reference. The build and all 394 site tests passed. The original study evidence limits and initial publication ledger remain in force.
+- Continue with the site UI matrix, then code optimization and bootstrap. The current run keeps exact route and source coverage on TASK-1508. Delta from memory v0.22.200 to v0.22.201. Prompt v160.
+
 ## v0.22.200 — 2026-11-18 llms-full.txt distillation skill
 
 - TASK-1504 adds the project skill `llms-full-to-mongodb` and its Claude alias. The workflow inventories and distills the supplied documentation, saves evidence-bound research drafts through the research library, and packages task-specific guides through the skill registry. Trusted research finalization and MongoDB skill readback have their own receipts.

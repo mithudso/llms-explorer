@@ -23,15 +23,13 @@ disagreement between the two methods is the most instructive result here.
 
 > **Historical simulation for research and education only. NOT investment advice**, and not a
 > recommendation to trade anything. Simulated past performance does not predict future results.
-> Every number below came from an executed run and can be reproduced with
-> `python3 research/cpcv_sweep.py` and `python3 research/sweep.py`. No figure in this document
-> was estimated; `python3 research/verify_numbers.py` enforces that mechanically.
+> The publication check compared 1,084 parsed figures with retained outputs. The commands below record the original study workflow. Some figures remain author-attributed because their original evidence is unavailable.
 
 **Method note.** The request asked for a `/dr` (deep-research) pass. Subagent fan-out is
 unavailable in this environment, so the taxonomy is grounded in the local citation-backed
 private reference corpus (reported as ~620 KB across 14 references)
 plus first-hand measurement on real SOL data. That is a deliberate substitution, stated here
-rather than made silently. Literature figures are attributed; everything else is measured.
+rather than made silently. The article distinguishes original study outputs, literature estimates and figures whose source data is unavailable.
 
 ---
 
@@ -79,7 +77,7 @@ Two consequences worth carrying into any reading of the tables below:
    `buy_and_hold` has more overlapping evaluation paths. Path count alone does not establish a tighter uncertainty interval, because these paths are not independent.
 2. **The slowest configurations rest on 15 paths**, including several that appear at the top of
    the tables: `ou_reversion`, `hurst_switch` and `vol_regime` at both daily horizons. Four of
-   four of the five configurations in “How an archival SOL study chose its top five candidates” (forthcoming, planned 2026-11-19) are 15-path results. Fewer paths is a
+   the five configurations in “How an archival SOL study chose its top five candidates” (forthcoming, planned 2026-11-19) are 15-path results. Fewer paths is a
    weaker estimate, and the `n_paths` column in every results CSV records it per row.
 
 **Growing the candidate set from 16 to 25 strategies coincided with higher PBO; the retained comparison separates out one evaluation-geometry change.** The common CPCV block set shrank from 7 blocks to 6 when
@@ -160,19 +158,16 @@ Calibrated against constructed controls in the test suite: **pure noise gives me
 0.700: the selected in-sample winner fell below the out-of-sample candidate median in 70% of tested splits. That is a rank-based warning, not a measured dollar-profit comparison with random trading. The earlier 16-strategy run measured 0.429 / 0.457 / 0.457; the
 decomposition of that rise is in *Read this before the tables* above.
 
-Short horizon needs the same care as any low PBO: 0.343 looks encouraging, but **0 of 25** singles
-have a positive median Sharpe there, so in-sample rank generalises reliably as a loser. PBO
-measures rank consistency, not profitability — always read it next to the positive count.
+At the short horizon, PBO was 0.343 and **0 of 25** singles had a positive median path Sharpe. PBO measures how often the in-sample winner ranks below the out-of-sample candidate median in the tested splits.
 
 ### 1d. The top pair survives parameter perturbation — which is a narrower result than it sounds
 
 `all(dual_momentum+vol_regime)` has the highest median Sharpe in the retained pair tables (median Sharpe **+1.345**,
 87% of paths positive, **+75.1%** median path return). It sits atop a 252-evaluable-configuration search
 whose PBO is 0.650, so the obvious question is whether the number is a property of the mechanism
-or of the particular parameters someone picked. `research/perturb.py` answers that by nudging every
-parameter ±10% one at a time and re-running the full CPCV evaluation.
+or of the particular parameters someone picked. The study used `research/perturb.py` to test one-at-a-time parameter changes of ±10%. It also varied the CPCV geometry separately.
 
-**Result: 0 of 12 perturbations flip the sign, and the median never drops below +0.904.**
+**None of the 12 variants flipped the sign. The lowest median was +0.904 with nine CPCV blocks.**
 
 | Variant | Median Sharpe | Δ | % paths + |
 |---|---|---|---|
@@ -313,11 +308,7 @@ strategies, which is the finding restated.
 `obv_trend` is the one genuinely encouraging row: not always first, but the **most rank-stable
 strategy in the set** (moves 5 places), third-smallest spread, top-3 in three of seven geometries.
 
-**PBO is not geometry-invariant either**, which matters because it is the statistic used to
-discount everything else. At the long horizon it runs 0.800 (6 blocks) → 0.700 (8) → **0.943** (10)
-→ 0.830 (12); at medium, 0.445 (12) to 0.667 (11). The listed long-horizon values stay above 0.500; medium spans both sides of that reference, so
-the conclusion holds in direction, but the specific figure quoted elsewhere in this document is the
-8-block one and should be read as one draw from that range.
+**PBO varied with the evaluation geometry.** The listed long-horizon values stayed above the 0.500 constructed-noise reference: 0.800 at six blocks, 0.700 at eight, 0.943 at ten and 0.830 at twelve. At the medium horizon, PBO ranged from 0.445 at twelve blocks to 0.750 at seven blocks. The eight-block result was 0.700. The medium-horizon results spanned both sides of the 0.500 reference.
 
 ```bash
 python3 research/geometry.py --horizon long --blocks 6 12 --k 2
@@ -417,7 +408,7 @@ figure is transcribed by hand.
 
 ## Short horizon (1h bars) — CPCV
 
-**Not one of the 25 has a positive median path Sharpe at this horizon.** The best, `stoch_14_3` at −0.341, still loses.
+**Not one of the 25 has a positive median path Sharpe at this horizon.** `stoch_14_3` had the highest median path Sharpe, at −0.341.
 
 | # | Strategy | Family | Median Sharpe | IQR | % paths + | Median ret | Trades |
 |---|---|---|---|---|---|---|---|
@@ -1043,28 +1034,27 @@ Ranked by expected information gain per unit of work, which is a different quest
    is not stable under that perturbation should be excluded from ranking the way thin-evidence
    rows already are.
 
-## Reproducing every number
+<span id="reproducing-every-number"></span>
+
+## Original study commands and archived checks
+
+These commands record the original procedures. They require the study's original checkout and data, which are not bundled with the article.
 
 ```bash
 python3 research/cpcv_sweep.py                  # List 1 (primary): CPCV + PBO
 python3 research/cpcv_sweep.py --groups 8 --k 2  # tune the block/path geometry
 python3 research/sweep.py                       # List 1b/2/3: the single-split sweep
-python3 research/verify_numbers.py              # assert every figure here matches the results
+python3 research/verify_numbers.py              # compare parsed figures with archived outputs
 python3 -m unittest discover -s backtester/tests -t .   # original report listed 103 tests; not rerun for publication
 ```
 
-`verify_numbers.py` extracts every performance figure from this document and from
-[the sol strategy reference study](/blog/research/sol-strategy-reference/) and asserts each one appears in `results/sweep_results.csv` within rounding
-tolerance. The read-only publication check verified **1,084 parsed figures** against the archived outputs and exits non-zero on any mismatch — so the
-claim "no number was estimated" is enforced mechanically rather than promised.
+The read-only publication check compared **1,084 parsed figures** from this study and the [SOL strategy reference study](/blog/research/sol-strategy-reference/) with archived outputs within its parsing and rounding coverage. Figures with unavailable evidence remain labeled in the text.
 
 Outputs land in `research/results/`: `sweep_results.csv` (one row per configuration),
 `tables.md` (generated tables), `configuration_counts.json` (the denominators).
 
-**Cost model for every number above:** 6bps taker fee + 2bps slippage per fill, charged on
+**Cost model for the unleveraged spot runs:** 6bps taker fee + 2bps slippage per fill, charged on
 notional at the fill price; signal at bar *t* fills at bar *t+1*'s open; spot mode, no leverage.
 Hourly results additionally carry 2 disclosed data gaps (largest 6h, around Oct 2025).
 
-> Educational and research use only. NOT investment advice. Nothing here is evidence that any
-> listed strategy is profitable; the measured evidence is that on this asset and window, almost
-> none of them were.
+> For research and education only. In the earlier single split, 47 of 595 rankable configurations made money on this asset and window.

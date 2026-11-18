@@ -220,3 +220,13 @@ Snapshot & rollback: exact iteration snapshots and literal restore commands are 
 **CLEAN — full-depth editorial/source review for historical archival publication at the accepted manuscript SHA.** All original independent findings and five batch consistency checks are closed. Historical and source-availability limitations remain. No investment-performance or deployed-product certification is made.
 
 Snapshot & rollback: exact report baselines, manuscript snapshots and literal restore commands are retained in the private run receipt; no local machine paths are exposed in this shareable report.
+
+## Editorial review update — 2026-11-18
+
+Linked the published companion, scoped the original cards and single-split results, clarified oscillator, OBV and cointegration descriptions, and retained the original command and heading fragments.
+
+A separate full manuscript read checked the altered claims against the retained sources and rechecked the final edits after resolving dissent. Earlier original-source limits continue to apply. The study was not rerun. The original publication ledger retains the first released document hash.
+
+- Previously approved document SHA-256: `cfc86414b8757f41b4d8a4444e1e17c6a4a3ce8f0e0ec794a3bf39f8c2de8cee`
+- Revised document SHA-256: `caba0aa33480ae34722225db2c18038926a9963419f8e342363ad7bfb1d5ce83`
+- Previously approved report SHA-256: `f293902e5cae8714d8f22c05829ce9d1bba0d7e3f25622b08910ac792a70e3a8`

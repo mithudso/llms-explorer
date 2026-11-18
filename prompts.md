@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v160 — 2026-11-18 site and repository optimizer sequence
+
+> Run the /ddo skill on all documents that contain prose in this webpage. Then run the deep ui optimizer on every page to convergence. Then run the /dco skill on the repo and then the repo-bootstrapper.
+
+Use the canonical LLMSX site and its current source. Preserve the requested order. Record per-source and per-route coverage, available evidence, and each phase's actual outcome.
+
+Tracking TASK-1508. Delta from prompt v159 to v160.
+
 ## Prompt v159 — 2026-11-18 llms-full.txt distillation skill
 
 > Create a skill that turns an llms-full.txt file and distills it into research and skill files as they exist on in the mongodb database. This is a good example: https://py.sdk.modelcontextprotocol.io/llms-full.txt

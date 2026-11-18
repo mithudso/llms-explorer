@@ -8,7 +8,7 @@ evidenceStatus: unverified
 evidenceNote: "Editorial review does not independently reproduce the original experiment. Results retain the source study’s dates, assumptions and limitations."
 ---
 
-# Updated research process versus the prior process
+## Updated research process versus the prior process
 
 Historical comparison: **2026-10-22–23**. “Current” and “updated” name the two frozen process versions at that time. This compares 35 scored matched pairs plus one unscored case on fixed readable packets, not live web-discovery quality or a general model ranking.
 
@@ -16,9 +16,7 @@ Status: finished. All 36 updated cells were attempted. The comparison has 35 com
 
 ## Findings
 
-The two contract versions produced essentially the same synthesis quality on this
-frozen packet. Reference coverage was slightly lower with the updated contracts.
-Results vary by model, effort and stage; this study establishes no general ranking.
+Pooled accepted-claim quality was 95.27% for the old contracts and 95.37% for the updated contracts. Mean reference coverage fell from 9.40 to 9.03 out of 24. The study does not establish equivalence or a general ranking.
 
 | Measure | Old | Updated |
 |---|---:|---:|
@@ -28,9 +26,7 @@ Results vary by model, effort and stage; this study establishes no general ranki
 | Reference coverage /24 | 9.40 | 9.03 |
 | Claim depth /3 | 2.45 | 2.44 |
 
-These means use the same 35 completed cells in both arms. The unmatched old
-control remains available in results.json. A missing result receives no invented
-quality score. failures.json identifies the unscored cell; attempt-failures.json
+Both arms use the same 35 matched cells. Accepted-claim quality pools judgments across raw claims. The other measures are per-trial means. The unmatched old control remains in results.json. The unscored case has no assigned quality score. failures.json identifies the unscored cell; attempt-failures.json
 retains failed calls even when a later attempt succeeds.
 
 Successful generations averaged 266.0 versus 277.1 seconds. Mean input tokens

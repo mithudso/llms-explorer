@@ -8,7 +8,7 @@ evidenceStatus: unverified
 evidenceNote: "Editorial review does not independently reproduce the original experiment. Results retain the source study’s dates, assumptions and limitations."
 ---
 
-# Recommended concept knowledge strategy
+## Recommended concept knowledge strategy
 
 Study snapshot: **2026-10-22**. Implementation gaps and proposed next steps below refer to that review date. The review did not execute the proposed comparison, change production strategy or rebuild embeddings; it measured no resulting quality improvement.
 
@@ -27,7 +27,7 @@ The [implementation inventory](https://github.com/mithudso/llms-explorer/blob/c4
 most website packs exceed the retained search prefix; page-valued fusion IDs
 can collapse chunks and credit a page repeatedly; frozen vectors lack exact
 input revision bindings; and auxiliary prose falls outside semantic claim
-judgments. The [read-only RRF diagnostic](https://github.com/mithudso/llms-explorer/blob/c458299c2b83d276806036f465c8802c32ac29f1/docs/research/concept-knowledge-strategies-2026-10-22/diagnostics.json) reproduces one of
+judgments. The [read-only reciprocal rank fusion (RRF) diagnostic](https://github.com/mithudso/llms-explorer/blob/c458299c2b83d276806036f465c8802c32ac29f1/docs/research/concept-knowledge-strategies-2026-10-22/diagnostics.json) reproduces one of
 those mechanisms with the code at the study snapshot. It is not a user-relevance benchmark.
 
 The literature narrows several tempting assumptions:
@@ -58,6 +58,8 @@ The literature narrows several tempting assumptions:
   [Qdrant migration procedure](https://qdrant.tech/documentation/tutorials-operations/embedding-model-migration/).
 
 ## Architecture to evaluate
+
+The proposed flow links private source snapshots and evidence spans to versioned claims and concepts. Public and private projections support exact, lexical and semantic lookup. Retrieval can also use typed relationships. The flow combines candidates, optionally reranks them, and packs evidence into a fixed-budget context before answering and checking claim support. The semantic index was paused at the study date.
 
 ```mermaid
 flowchart TD

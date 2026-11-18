@@ -219,3 +219,13 @@ Final candidate SHA-256: `f597e7fd06cbf7447e2960059a3cec6c4f41c35ecf7e345465a00d
 **CLEAN — full-depth editorial/source review for historical archival publication at the accepted manuscript SHA.** All original independent findings and five batch consistency checks are closed. Historical and source-availability limitations remain. No investment-performance or deployed-product certification is made.
 
 Snapshot & rollback: exact report baselines, manuscript snapshots and literal restore commands are retained in the private run receipt; no local machine paths are exposed in this shareable report.
+
+## Editorial review update — 2026-11-18
+
+Clarified the denominator and the difference between absent candles and trades recorded by the trade source.
+
+A separate full manuscript read checked the altered claims against the retained sources and rechecked the final edits after resolving dissent. Earlier original-source limits continue to apply. The study was not rerun. The original publication ledger retains the first released document hash.
+
+- Previously approved document SHA-256: `f597e7fd06cbf7447e2960059a3cec6c4f41c35ecf7e345465a00d77c43dce6c`
+- Revised document SHA-256: `692adf3dd94f659d4da0e428a805009a2ba100df667b3a9cd9b51a93c7d59cce`
+- Previously approved report SHA-256: `f7d6f6edd3e774f0da80ba434f419889ee0550a1970215ea3c994982e7e89333`

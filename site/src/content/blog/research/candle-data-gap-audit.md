@@ -20,8 +20,7 @@ the 1m candle cache in `data/`.
 
 ## The finding
 
-In this dated sample, a missing 1m candle often was **not** a quiet minute. Across 31 gap runs sampled
-over five assets, **26 (84%) had trades the candle endpoint dropped**.
+Trades occurred during **26 of the 31 sampled runs of missing one-minute candles (84%)** across five assets.
 
 | asset | bars | gap runs | missing min | sampled | dropped | est. dropped minutes (95% CI) |
 |---|---:|---:|---:|---:|---:|---|
@@ -39,9 +38,8 @@ missing-minute count. This assumes the sampled run proportion applies to missing
 
 Three properties make this worse than a simple hole in the data:
 
-1. **The gaps persisted in repeated requests.** Re-requesting an affected range narrowly, weeks later, still
-   omits the minute and still returns the same wrong neighbouring bar. Refetching is
-   not a repair for the observed ranges; the study used ticks to reconstruct the sampled repairs.
+1. **The gaps persisted in repeated requests.** Narrow requests for an affected range, repeated weeks later, still
+   omitted the minute and returned the same discrepant neighbouring bar. The study used trades to reconstruct the sampled repairs.
 2. **Neighbouring bars can disagree with ticks even when present.** A missing-timestamp check alone does not flag them.
    DOGE 2026-07-06 01:37 reports volume 112.9 against **11,630.4** from ticks — a
    100x under-report in a bar that looks perfectly normal.
