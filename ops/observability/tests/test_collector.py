@@ -17,6 +17,19 @@ spec.loader.exec_module(collector)
 
 class Upstream(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == "/ads-missing":
+            self.send_error(404)
+            return
+        if self.path in {"/ads-google", "/ads-other"}:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(
+                b"# fixture\nGoogle.com, pub-0000000000000000, DIRECT"
+                if self.path == "/ads-google"
+                else b"example.org, partner-42, RESELLER"
+            )
+            return
         if self.path == "/login-redirect":
             self.send_response(302)
             self.send_header("Location", "/login")
@@ -65,6 +78,13 @@ class FleetChecks(unittest.TestCase):
                 {"url": self.base + path, "expect": {"status": "ready"}}
             )
             self.assertFalse(ok)
+
+    def test_public_seller_states_distinguish_google_missing_and_html(self):
+        for path, state in (("/ads-missing", 0), ("/ads-google", 1), ("/ads-other", 2)):
+            with self.subTest(path=path):
+                self.assertEqual(collector.google_seller_file(self.base + path), state)
+        with self.assertRaises(ValueError):
+            collector.google_seller_file(self.base + "/login")
 
     def test_valid_json_with_wrong_state_fails(self):
         ok, _, _, _ = collector.check_http(

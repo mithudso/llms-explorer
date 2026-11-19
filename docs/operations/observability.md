@@ -1,7 +1,7 @@
 # Fleet observability standard
 
-Version 1.1.0. Updated 2026-11-19. Owner is the platform operator.
-Delta covers business status, Net DNS Monitor, and the production split between Fedora and macOS.
+Version 1.1.1. Updated 2026-11-19. Owner is the platform operator.
+Delta adds a public Google seller-file check alongside AdSense publisher status.
 
 This standard applies to LLMSX, legacy LLMS-Explorer, Oraclebot, That's What She
 Said, MoreLube, Net DNS Monitor and SKaaS, including their websites, APIs, databases, background
@@ -136,7 +136,7 @@ of AdSense approval, ad fill or earnings.
 
 The [business dashboard](https://ops.llmsx.org/d/llmsx-business) filters by
 domain. It shows GA4 active users, estimated Cloudflare zone unique IPs,
-AdSense review and earnings, Cloudflare Security Center findings, firewall
+AdSense review and earnings, public Google seller declarations, Cloudflare Security Center findings, firewall
 event aggregates where enabled, Stripe activity and net balance movements,
 commerce, inbound email activity, and verified forwarding configuration.
 Cloudflare estimates can include bots and subdomains. Security Center findings,

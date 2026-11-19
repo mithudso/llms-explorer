@@ -27,7 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import ClassVar
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 2 * 1024 * 1024
 ACCOUNT = "b41ba4dc457dce7653c93af955ecc462"
@@ -114,6 +114,43 @@ def check_http(spec):
     except (OSError, ValueError, TimeoutError):
         pass
     return ok, status, time.monotonic() - started, capabilities
+
+
+def google_seller_file(url):
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "LLMSX-Operations/" + VERSION, "Accept": "text/plain"},
+    )
+    try:
+        with urllib.request.build_opener(NoRedirect()).open(
+            request, timeout=12
+        ) as response:
+            if (
+                response.status != 200
+                or response.headers.get_content_type() != "text/plain"
+            ):
+                raise ValueError("expected a public text seller file")
+            body = response.read(524289)
+    except urllib.error.HTTPError as error:
+        error.close()
+        if error.code in {404, 410}:
+            return 0
+        raise
+    if len(body) > 524288:
+        raise ValueError("seller file exceeds size limit")
+    text = body.decode("utf-8-sig")
+    if text.lstrip().startswith("<"):
+        raise ValueError("seller file returned HTML")
+    for line in text.splitlines():
+        fields = [field.strip().lower() for field in line.split("#", 1)[0].split(",")]
+        if (
+            len(fields) in {3, 4}
+            and fields[0] == "google.com"
+            and re.fullmatch(r"pub-[0-9]{16}", fields[1])
+            and fields[2] in {"direct", "reseller"}
+        ):
+            return 1
+    return 2
 
 
 def sample(name, value, **labels):
@@ -950,6 +987,20 @@ class Collector:
                 self.integration(rows, project, "commerce-ledger", True, True)
         return rows
 
+    def public_seller(self, site):
+        rows = []
+        project = site["project"]
+        try:
+            state = google_seller_file("https://" + site["domain"] + "/ads.txt")
+        except (OSError, ValueError):
+            self.integration(rows, project, "public-ads-txt", True, False)
+        else:
+            rows.append(
+                sample("fleet_google_seller_file_status", state, project=project)
+            )
+            self.integration(rows, project, "public-ads-txt", True, True, state != 0)
+        return rows
+
     def business(self):
         sites = [
             s
@@ -976,6 +1027,7 @@ class Collector:
                 pool.submit(self.commerce, project)
                 for project in ("netdnsmonitor", "morelube")
             )
+            pending.extend(pool.submit(self.public_seller, site) for site in sites)
             for result in pending:
                 rows.extend(result.result())
         return rows
