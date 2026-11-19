@@ -3,7 +3,7 @@
 from pathlib import PurePosixPath
 
 FORMAT = "sk-mongodb-research-kit/v1"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 ARCHIVE_ROOT = "SK-MongoDB-Research-Kit"
 MARKETPLACE = "sk-research"
 MODES = ("dr", "cfe", "rabbithole", "full-suite")
