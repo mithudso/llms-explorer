@@ -40,6 +40,7 @@ read-only plan: no durable run, scout saves, paid research/judges or index calls
    Mongo; no client local source scope is required. Unqualified or unsupported
    concepts appear as blocked members, never guessed packs. On refresh, compile
    only changed exact input bindings and report unchanged packs reused.
+   After an ambiguous timeout, follow [compiler recovery](#compiler-recovery).
 5. **Build the categorical rollup.** Use `rollup=True` with all permitted pack
    members from this run, retaining exact membership, hashes and citations. With
    zero valid members, skip the rollup and report zero members with its reason.
@@ -70,6 +71,44 @@ read-only plan: no durable run, scout saves, paid research/judges or index calls
    verdict and rates, candidate/queue totals, researched/qualified/withheld
    concepts, pack IDs/hashes, rollup membership, graph registration, skill audits,
    keyword and semantic status separately, budgets and the next resumable action.
+
+## Compiler recovery
+
+Before dispatch, checkpoint the run ID, owner, `request_id`, expected run
+revision, `rollup` flag, exact concept IDs, revisions and canonical proof hashes,
+and an observation and retry bound within the remaining suite budget. Keep the
+lease token private.
+
+- **Read before retrying.** HTTP 524 or a transport disconnect can leave the
+  compiler writing. Read `research_run_get` and fetch known manifest IDs with
+  `research_artifact_get`. Use `research_artifact_list` to resolve current heads
+  once the run is stable. Verify trusted archive provenance, the run and current
+  head identities, exact concept revisions and canonical proof hashes, and each
+  referenced output's ID and body hash. For a rollup, check the exact intended
+  membership. Reuse verified packs and record any missing terminal compiler
+  receipt separately. A terminal receipt requires its own server readback.
+- **Wait for progress, then reconcile.** While matching artifacts or run
+  revisions advance, observe within the saved bound and renew the owned lease as
+  needed. Wait for writes to settle before starting another compile. Once
+  progress stops, replay the identical request at most once within the bound to
+  recover its receipt or unfinished writes. Use the original caller, request ID,
+  inputs and lease fence. Read the run and manifests again after the replay.
+  Apply this recovery only to compilation. If the lease changed or the cursor
+  conflicts, reconcile before making another mutation.
+- **Fence a confirmed stall.** If the bounded check still shows no progress and
+  qualified packs are missing, checkpoint the attempt and exact observed
+  boundary at the latest revision under the parent run lease. Read back the
+  new revision before dispatching another compile. If the fence cannot be
+  verified or the budget has expired, save the unresolved phase for resume.
+- **Continue only the missing packs.** Create a linked compile-only run with a
+  separate run lease, the parent run ID and the still-current missing concept
+  pins. Use a stable creation request ID for that scope and save the linked run
+  ID on the parent checkpoint. Reuse existing trusted research and preserve
+  accepted output IDs, holds and pauses. Save the linked manifests
+  and hashes in the parent ledger so resume can reuse them. Audit and, when
+  authorized, index each artifact under its owning run. Report a same-run native
+  family rollup as pending or partial until the compiler verifies exact unified
+  membership. The linked packs count toward topic coverage.
 
 Research completion, qualification, pack compilation, rollup, graph registration,
 skill audit and keyword/semantic coverage are independent required stages. Report
