@@ -816,6 +816,19 @@ def generate():
         },
     )
     panel(
+        "Public Google seller declaration",
+        "fleet_google_seller_file_status{" + project_filter + "}",
+        "stat",
+        height=5,
+        legend="{{project}}",
+        description="Checks the public ads.txt file for a Google seller line. AdSense review and earnings use separate provider data.",
+        mappings={
+            "0": {"text": "File missing", "color": "orange"},
+            "1": {"text": "Google seller declared", "color": "green"},
+            "2": {"text": "No Google seller line", "color": "orange"},
+        },
+    )
+    panel(
         "AdSense estimated earnings · yesterday",
         "fleet_ads_estimated_earnings{" + project_filter + "}",
         height=5,
@@ -931,7 +944,7 @@ def generate():
         {
             "uid": "llmsx-business",
             "title": "Website status and business signals",
-            "version": 1,
+            "version": 2,
             "schemaVersion": 41,
             "editable": False,
             "tags": ["operations", "business"],

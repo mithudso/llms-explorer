@@ -1,5 +1,9 @@
 # Memory
 
+## v0.22.206 — 2026-11-19 public advertising configuration monitor
+
+The private business dashboard reads each current ads.txt response and checks for a Google seller declaration without publishing publisher IDs. Its provider status keeps failed reads unavailable. AdSense review and earnings still use their own account grant. Delta from memory v0.22.205 to v0.22.206. Prompt v161. TASK-1518.
+
 ## v0.22.205 — 2026-11-19 website operations and discovery
 
 The private Grafana stack and tunnel run on Fedora. The Mac still runs the native collector and supplies its Google and Cloudflare grants over the existing telemetry bridge. Preserve the Fedora Loki override, monitoring volumes, existing tunnel and private credentials. Net DNS Monitor and production SKaaS checks join the inventory. The generated business status dashboard and alerts expose domain-level provider status and commerce when feeds are configured.
