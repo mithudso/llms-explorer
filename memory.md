@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.205 — 2026-11-19 website operations and discovery
+
+The private Grafana stack and tunnel run on Fedora. The Mac still runs the native collector and supplies its Google and Cloudflare grants over the existing telemetry bridge. Preserve the Fedora Loki override, monitoring volumes, existing tunnel and private credentials. Net DNS Monitor and production SKaaS checks join the inventory. The generated business status dashboard and alerts expose domain-level provider status and commerce when feeds are configured.
+
+Verified Cloudflare routing for five domains, including the newly enabled Net DNS Monitor route. Legacy LLMS Explorer uses Google Workspace; its administrator routing still needs read-back. AdSense site verification and persistent Stripe financial feeds require provider grants. Keep seller-file, configured banking, and settlement evidence distinct. Discovery delivery, deep SEO residuals and live check receipts are tracked on TASK-1518. Delta from memory v0.22.204 to v0.22.205. Prompt v161.
+
 ## v0.22.204 — 2026-11-18 final optimizer verification
 
 - Kept all graph data. Reducing WebGL geometry let WebKit on this test machine render 9,165 nodes and 9,348 links and open details by keyboard. Chromium and missing-renderer recovery also passed. The UI still needs manual assistive-technology and remaining selected-method evidence before a convergence claim.

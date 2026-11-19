@@ -105,8 +105,9 @@ class DeploymentChecks(unittest.TestCase):
 
         self.assertEqual(color("Firing alerts", 4), "red")
         self.assertEqual(color("Firing alerts", 0), "green")
-        self.assertEqual(color("Public sites responding / 6", 2), "red")
-        self.assertEqual(color("Public sites responding / 6", 6), "green")
+        count = len(json.loads((ROOT / "inventory.json").read_text())["sites"])
+        self.assertEqual(color(f"Public sites responding / {count}", count - 1), "red")
+        self.assertEqual(color(f"Public sites responding / {count}", count), "green")
         self.assertEqual(color("Monitoring scrape failures", 0), "green")
 
 

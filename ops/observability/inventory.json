@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
+  "version": "1.1.0",
   "environment": "production",
   "dashboard_url": "https://ops.llmsx.org",
   "watchdog_url": "https://llmsx-fleet-watchdog.mitchphudson.workers.dev/status",
@@ -9,10 +9,14 @@
     {"name":"oraclebot","phase":"production"},
     {"name":"twss","phase":"production"},
     {"name":"morelube","phase":"production"},
-    {"name":"skaas","phase":"prelaunch"},
+    {"name":"skaas","phase":"production"},
     {"name":"dashboard","phase":"production"},
     {"name":"llmsx-readiness","phase":"production"},
-    {"name":"morelube-readiness","phase":"production"}
+    {"name":"morelube-readiness","phase":"production"},
+    {"name":"netdnsmonitor","phase":"production"},
+    {"name":"skaas-app","phase":"production"},
+    {"name":"skaas-readiness","phase":"production"},
+    {"name":"skaas-mcp","phase":"production"}
   ],
   "sites": [
     {"project":"llmsx","domain":"llmsx.org","phase":"production","zone_id":"9f97a466f6dd16ba7fcd1c392293bfb2","ga4_property":"556791711"},
@@ -20,7 +24,8 @@
     {"project":"oraclebot","domain":"oraclebot.io","phase":"production","zone_id":"6c72f15d8221a49e52b4c2654911f561"},
     {"project":"twss","domain":"thatswhatshesaid.games","phase":"production","zone_id":"2aaf8807f48437036401376fab5fd569"},
     {"project":"morelube","domain":"morelube.com","phase":"production","zone_id":"c552092285921d67d435e2ea544aa39f"},
-    {"project":"skaas","domain":"skaas.io","phase":"prelaunch","zone_id":"620ddaf8e1f5c2967b0cc0ff71e082ac"}
+    {"project":"skaas","domain":"skaas.io","phase":"production","zone_id":"620ddaf8e1f5c2967b0cc0ff71e082ac"},
+    {"project":"netdnsmonitor","domain":"netdnsmonitor.com","phase":"production","zone_id":"3547b45e028e7533a94193df5c48666a"}
   ],
   "checks": [
     {"project":"llmsx","service":"account-api","url":"https://api.llms-explorer.com/health","expect":{"status":"ok"},"kind":"liveness"},
@@ -30,7 +35,11 @@
     {"project":"morelube","service":"store-database","url":"https://morelube.com/health","expect":{"status":"ok"},"kind":"readiness","capabilities":["checkout_enabled"]},
     {"project":"morelube","service":"store-origin","url":"http://127.0.0.1:8811/health","expect":{"status":"ok"},"kind":"origin"},
     {"project":"twss","service":"catalog-api","url":"https://thatswhatshesaid.games/api/cards","expect_type":"object","kind":"read-only-journey"},
-    {"project":"skaas","service":"database-readiness","url":"https://skaas.io/ready","expect":{"status":"ready"},"kind":"readiness","phase":"prelaunch"}
+    {"project":"skaas","service":"edge-api","url":"https://api.skaas.io/health","expect":{"status":"ok"},"kind":"liveness"},
+    {"project":"skaas","service":"edge-database-and-search","url":"https://api.skaas.io/ready","expect":{"status":"ready","checks":{"database":true,"search_indexes":true}},"kind":"readiness"},
+    {"project":"morelube","service":"catalog-api","url":"https://morelube.com/api/health","expect":{"ok":true},"capabilities":["membership_enabled"],"kind":"readiness"},
+    {"project":"netdnsmonitor","service":"free-download-object","url":"https://netdnsmonitor.com/download/free","head_content_type":"application/zip","kind":"read-only-journey"},
+    {"project":"skaas","service":"mcp-edge","url":"https://mcp.skaas.io/health","expect":{"status":"ok"},"kind":"liveness"}
   ],
   "launchd": [
     {"project":"llmsx","service":"account-api-process","label":"com.llms-explorer.api"},
@@ -45,11 +54,15 @@
     {"project":"oraclebot","name":"oraclebot-analysis-runtime"},
     {"project":"oraclebot","name":"oraclebot-customer-execution"},
     {"project":"twss","name":"thats-what-she-said"},
-    {"project":"skaas","name":"skaas-edge","phase":"prelaunch"}
+    {"project":"skaas","name":"skaas-edge"},
+    {"project":"skaas","name":"skaas-web"},
+    {"project":"skaas","name":"skaas-marketing"},
+    {"project":"netdnsmonitor","name":"netdnsmonitor-storefront"}
   ],
   "databases": [
     {"project":"oraclebot","name":"oraclebot-accounts","id":"5526a15f-8063-4b5b-8a9d-b20babf0337d"},
-    {"project":"twss","name":"thats-what-she-said-cards","id":"00a89eff-b03f-4f46-b05a-b01a8d6c2a07"}
+    {"project":"twss","name":"thats-what-she-said-cards","id":"00a89eff-b03f-4f46-b05a-b01a8d6c2a07"},
+    {"project":"netdnsmonitor","name":"netdnsmonitor-orders","id":"d2d2eda8-8cda-470a-ae40-87e191410893"}
   ],
   "tunnels": [
     {"project":"llmsx","name":"explorer-api"},
@@ -69,11 +82,18 @@
     {"project":"twss","component":"scheduled-maintenance","kind":"cron","coverage":"gap-job-heartbeats"},
     {"project":"morelube","component":"store-and-sqlite","kind":"macos-sqlite","coverage":"readiness-query"},
     {"project":"morelube","component":"payment-reconciliation-and-supplier","kind":"background-job","coverage":"gap-job-heartbeats"},
-    {"project":"skaas","component":"api-shards","kind":"durable-object","coverage":"gap-not-deployed"},
-    {"project":"skaas","component":"hosted-database","kind":"mongodb","coverage":"gap-not-deployed"},
-    {"project":"skaas","component":"blobs-cache-outbox","kind":"r2-kv-queue","coverage":"gap-not-deployed"},
+    {"project":"skaas","component":"api-shards","kind":"durable-object","coverage":"readiness-query"},
+    {"project":"skaas","component":"hosted-database","kind":"mongodb","coverage":"readiness-query"},
+    {"project":"skaas","component":"blobs-cache-outbox","kind":"r2-kv-queue","coverage":"gap-blob-cache-and-outbox-readiness"},
     {"project":"all","component":"off-host-watchdog","kind":"external-monitor","coverage":"external-http-and-d1-history"},
     {"project":"all","component":"application-logs","kind":"structured-logs","coverage":"gap-project-instrumentation"},
-    {"project":"all","component":"backup-restore","kind":"disaster-recovery","coverage":"gap-restore-drills"}
-  ]
+    {"project":"all","component":"backup-restore","kind":"disaster-recovery","coverage":"gap-restore-drills"},
+    {"project":"netdnsmonitor","component":"storefront","kind":"cloudflare-worker","coverage":"public-http"},
+    {"project":"netdnsmonitor","component":"orders","kind":"d1","coverage":"readiness-query"},
+    {"project":"netdnsmonitor","component":"free-download-archive","kind":"r2","coverage":"read-only-journey"},
+    {"project":"netdnsmonitor","component":"premium-archive-and-fulfillment","kind":"r2-stripe","coverage":"gap-live-customer-journey"},
+    {"project":"morelube","component":"crypto-orders-and-settlement","kind":"private-sqlite-and-reconciler","coverage":"read-only-production-ledger"},
+    {"project":"skaas","component":"authenticated-app","kind":"cloudflare-worker","coverage":"public-http"}
+  ],
+  "business_projects": ["llmsx","llms-explorer","netdnsmonitor","oraclebot","morelube","skaas"]
 }

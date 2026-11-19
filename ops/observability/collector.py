@@ -21,13 +21,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import ClassVar
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 2 * 1024 * 1024
 ACCOUNT = "b41ba4dc457dce7653c93af955ecc462"
@@ -84,6 +84,22 @@ def check_http(spec):
     ok = False
     capabilities = {}
     try:
+        if expected_type := spec.get("head_content_type"):
+            request = urllib.request.Request(
+                spec["url"],
+                method="HEAD",
+                headers={"User-Agent": "LLMSX-Operations/" + VERSION},
+            )
+            with urllib.request.build_opener(NoRedirect()).open(
+                request, timeout=12
+            ) as response:
+                status = response.status
+                ok = (
+                    status == 200
+                    and response.headers.get_content_type() == expected_type
+                    and int(response.headers.get("Content-Length", 0)) > 0
+                )
+            return ok, status, time.monotonic() - started, capabilities
         value = request_json(spec["url"])
         status = 200
         ok = isinstance(value, dict) and all(
@@ -294,6 +310,7 @@ class Collector:
     intervals: ClassVar = {
         "fast": 60,
         "cloudflare": 300,
+        "business": 300,
         "google": 900,
         "ads": 3600,
         "logs": 30,
@@ -502,6 +519,13 @@ class Collector:
                                 **labels,
                             )
                         )
+                    rows.append(
+                        sample(
+                            "fleet_cloudflare_zone_uniques",
+                            groups[0]["uniq"]["uniques"],
+                            **labels,
+                        )
+                    )
                     for status in groups[0]["sum"].get("responseStatusMap", []):
                         rows.append(
                             sample(
@@ -598,6 +622,364 @@ class Collector:
                 )
         return rows
 
+    def business_cloudflare(self, site):
+        rows = []
+        project = site["project"]
+        day = (dt.datetime.now(dt.UTC) - dt.timedelta(days=1)).date().isoformat()
+        prefix = "{viewer{zones(filter:{zoneTag:" + json.dumps(site["zone_id"]) + "}){"
+        configured = self.cf_credentials.is_file()
+        if project != "llms-explorer":
+            try:
+                settings = cf_json(
+                    "email-routing", "settings", "get", "--zone", site["zone_id"]
+                )
+                catchall = cf_json(
+                    "email-routing",
+                    "rules",
+                    "catch-all",
+                    "get",
+                    "--zone",
+                    site["zone_id"],
+                )
+                recipient_file = self.state / "mail-destination"
+                if recipient_file.is_file():
+                    recipient = recipient_file.read_text().strip().casefold()
+                    expected = any(
+                        a["type"] == "forward"
+                        and {address.casefold() for address in a.get("value", [])}
+                        == {recipient}
+                        for a in catchall["actions"]
+                    )
+                    rows.append(
+                        sample(
+                            "fleet_mail_forwarding_verified",
+                            int(
+                                settings.get("enabled") is True
+                                and catchall.get("enabled") is True
+                                and expected
+                            ),
+                            project=project,
+                        )
+                    )
+                self.integration(rows, project, "mail-routing", configured, True)
+            except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+                self.integration(rows, project, "mail-routing", configured, False)
+            try:
+                dataset = "emailRoutingAdaptiveGroups"
+                result = self.graphql(
+                    prefix
+                    + dataset
+                    + "(limit:100,filter:{date:"
+                    + json.dumps(day)
+                    + ',eventType:"incoming"}){count dimensions{status}}}}}'
+                )["zones"]
+                groups = result[0][dataset]
+                if len(result) != 1 or len(groups) >= 100:
+                    raise ValueError("incomplete email analytics response")
+                for item in groups:
+                    rows.append(
+                        sample(
+                            "fleet_mail_incoming_window",
+                            item["count"],
+                            project=project,
+                            outcome=item["dimensions"]["status"],
+                            period="yesterday_utc",
+                        )
+                    )
+                if not groups:
+                    rows.append(
+                        sample(
+                            "fleet_mail_incoming_window",
+                            0,
+                            project=project,
+                            outcome="none",
+                            period="yesterday_utc",
+                        )
+                    )
+                self.integration(
+                    rows, project, "mail-activity", configured, True, bool(groups)
+                )
+            except (OSError, ValueError, KeyError, IndexError):
+                self.integration(rows, project, "mail-activity", configured, False)
+        else:
+            for source in ("mail-routing", "mail-activity"):
+                self.integration(rows, project, source, False, False)
+
+        try:
+            levels = cf_json(
+                "security-insights",
+                "count",
+                "by-severity",
+                "--zone",
+                site["zone_id"],
+                "--dismissed",
+                "false",
+            )
+            values = {
+                level["value"].casefold(): int(level["count"]) for level in levels
+            }
+            for severity in sorted(
+                values.keys() | {"critical", "high", "moderate", "low"}
+            ):
+                rows.append(
+                    sample(
+                        "fleet_cloudflare_security_findings",
+                        values.get(severity, 0),
+                        project=project,
+                        severity=severity,
+                    )
+                )
+            self.integration(rows, project, "cloudflare-findings", configured, True)
+        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+            self.integration(rows, project, "cloudflare-findings", configured, False)
+
+        try:
+            dataset = "firewallEventsAdaptiveGroups"
+            result = self.graphql(
+                prefix
+                + dataset
+                + "(limit:100,filter:{date:"
+                + json.dumps(day)
+                + "}){count dimensions{action}}}}}"
+            )["zones"]
+            groups = result[0][dataset]
+            if len(result) != 1 or len(groups) >= 100:
+                raise ValueError("incomplete firewall analytics response")
+            for item in groups:
+                rows.append(
+                    sample(
+                        "fleet_cloudflare_firewall_events",
+                        item["count"],
+                        project=project,
+                        action=item["dimensions"]["action"],
+                        period="yesterday_utc",
+                    )
+                )
+            if not groups:
+                rows.append(
+                    sample(
+                        "fleet_cloudflare_firewall_events",
+                        0,
+                        project=project,
+                        action="none",
+                        period="yesterday_utc",
+                    )
+                )
+            self.integration(
+                rows, project, "cloudflare-firewall", configured, True, bool(groups)
+            )
+        except (OSError, ValueError, KeyError, IndexError):
+            self.integration(rows, project, "cloudflare-firewall", configured, False)
+        return rows
+
+    def stripe(self, project, config):
+        rows = []
+        if config is None:
+            self.integration(rows, project, "stripe-live", False, False)
+            return rows
+        try:
+            # Only a specific, independently verified single-site settlement account can be mapped.
+            key = Path(config["key_file"]).read_text().strip()
+            if not key.startswith("rk_live_"):
+                raise ValueError("a restricted live Stripe key is required")
+            headers = {"Authorization": "Bearer " + key}
+            origin = "https://api.stripe.com/v1/"
+            if (
+                request_json(origin + "account", headers=headers)["id"]
+                != config["account_id"]
+            ):
+                raise ValueError("Stripe account does not match the expected site")
+            now = int(time.time())
+            cutoff = now - 1800
+            totals = {}
+            for route, start in (
+                ("events", cutoff),
+                ("balance_transactions", now - 86400),
+            ):
+                params = {"created[gte]": start, "created[lte]": now, "limit": 100}
+                entries = []
+                for _ in range(5):
+                    response = request_json(
+                        origin + route + "?" + urllib.parse.urlencode(params),
+                        headers=headers,
+                    )
+                    page = response["data"]
+                    entries.extend(page)
+                    if not response["has_more"]:
+                        break
+                    params["starting_after"] = page[-1]["id"]
+                else:
+                    raise ValueError("incomplete Stripe reporting window")
+                if route == "events":
+                    if not all(event["livemode"] is True for event in entries):
+                        raise ValueError("Stripe returned a test event")
+                    groups = {
+                        "purchases": {"payment_intent.succeeded"},
+                        "refunds": {"charge.refunded"},
+                        "disputes": {"charge.dispute.created"},
+                        "payouts": {"payout.paid", "payout.failed", "payout.canceled"},
+                        "account_changes": {
+                            "account.updated",
+                            "capability.updated",
+                            "account.external_account.created",
+                            "account.external_account.updated",
+                            "account.external_account.deleted",
+                        },
+                    }
+                    for group, event_types in groups.items():
+                        rows.append(
+                            sample(
+                                "fleet_stripe_events_recent",
+                                sum(event["type"] in event_types for event in entries),
+                                project=project,
+                                kind=group,
+                            )
+                        )
+                else:
+                    recent = 0
+                    for entry in entries:
+                        currency = entry["currency"]
+                        if not re.fullmatch(r"[a-z]{3}", currency):
+                            raise ValueError("unexpected Stripe currency")
+                        totals[currency] = totals.get(currency, 0) + int(entry["net"])
+                        recent += int(
+                            entry["created"] >= cutoff and int(entry["net"]) != 0
+                        )
+                    rows.append(
+                        sample(
+                            "fleet_stripe_balance_movements_recent",
+                            recent,
+                            project=project,
+                        )
+                    )
+                    for currency, total in totals.items():
+                        rows.append(
+                            sample(
+                                "fleet_stripe_net_movement_minor",
+                                total,
+                                project=project,
+                                currency=currency,
+                            )
+                        )
+        except (OSError, ValueError, KeyError, IndexError, TypeError):
+            rows = []
+            self.integration(rows, project, "stripe-live", True, False)
+        else:
+            self.integration(rows, project, "stripe-live", True, True, True)
+        return rows
+
+    def commerce(self, project):
+        rows = []
+        if project == "netdnsmonitor":
+            database = next(
+                d for d in self.inventory["databases"] if d["project"] == project
+            )
+            try:
+                result = cf_json(
+                    "d1",
+                    "query",
+                    database["id"],
+                    "--sql",
+                    "SELECT provider, COUNT(*) AS purchases, SUM(cents) AS gross "
+                    "FROM orders WHERE state = 'paid' AND created_at >= unixepoch() - 86400 "
+                    "GROUP BY provider",
+                )
+                if len(result) != 1 or result[0]["success"] is not True:
+                    raise ValueError("Net DNS Monitor orders query failed")
+                values = {r["provider"]: r for r in result[0]["results"]}
+                for provider in ("stripe", "paypal", "venmo"):
+                    entry = values.get(provider, {"purchases": 0, "gross": 0})
+                    for key, metric in (
+                        ("purchases", "count"),
+                        ("gross", "gross_usd_cents"),
+                    ):
+                        rows.append(
+                            sample(
+                                "fleet_netdns_orders_" + metric,
+                                entry[key],
+                                project=project,
+                                provider=provider,
+                            )
+                        )
+            except (
+                OSError,
+                ValueError,
+                KeyError,
+                IndexError,
+                subprocess.SubprocessError,
+            ):
+                self.integration(rows, project, "commerce-ledger", True, False)
+            else:
+                self.integration(rows, project, "commerce-ledger", True, True)
+        if project == "morelube":
+            config = self.state / "morelube-db-path"
+            if not config.is_file():
+                self.integration(rows, project, "commerce-ledger", False, False)
+                return rows
+            try:
+                path = Path(config.read_text().strip()).resolve(strict=True)
+                now = dt.datetime.now(dt.UTC)
+                iso = lambda t: t.isoformat(timespec="milliseconds").replace(
+                    "+00:00", "Z"
+                )
+                with closing(
+                    sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=3)
+                ) as db:
+                    values = db.execute(
+                        "SELECT COUNT(*), COALESCE(SUM(p.amount_cents), 0),"
+                        "COUNT(CASE WHEN p.settled_at >= ? THEN 1 END) "
+                        "FROM payments p JOIN orders o ON o.id = p.order_id "
+                        "WHERE o.is_test = 0 AND p.currency = 'USD' AND p.settled_at >= ? AND p.settled_at <= ?",
+                        (
+                            iso(now - dt.timedelta(minutes=30)),
+                            iso(now - dt.timedelta(days=1)),
+                            iso(now),
+                        ),
+                    ).fetchone()
+                for name, value in zip(
+                    ("purchases_day", "gross_usd_cents_day", "purchases_recent"),
+                    values,
+                    strict=True,
+                ):
+                    rows.append(
+                        sample("fleet_morelube_" + name, value, project=project)
+                    )
+            except (OSError, sqlite3.Error, ValueError):
+                self.integration(rows, project, "commerce-ledger", True, False)
+            else:
+                self.integration(rows, project, "commerce-ledger", True, True)
+        return rows
+
+    def business(self):
+        sites = [
+            s
+            for s in self.inventory["sites"]
+            if s["project"] in self.inventory["business_projects"]
+        ]
+        path = self.state / "stripe-accounts.json"
+        accounts = json.loads(path.read_text()) if path.is_file() else {}
+        # Do not attribute a shared Stripe balance to multiple domains.
+        if len({binding["account_id"] for binding in accounts.values()}) != len(
+            accounts
+        ):
+            raise ValueError(
+                "Stripe site mappings must use distinct settlement accounts"
+            )
+        rows = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+            pending = [pool.submit(self.business_cloudflare, site) for site in sites]
+            pending.extend(
+                pool.submit(self.stripe, site["project"], accounts.get(site["project"]))
+                for site in sites
+            )
+            pending.extend(
+                pool.submit(self.commerce, project)
+                for project in ("netdnsmonitor", "morelube")
+            )
+            for result in pending:
+                rows.extend(result.result())
+        return rows
+
     def google(self):
         rows = []
         for site in self.inventory["sites"]:
@@ -665,6 +1047,41 @@ class Collector:
                 account = os.environ["ADSENSE_ACCOUNT"]
                 if not re.fullmatch(r"accounts/pub-[0-9]+", account):
                     raise ValueError("invalid AdSense account resource")
+                headers = {"Authorization": "Bearer " + token}
+                try:
+                    body = request_json(
+                        f"https://adsense.googleapis.com/v2/{account}/sites?pageSize=10000",
+                        headers=headers,
+                    )
+                    if body.get("nextPageToken"):
+                        raise ValueError("incomplete AdSense sites response")
+                    registered = {
+                        site["domain"]: site for site in body.get("sites", [])
+                    }
+                except (OSError, ValueError, KeyError):
+                    self.integration(rows, "fleet", "adsense-sites", True, False)
+                else:
+                    states = {
+                        "STATE_UNSPECIFIED": 0,
+                        "REQUIRES_REVIEW": 1,
+                        "GETTING_READY": 2,
+                        "READY": 3,
+                        "NEEDS_ATTENTION": 4,
+                    }
+                    for site in self.inventory["sites"]:
+                        registration = registered.get(site["domain"])
+                        rows.append(
+                            sample(
+                                "fleet_adsense_site_status",
+                                states.get(registration.get("state"), 0)
+                                if registration
+                                else 5,
+                                project=site["project"],
+                            )
+                        )
+                    self.integration(
+                        rows, "fleet", "adsense-sites", True, True, bool(registered)
+                    )
                 params = urllib.parse.urlencode(
                     {
                         "dateRange": "YESTERDAY",
@@ -698,8 +1115,13 @@ class Collector:
                 self.integration(rows, "fleet", "adsense", True, True, bool(data))
             except (OSError, ValueError, KeyError, PermissionError):
                 self.integration(rows, "fleet", "adsense", True, False)
+                if not any(
+                    labels.get("source") == "adsense-sites" for _, _, labels in rows
+                ):
+                    self.integration(rows, "fleet", "adsense-sites", True, False)
         else:
             self.integration(rows, "fleet", "adsense", False, False)
+            self.integration(rows, "fleet", "adsense-sites", False, False)
         self.integration(rows, "fleet", "ezmob", False, False)
         return rows
 

@@ -15,6 +15,7 @@ def write(path, data):
 
 def generate():
     inventory = json.loads((ROOT / "inventory.json").read_text())
+    site_count = len(inventory["sites"])
     write(
         "blackbox.yml",
         {
@@ -196,6 +197,59 @@ def generate():
             "Central logs have failed delivery",
         ),
     ]
+    rules.extend(
+        [
+            (
+                "StripePurchaseObserved",
+                'fleet_stripe_events_recent{kind="purchases"} > 0',
+                "0s",
+                "info",
+                "A successful Stripe PaymentIntent was observed in the previous 30 minutes",
+            ),
+            (
+                "StripeCashFlowObserved",
+                "fleet_stripe_balance_movements_recent > 0",
+                "0s",
+                "info",
+                "Stripe reported nonzero net balance movements in the previous 30 minutes",
+            ),
+            (
+                "StripeFinancialOrAccountChange",
+                'fleet_stripe_events_recent{kind=~"refunds|disputes|payouts|account_changes"} > 0',
+                "0s",
+                "warning",
+                "A refund, dispute, payout or account change was observed in the previous 30 minutes",
+            ),
+            (
+                "NetDNSPaidOrdersObserved",
+                "fleet_netdns_orders_count > 0",
+                "0s",
+                "info",
+                "Net DNS Monitor has a paid order created in the preceding 24 hours",
+            ),
+            (
+                "MoreLubePurchaseSettled",
+                "fleet_morelube_purchases_recent > 0",
+                "0s",
+                "info",
+                "MoreLube recorded a non-test crypto payment settlement in the previous 30 minutes",
+            ),
+            (
+                "CloudflareHighSecurityFindings",
+                'fleet_cloudflare_security_findings{severity=~"critical|high"} > 0',
+                "5m",
+                "warning",
+                "Cloudflare Security Center reports unresolved high or critical findings",
+            ),
+            (
+                "DomainMailForwardingChanged",
+                "fleet_mail_forwarding_verified == 0",
+                "5m",
+                "warning",
+                "The monitored domain catch-all differs from the approved destination or is disabled",
+            ),
+        ]
+    )
     write(
         "prometheus/alerts.yml",
         {
@@ -300,10 +354,10 @@ def generate():
         typ="text",
         width=24,
         height=4,
-        text="## Websites · backends · traffic · revenue · logs\nPrivate operations dashboard. Public HTTP checks run every minute. Host and backend checks run every minute. Provider statistics refresh every 5–15 minutes. **Unknown, missing permissions and prelaunch services remain visible.** A configured dependency is not a successful customer journey. [Operating standards and runbooks](https://github.com/mithudso/llms-explorer/blob/main/docs/operations/observability.md)",
+        text="## Websites · backends · traffic · revenue · logs\nPrivate operations dashboard. [Open website status and business signals](/d/llmsx-business). Public HTTP checks run every minute. Host and backend checks run every minute. Provider statistics refresh every 5–15 minutes. **Unknown, missing permissions and prelaunch services remain visible.** A configured dependency is not a successful customer journey. [Operating standards and runbooks](https://github.com/mithudso/llms-explorer/blob/main/docs/operations/observability.md)",
     )
     panel(
-        "Public sites responding / 6",
+        f"Public sites responding / {site_count}",
         'sum(probe_success{job="websites"})',
         "stat",
         6,
@@ -553,7 +607,10 @@ def generate():
         description="Prometheus rules run locally. External notifications require an explicitly configured destination; an off-host watchdog remains necessary for Mac/network failure.",
     )
     health_thresholds = {
-        "Public sites responding / 6": [(None, "red"), (6, "green")],
+        f"Public sites responding / {site_count}": [
+            (None, "red"),
+            (site_count, "green"),
+        ],
         "Firing alerts": [(None, "green"), (1, "red")],
         "Backend checks failing": [(None, "green"), (1, "red")],
         "Known coverage gaps": [(None, "green"), (1, "orange")],
@@ -695,13 +752,207 @@ def generate():
         {
             "uid": "llmsx-fleet",
             "title": "Fleet operations",
-            "version": 1,
+            "version": 2,
             "schemaVersion": 41,
             "editable": False,
             "tags": ["operations", "fleet"],
             "timezone": "browser",
             "refresh": "30s",
             "time": {"from": "now-6h", "to": "now"},
+            "panels": panels,
+        },
+    )
+
+    panels = []
+    y = 0
+    projects = [
+        s for s in inventory["sites"] if s["project"] in inventory["business_projects"]
+    ]
+    project_filter = 'project=~"${project:regex}"'
+    panel(
+        "Website status and business signals",
+        typ="text",
+        width=24,
+        height=4,
+        text="[Fleet infrastructure](/d/llmsx-fleet). Select one or more domains. The alias has separate traffic and email, and shares the primary site's product. Missing data displays as unknown. Stripe currency values use provider minor units. Alerts are visible here when provider data is available.",
+    )
+    panel(
+        "Public website availability",
+        'probe_success{job="websites",' + project_filter + "}",
+        height=6,
+        legend="{{project}}",
+    )
+    panel(
+        "Backend and component checks",
+        "fleet_check_success{" + project_filter + "}",
+        height=6,
+        legend="{{project}} / {{service}}",
+    )
+    panel(
+        "GA4 active users · yesterday",
+        "fleet_ga4_active_users{" + project_filter + "}",
+        height=7,
+        description="Hostname-filtered Google Analytics. Counts depend on consent, blockers and the GA4 active-user definition.",
+    )
+    panel(
+        "Cloudflare zone unique IPs · previous UTC day",
+        "fleet_cloudflare_zone_uniques{" + project_filter + "}",
+        height=7,
+        description="Cloudflare estimates unique source IPs for the whole zone. Includes bots, probes and subdomains.",
+    )
+    panel(
+        "AdSense site review",
+        "fleet_adsense_site_status{" + project_filter + "}",
+        "stat",
+        height=5,
+        legend="{{project}}",
+        mappings={
+            "0": {"text": "Unknown"},
+            "1": {"text": "Requires review", "color": "orange"},
+            "2": {"text": "Getting ready", "color": "blue"},
+            "3": {"text": "Ready", "color": "green"},
+            "4": {"text": "Needs attention", "color": "red"},
+            "5": {"text": "Absent from configured account"},
+        },
+    )
+    panel(
+        "AdSense estimated earnings · yesterday",
+        "fleet_ads_estimated_earnings{" + project_filter + "}",
+        height=5,
+        unit="currencyUSD",
+    )
+    panel(
+        "Cloudflare reported threats · previous UTC day",
+        "fleet_cloudflare_threats{" + project_filter + "}",
+        height=7,
+        description="Zone-level Cloudflare threat total. The firewall event panel depends on detailed dataset access.",
+    )
+    panel(
+        "Cloudflare Security Center open findings by severity",
+        "fleet_cloudflare_security_findings{" + project_filter + "}",
+        height=7,
+        legend="{{project}} / {{severity}}",
+    )
+    panel(
+        "Cloudflare firewall actions · previous UTC day",
+        "fleet_cloudflare_firewall_events{" + project_filter + "}",
+        height=7,
+        legend="{{project}} / {{action}}",
+    )
+    panel(
+        "Stripe purchases, refunds, disputes, payouts and changes · last 30 minutes",
+        "fleet_stripe_events_recent{" + project_filter + "}",
+        height=7,
+        legend="{{project}} / {{kind}}",
+    )
+    panel(
+        "Stripe net balance movements · previous 24 hours",
+        "fleet_stripe_net_movement_minor{" + project_filter + "}",
+        height=7,
+        legend="{{project}} / {{currency}}",
+        description="Stripe balance ledger signed net movements by currency in minor units. May include fees and payouts. No cross-currency aggregation.",
+    )
+    panel(
+        "MoreLube purchase settlements · previous 24 hours",
+        "fleet_morelube_purchases_day{" + project_filter + "}",
+        height=7,
+        description="Production crypto payments recorded in the store ledger. Owner test orders are excluded.",
+    )
+    panel(
+        "MoreLube gross settlement amount · previous 24 hours (USD cents)",
+        "fleet_morelube_gross_usd_cents_day{" + project_filter + "}",
+        height=7,
+        description="Order ledger USD equivalent. Separate cash-out and fees are excluded.",
+    )
+    panel(
+        "Net DNS Monitor paid orders created · previous 24 hours",
+        "fleet_netdns_orders_count{" + project_filter + "}",
+        height=7,
+        legend="{{project}} / {{provider}}",
+        description="Currently paid orders created within the window. Stripe financial events use a separate source.",
+    )
+    panel(
+        "Net DNS Monitor paid order amounts · previous 24 hours (USD cents)",
+        "fleet_netdns_orders_gross_usd_cents{" + project_filter + "}",
+        height=7,
+        legend="{{project}} / {{provider}}",
+        description="Gross face value of currently paid orders created within the window.",
+    )
+    panel(
+        "Cloudflare incoming email · previous UTC day",
+        "fleet_mail_incoming_window{" + project_filter + "}",
+        height=7,
+        legend="{{project}} / {{outcome}}",
+    )
+    panel(
+        "Catch-all approved destination check",
+        "fleet_mail_forwarding_verified{" + project_filter + "}",
+        "stat",
+        height=7,
+        legend="{{project}}",
+        mappings={
+            "0": {"text": "Drift detected", "color": "red"},
+            "1": {"text": "Verified configuration", "color": "green"},
+        },
+    )
+    panel(
+        "Provider status by domain and integration",
+        "fleet_integration_success{" + project_filter + "} or "
+        'fleet_integration_success{project="fleet",source=~"adsense|adsense-sites"}',
+        "stat",
+        height=8,
+        width=24,
+        legend="{{project}} / {{source}}",
+        mappings={
+            "0": {"text": "Unavailable", "color": "orange"},
+            "1": {"text": "Read succeeded", "color": "green"},
+        },
+        description="A read can succeed without an observation for this domain and period.",
+    )
+    panel(
+        "Provider acquisition age",
+        "time() - fleet_integration_last_success_timestamp_seconds{"
+        + project_filter
+        + "}",
+        height=7,
+        legend="{{project}} / {{source}}",
+        unit="s",
+    )
+    panel(
+        "Firing business alerts",
+        'ALERTS{alertstate="firing",alertname=~"Stripe.*|NetDNSPaidOrdersObserved|MoreLubePurchaseSettled|CloudflareHighSecurityFindings|DomainMailForwardingChanged",'
+        + project_filter
+        + "}",
+        "table",
+        height=7,
+    )
+    write(
+        "grafana/dashboards/business.json",
+        {
+            "uid": "llmsx-business",
+            "title": "Website status and business signals",
+            "version": 1,
+            "schemaVersion": 41,
+            "editable": False,
+            "tags": ["operations", "business"],
+            "timezone": "browser",
+            "refresh": "1m",
+            "time": {"from": "now-24h", "to": "now"},
+            "templating": {
+                "list": [
+                    {
+                        "name": "project",
+                        "label": "Domain",
+                        "type": "custom",
+                        "query": ",".join(
+                            s["domain"] + " : " + s["project"] for s in projects
+                        ),
+                        "includeAll": True,
+                        "multi": True,
+                        "current": {"text": "All", "value": "$__all"},
+                    }
+                ]
+            },
             "panels": panels,
         },
     )
