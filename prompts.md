@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v161 — 2026-11-19 website operations and discovery
+
+Run the deep prompt optimizer and execute the result for llmsx.org and its alias llms-explorer.com, netdnsmonitor.com, oraclebot.io, morelube.com, and skaas.io. Upsert private Grafana monitoring at https://ops.llmsx.org, covering infrastructure, visitors, purchase and cash flow alerts, AdSense, Cloudflare findings, Stripe changes, and incoming domain email. Verify forwarding to the owner-specified private Gmail destination. Run the deep SEO optimizer for each property. Create or verify a full public sitemap, llms.txt, and llms-full.txt. Record site-specific launch gaps and complete authorized fixes. Report remaining improvements and automation.
+
+Tracking TASK-1518. Delta from prompt v160 to v161. Private prompt receipt holds the original destination and optimizer artifacts.
+
 ## Prompt v160 — 2026-11-18 site and repository optimizer sequence
 
 > Run the /ddo skill on all documents that contain prose in this webpage. Then run the deep ui optimizer on every page to convergence. Then run the /dco skill on the repo and then the repo-bootstrapper.

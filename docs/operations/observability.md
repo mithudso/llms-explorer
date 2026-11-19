@@ -1,9 +1,10 @@
 # Fleet observability standard
 
-Version: 1.0.0. Effective: 2026-11-14. Owner: platform operator.
+Version 1.1.0. Updated 2026-11-19. Owner is the platform operator.
+Delta covers business status, Net DNS Monitor, and the production split between Fedora and macOS.
 
 This standard applies to LLMSX, legacy LLMS-Explorer, Oraclebot, That's What She
-Said, MoreLube and SKaaS, including their websites, APIs, databases, background
+Said, MoreLube, Net DNS Monitor and SKaaS, including their websites, APIs, databases, background
 jobs and hosting. The private operating console is https://ops.llmsx.org .
 The deployment inventory and conformance register are
 `ops/observability/inventory.json`. A listed gap is unfinished work, not coverage.
@@ -24,16 +25,23 @@ on the host; they are not mounted in Grafana or committed to Git. The installer
 creates its own tunnel and LaunchAgents and preserves the existing API and store
 tunnels. It installs immutable source releases from a committed revision.
 
-The initial host is the Mac that already serves the LLMSX API and MoreLube.
-Docker Desktop and the signed-in user session must stay running. This is a
-single-host deployment, not high availability. Mac power/network failure can
-take the dashboard down with those origins. The independent Cloudflare watchdog checks the six websites, the dashboard
-and two backend readiness endpoints every minute. It retains seven days of
-results in its own D1 database. Its metrics/history API requires a private bearer
-token. A dedicated Access application scopes the exception to this new Worker;
-the existing All Workers policy is preserved. The native collector reads this
-independent history and alerts on failures or stale checks.
-Offline workstations are not assumed to be production servers.
+Fedora runs Grafana, Prometheus, Blackbox Exporter, Loki and the public tunnel.
+The Mac continues to run the collector and its existing provider grants. The
+SSH telemetry bridge forwards collector metrics and Loki writes over the
+private connection. Turnover of the Mac collector leaves historical dashboards
+and public HTTPS checks available. The independent Cloudflare watchdog keeps
+seven days of scheduled results in its own D1 database and requires a bearer
+token to read history.
+
+For a Grafana release, build the reviewed revision on Fedora with both the
+release Compose file and its existing Fedora override. The override keeps Loki
+on its dedicated volume. Preserve all volumes, the SSH bridge, and the
+single Cloudflare tunnel. Update the Mac collector with
+`python3 ops/observability/manage.py install-collector --revision <merged-sha>`.
+For an independent watchdog release, use the watchdog deployment script from
+the same clean merged checkout. Verify the deployed image tags and collector
+source revision, all target and public health results, rule evaluation and the
+absence of anonymous access to dashboards and metrics.
 
 ## Service identity and ownership
 
@@ -123,6 +131,40 @@ arithmetic in binary floating point. Prometheus values are visualization only.
 EZMob remains unconnected until an authorized provider API/export is available.
 Do not treat an installed ad script, approved seller file or GA4 zero as proof
 of AdSense approval, ad fill or earnings.
+
+## Website status and business signals
+
+The [business dashboard](https://ops.llmsx.org/d/llmsx-business) filters by
+domain. It shows GA4 active users, estimated Cloudflare zone unique IPs,
+AdSense review and earnings, Cloudflare Security Center findings, firewall
+event aggregates where enabled, Stripe activity and net balance movements,
+commerce, inbound email activity, and verified forwarding configuration.
+Cloudflare estimates can include bots and subdomains. Security Center findings,
+daily threat counts and WAF action counts measure different things.
+
+Stripe monitoring requires a private `stripe-accounts.json` mapping in the
+collector state directory. Each project entry names an expected live
+`account_id` and its private absolute `key_file`. Use a restricted live key
+with account, Events and Balance Transactions read access. Enable a mapping
+only after the site is proven to have a dedicated settlement account.
+A 30-minute lookback alerts on a successful purchase, balance movement or
+financial/account change. The dashboard reports a 24-hour total net movement
+per currency in minor units. These rules fire in Prometheus. Configure and
+verify a notification route before relying on a push alert.
+
+The private `morelube-db-path` file points to the production store database.
+The collector reads aggregate settlement counts and their USD-equivalent
+gross amount in SQLite read-only mode. It excludes owner test orders. Net DNS
+Monitor uses a D1 aggregate of currently paid orders created in the last 24
+hours. That view is distinct from provider settlement or a payment event.
+
+The private `mail-destination` file supplies the approved forwarding address.
+The collector compares it with current Cloudflare routing without exporting
+addresses or message data. Email volume uses the prior UTC day of incoming
+Cloudflare events. The legacy Google Workspace domain needs its own mail
+routing and activity grant. AdSense Sites and earnings need the separate
+`adsense.readonly` grant. Check the provider status and last successful
+acquisition when a panel is unavailable.
 
 ## Structured logging and central collection
 

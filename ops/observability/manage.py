@@ -216,6 +216,29 @@ def release(revision):
     return destination / "ops/observability", sha
 
 
+def install_collector(revision):
+    os.umask(0o077)
+    source, sha = release(revision)
+    python = RUNTIME / "venv/bin/python"
+    if not python.is_file():
+        raise RuntimeError(
+            "collector deployment requires the installed Mac virtual environment"
+        )
+    label = "com.llmsx.observability.collector"
+    plist = Path.home() / "Library/LaunchAgents" / (label + ".plist")
+    environment = plistlib.loads(plist.read_bytes()).get("EnvironmentVariables", {})
+    launch(
+        label,
+        [str(python), str(source / "collector.py"), "--state", str(RUNTIME / "state")],
+        environment,
+    )
+    private_json(
+        RUNTIME / "collector-deployment.json",
+        {"source_revision": sha, "source": str(source)},
+    )
+    print(sha)
+
+
 def compose(source, *args):
     return run(
         "/usr/local/bin/docker",
@@ -363,7 +386,7 @@ def install(revision, publish):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["install", "supervise"])
+    parser.add_argument("action", choices=["install", "install-collector", "supervise"])
     parser.add_argument("--revision", default="HEAD")
     parser.add_argument(
         "--publish",
@@ -376,6 +399,10 @@ def main():
         if args.source is None:
             parser.error("supervise requires --source")
         supervise(args.source)
+    elif args.action == "install-collector":
+        if args.publish:
+            parser.error("install-collector does not accept --publish")
+        install_collector(args.revision)
     else:
         install(args.revision, args.publish)
 

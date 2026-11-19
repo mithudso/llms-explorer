@@ -4,6 +4,7 @@ import tempfile
 import threading
 import time
 import unittest
+from contextlib import closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
@@ -143,8 +144,53 @@ class FleetChecks(unittest.TestCase):
             c = collector.Collector({"sites": []}, Path(tmp))
             rows = c.ads()
             self.assertNotIn("fleet_ads_estimated_earnings", [r[0] for r in rows])
-            configured = [r[1] for r in rows if r[0] == "fleet_integration_configured"]
-            self.assertEqual(configured, [0, 0])
+            configured = {
+                labels["source"]: value
+                for name, value, labels in rows
+                if name == "fleet_integration_configured"
+            }
+            self.assertEqual(configured, {"adsense": 0, "adsense-sites": 0, "ezmob": 0})
+            self.assertNotIn("fleet_adsense_site_status", [r[0] for r in rows])
+
+    def test_morelube_settlement_metrics_exclude_owner_test_orders(self):
+        import sqlite3
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            db_path = state / "store.sqlite"
+            with closing(sqlite3.connect(db_path)) as db, db:
+                db.executescript(
+                    "CREATE TABLE orders(id INTEGER, is_test INTEGER);"
+                    "CREATE TABLE payments(order_id INTEGER, amount_cents INTEGER, currency TEXT, settled_at TEXT);"
+                    "INSERT INTO orders VALUES (1, 0), (2, 1), (3, 0);"
+                    "INSERT INTO payments VALUES"
+                    "(1, 1299, 'USD',strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 minute')),"
+                    "(2, 4500, 'USD',strftime('%Y-%m-%dT%H:%M:%fZ','now','-2 minutes')),"
+                    "(3, 1200, 'USD',strftime('%Y-%m-%dT%H:%M:%fZ','now','-2 days'));"
+                )
+            (state / "morelube-db-path").write_text(str(db_path))
+            result = collector.Collector({}, state).commerce("morelube")
+            values = {name: value for name, value, _ in result}
+            self.assertEqual(values["fleet_morelube_gross_usd_cents_day"], 1299)
+            self.assertEqual(values["fleet_morelube_purchases_day"], 1)
+            self.assertEqual(values["fleet_morelube_purchases_recent"], 1)
+
+    def test_stripe_account_mismatch_emits_unavailable_without_financial_data(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            key = state / "stripe"
+            key.write_text("rk_live_fixture")
+            c = collector.Collector({}, state)
+            with patch.object(
+                collector, "request_json", return_value={"id": "acct_other"}
+            ) as call:
+                rows = c.stripe(
+                    "test", {"account_id": "acct_expected", "key_file": str(key)}
+                )
+            call.assert_called_once()
+            values = {name: value for name, value, _ in rows}
+            self.assertEqual(values["fleet_integration_success"], 0)
+            self.assertFalse(any(name.startswith("fleet_stripe_") for name in values))
 
     def test_no_rows_from_cloudflare_is_not_zero_traffic(self):
         inv = {
