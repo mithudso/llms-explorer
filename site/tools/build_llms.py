@@ -28,7 +28,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 HERE = Path(__file__).resolve().parents[1]                 # site/
 REPO = HERE.parent
@@ -37,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import concept_tree as ct
 import llms_lint
 import twins
+from build_sitemap import is_indexable
 from docset_refine import (
     clean,
     export_llms,
@@ -120,9 +121,14 @@ def write_mirror(dist: Path, site_url: str, out: Path) -> int:
         # build gate that `prebuild` now trips on every build.
         if twin.relative_to(dist).parts[0] == "downloads":
             continue
-        route = "/" + twin.relative_to(dist).with_suffix("").as_posix() + "/"
+        relative = twin.relative_to(dist)
+        route = "/" if relative == Path("index.md") else f"/{relative.with_suffix('').as_posix()}/"
+        url = site_url + quote(route, safe="/")
+        html = dist / route.strip("/") / "index.html"
+        if html.is_file() and not is_indexable(html, url):
+            continue
         body = clean_body(twin.read_text(encoding="utf-8").split("-->\n", 1)[-1]).lstrip()
-        parts.append(f"{BANNER}\nURL: {site_url}{route}\n{BANNER}\n{body}\n")
+        parts.append(f"{BANNER}\nURL: {url}\n{BANNER}\n{body}\n")
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("".join(parts), encoding="utf-8")
@@ -238,7 +244,7 @@ def provenance(date: str) -> str:
     this file, from what, and when. `docset_refine` runs here, in the site's
     own `postbuild`, over the page twins — not on the hub."""
     return (f"<!-- generated {date} by site/tools/build_llms.py from the .md twin "
-            "of every page in this site's build output -->")
+            "of each included canonical public page in this site's build output -->")
 
 
 def stamp(path: Path, banner: str) -> str:

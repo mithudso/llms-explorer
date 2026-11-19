@@ -1,4 +1,5 @@
 """Sitemap protocol, publication lifecycle, and built-page coverage."""
+import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -125,3 +126,12 @@ def test_built_sitemap_covers_all_public_page_canonicals():
     assert expected, "run npm run build before testing the site"
     assert locations(dist) == sorted(expected)
     assert len(expected) == len(set(expected)), "duplicate page canonicals"
+
+
+
+def test_llms_family_sources_are_canonical_public_pages():
+    dist = SITE / "dist"
+    full = (dist / "llms-full.txt").read_text(encoding="utf-8")
+    sources = set(re.findall(r"(?m)^Source: (https?://[^\s]+)$", full))
+    assert sources
+    assert sources <= set(locations(dist))

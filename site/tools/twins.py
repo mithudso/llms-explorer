@@ -156,17 +156,9 @@ PAGE_SECTIONS = [
 ]
 
 
-# Routes whose Astro page has nothing behind it at build time: the account
-# surface. Its four pages are islands — the markup ships an empty mount and a
-# signed-out fallback, and every byte of user data arrives later from the API —
-# so there is no page body to mirror. Without a twin they would be the only
-# built pages this site's own llms.txt does not list, and an agent reading the
-# index would not learn that the account surface exists or what it is for. The
-# twin therefore publishes what the ROUTE is for, never a rendering of it.
-#
-# `title` and `description` are the page's own `const title` / `const
-# description`; test_account_pages.py holds the two together so the index cannot
-# describe a page under a name the page does not use.
+# Account pages have public standalone Markdown twins that describe their
+# purpose. The sitewide family follows built-page index intent and leaves these
+# routes out. test_account_pages.py holds the page and twin copy together.
 #: The user guide shipped in the llmsx package; /explorer/guide/ renders it.
 _GUIDE = Path(__file__).resolve().parents[1] / "src" / "data" / "explorer-guide.md"
 
@@ -595,7 +587,7 @@ def _blog_listing_twins(content_dir: Path, dist_dir: Path, site_url: str,
     rows = []
     for source in sorted((content_dir / "blog").rglob("*.md")):
         data = metadata(source.read_text(encoding="utf-8"))
-        if not is_published(data):
+        if not is_published(data) or data.get("noindex", "").lower() == "true":
             continue
         route = route_of(source.relative_to(content_dir))
         if not (dist_dir / route.strip("/") / "index.html").is_file():
