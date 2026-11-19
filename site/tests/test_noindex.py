@@ -44,7 +44,7 @@ def _curated_and_generated():
 
 def test_the_sites_own_pages_stay_indexable():
     curated, _ = _curated_and_generated()
-    for route in ("/", "/tree/", curated, "/tree/ai-llm-engineering/",
+    for route in ("/", "/downloads/", "/tree/", curated, "/tree/ai-llm-engineering/",
                   _first("blog"), _first("reference")):
         assert not NOINDEX.search(_html(route)), f"{route} was dropped from the index"
 
@@ -80,8 +80,12 @@ def test_concept_pages_never_link_a_local_research_path():
         assert 'href="~' not in html and 'href="/Users/' not in html, page
 
 
-def test_downloads_carry_the_noindex_header():
-    twins.write_headers(DIST)
+def test_download_payloads_are_excluded_and_the_landing_is_in_the_sitemap():
     edge = json.loads((DIST / twins.EDGE_HEADERS_FILE).read_text(encoding="utf-8"))
     rules = {r["pattern"]: [tuple(h) for h in r["headers"]] for r in edge["rules"]}
-    assert ("X-Robots-Tag", "noindex") in rules["/downloads/*"]
+    sitemap = (DIST / "sitemap.xml").read_text(encoding="utf-8")
+    assert "/downloads/</loc>" in sitemap
+    for protected in ("/downloads/concepts/*", "/downloads/context-packs/*", "/downloads/llmsx/*"):
+        assert ("X-Robots-Tag", "noindex") in rules[protected]
+    landing_patterns = {"/downloads/*", "/downloads/", "/downloads/index.html"}
+    assert landing_patterns.isdisjoint(rules)

@@ -803,6 +803,16 @@ def write_headers(dist_dir: Path) -> Path:
     # rule per strict route, not per page, keeps the file far under Pages'
     # MAX_HEADER_RULES cap.
     strict_csp = content_security_policy(dist_dir)
+    downloads = dist_dir / "downloads"
+    # Keep downloadable files out of search on both the static and Function
+    # paths. The built index.html is the public, sitemap-listed landing page.
+    download_entries = sorted(downloads.iterdir()) if downloads.is_dir() else []
+    download_rules = [
+        (f"/downloads/{entry.name}{'/*' if entry.is_dir() else ''}",
+         [("X-Robots-Tag", "noindex")])
+        for entry in download_entries
+        if entry.name != "index.html"
+    ]
     rules: list[tuple[str, list[tuple[str, str]]]] = [
         ("/*", [("Content-Security-Policy", content_security_policy(dist_dir, third_party=True)),
                 ("Referrer-Policy", "strict-origin-when-cross-origin"),
@@ -830,10 +840,7 @@ def write_headers(dist_dir: Path) -> Path:
         ("/*/llms.txt", [md, describedby, ("X-Robots-Tag", "noindex")]),
         ("/sitemap.xml", [("Content-Type", "application/xml; charset=utf-8")]),
         ("/robots.txt", [("Content-Type", "text/plain; charset=utf-8")]),
-        # Raw reference files copied from the concept tree: a meta tag cannot
-        # reach a .md or .txt, so the header keeps them out of the index.
-        # `_routes.json` excludes /downloads/*, so `_headers` alone serves this.
-        ("/downloads/*", [("X-Robots-Tag", "noindex")]),
+        *download_rules,
     ]
     if len(rules) > MAX_HEADER_RULES:
         raise ValueError(
