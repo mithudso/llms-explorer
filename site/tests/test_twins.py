@@ -487,3 +487,26 @@ def test_machine_readable_alternates_do_not_compete_with_html_in_search(tmp_path
     rules = {rule["pattern"]: rule["headers"] for rule in payload["rules"]}
     for pattern in ("/*.md", "/llms*.txt", "/*/llms.txt"):
         assert dict(rules[pattern])["X-Robots-Tag"] == "noindex"
+
+
+def test_download_headers_allow_the_landing_and_exclude_the_payloads(tmp_path):
+    dist = tmp_path / "dist"
+    landing = dist / "downloads" / "index.html"
+    payloads = {
+        "/downloads/concepts/example.md": "/downloads/concepts/*",
+        "/downloads/context-packs/example.llms": "/downloads/context-packs/*",
+        "/downloads/llmsx/package.whl": "/downloads/llmsx/*",
+        "/downloads/benchmarks/run/report.zip": "/downloads/benchmarks/*",
+        "/downloads/manifest.json": "/downloads/manifest.json",
+    }
+    for file in [landing, *(dist / path[1:] for path in payloads)]:
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text("asset body", encoding="utf-8")
+    headers = twins.write_headers(dist).read_text(encoding="utf-8")
+    assert "/downloads/*\n" not in headers
+    for pattern in payloads.values():
+        assert f"{pattern}\n  X-Robots-Tag: noindex\n" in headers
+
+    responses, _, _ = _run_middleware(dist, ["/downloads/", *payloads])
+    assert "x-robots-tag" not in responses[0]["headers"]
+    assert all(response["headers"]["x-robots-tag"] == "noindex" for response in responses[1:])
