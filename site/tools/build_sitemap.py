@@ -39,6 +39,17 @@ class PageMetadata(HTMLParser):
                 self.redirect = True
 
 
+def is_indexable(page: Path, url: str) -> bool:
+    """Whether this built page represents an indexable canonical URL."""
+    if urlsplit(url).path in ACCOUNT_ROUTES:
+        return False
+    metadata = PageMetadata()
+    metadata.feed(page.read_text(encoding="utf-8"))
+    return not metadata.excluded and (
+        not metadata.canonical or urljoin(url, metadata.canonical) == url
+    )
+
+
 def build(dist: Path, site_url: str) -> list[str]:
     site_url = site_url.rstrip("/")
     origin = urlsplit(site_url)
@@ -51,15 +62,8 @@ def build(dist: Path, site_url: str) -> list[str]:
     for page in sorted(dist.rglob("index.html")):
         parts = page.parent.relative_to(dist).parts
         route = "/" + "/".join(parts) + ("/" if parts else "")
-        if route in ACCOUNT_ROUTES:
-            continue
-        metadata = PageMetadata()
-        metadata.feed(page.read_text(encoding="utf-8"))
-        if metadata.excluded:
-            continue
         url = site_url + quote(route, safe="/")
-        # Aliases and cross-origin canonicals must not enter this site's sitemap.
-        if metadata.canonical and urljoin(url, metadata.canonical) != url:
+        if not is_indexable(page, url):
             continue
         if len(url) >= 2048:
             raise ValueError(f"Sitemap URL must be shorter than 2,048 characters: {page}")

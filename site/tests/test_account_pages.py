@@ -117,8 +117,7 @@ def test_each_account_page_advertises_and_publishes_its_twin():
 
 
 def test_twin_titles_and_descriptions_match_the_pages():
-    """The twin is the page's entry in llms.txt. If the two drift, the index
-    describes a page that does not exist under that name."""
+    """The standalone twin describes the same public interface as the page."""
     specs = {s["route"]: s for s in twins.STATIC_PAGES}
     for name in PAGES:
         spec = specs[f"/{name}/"]
@@ -128,16 +127,21 @@ def test_twin_titles_and_descriptions_match_the_pages():
         assert DESC_RE.search(src).group(1) == spec["description"], name
 
 
-def test_the_account_twins_reach_the_family_index():
+def test_family_indexes_only_include_static_twins_with_search_intent():
     for spec in twins.STATIC_PAGES:
         # a top-level route is listed under Overview; a nested one (/explorer/guide/)
         # under the section named by its first path segment
         segs = spec["route"].strip("/").split("/")
         section = "overview" if len(segs) == 1 else segs[0]
         index = (DIST / section / "llms.txt").read_text(encoding="utf-8")
-        assert f"[{spec['title']}]" in index, spec["route"]
-        assert spec["route"] in index, spec["route"]
-        assert spec["description"] in index, spec["route"]
+        html = (DIST / spec["route"].strip("/") / "index.html").read_text(encoding="utf-8")
+        if 'name="robots" content="noindex, follow"' in html:
+            assert f"[{spec['title']}]" not in index, spec["route"]
+            assert spec["description"] not in index, spec["route"]
+        else:
+            assert f"[{spec['title']}]" in index, spec["route"]
+            assert spec["route"] in index, spec["route"]
+            assert spec["description"] in index, spec["route"]
 
 
 def test_the_family_still_lints_zero_high():
