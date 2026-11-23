@@ -232,6 +232,129 @@ def test_interrupted_recovery_cannot_dispatch_again(history):
     assert calls == ['unknown worker execution']
 
 
+USAGE_LIMIT = ('You’ve hit your usage limit. Visit https://chatgpt.com/settings/usage to purchase '
+               'more credits or try again at Nov 23rd, 2026 4:44 AM.')
+
+
+def quota_history(history, name='0000-quota'):
+    """Reproduce an archived Codex turn the provider refused for an exhausted quota."""
+    shared, manifest, _doc, root = history
+    previous = root / 'gate/attempts' / name
+    packet = gate.prepare(shared, manifest, previous, 'all', 0)
+    result = USAGE_LIMIT + '\n' + USAGE_LIMIT
+    summary = {'transport': 'codex-exec', 'result': result, 'is_error': True, 'usage': {}, 'tools': [],
+               'num_turns': 0, 'tokens': 0, 'seconds': 4, 'model': 'gpt-6.1-sol', 'effort': 'medium'}
+    worker = root / 'agents/attempts/gate' / name
+    worker.mkdir(parents=True)
+    for file in ('worker.json', 'validated-summary.json'):
+        (worker / file).write_text(json.dumps(summary))
+    events = [{'type': 'thread.started', 'thread_id': 'synthetic'}, {'type': 'turn.started'},
+              {'type': 'error', 'message': USAGE_LIMIT},
+              {'type': 'turn.failed', 'error': {'message': USAGE_LIMIT}}]
+    (worker / 'worker.events.jsonl').write_text(''.join(json.dumps(event) + '\n' for event in events))
+    (worker / 'worker.log').write_text('ERROR codex_core: failed to load skill: missing YAML frontmatter\n')
+    (worker / 'worker.last-message.txt').write_text('')
+    (worker / 'brief.md').write_text(gate.brief(packet, previous))
+    prior = {'schema': packet['schema'], 'validated': False, 'is_error': True,
+             'attempt': str(previous.relative_to(root)), 'packet_sha256': packet['packet_sha256'],
+             'review_binding': packet['review_binding'], 'finished': shared._now(), 'error': result,
+             'model': summary['model'], 'effort': summary['effort'], 'cost_usd': None, 'tokens': 0, 'seconds': 4}
+    (previous / 'validation.json').write_text(json.dumps(prior))
+    manifest['gate'] = prior
+    manifest['agents'] = {'gate': {**summary, 'counts': {}, 'attempts': [
+        {'path': str(worker.relative_to(root)), 'tokens': 0, 'seconds': 4, 'is_error': True}]}}
+    shared.claude_binary = lambda: sys.executable
+    return previous, worker, packet
+
+
+def test_archived_usage_limit_refusal_recovers_once_without_rewriting_history(history):
+    shared, manifest, _doc, root = history
+    previous, worker, _packet = quota_history(history)
+    preserved = {path: path.read_bytes() for directory in (previous, worker)
+                 for path in directory.rglob('*') if path.is_file()}
+    prior = copy.deepcopy(manifest['gate'])
+    args, calls = install_judge(history)
+    assert shared.cmd_gate(args) == 0
+    assert len(calls) == 1 and gate.verify_current(shared, manifest)['all_supported']
+    assert all(path.read_bytes() == body for path, body in preserved.items())
+    recovery = manifest['gate']['startup_recovery']
+    assert recovery['kind'] == 'provider-usage-limit' and recovery['prior_attempt'] == prior['attempt']
+    manifest['gate'] = prior  # Restoring the pointer cannot spend the same refusal twice.
+    assert gate.provider_quota_recovery(shared, manifest, gate.prepare(
+        shared, manifest, root / 'again', 'all', 0)) is None
+
+
+@pytest.mark.parametrize('corruption', ['generic-error', 'turn', 'usage', 'item-event', 'other-error-event',
+                                      'output', 'verdict', 'response', 'brief', 'worker-summary',
+                                      'no-refusal-event', 'missing-record'])
+def test_usage_limit_text_alone_cannot_authorize_recovery(history, corruption):
+    shared, manifest, _doc, _root = history
+    previous, worker, packet = quota_history(history)
+    events = worker / 'worker.events.jsonl'
+    if corruption == 'generic-error':
+        manifest['gate']['error'] = USAGE_LIMIT + '\nstream disconnected before completion'
+        (previous / 'validation.json').write_text(json.dumps(manifest['gate']))
+    elif corruption in ('turn', 'usage'):
+        summary = json.loads((worker / 'worker.json').read_text())
+        summary.update({'num_turns': 1} if corruption == 'turn' else {'usage': {'input_tokens': 1}})
+        for name in ('worker.json', 'validated-summary.json'):
+            (worker / name).write_text(json.dumps(summary))
+        manifest['agents']['gate'].update(summary)
+    elif corruption == 'item-event':
+        with events.open('a') as handle:
+            handle.write(json.dumps({'type': 'item.completed', 'item': {'type': 'agent_message'}}) + '\n')
+    elif corruption == 'other-error-event':
+        with events.open('a') as handle:
+            handle.write(json.dumps({'type': 'error', 'message': 'Reconnecting... 1/5'}) + '\n')
+    elif corruption == 'output':
+        (worker / 'worker.last-message.txt').write_text('reviewer output')
+    elif corruption == 'verdict':
+        (previous / 'verdicts.json').write_text(json.dumps(response(packet, 'UNVERIFIED')))
+    elif corruption == 'response':
+        (previous / 'response.json').write_text('{}')
+    elif corruption == 'brief':
+        (worker / 'brief.md').write_text('Another packet had the same quota error.')
+    elif corruption == 'worker-summary':
+        (worker / 'validated-summary.json').write_text('{}')
+    elif corruption == 'no-refusal-event':
+        events.write_text(json.dumps({'type': 'thread.started'}) + '\n')
+    else:
+        events.unlink()
+    args, calls = install_judge(history)
+    assert shared.cmd_gate(args) == 1
+    assert calls == []
+
+
+def test_repeated_usage_limit_refusals_each_need_their_own_proof(history):
+    shared, manifest, _doc, root = history
+    quota_history(history)
+    args, calls = install_judge(history)
+    refused = []
+
+    def refuse(*_args):
+        # The real worker archives another refusal; reproduce it before the parent records it.
+        attempt = max((root / 'gate/attempts').iterdir())
+        refused.append(attempt.name)
+        return {'is_error': True, 'result': 'refused'}
+
+    shared.run_agent = refuse
+    assert shared.cmd_gate(args) == 1
+    assert len(refused) == 1 and manifest['gate']['startup_recovery']['kind'] == 'provider-usage-limit'
+    # That receipt lacks the archived quota proof, so no further dispatch is allowed.
+    assert shared.cmd_gate(args) == 1
+    assert len(refused) == 1 and calls == []
+
+
+def test_real_dissent_after_quota_recovery_cannot_be_reviewed_again(history):
+    shared, manifest, _doc, _root = history
+    quota_history(history)
+    args, calls = install_judge(history, 'UNVERIFIED')
+    assert shared.cmd_gate(args) == 1
+    assert manifest['gate']['startup_recovery']['kind'] == 'provider-usage-limit'
+    assert shared.cmd_gate(args) == 1
+    assert len(calls) == 1
+
+
 def archived_history(history):
     """Use the real immutable archive writer with a hermetic shared library."""
     shared, _manifest, doc, root = history

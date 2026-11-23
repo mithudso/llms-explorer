@@ -854,6 +854,101 @@ def unstarted_codex_recovery(shared, manifest: dict, packet: dict) -> dict | Non
         return None
 
 
+# Codex prints this when the account quota is exhausted. The provider refuses the turn
+# before any model output, so the archived event stream holds no item events.
+USAGE_LIMIT_LINE = re.compile(r"You[’']ve hit your usage limit\. .*")
+QUOTA_EVENT_TYPES = {'thread.started', 'turn.started', 'error', 'turn.failed'}
+
+
+def _usage_limit_text(value) -> bool:
+    lines = [line for line in str(value or '').splitlines() if line.strip()]
+    return bool(lines) and all(USAGE_LIMIT_LINE.fullmatch(line.strip()) for line in lines)
+
+
+def provider_quota_recovery(shared, manifest: dict, packet: dict) -> dict | None:
+    """Recognize one archived provider usage-limit refusal of an unchanged packet.
+
+    A refusal is recoverable only when every archived record proves the reviewer never
+    produced output: zero usage and turns, no verdict or response file, an empty last
+    message, and an event stream holding only thread/turn start plus usage-limit errors.
+    Each proven refusal receipt authorizes one retry; a later refusal needs its own proof.
+    """
+    prior = manifest.get('gate', {})
+    if (not _usage_limit_text(prior.get('error')) or prior.get('is_error') is not True
+            or prior.get('validated') is not False or prior.get('tokens') != 0
+            or prior.get('schema') != packet['schema']
+            or prior.get('packet_sha256') != packet['packet_sha256']
+            or prior.get('review_binding') != packet['review_binding']):
+        return None
+    run = shared.run_dir(manifest['slug']).resolve()
+    attempts = run / 'gate/attempts'
+    try:
+        previous = (run / prior['attempt']).resolve()
+        if previous.parent != attempts or not previous.is_dir():
+            return None
+        receipt_path, packet_path = previous / 'validation.json', previous / 'packet.json'
+        archived = json.loads(packet_path.read_text())
+        if (json.loads(receipt_path.read_text()) != prior or archived != packet
+                or digest({key: value for key, value in archived.items() if key != 'packet_sha256'}) != packet['packet_sha256']
+                or preflight(archived, previous) or (previous / 'verdicts.json').exists()
+                or (previous / 'response.json').exists()):
+            return None
+        agent = manifest.get('agents', {}).get('gate', {})
+        worker_attempts = agent.get('attempts', [])
+        if not worker_attempts:
+            return None
+        worker = (run / worker_attempts[-1]['path']).resolve()
+        if worker.parent != run / 'agents/attempts/gate' or not worker.is_dir():
+            return None
+        worker_path, summary_path = worker / 'worker.json', worker / 'validated-summary.json'
+        summary = json.loads(summary_path.read_text())
+        if (json.loads(worker_path.read_text()) != summary
+                or {key: value for key, value in agent.items() if key not in ('attempts', 'counts')} != summary
+                or summary.get('transport') != 'codex-exec' or not _usage_limit_text(summary.get('result'))
+                or summary.get('is_error') is not True or summary.get('usage') != {}
+                or summary.get('tools') != [] or summary.get('num_turns') != 0
+                or summary.get('tokens') != 0
+                or summary.get('model') != prior.get('model') or summary.get('effort') != prior.get('effort')):
+            return None
+        if (worker / 'worker.last-message.txt').read_bytes():
+            return None
+        events = [json.loads(line) for line in (worker / 'worker.events.jsonl').read_text().splitlines() if line.strip()]
+        refusals = 0
+        for event in events:
+            kind = event.get('type') if isinstance(event, dict) else None
+            if kind not in QUOTA_EVENT_TYPES:
+                return None  # Any item, reasoning or output event means the reviewer ran.
+            if kind == 'error':
+                if not _usage_limit_text(event.get('message')):
+                    return None
+                refusals += 1
+            elif kind == 'turn.failed':
+                if not _usage_limit_text((event.get('error') or {}).get('message')):
+                    return None
+                refusals += 1
+        if not refusals:
+            return None
+        first_line = (worker / 'brief.md').read_text().splitlines()[0]
+        if first_line != f"Independently validate the canonical research claims in {packet_path}.":
+            return None
+        receipt_hash = digest(receipt_path.read_bytes())
+        recovery_key = digest([packet['schema'], packet['review_binding'], 'provider-usage-limit', receipt_hash])
+        if (run / 'gate/startup-recoveries' / (recovery_key + '.json')).exists():
+            return None
+        for marker in attempts.glob('*/startup-recovery.json'):
+            if json.loads(marker.read_text()).get('prior_validation_sha256') == receipt_hash:
+                return None
+        return {'schema': 'gate-startup-recovery/v1', 'kind': 'provider-usage-limit',
+                'recovery_key': recovery_key, 'prior_attempt': prior['attempt'],
+                'prior_validation_sha256': receipt_hash, 'packet_sha256': packet['packet_sha256'],
+                'review_binding': packet['review_binding'], 'worker_attempt': str(worker.relative_to(run)),
+                'worker_sha256': digest(worker_path.read_bytes()),
+                'validated_summary_sha256': digest(summary_path.read_bytes()),
+                'reason': 'Archived Codex usage-limit refusal; the event stream holds no reviewer output.'}
+    except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):
+        return None
+
+
 def reserve_startup_recovery(shared, manifest: dict, recovery: dict, root: Path) -> bool:
     """Consume the one recovery before dispatch, including interrupted dispatches."""
     target = shared.run_dir(manifest['slug']) / 'gate/startup-recoveries' / (
@@ -951,7 +1046,8 @@ def install(shared):
         startup_recovery = None
         if (needs_model and not format_retry and prior.get('is_error')
                 and prior.get('review_binding') == packet.get('review_binding')):
-            startup_recovery = unstarted_codex_recovery(shared, manifest, packet)
+            startup_recovery = (unstarted_codex_recovery(shared, manifest, packet)
+                                or provider_quota_recovery(shared, manifest, packet))
             if startup_recovery is None or not reserve_startup_recovery(shared, manifest, startup_recovery, root):
                 shared._print({'ok': False, 'error': 'unchanged failed packet; repair listed claims before another paid review'})
                 return 1
