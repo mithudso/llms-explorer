@@ -101,3 +101,11 @@ Delta: reserve the shared catalog before run/version writes in all run saves. Th
 Delta from v0.2.0: the owner can grant an individual writer by fingerprint through the CLI, the HTTP API or a provisioning-only MCP method. Both research kits ship the same standard-library recipient script. The private bearer stays with the recipient. Enrollment records include the named actor, expiry and revocation. The existing reader and writer capabilities continue to work.
 
 An isolated HTTP service backed by a MongoDB replica set accepted the named writer's research run, recorded its actor and denied the credential on its first request after revocation. The reader, legacy writer and enrolled writer could not grant writers. An independent test exercised the exact expiry boundary. The DNS migration adds SKaaS hostnames to the existing tunnel while retaining the original hosts. Release acceptance covers the installed wheel, the public endpoints and a configuration read-back on each client selected for the change.
+
+## 2026-11-24 — Guarded compiler archive v0.2.2
+
+Delta from v0.2.1. The archive transaction now reserves the shared run catalog immediately after checking the run revision and lease, before reading pinned evidence. A regression test reproduced the old ordering and checks that a rejected evidence precondition rolls back the catalog reservation and artifact writes. The compiler still verifies all source pins and coverage.
+
+On a local MongoDB replica set, a competing catalog update during the precondition caused v0.2.1 to exhaust eight retries. Version 0.2.2 committed the manifest on its first attempt and both catalog increments committed. The package suite passed 558 tests with one skip, the coordination suite passed 57, and Ruff passed.
+
+Live acceptance requires the running package revision, the saved study's trusted concept and family manifest, and a current compiler receipt. The organization role and service authentication are checked separately during that acceptance.

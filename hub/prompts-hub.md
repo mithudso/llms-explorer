@@ -57,3 +57,8 @@ The user restored Wrangler login and supplied a fine-grained GitHub key for priv
 ## Prompt v10 - 2026-11-24
 - Authorized scope: support provisioning and distributing individual research writer access through the CLI, HTTP API and MCP, and support first-party service domains for SKaaS clients.
 - Delta: v9 to v10. Keep current research clients working while the new routes are verified.
+
+## Prompt v11 - 2026-11-24T22:50:00Z
+
+- User request:
+  - Unblock the full-suite step. My user should have admin privileges.

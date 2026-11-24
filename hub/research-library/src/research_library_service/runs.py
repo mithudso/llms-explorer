@@ -453,16 +453,18 @@ class ResearchRunStore:
         return name, kind, raw, _object(metadata if metadata is not None else {},
                                        "Artifact metadata", 32 * 1024)
 
-    def _store_artifact(self, old, name, kind, raw, metadata, provenance, actor, session):
+    def _store_artifact(self, old, name, kind, raw, metadata, provenance, actor, session,
+                        *, precondition=None):
+        # Fence the shared catalog before compiler evidence reads and chunk transfers.
+        # A failed precondition rolls back this reservation in the same transaction.
         self._reserve_catalog_revision(old["_id"], session)
+        if precondition is not None:
+            precondition(session)
         sha = digest(raw)
         identity = {"run_id": old["_id"], "name": name, "kind": kind,
                     "body_utf8_sha256": sha, "metadata": metadata,
                     "trusted_provenance": provenance}
         aid = "art:" + digest(identity)
-        # Reserve the shared catalog before transferring artifact chunks. A late
-        # catalog write can lose to unrelated runs for the entire upload window.
-        # All writes still commit or roll back in this same transaction.
         saved = self._save(old, old, actor, session)
         prior = self._claim(self.artifacts, aid, session)
         chunks, expected = [], {}
@@ -556,10 +558,8 @@ class ResearchRunStore:
         def change(session):
             old = (self._edit(rid, expected_revision, lease_token, lease_owner, session)
                    if guarded else self._get(rid, session))
-            if precondition is not None:
-                precondition(session)
             return self._store_artifact(old, name, kind, raw, metadata,
-                                        provenance, actor, session)
+                                        provenance, actor, session, precondition=precondition)
         payload = dict(run_id=rid, name=name, kind=kind, body_utf8_sha256=digest(raw),
                        metadata=metadata, provenance=provenance, owner=owner)
         if guarded:
