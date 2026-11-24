@@ -411,15 +411,18 @@ def test_trusted_compile_archive_checks_all_fencing_preconditions_in_transaction
 
 def test_trusted_archive_precondition_aborts_artifact_and_run_writes(runs):
     made = create(runs)
+    before = runs._catalog()
     sessions = []
     def fail(session):
         sessions.append(session)
+        assert runs._catalog(session) == before + 1
         raise Conflict("Pinned source revision changed")
     with pytest.raises(Conflict, match="Pinned source"):
         runs._archive_artifact(made["run"]["_id"], "compiled.txt", "compiled", "body",
             provenance={"pins_sha256": "a" * 64}, expected_revision=1,
             lease_token=made["lease_token"], lease_owner="coordinator", precondition=fail)
     assert len(sessions) == 1 and sessions[0] is not None
+    assert runs._catalog() == before
     assert runs.artifacts.count_documents({}) == 0
     assert runs.run_get(made["run"]["_id"])["revision"] == 1
 
