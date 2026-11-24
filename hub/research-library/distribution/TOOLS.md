@@ -1,7 +1,7 @@
 # Two MCP services
 
-`skills_mongodb` at `https://skills-mcp.llms-explorer.com/mcp` distributes skill
-instructions. `research-library` at `https://research-mcp.llms-explorer.com/mcp`
+`skills_mongodb` at `https://skills-mcp.skaas.io/mcp` distributes skill
+instructions. `research-library` at `https://research-mcp.skaas.io/mcp`
 stores shared research, evidence, and coordination. They require distinct bearer
 tokens. Neither gives a remote client a MongoDB URI or raw database operations.
 
@@ -25,7 +25,7 @@ Search first, choose the most specific useful skill, and load it with the return
 continue all pages. Search results and a release hash do not themselves load the
 guide. These read tools neither install local skills nor change the research corpus.
 
-## Research service: 40 tools
+## Research service: 42 tools
 
 The 20 tools below are the read allowlist. Reader tokens can use them. Tool
 discovery also lists writer operations, but a reader token cannot execute them.
@@ -143,3 +143,11 @@ source, or research files are prerequisites. See the bundled skill's
 [evidence edits](skills/research-library-mongodb/references/versioned-edits.md)
 and [research method](skills/research-library-mongodb/references/research-and-completion.md)
 for the detailed claim, source, origin, scoring, and completion contracts.
+
+
+Two administrative tools require the dedicated writer provisioning capability.
+
+| Provisioning tool | Arguments |
+| --- | --- |
+| `research_writer_grant` | `name`, `credential_id`, `valid_days=7` |
+| `research_writer_revoke` | `credential_id` |

@@ -23,7 +23,8 @@ SKILL_FILES = {
     **{name: ("SKILL.md", "agents/openai.yaml") for name in MODES},
 }
 PACKAGE_FILES = {
-    "README.md", "QUICKSTART.md", "TOOLS.md", "install_skills.py", "library_client.py", "LICENSE",
+    "README.md", "QUICKSTART.md", "TOOLS.md", "install_skills.py", "library_client.py",
+    "writer_request.py", "LICENSE",
     *(f"skills/{name}/{relative}" for name, files in SKILL_FILES.items() for relative in files),
 }
 

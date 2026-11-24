@@ -42,7 +42,7 @@ uv export --directory hub/research-library --frozen --no-dev --no-emit-project \
 uv venv --python 3.13 "$runtime/.venv"
 uv pip sync --python "$runtime/.venv/bin/python" "$runtime/requirements.txt"
 uv pip install --python "$runtime/.venv/bin/python" --no-deps \
-  "$runtime/wheels/research_library_service-0.2.0-py3-none-any.whl"
+  "$runtime/wheels/research_library_service-0.2.1-py3-none-any.whl"
 ```
 
 Create an owner-only server environment file using a local secret manager or
@@ -54,7 +54,7 @@ MONGODB_URI2=<the owner-authorized MongoDB connection string>
 RESEARCH_LIBRARY_CONFIG=/absolute/owner/path/research-library/config.json
 RESEARCH_LIBRARY_READ_TOKEN=<a unique random reader token>
 RESEARCH_LIBRARY_WRITE_TOKEN=<a different unique random writer token>
-RESEARCH_LIBRARY_ALLOWED_HOSTS=127.0.0.1:8767,localhost:8767,research-mcp.llms-explorer.com
+RESEARCH_LIBRARY_ALLOWED_HOSTS=127.0.0.1:8767,localhost:8767,research-mcp.llms-explorer.com,research-mcp.skaas.io
 ```
 
 ```sh
@@ -62,11 +62,22 @@ chmod 600 "$HOME/.config/research-library/server.env"
 ```
 
 Each configured HTTP token must contain 32–1024 printable ASCII characters
-without spaces. At least one token is required for HTTP. Configure only the
+without spaces. Configure only the
 reader token to operate a reader-only deployment. The old skill registry token
 does not grant access to this service. Treat a writer token as corpus-wide write
 authority and a reader token as corpus-wide read authority, including private
-source snapshots. These are shared capabilities, not individual accounts.
+source snapshots. Those environment tokens continue to represent shared actors.
+
+To accept named writer credentials, set `RESEARCH_LIBRARY_NAMED_WRITERS=1` in
+the server environment. An owner can then enroll and revoke individual writers
+from the local administration CLI. To also enable remote enrollment, configure
+a distinct random `RESEARCH_LIBRARY_PROVISION_TOKEN`. This token enables named
+writers and grants the two writer-management operations. Existing readers,
+shared writers and named writers cannot register a credential. A named writer's
+256-bit bearer stays on the recipient device. MongoDB stores its SHA-256
+fingerprint, name, issue/expiry/revocation times, and issuer. The server
+checks the grant on every request. See
+[enrolling a writer](MCP.md#enroll-a-named-writer) for CLI, HTTP and MCP calls.
 
 `--env-file` or `RESEARCH_LIBRARY_ENV_FILE` chooses the file explicitly. Loading
 does not discover `.env` files, interpolate variables, or evaluate shell code.
@@ -219,7 +230,10 @@ clients that send `Origin`; the default allows no such origins. A proxy must
 preserve an allowed `Host` or rewrite it to loopback.
 
 The process provides no TLS. Keep its loopback binding and use an authenticated
-HTTPS reverse proxy/tunnel for remote access. A non-loopback bind requires
+HTTPS reverse proxy/tunnel for remote access. The canonical SKaaS ingress
+sets the origin `Host` to the allowed loopback authority. The retained legacy
+ingress sends its public hostname. See the [hostname deployment runbook](deploy/README.md)
+for routes, DNS records and verification. A non-loopback bind requires
 `--allow-remote`; that flag does not add TLS or configure a firewall. Uvicorn
 access logs are disabled. The application does not deliberately log prompts or
 source bodies; operators must separately control proxy logs, process errors,
@@ -255,6 +269,7 @@ operator chooses a prefix once; the default collection names are:
 | `research_source_versions` | Immutable source metadata history |
 | `research_snapshots` | Immutable UTF-8 snapshot manifests keyed by SHA-256 |
 | `research_snapshot_chunks` | Snapshot text chunks, at most 512 KiB per chunk |
+| `research_writer_credentials` | Permanent writer fingerprints, individual names, expiry and revocation |
 | `research_leases` | Holder, expiry, monotonic fence and token hash |
 | `research_queue` | Queue state, holds, continuation metadata and its own revision |
 | `research_receipts` | Actor-scoped idempotency receipts and request fingerprints |
@@ -292,8 +307,8 @@ and never patch that flag. Trusted publication requires a reconciled placement
 or that explicit working override.
 
 An actor-scoped `request_id` binds one exact mutation body. Repeating that body
-returns its receipt; reusing the ID with different content conflicts. Reader and
-writer bearer tokens map to shared principals, so agents should use unique
+returns its receipt; reusing the ID with different content conflicts. Environment reader and writer tokens map to shared principals.
+Named writer tokens use a distinct actor per registered name. Use unique
 request IDs and owner labels. This is concurrency control, not per-user tenancy.
 Concept lease tokens are returned only on acquisition/replay to the writer;
 read/list/status outputs omit token values and hashes.

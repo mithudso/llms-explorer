@@ -51,11 +51,15 @@ read-only HTTPS client, and hash manifest. It contains no client configuration,
 database URI, authentication files, source corpus, or running workers.
 
 Connect `research-library` to
-`https://research-mcp.llms-explorer.com/mcp` with a separately issued capability.
+`https://research-mcp.skaas.io/mcp` with a separately issued capability.
 A reader can search, inspect concepts and evidence, and preview queues/frontiers.
 A writer can perform authorized persisted research through revision and lease
-checks. These capabilities cover the managed corpus; they are not per-user or
-per-concept accounts. Discover the live tool inventory instead of assuming a
+checks. For a named writer, the recipient runs `python3 writer_request.py --token-file NEW_FILE`
+from the extracted kit and shares only the printed SHA-256 digest with the operator.
+Once the operator approves the grant, the recipient supplies the private file's
+token through `RESEARCH_MCP_TOKEN` to the approved endpoint. Individual grants
+expire or can be revoked. Their scope is the managed corpus.
+Discover the live tool inventory instead of assuming a
 fixed tool count. See the [MCP guide](../hub/research-library/MCP.md) for the
 service contract and the [operator runbook](../hub/research-library/README.md)
 for server operation.

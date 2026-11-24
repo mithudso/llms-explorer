@@ -51,20 +51,29 @@ Do not restart an active research worker just to make this installation visible.
 
 ## Connect the shared library
 
-Ask the library operator to issue a capability through a private channel. A
-reader capability permits discovery and evidence reads. A writer capability
-permits corpus-wide draft edits, leases, queue changes, run persistence, and
-publication submission through the service's checks. These shared capabilities
-do not provide individual accounts or per-concept access control. Use a reader
-for a read-only connection check.
+A reader capability permits discovery and evidence reads. A named writer can
+edit drafts, acquire leases, change queues, save runs and submit publications
+across the managed corpus until the credential expires or the operator revokes it.
 
-The endpoint is `https://research-mcp.llms-explorer.com/mcp`. Register it in your
+To request a writer, run the following in a private directory from the extracted
+kit, using an unused path for the token file:
+
+```sh
+python3 writer_request.py --token-file NEW_FILE
+```
+
+Send only the printed SHA-256 credential ID and your requested writer name to
+the operator. After enrollment, load the token from your private file into
+`RESEARCH_MCP_TOKEN` for clients connecting to the approved research endpoint.
+The operator can authorize the digest without receiving your bearer token.
+
+The endpoint is `https://research-mcp.skaas.io/mcp`. Register it in your
 client as `research-library`, using `RESEARCH_MCP_TOKEN` from your local secret
 manager or environment. This Codex command stores the environment variable name,
 not its value:
 
 ```sh
-codex mcp add research-library --url https://research-mcp.llms-explorer.com/mcp --bearer-token-env-var RESEARCH_MCP_TOKEN
+codex mcp add research-library --url https://research-mcp.skaas.io/mcp --bearer-token-env-var RESEARCH_MCP_TOKEN
 ```
 
 Inspect an existing definition before changing it. For Claude Code, use your
@@ -74,9 +83,16 @@ prompt, archive, screenshot, or report. The kit deliberately leaves client
 authentication setup separate from plugin installation. Remote clients need no
 MongoDB connection string or server environment file.
 
-The optional skill service at `https://skills-mcp.llms-explorer.com/mcp` uses the
+The optional skill service at `https://skills-mcp.skaas.io/mcp` uses the
 separate `SKILL_MCP_TOKEN` capability. The local SK methods do not require that
 service; it can provide additional operator-published skills when configured.
+
+Existing installations may keep their configured legacy URLs,
+`https://research-mcp.llms-explorer.com/mcp` and
+`https://skills-mcp.llms-explorer.com/mcp`. If your organization filters newly
+registered hostnames, use its approved endpoint while your network administrator
+reviews the canonical SKaaS names. The standalone client accepts an explicit
+`RESEARCH_MCP_URL` or `SKILL_MCP_URL` for an approved installation.
 
 ## Verify the installed client
 

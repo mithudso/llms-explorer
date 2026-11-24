@@ -94,3 +94,10 @@ Delta: save the run revision and shared catalog before transferring artifact chu
 ## 2026-11-13 — Catalog reservation ordering v1.0.1
 
 Delta: reserve the shared catalog before run/version writes in all run saves. The earlier artifact-transfer reorder leaves two additional network round trips before this contested write. This follow-up shortens that window and retains atomic rollback. Snapshot transactions can still conflict after earlier receipt or lease reads; this is a contention reduction, not a claim that concurrent writes can never fail.
+
+
+## 2026-11-24 — Research writer enrollment v0.2.1
+
+Delta from v0.2.0: the owner can grant an individual writer by fingerprint through the CLI, the HTTP API or a provisioning-only MCP method. Both research kits ship the same standard-library recipient script. The private bearer stays with the recipient. Enrollment records include the named actor, expiry and revocation. The existing reader and writer capabilities continue to work.
+
+An isolated HTTP service backed by a MongoDB replica set accepted the named writer's research run, recorded its actor and denied the credential on its first request after revocation. The reader, legacy writer and enrolled writer could not grant writers. An independent test exercised the exact expiry boundary. The DNS migration adds SKaaS hostnames to the existing tunnel while retaining the original hosts. Release acceptance covers the installed wheel, the public endpoints and a configuration read-back on each client selected for the change.

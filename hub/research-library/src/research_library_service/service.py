@@ -27,13 +27,14 @@ ADMIN_STORE = {"provision", "complete", "queue_recover"}
 READ_RUNS = {"run_get", "run_list", "run_ledger", "artifact_get", "artifact_list"}
 WRITE_RUNS = {"run_create", "run_checkpoint", "run_item_put", "run_lease", "artifact_put"}
 WRITE_OUTPUTS = {"compile", "artifact_index"}
+WRITER_ADMIN = {"writer_grant", "writer_revoke"}
 ROLE_LEVELS = {"read": 0, "write": 1, "admin": 2}
 
 
 def public_error(exc: Exception) -> str:
     """Keep trusted conflict classes useful without exposing driver or credential text."""
     if isinstance(exc, PermissionError):
-        return "A research-library write capability is required"
+        return "This operation requires a different research-library capability"
     if isinstance(exc, KeyError):
         return "No such managed research library record"
     if (type(exc).__module__.startswith("research_library_service")
@@ -167,6 +168,11 @@ class Service:
             return self._store
 
     @property
+    def writers(self):
+        from .writers import WriterRegistry
+        return WriterRegistry(self.store)
+
+    @property
     def queries(self):
         with self._initialization_lock:
             if self._queries is None:
@@ -201,6 +207,15 @@ class Service:
     def dispatch(self, operation: str, arguments: dict | None = None, *, role="read",
                  actor: str | None = None) -> dict:
         """Validate and authorize before lazy database creation or backend dispatch."""
+        if isinstance(operation, str) and operation in WRITER_ADMIN:
+            if role not in {"admin", "provision"}:
+                raise PermissionError("Writer provisioning requires its own capability")
+            arguments = dict(arguments or {})
+            validate_arguments(arguments)
+            arguments["actor"] = actor or f"local-{role}"
+            if operation == "writer_grant":
+                return self.writers.grant(**arguments)
+            return self.writers.revoke(**arguments)
         if role not in ROLE_LEVELS or not isinstance(operation, str):
             raise PermissionError("Unsupported research capability")
         if operation in READ_STORE | READ_QUERIES | READ_RUNS | {

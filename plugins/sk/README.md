@@ -23,7 +23,7 @@ in Codex. The separate `$sk` router provides the portable invocations above.
 Queue and frontier options are documented in each workflow.
 
 Both clients require the separately configured `research-library` MCP service at
-`https://research-mcp.llms-explorer.com/mcp`. Obtain a reader capability for
+`https://research-mcp.skaas.io/mcp`. Obtain a reader capability for
 discovery or a writer capability for authorized persisted research. The plugin
 contains methodology only. It supplies no credentials, research corpus, server
 runtime, or MCP configuration, and it starts no research on installation.
