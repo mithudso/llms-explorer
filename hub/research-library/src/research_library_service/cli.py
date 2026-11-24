@@ -17,6 +17,14 @@ def parser():
                       help="Local capability; OS access to this CLI is trusted")
     commands = root.add_subparsers(dest="command", required=True)
     commands.add_parser("status")
+    prepare = commands.add_parser("writer-prepare", help="Create a private recipient token file")
+    prepare.add_argument("--token-file", required=True)
+    grant = commands.add_parser("writer-grant", help="Enroll a named writer's public fingerprint")
+    grant.add_argument("name")
+    grant.add_argument("credential_id")
+    grant.add_argument("--valid-days", type=int, default=7)
+    revoke = commands.add_parser("writer-revoke", help="Revoke an individual writer credential")
+    revoke.add_argument("credential_id")
     provision = commands.add_parser("provision")
     provision.add_argument("--wait", type=int, default=0)
     search = commands.add_parser("search")
@@ -69,6 +77,10 @@ def _request(args, stream):
 def main(argv=None, *, service=None, input_stream=None) -> int:
     args = parser().parse_args(argv)
     try:
+        if args.command == "writer-prepare":
+            from .writer_request import prepare_writer
+            print(json.dumps(prepare_writer(args.token_file)), flush=True)
+            return 0
         load_environment(args.env_file)
         if args.command == "serve":
             from .mcp_server import run_server
@@ -78,6 +90,11 @@ def main(argv=None, *, service=None, input_stream=None) -> int:
         service = service or Service()
         if args.command == "request":
             operation, arguments = _request(args, input_stream or sys.stdin)
+        elif args.command == "writer-grant":
+            operation, arguments = "writer_grant", {"name": args.name,
+                "credential_id": args.credential_id, "valid_days": args.valid_days}
+        elif args.command == "writer-revoke":
+            operation, arguments = "writer_revoke", {"credential_id": args.credential_id}
         elif args.command == "provision":
             operation, arguments = "provision", {"wait_seconds": args.wait}
         elif args.command == "search":

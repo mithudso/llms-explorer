@@ -54,7 +54,7 @@ def test_archive_allowlist_reproducibility_hashes_and_portable_skills(source_rep
     result = builder.build(source_repo, first)
     builder.build(source_repo, second)
     assert first.read_bytes() == second.read_bytes()
-    assert result["file_count"] == 20
+    assert result["file_count"] == 21
     with zipfile.ZipFile(first) as archive:
         prefix = builder.ARCHIVE_ROOT + "/"
         files = {name.removeprefix(prefix): archive.read(name) for name in archive.namelist()}
@@ -229,7 +229,7 @@ def test_documented_tool_inventory_matches_both_mcp_servers():
     skill_tools = {node.name for node in ast.walk(skills_tree)
                    if isinstance(node, ast.FunctionDef)
                    and node.name.startswith(("skill_", "skills_"))}
-    assert len(research_tools) == 40 and len(skill_tools) == 5
+    assert len(research_tools) == 42 and len(skill_tools) == 5
     reference = (SERVICE / "distribution/TOOLS.md").read_text()
     rows = re.findall(r"^\| `([a-z_]+)` \| (.+) \|$", reference, re.MULTILINE)
     documented = {name: re.findall(r"`([^`]+)`", description) for name, description in rows}

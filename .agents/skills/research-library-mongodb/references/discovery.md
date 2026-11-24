@@ -3,7 +3,7 @@
 ## Connect once, verify in each agent environment
 
 The configured hosted Streamable HTTP endpoint is
-`https://research-mcp.llms-explorer.com/mcp`. Its deployment and client connection
+`https://research-mcp.skaas.io/mcp`. Its deployment and client connection
 must be verified; this address in a skill is configuration, not proof of a live
 connection. Register it in the target agent's MCP settings as `research_library`.
 Set `Authorization: Bearer <capability>` through the client's protected secret

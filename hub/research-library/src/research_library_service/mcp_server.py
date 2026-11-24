@@ -19,7 +19,9 @@ except ImportError:
     from mcp.server.fastmcp import FastMCP as MCPServer
 
 from .environment import load_environment
+from .models import Conflict
 from .service import MAX_REQUEST_BYTES, Service, public_error
+from .writers import bearer_id
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,17 @@ def create_server(service=None, default_role: str = "read"):
                 "idempotentHint": read_only,
             })(call)
         return register
+
+    @tool(read_only=False)
+    def research_writer_grant(name: str, credential_id: str, valid_days: int = 7) -> dict[str, Any]:
+        """Enroll a recipient's public SHA-256 fingerprint using the provisioning capability."""
+        return invoke("writer_grant", {"name": name, "credential_id": credential_id,
+                                       "valid_days": valid_days})
+
+    @tool(read_only=False, destructive=True)
+    def research_writer_revoke(credential_id: str) -> dict[str, Any]:
+        """Revoke a single writer credential using the provisioning capability."""
+        return invoke("writer_revoke", {"credential_id": credential_id})
 
     @tool()
     def research_status() -> dict[str, Any]:
@@ -383,10 +396,12 @@ def create_server(service=None, default_role: str = "read"):
 class BearerAuth:
     """Authenticate before body parsing; bind each request's read/write context."""
 
-    def __init__(self, app, read_token: str = "", write_token: str = ""):
+    def __init__(self, app, read_token: str = "", write_token: str = "", *,
+                 provision_token: str = "", resolve_writer=None):
         pairs = [(read_token, Principal("read", "mcp-reader")),
-                 (write_token, Principal("write", "mcp-writer"))]
-        if not any(token for token, _ in pairs):
+                 (write_token, Principal("write", "mcp-writer")),
+                 (provision_token, Principal("provision", "mcp-provisioner"))]
+        if not any(token for token, _ in pairs) and resolve_writer is None:
             raise ValueError("HTTP requires research-library capability tokens")
         self.tokens = []
         for token, principal in pairs:
@@ -396,19 +411,36 @@ class BearerAuth:
                     or any(not 33 <= ord(c) <= 126 for c in token)):
                 raise ValueError("Capability tokens must contain 32..1024 printable ASCII characters")
             self.tokens.append((("Bearer " + token).encode(), principal))
-        if read_token and read_token == write_token:
-            raise ValueError("Read and write capability tokens must differ")
+        if len({value for value, _ in self.tokens}) != len(self.tokens):
+            raise ValueError("Research-library capability tokens must differ")
+        self.resolve_writer = resolve_writer
         self.app = app
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
-        headers = dict(scope.get("headers", []))
+        headers = {}
+        for name, value in scope.get("headers", []):
+            name = name.lower()
+            if name in {b"authorization", b"host", b"origin"} and name in headers:
+                await self._reject(send, 400, b'{"error":"ambiguous security header"}')
+                return
+            headers[name] = value
         supplied = headers.get(b"authorization", b"")
         principal = None
         for expected, candidate in self.tokens:
             if secrets.compare_digest(supplied, expected):
                 principal = candidate
+        if principal is None and self.resolve_writer is not None:
+            credential_id = bearer_id(supplied)
+            if credential_id:
+                try:
+                    actor = await asyncio.to_thread(self.resolve_writer, credential_id)
+                except Exception:
+                    await self._reject(send, 503, b'{"error":"writer verification unavailable"}')
+                    return
+                if actor is not None:
+                    principal = Principal("write", actor)
         if principal is None:
             await self._reject(send, 401, b'{"error":"unauthorized"}')
             return
@@ -457,8 +489,11 @@ class BearerAuth:
 
 
 def http_app(server, read_token="", write_token="", host="127.0.0.1",
-             allowed_hosts=None, allowed_origins=None):
-    from mcp.server.transport_security import TransportSecuritySettings
+             allowed_hosts=None, allowed_origins=None, *, provision_token="",
+             named_writers=False, service=None):
+    from mcp.server.transport_security import TransportSecurityMiddleware, TransportSecuritySettings
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
     security = TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
         allowed_hosts=allowed_hosts or ["127.0.0.1", "localhost", "[::1]",
@@ -473,15 +508,57 @@ def http_app(server, read_token="", write_token="", host="127.0.0.1",
         server.settings.json_response = True
         server.settings.transport_security = security
         app = server.streamable_http_app()
-    return BearerAuth(app, read_token, write_token)
+    if service is None and (named_writers or provision_token):
+        raise ValueError("Named writer verification requires the serving research service")
+
+    request_security = TransportSecurityMiddleware(security)
+
+    async def manage_writer(request):
+        principal = AUTH.get()
+        if principal is None or principal.role != "provision":
+            return JSONResponse({"error": "writer provisioning capability required"}, status_code=403)
+        is_grant = request.method == "POST"
+        invalid = await request_security.validate_request(request, is_post=is_grant)
+        if invalid is not None:
+            return invalid
+        try:
+            if is_grant:
+                arguments = await request.json()
+                if not isinstance(arguments, dict) or set(arguments) - {
+                        "name", "credential_id", "valid_days"}:
+                    raise ValueError("Unexpected enrollment fields")
+                operation = "writer_grant"
+            else:
+                operation, arguments = "writer_revoke", dict(request.path_params)
+            result = await asyncio.to_thread(service.dispatch, operation, arguments,
+                                             role=principal.role, actor=principal.actor)
+            return JSONResponse(result, status_code=201 if is_grant else 200)
+        except Conflict as exc:
+            return JSONResponse({"error": public_error(exc)}, status_code=409)
+        except KeyError as exc:
+            return JSONResponse({"error": public_error(exc)}, status_code=404)
+        except (TypeError, ValueError) as exc:
+            return JSONResponse({"error": public_error(exc)}, status_code=400)
+        except Exception:
+            return JSONResponse({"error": "writer registry unavailable"}, status_code=503)
+
+    app.routes.extend([
+        Route("/v1/writers", manage_writer, methods=["POST"]),
+        Route("/v1/writers/{credential_id}", manage_writer, methods=["DELETE"]),
+    ])
+
+    def resolve_writer(credential_id):
+        return service.writers.authenticate(credential_id)
+
+    return BearerAuth(app, read_token, write_token, provision_token=provision_token,
+                      resolve_writer=resolve_writer if named_writers or provision_token else None)
 
 
 def run_server(*, env_file=None, transport="stdio", host="127.0.0.1", port=8767,
                allow_remote=False, role="read"):
     load_environment(env_file)
-    server = create_server(default_role=role)
     if transport == "stdio":
-        server.run(transport="stdio")
+        create_server(default_role=role).run(transport="stdio")
         return
     try:
         loopback = host == "localhost" or ipaddress.ip_address(host).is_loopback
@@ -493,9 +570,12 @@ def run_server(*, env_file=None, transport="stdio", host="127.0.0.1", port=8767,
              if x.strip()]
     origins = [x.strip() for x in os.environ.get("RESEARCH_LIBRARY_ALLOWED_ORIGINS", "").split(",")
                if x.strip()]
-    app = http_app(server, os.environ.get("RESEARCH_LIBRARY_READ_TOKEN", ""),
+    service = Service()
+    app = http_app(create_server(service), os.environ.get("RESEARCH_LIBRARY_READ_TOKEN", ""),
                    os.environ.get("RESEARCH_LIBRARY_WRITE_TOKEN", ""), host,
-                   hosts or None, origins)
+                   hosts or None, origins, service=service,
+                   provision_token=os.environ.get("RESEARCH_LIBRARY_PROVISION_TOKEN", ""),
+                   named_writers=os.environ.get("RESEARCH_LIBRARY_NAMED_WRITERS") == "1")
     import uvicorn
     uvicorn.run(app, host=host, port=port, log_level="warning", access_log=False)
 

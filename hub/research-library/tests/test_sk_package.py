@@ -76,6 +76,19 @@ def test_archive_exact_allowlist_deterministic_hashes_and_private_exclusions(sou
     builder.validate_exports(files)
 
 
+def test_recipient_can_prepare_writer_request_from_extracted_kit(bundle, tmp_path):
+    token_file = tmp_path / "new-token"
+    command = [sys.executable, "-I", "-S", str(bundle / "writer_request.py"),
+               "--token-file", str(token_file)]
+    result = subprocess.run(command, check=True, text=True, capture_output=True)
+    secret = token_file.read_text().strip()
+    assert len(secret) >= 32
+    assert token_file.stat().st_mode & 0o077 == 0
+    digest = hashlib.sha256(secret.encode()).hexdigest()
+    assert json.loads(result.stdout) == {"credential_id": digest}
+    assert secret not in result.stdout + result.stderr
+
+
 def test_exported_client_roots_contain_all_references_and_exact_aliases(bundle):
     for client in ("claude", "codex"):
         manifest = json.loads((bundle / f"plugins/sk/.{client}-plugin/plugin.json").read_text())
@@ -271,8 +284,9 @@ def test_bundle_tampering_is_rejected_before_any_destination_write(bundle, tmp_p
     assert not target.exists()
 
 
-def test_extracted_kit_runs_installer_without_repository_or_import_path(bundle):
-    result = subprocess.run([sys.executable, str(bundle / "install_sk.py"), "--client", "both"],
+def test_extracted_kit_runs_installer_without_repository_or_import_path(bundle, tmp_path):
+    result = subprocess.run([sys.executable, str(bundle / "install_sk.py"), "--client", "both",
+                             "--skills-dir", str(tmp_path / "skills")],
                             cwd=bundle, capture_output=True, text=True, check=True)
     plan = json.loads(result.stdout)
     assert plan["preview"] is True

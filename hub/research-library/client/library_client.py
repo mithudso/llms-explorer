@@ -27,8 +27,8 @@ MAX_REQUEST_BYTES = 128 * 1024
 PROTOCOL_VERSION = "2025-06-18"
 SUPPORTED_PROTOCOLS = {"2024-11-05", "2025-03-26", PROTOCOL_VERSION, "2025-11-25"}
 SERVICES = {
-    "skills": ("skills_mongodb", "https://skills-mcp.llms-explorer.com/mcp", "SKILL_MCP"),
-    "research": ("research-library", "https://research-mcp.llms-explorer.com/mcp", "RESEARCH_MCP"),
+    "skills": ("skills_mongodb", "https://skills-mcp.skaas.io/mcp", "SKILL_MCP"),
+    "research": ("research-library", "https://research-mcp.skaas.io/mcp", "RESEARCH_MCP"),
 }
 READ_TOOLS = {
     "skills": frozenset({

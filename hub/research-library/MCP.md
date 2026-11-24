@@ -1,9 +1,10 @@
 # Research-library MCP client guide
 
 The server exposes bounded research operations over stateless Streamable HTTP
-at `/mcp`, or local stdio. The configured public route is
-`https://research-mcp.llms-explorer.com/mcp`; an operator must verify its current
-deployment and issue the appropriate token. See [README.md](README.md) for the
+at `/mcp`, or local stdio. The canonical public route is
+`https://research-mcp.skaas.io/mcp`. Existing clients can continue using
+`https://research-mcp.llms-explorer.com/mcp`. The authenticated writer-management
+API is served under `/v1/writers` on the canonical hostname. See [README.md](README.md) for the
 server runtime, database, indexes and trusted publication configuration.
 
 ## Connect with the least capability needed
@@ -16,7 +17,7 @@ the equivalent configuration is:
 {
   "mcpServers": {
     "research-library": {
-      "url": "https://research-mcp.llms-explorer.com/mcp",
+      "url": "https://research-mcp.skaas.io/mcp",
       "headers": {"Authorization": "Bearer <reader-or-writer-token>"}
     }
   }
@@ -32,14 +33,15 @@ library documents.
 | Capability | How granted | Operations |
 | --- | --- | --- |
 | Reader | `RESEARCH_LIBRARY_READ_TOKEN` on HTTP, or default stdio role | Search and read all managed concepts, history, source snapshots, queue/leases and publication status |
-| Writer | Distinct `RESEARCH_LIBRARY_WRITE_TOKEN`, or explicit stdio `--role write` | Reader operations plus draft/claim/source/family CRUD, leases, queue changes and finalize submission |
+| Writer | Named writer bearer, shared `RESEARCH_LIBRARY_WRITE_TOKEN`, or explicit stdio `--role write` | Reader operations plus draft/claim/source/family CRUD, leases, queue changes and finalize submission |
+| Writer provisioner | Distinct `RESEARCH_LIBRARY_PROVISION_TOKEN` on HTTP | Grant and revoke named writer credentials |
 | Local administrator | Owner-local CLI `--role admin` (the CLI default) | Writer operations plus provisioning, import, trusted completion, legacy coordination and audited queue recovery |
 
 All tool names are discoverable even for a reader; invoking a writer tool with a
 reader token is denied before backend dispatch. Existing skill-distribution
 tokens do not authorize these endpoints. The bearer roles apply to the whole
-managed corpus; there are no per-concept ACLs, individual-user identities or
-tenant boundaries in this version. Source snapshots may contain private text.
+managed corpus. Named writer operations are attributed to `mcp-writer:<name>`.
+There are no per-concept ACLs or tenant partitions. Source snapshots may contain private text.
 
 For stdio, use an installed permanent Python executable and an explicitly
 selected local environment:
@@ -60,6 +62,46 @@ Stdio relies on local process/OS access, not bearer authentication. Selecting a
 writer role deliberately grants the child process writer authority. The
 `research-library serve` wrapper calls this option `--stdio-role`; the direct
 `research-library-mcp` entry point calls it `--role`.
+
+## Enroll a named writer
+
+1. On the recipient device, run `research-library writer-prepare --token-file
+   /private/directory/research-writer.token` in a trusted directory. The portable
+   equivalent is `python3 writer_request.py --token-file /private/directory/research-writer.token`.
+   Both create a new owner-only file and print JSON containing only its
+   `credential_id` (SHA-256 fingerprint). Send the fingerprint and chosen writer
+   name to the operator through a channel that authenticates the requester's identity.
+2. On the service host, enable named writers and restart the HTTP service as
+   described in the operator README. Register the fingerprint with
+   `research-library writer-grant NAME CREDENTIAL_ID --valid-days 7`. Names start
+   with a lowercase ASCII letter and allow up to 64 lowercase letters, digits,
+   underscores or hyphens. Use one persistent name per writer. Validity is
+   1–90 days, with a seven-day default.
+3. Configure the recipient's private MCP connection to send the file contents
+   (without the trailing newline) as its Authorization bearer. The writer can
+   now use the existing research write and finalize tools. The research service
+   authenticates this credential independently of a Codex account.
+4. Revoke with `research-library writer-revoke CREDENTIAL_ID`. To renew,
+   generate a fresh secret. If the current grant is still active, revoke its
+   public fingerprint from the enrollment receipt first. Once the current grant
+   expires, the operator can enroll a new fingerprint under the same name
+   immediately. The server retains retired fingerprints, so a delayed grant
+   cannot reactivate one. Repeating an active grant with identical parameters
+   preserves its original expiry.
+
+Operators using the dedicated provisioning bearer have two remote interfaces:
+
+| Action | HTTPS API | MCP tool |
+| --- | --- | --- |
+| Grant | `POST /v1/writers` with JSON `{"name":"lab","credential_id":"<fingerprint>","valid_days":7}` | `research_writer_grant` with the same fields |
+| Revoke | `DELETE /v1/writers/<fingerprint>` | `research_writer_revoke` with `credential_id` |
+
+The response contains `name`, `credential_id`, `expires_at` (Unix seconds) and
+`revoked`. The recipient keeps the bearer locally throughout enrollment.
+The API returns 201 for enrollment, 200 for revocation, 401 for unrecognized,
+revoked or expired bearers, 403 for insufficient privileges, and 409 for
+conflicting enrollments. Enrolls and revocations take effect on subsequent
+requests, including requests on an existing MCP connection.
 
 ## Find work before creating it
 
@@ -274,7 +316,7 @@ to distinguish an installed client from a working search/publication path.
 
 The SK plugin provides DR, CFE, rabbithole and full-suite methods, with saved
 queue continuation and frontier expansion. See [SK Research](../../docs/sk-research.md).
-The research endpoint now advertises 40 tools: 20 reads and 20 writes. The
+The research endpoint now advertises 42 tools: 20 reads, 20 research writes, and two writer-management tools. The
 [tool inventory](distribution/TOOLS.md) documents every signature.
 
 `research_run_create` records the commissioned prompt, mode, scope and options.

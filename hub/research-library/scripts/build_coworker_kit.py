@@ -13,7 +13,7 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 ARCHIVE_ROOT = "MongoDB-Research-Coworker-Kit"
 FORMAT = "mongodb-research-coworker-kit/v1"
 CORE = "research-library-mongodb"
@@ -51,6 +51,8 @@ PORTABLE_LINKS = (
 def source_map() -> dict[str, Path]:
     files = {name: DISTRIBUTION / name for name in PUBLIC_FILES}
     files.update({"LICENSE": Path("LICENSE"),
+                  "writer_request.py": Path(
+                      "hub/research-library/src/research_library_service/writer_request.py"),
                   "library_client.py": Path("hub/research-library/client/library_client.py")})
     files.update({f"skills/{CORE}/{name}": CANONICAL / name for name in CORE_FILES})
     for mode in MODES:

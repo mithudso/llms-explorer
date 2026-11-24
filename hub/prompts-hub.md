@@ -53,3 +53,7 @@ The user restored Wrangler login and supplied a fine-grained GitHub key for priv
 ## Prompt v9 - 2026-11-13
 - Authorized continuation: repair safely recoverable synchronization gaps without overwriting other workers.
 - Delta: reserve the catalog before the run and version writes too. Preserve transaction rollback, ownership, idempotency and one catalog increment.
+
+## Prompt v10 - 2026-11-24
+- Authorized scope: support provisioning and distributing individual research writer access through the CLI, HTTP API and MCP, and support first-party service domains for SKaaS clients.
+- Delta: v9 to v10. Keep current research clients working while the new routes are verified.

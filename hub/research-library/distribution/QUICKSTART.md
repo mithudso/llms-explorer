@@ -9,10 +9,11 @@ Extract the archive, then open a terminal in `MongoDB-Research-Coworker-Kit`.
 
 Ask the library operator for a skill-service token and a research **reader**
 token through a private channel. They are separate credentials for separate
-services. A research writer token is needed for authorized research changes.
-These bearer roles cover the whole managed corpus; they do not create individual
-accounts, per-concept permissions, or tenant ACLs. Remote clients need no MongoDB
-URI, copied source corpus, or server environment file.
+services. A named writer can make changes across the managed research corpus.
+To request access, run `python3 writer_request.py --token-file NEW_FILE` with
+an unused private file path. Share only the printed credential ID with the
+operator. After enrollment, use the file's token for `RESEARCH_MCP_TOKEN`
+when connecting to the approved research endpoint.
 
 Load credentials into `SKILL_MCP_TOKEN` and `RESEARCH_MCP_TOKEN` in the same shell
 that launches the client or Codex. Use a secret manager or hidden prompts. This
@@ -72,13 +73,16 @@ inspect `codex mcp get skills_mongodb` or `codex mcp get research-library` befor
 changing its definition; preserve other servers and active sessions.
 
 ```sh
-codex mcp add skills_mongodb --url https://skills-mcp.llms-explorer.com/mcp --bearer-token-env-var SKILL_MCP_TOKEN
-codex mcp add research-library --url https://research-mcp.llms-explorer.com/mcp --bearer-token-env-var RESEARCH_MCP_TOKEN
+codex mcp add skills_mongodb --url https://skills-mcp.skaas.io/mcp --bearer-token-env-var SKILL_MCP_TOKEN
+codex mcp add research-library --url https://research-mcp.skaas.io/mcp --bearer-token-env-var RESEARCH_MCP_TOKEN
 codex mcp list
 ```
 
-The skill service supplies five read tools. The research service supplies 27
-tools; a reader can discover writer tool names but cannot invoke their writes.
+Existing approved installations may use the legacy `research-mcp.llms-explorer.com`
+and `skills-mcp.llms-explorer.com` aliases while a network reviews the new hostnames.
+
+The skill service supplies five read tools. Discover the research tool list on the
+connected server. The service checks the required role before dispatching each call.
 See [TOOLS.md](TOOLS.md) for their roles. Skill metadata naming `research-library`
 does not register that server or provide a credential.
 

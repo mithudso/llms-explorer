@@ -3,7 +3,7 @@
 from pathlib import PurePosixPath
 
 FORMAT = "sk-mongodb-research-kit/v1"
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 ARCHIVE_ROOT = "SK-MongoDB-Research-Kit"
 MARKETPLACE = "sk-research"
 MODES = ("dr", "cfe", "rabbithole", "full-suite")
@@ -20,6 +20,8 @@ def source_map() -> dict[str, PurePosixPath]:
     files = {name: DISTRIBUTION / name for name in
              ("README.md", "SETUP.md", "install_sk.py", "package_contract.py")}
     files.update({"LICENSE": PurePosixPath("LICENSE"),
+                  "writer_request.py": PurePosixPath(
+                      "hub/research-library/src/research_library_service/writer_request.py"),
                   "library_client.py": PurePosixPath(
                       "hub/research-library/client/library_client.py")})
     for name in (".claude-plugin/marketplace.json", ".agents/plugins/marketplace.json"):

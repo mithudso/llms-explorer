@@ -106,10 +106,10 @@ def test_default_environment_is_service_specific_and_does_not_load_config(tmp_pa
     (tmp_path / "config.toml").write_text("not valid toml")
     monkeypatch.chdir(tmp_path)
     url, headers = client.connection_settings("skills", environ={"SKILL_MCP_TOKEN": SECRET})
-    assert url == "https://skills-mcp.llms-explorer.com/mcp"
+    assert url == "https://skills-mcp.skaas.io/mcp"
     assert headers == {"authorization": "Bearer " + SECRET}
     url, _ = client.connection_settings("research", environ={"RESEARCH_MCP_TOKEN": SECRET})
-    assert url == "https://research-mcp.llms-explorer.com/mcp"
+    assert url == "https://research-mcp.skaas.io/mcp"
     with pytest.raises(client.ClientError):
         client.connection_settings("research", environ={"RESEARCH_MCP_WRITE_TOKEN": SECRET})
 
