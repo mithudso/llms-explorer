@@ -56,3 +56,15 @@ checks send one grouped email after three consecutive failures or two consecutiv
 recovery passes. The D1 state suppresses repeat notifications until a state
 change. Delivery failures leave the transition pending and are logged as a coded
 error. Staging results remain visible without notifying the recipient.
+
+The dedicated alert receiver Worker accepts Cloudflare Notifications on
+`POST /cloudflare` and watchdog service binding requests on `POST /synthetic`.
+Each source has its own shared secret. Bind the watchdog as `WATCHDOG_INGEST`
+and use the same private `SYNTHETIC_WEBHOOK_TOKEN` on both Workers. Bind the
+receiver to the watchdog D1 database and set its account ID and Cloudflare
+webhook secret in its deployment configuration.
+
+D1 retains normalized, deduplicated receipts in `webhook_events` for 30 days.
+Use the `triage_action` and `subject` fields to select an approved check for
+a new event. Verification callbacks never produce a remediation action. The
+receiver does not store the provider message body or execute changes.

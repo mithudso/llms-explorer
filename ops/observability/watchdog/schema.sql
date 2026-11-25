@@ -15,3 +15,15 @@ CREATE TABLE IF NOT EXISTS alert_state (
   changed_at INTEGER NOT NULL,
   notified_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS webhook_events (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  type TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  state TEXT NOT NULL,
+  event_at INTEGER NOT NULL,
+  status INTEGER NOT NULL,
+  triage_action TEXT NOT NULL,
+  received_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS webhook_events_retention ON webhook_events(received_at);

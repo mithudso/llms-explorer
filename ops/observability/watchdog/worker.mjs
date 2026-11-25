@@ -166,7 +166,7 @@ export function alertTransitions(rows, current) {
 async function notify(env, due, checked, minute) {
   const names = due.filter(target => target.phase === "production").map(({name, interval = 1}) => ({name, interval}));
   const {results} = await env.DB.prepare(`
-    SELECT json_extract(d.value, '$.name') AS name, a.firing, a.notified_at,
+    SELECT json_extract(d.value, '$.name') AS name, a.firing, a.changed_at, a.notified_at,
       (SELECT group_concat(success, '') FROM (
         SELECT success FROM checks
         WHERE name = json_extract(d.value, '$.name')
@@ -177,25 +177,38 @@ async function notify(env, due, checked, minute) {
     LEFT JOIN alert_state a ON a.name = json_extract(d.value, '$.name')
   `).bind(minute, JSON.stringify(names)).all();
   const transitions = alertTransitions(results, checked);
+  const changedAt = Math.floor(Date.now() / 1000);
   if (transitions.length) {
     await env.DB.prepare(`
       INSERT INTO alert_state(name, firing, changed_at, notified_at)
       SELECT json_extract(value, '$.name'), json_extract(value, '$.firing'), ?1, 0
       FROM json_each(?2) WHERE true
       ON CONFLICT(name) DO UPDATE SET firing = excluded.firing, changed_at = excluded.changed_at, notified_at = 0
-    `).bind(Math.floor(Date.now() / 1000), JSON.stringify(transitions.map(({name, firing}) => ({name, firing})))).run();
+    `).bind(changedAt, JSON.stringify(transitions.map(({name, firing}) => ({name, firing})))).run();
   }
-  if (!env.WATCHDOG_MAIL || !env.WATCHDOG_MAIL_FROM || !env.WATCHDOG_MAIL_TO) return;
+  const mail = env.WATCHDOG_MAIL && env.WATCHDOG_MAIL_FROM && env.WATCHDOG_MAIL_TO;
+  const webhook = env.WATCHDOG_INGEST && env.SYNTHETIC_WEBHOOK_TOKEN;
+  if (!mail && !webhook) return;
   const recent = new Map(results.map(row => [row.name, row]));
   const changed = new Set(transitions.map(change => change.name));
-  const pending = transitions.concat(checked.flatMap(check => {
+  const pending = transitions.map(check => ({...check, changedAt})).concat(checked.flatMap(check => {
     const row = recent.get(check.name);
     return row?.notified_at === 0 && !changed.has(check.name) && row.firing === 1 - check.success
-      ? [{...check, firing: row.firing}] : [];
+      ? [{...check, firing: row.firing, changedAt: row.changed_at}] : [];
   }));
   if (!pending.length) return;
+  if (webhook) {
+    const response = await env.WATCHDOG_INGEST.fetch("https://fleet-alert-ingest.internal/synthetic", {
+      method: "POST",
+      headers: {"content-type": "application/json", "cf-webhook-auth": env.SYNTHETIC_WEBHOOK_TOKEN},
+      body: JSON.stringify({events: pending.map(({name, firing, changedAt: ts, status}) =>
+        ({name, state: firing ? "firing" : "resolved", ts, status}))}),
+    });
+    if (response.status !== 202) throw new Error("watchdog_webhook_failed");
+    await response.body?.cancel();
+  }
   const failures = pending.filter(item => item.firing).length;
-  await env.WATCHDOG_MAIL.send({
+  if (mail) await env.WATCHDOG_MAIL.send({
     from: env.WATCHDOG_MAIL_FROM,
     to: env.WATCHDOG_MAIL_TO,
     subject: `[Fleet monitoring] ${failures} new failures, ${pending.length - failures} recoveries`,
@@ -219,7 +232,13 @@ export async function scheduled(event, env) {
     checked.push(...await Promise.all(currentTargets.slice(start, start + 6).map(target => probe(target))));
   }
   if (checked.length) await env.DB.batch(checked.map(c => env.DB.prepare("INSERT OR IGNORE INTO checks(name,minute,checked_at,success,status,duration,phase) VALUES(?,?,?,?,?,?,?)").bind(c.name, minute, c.checked_at, c.success, c.status, c.duration, c.phase)));
-  if (minute % 60 === 0) await env.DB.prepare("DELETE FROM checks WHERE checked_at < ?").bind(Math.floor(Date.now() / 1000) - 7 * 86400).run();
+  if (minute % 60 === 0) {
+    const now = Math.floor(Date.now() / 1000);
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM checks WHERE checked_at < ?").bind(now - 7 * 86400),
+      env.DB.prepare("DELETE FROM webhook_events WHERE received_at < ?").bind(now - 30 * 86400),
+    ]);
+  }
   try { await notify(env, currentTargets, checked, minute); }
   catch (error) {
     const code = typeof error?.code === "string" && /^E_[A-Z_]+$/.test(error.code) ? error.code : "unclassified";
