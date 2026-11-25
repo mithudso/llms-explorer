@@ -54,3 +54,17 @@ test("accepts the provider verification callback without queuing a remediation a
   const [event] = events.values();
   assert.equal(event.action, "none");
 });
+
+test("retains authenticated notifications that omit optional provider metadata", async () => {
+  const {env, events} = setup();
+  const payload = {text: "Status changed", ts: 1730000000};
+  for (const item of [payload, payload, {...payload, text: "Maintenance scheduled"}]) {
+    assert.equal((await receiveAlert(req("/cloudflare", "cloud-fixture", item), env)).status, 202);
+  }
+  assert.equal(events.size, 2);
+  for (const event of events.values()) {
+    assert.equal(event.type, "unspecified");
+    assert.equal(event.action, "review_account_event");
+    assert.equal(event.text, undefined);
+  }
+});
