@@ -32,3 +32,39 @@ It starts an isolated Compose project and three owned user LaunchAgents. An
 existing dashboard hostname or tunnel without matching owned credentials is
 refused, never overwritten. Local metrics and logs are not exposed publicly.
 Do not use `docker compose down --volumes`: it destroys monitoring history.
+
+## Domain and application contracts
+
+The off-host Worker accepts a private `WATCHDOG_EXTRA_TARGETS` JSON array and up to three more arrays in `WATCHDOG_EXTRA_TARGETS_2` through
+`WATCHDOG_EXTRA_TARGETS_4`. Each entry has a unique name, a `production` or `staging` phase and a 2, 5 or 10 minute
+interval. A DNS target supplies a hostname and either its exact delegated NS set
+or a required address record type. An HTTPS target can require a JSON subset,
+page text, status, a canonical or sign-in redirect, or a latency ceiling. Only
+explicit canonical redirects are followed. Monitoring uses GET and HEAD.
+
+The authentication boundary test passes when a protected route returns its
+expected denial or sign-in redirect. It does not reuse a person's browser or
+perform checkout, trades, order changes or writes. The Worker stores outcomes and
+latency without response bodies or OAuth redirect parameters. The authenticated
+status response declares the target intervals and includes the latest samples.
+
+Apply the idempotent watchdog schema before deployment. The Worker records
+production alert transitions in D1 and exposes active alerts in authenticated
+status and metrics even without an email destination. With
+the `WATCHDOG_MAIL` binding and private sender and recipient settings, production
+checks send one grouped email after three consecutive failures or two consecutive
+recovery passes. The D1 state suppresses repeat notifications until a state
+change. Delivery failures leave the transition pending and are logged as a coded
+error. Staging results remain visible without notifying the recipient.
+
+The dedicated alert receiver Worker accepts Cloudflare Notifications on
+`POST /cloudflare` and watchdog service binding requests on `POST /synthetic`.
+Each source has its own shared secret. Bind the watchdog as `WATCHDOG_INGEST`
+and use the same private `SYNTHETIC_WEBHOOK_TOKEN` on both Workers. Bind the
+receiver to the watchdog D1 database and set its account ID and Cloudflare
+webhook secret in its deployment configuration.
+
+D1 retains normalized, deduplicated receipts in `webhook_events` for 30 days.
+Use the `triage_action` and `subject` fields to select an approved check for
+a new event. Verification callbacks never produce a remediation action. The
+receiver does not store the provider message body or execute changes.
