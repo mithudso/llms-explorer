@@ -164,10 +164,9 @@ export function alertTransitions(rows, current) {
 }
 
 async function notify(env, due, checked, minute) {
-  if (!env.WATCHDOG_MAIL || !env.WATCHDOG_MAIL_FROM || !env.WATCHDOG_MAIL_TO) return;
   const names = due.filter(target => target.phase === "production").map(({name, interval = 1}) => ({name, interval}));
   const {results} = await env.DB.prepare(`
-    SELECT json_extract(d.value, '$.name') AS name, a.firing,
+    SELECT json_extract(d.value, '$.name') AS name, a.firing, a.notified_at,
       (SELECT group_concat(success, '') FROM (
         SELECT success FROM checks
         WHERE name = json_extract(d.value, '$.name')
@@ -178,22 +177,36 @@ async function notify(env, due, checked, minute) {
     LEFT JOIN alert_state a ON a.name = json_extract(d.value, '$.name')
   `).bind(minute, JSON.stringify(names)).all();
   const transitions = alertTransitions(results, checked);
-  if (!transitions.length) return;
-  const failures = transitions.filter(item => item.firing).length;
+  if (transitions.length) {
+    await env.DB.prepare(`
+      INSERT INTO alert_state(name, firing, changed_at, notified_at)
+      SELECT json_extract(value, '$.name'), json_extract(value, '$.firing'), ?1, 0
+      FROM json_each(?2) WHERE true
+      ON CONFLICT(name) DO UPDATE SET firing = excluded.firing, changed_at = excluded.changed_at, notified_at = 0
+    `).bind(Math.floor(Date.now() / 1000), JSON.stringify(transitions.map(({name, firing}) => ({name, firing})))).run();
+  }
+  if (!env.WATCHDOG_MAIL || !env.WATCHDOG_MAIL_FROM || !env.WATCHDOG_MAIL_TO) return;
+  const recent = new Map(results.map(row => [row.name, row]));
+  const changed = new Set(transitions.map(change => change.name));
+  const pending = transitions.concat(checked.flatMap(check => {
+    const row = recent.get(check.name);
+    return row?.notified_at === 0 && !changed.has(check.name) && row.firing === 1 - check.success
+      ? [{...check, firing: row.firing}] : [];
+  }));
+  if (!pending.length) return;
+  const failures = pending.filter(item => item.firing).length;
   await env.WATCHDOG_MAIL.send({
     from: env.WATCHDOG_MAIL_FROM,
     to: env.WATCHDOG_MAIL_TO,
-    subject: `[Fleet monitoring] ${failures} new failures, ${transitions.length - failures} recoveries`,
-    text: transitions.map(item => `${item.firing ? "FAILED" : "RECOVERED"} ${item.name} (HTTP ${item.status || "unavailable"}, ${item.duration.toFixed(2)}s)`).join("\n") +
-      "\n\nOpen the private fleet dashboard for current checks and investigation guidance: https://ops.llmsx.org/",
+    subject: `[Fleet monitoring] ${failures} new failures, ${pending.length - failures} recoveries`,
+    text: pending.map(item => `${item.firing ? "FAILED" : "RECOVERED"} ${item.name} (HTTP ${item.status || "unavailable"}, ${item.duration.toFixed(2)}s)`).join("\n") +
+      "\n\nOpen Cloudflare Workers Observability to view current checks and investigate.",
   });
   await env.DB.prepare(`
-    INSERT INTO alert_state(name, firing, notified_at)
-    SELECT json_extract(value, '$.name'), json_extract(value, '$.firing'), ?1
-    FROM json_each(?2) WHERE true
-    ON CONFLICT(name) DO UPDATE SET firing = excluded.firing, notified_at = excluded.notified_at
-  `).bind(Math.floor(Date.now() / 1000), JSON.stringify(transitions.map(({name, firing}) => ({name, firing})))).run();
-  console.log(JSON.stringify({event: "watchdog.notification_sent", sent_count: transitions.length}));
+    UPDATE alert_state SET notified_at = ?1
+    WHERE name IN (SELECT value FROM json_each(?2))
+  `).bind(Math.floor(Date.now() / 1000), JSON.stringify(pending.map(({name}) => name))).run();
+  console.log(JSON.stringify({event: "watchdog.notification_sent", sent_count: pending.length}));
 }
 
 export async function scheduled(event, env) {
@@ -224,17 +237,21 @@ export async function handle(request, env) {
   if (!["/metrics", "/status"].includes(url.pathname)) return new Response("Not found", {status: 404});
   const selected = targetsFromBindings(env);
   const info = selected.map(({name, phase, interval = 1}) => ({name, phase, interval}));
-  const result = await env.DB.prepare("SELECT c.* FROM checks c JOIN (SELECT name,MAX(minute) minute FROM checks GROUP BY name) latest ON latest.name=c.name AND latest.minute=c.minute ORDER BY c.name").all();
-  const current = new Set(selected.map(target => target.name));
-  const checks = result.results.filter(row => current.has(row.name));
+  const {results: checks} = await env.DB.prepare(`
+    SELECT c.*, COALESCE(a.firing, 0) AS firing
+    FROM json_each(?1) target
+    JOIN checks c ON c.name = target.value
+      AND c.minute = (SELECT MAX(minute) FROM checks WHERE name = target.value)
+    LEFT JOIN alert_state a ON a.name = c.name
+  `).bind(JSON.stringify(info.map(target => target.name))).all();
   if (url.pathname === "/status") return Response.json({revision: env.RELEASE_SHA, checks, targets: info}, {headers: {"Cache-Control": "no-store"}});
-  const lines = ["# TYPE fleet_watchdog_success gauge", "# TYPE fleet_watchdog_checked_timestamp_seconds gauge", "# TYPE fleet_watchdog_http_status gauge", "# TYPE fleet_watchdog_duration_seconds gauge"];
+  const lines = ["# TYPE fleet_watchdog_success gauge", "# TYPE fleet_watchdog_checked_timestamp_seconds gauge", "# TYPE fleet_watchdog_http_status gauge", "# TYPE fleet_watchdog_duration_seconds gauge", "# TYPE fleet_watchdog_alert_firing gauge"];
   for (const target of selected) {
     const labels = `{project="${target.name}",phase="${target.phase}"}`;
-    const row = result.results.find(c => c.name === target.name);
+    const row = checks.find(c => c.name === target.name);
     lines.push(`fleet_watchdog_checked_timestamp_seconds${labels} ${row?.checked_at ?? 0}`);
     if (row) {
-      lines.push(`fleet_watchdog_success${labels} ${row.success}`, `fleet_watchdog_http_status${labels} ${row.status}`, `fleet_watchdog_duration_seconds${labels} ${row.duration}`);
+      lines.push(`fleet_watchdog_success${labels} ${row.success}`, `fleet_watchdog_http_status${labels} ${row.status}`, `fleet_watchdog_duration_seconds${labels} ${row.duration}`, `fleet_watchdog_alert_firing${labels} ${row.firing}`);
     }
   }
   return new Response(lines.join("\n") + "\n", {headers: {"Content-Type": "text/plain; version=0.0.4", "Cache-Control": "no-store"}});

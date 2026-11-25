@@ -35,8 +35,8 @@ Do not use `docker compose down --volumes`: it destroys monitoring history.
 
 ## Domain and application contracts
 
-The off-host Worker accepts a private `WATCHDOG_EXTRA_TARGETS` JSON array. Each
-entry has a unique name, a `production` or `staging` phase and a 2, 5 or 10 minute
+The off-host Worker accepts a private `WATCHDOG_EXTRA_TARGETS` JSON array and up to three more arrays in `WATCHDOG_EXTRA_TARGETS_2` through
+`WATCHDOG_EXTRA_TARGETS_4`. Each entry has a unique name, a `production` or `staging` phase and a 2, 5 or 10 minute
 interval. A DNS target supplies a hostname and either its exact delegated NS set
 or a required address record type. An HTTPS target can require a JSON subset,
 page text, status, a canonical or sign-in redirect, or a latency ceiling. Only
@@ -48,7 +48,9 @@ perform checkout, trades, order changes or writes. The Worker stores outcomes an
 latency without response bodies or OAuth redirect parameters. The authenticated
 status response declares the target intervals and includes the latest samples.
 
-Apply the idempotent watchdog schema before enabling an email destination. With
+Apply the idempotent watchdog schema before deployment. The Worker records
+production alert transitions in D1 and exposes active alerts in authenticated
+status and metrics even without an email destination. With
 the `WATCHDOG_MAIL` binding and private sender and recipient settings, production
 checks send one grouped email after three consecutive failures or two consecutive
 recovery passes. The D1 state suppresses repeat notifications until a state

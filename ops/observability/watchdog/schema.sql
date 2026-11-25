@@ -12,5 +12,6 @@ CREATE INDEX IF NOT EXISTS checks_retention ON checks(checked_at);
 CREATE TABLE IF NOT EXISTS alert_state (
   name TEXT PRIMARY KEY,
   firing INTEGER NOT NULL CHECK(firing IN (0,1)),
+  changed_at INTEGER NOT NULL,
   notified_at INTEGER NOT NULL
 );

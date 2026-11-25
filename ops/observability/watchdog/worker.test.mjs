@@ -22,7 +22,7 @@ test("external watchdog detects real HTTP login redirects and verifies JSON read
 });
 
 test("metrics and history require authentication, and missing checks remain unknown", async () => {
-  const env = {WATCHDOG_TOKEN: "fixture-secret", RELEASE_SHA: "fixture", DB: {prepare() {return {async all() {return {results: []};}};}}};
+  const env = {WATCHDOG_TOKEN: "fixture-secret", RELEASE_SHA: "fixture", DB: {prepare() {return {bind() {return this;}, async all() {return {results: []};}};}}};
   assert.equal((await handle(new Request("https://watchdog.example/metrics"), env)).status, 401);
   assert.equal((await handle(new Request("https://watchdog.example/metrics", {headers: {Authorization: "Bearer wrong"}}), env)).status, 401);
   const response = await handle(new Request("https://watchdog.example/metrics", {headers: {Authorization: "Bearer fixture-secret"}}), env);
