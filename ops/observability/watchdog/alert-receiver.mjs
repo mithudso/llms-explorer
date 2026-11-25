@@ -58,19 +58,26 @@ function normalizeSynthetic(events) {
 
 async function normalizeCloudflare(input, env) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("invalid_event");
-  const {text, account_id: accountId, alert_type: type, alert_event: event, policy_id: policyId, alert_correlation_id: correlation, ts} = input;
-  if (typeof text === "string" && !type && !policyId && text.includes("test message sent from https://cloudflare.com")) {
+  const {text, account_id: accountId, alert_type: suppliedType, alert_event: event, policy_id: suppliedPolicy, alert_correlation_id: correlation, ts} = input;
+  if (accountId != null && accountId !== env.CLOUDFLARE_ACCOUNT_ID) throw new Error("wrong_account");
+  if (typeof text === "string" && !suppliedType && !suppliedPolicy && text.includes("test message sent from https://cloudflare.com")) {
     return [{id: "cloudflare:destination-test", source: "cloudflare", type: "destination_test", subject: "", state: "test",
       ts: Math.floor(Date.now() / 1000), status: 0, action: "none"}];
   }
-  if ((accountId && accountId !== env.CLOUDFLARE_ACCOUNT_ID) ||
-      typeof type !== "string" || !namePattern.test(type) || typeof policyId !== "string" || !idPattern.test(policyId) ||
-      !Number.isSafeInteger(ts) || ts <= 0) throw new Error("invalid_event");
+  if ((suppliedType != null && (typeof suppliedType !== "string" || !namePattern.test(suppliedType))) ||
+      (suppliedPolicy != null && (typeof suppliedPolicy !== "string" || !idPattern.test(suppliedPolicy))) ||
+      !Number.isSafeInteger(ts) || ts <= 0 ||
+      (!suppliedType && !suppliedPolicy && (typeof text !== "string" || !text.trim()))) throw new Error("invalid_event");
+  const type = suppliedType ?? "unspecified";
+  const policyId = suppliedPolicy ?? "";
   const state = ["ALERT_STATE_EVENT_END", "ALERT_STATE_EVENT_RESOLVED"].includes(event) ? "resolved" : "firing";
-  const resource = input.data?.tunnel_id ?? input.data?.tunnel?.id ?? input.data?.zone_id ?? input.data?.token_id;
+  const resource = input.data?.tunnel_id ?? input.data?.tunnel?.id ?? input.data?.zone_id ??
+    input.data?.zone_tag ?? input.data?.token_id ?? input.data?.certificate_id ?? input.data?.health_check_id;
   const subject = typeof resource === "string" && idPattern.test(resource) ? resource : policyId;
   const episode = typeof correlation === "string" && idPattern.test(correlation) ? correlation : subject;
-  const fingerprint = Array.from(await digest(JSON.stringify([policyId, episode, type, state, ts])), byte => byte.toString(16).padStart(2, "0")).join("");
+  const fingerprintSource = [policyId, episode, type, state, ts];
+  if (!episode) fingerprintSource.push(text);
+  const fingerprint = Array.from(await digest(JSON.stringify(fingerprintSource)), byte => byte.toString(16).padStart(2, "0")).join("");
   return [{id: "cloudflare:" + fingerprint, source: "cloudflare", type, subject, state, ts, status: 0,
     action: state === "resolved" ? "close_incident" : Object.hasOwn(actionFor, type) ? actionFor[type] : "review_account_event"}];
 }
