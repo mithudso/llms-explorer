@@ -38,38 +38,182 @@ async function boundedText(response) {
   return new TextDecoder().decode(result);
 }
 
+const namePattern = /^[a-z][a-z0-9-]{0,79}$/;
+const hostnamePattern = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$/;
+const redirectStatuses = [301, 302, 303, 307, 308];
+
+function publicHttps(input) {
+  const url = new URL(input);
+  if (url.protocol !== "https:" || url.port || url.username || url.password || url.search || url.hash || !hostnamePattern.test(url.hostname)) {
+    throw new Error("invalid_watchdog_url");
+  }
+  return url;
+}
+
+export function configuredTargets(raw) {
+  if (!raw) return targets;
+  const rows = JSON.parse(raw);
+  if (!Array.isArray(rows) || rows.length > 100) throw new Error("invalid_watchdog_targets");
+  const names = new Set(targets.map(target => target.name));
+  for (const target of rows) {
+    if (!target || !namePattern.test(target.name) || names.has(target.name) || !["production", "staging"].includes(target.phase) || ![2, 5, 10].includes(target.interval)) {
+      throw new Error("invalid_watchdog_target");
+    }
+    names.add(target.name);
+    if (target.dns) {
+      if (!hostnamePattern.test(target.dns) || !["NS", "A", "AAAA"].includes(target.rrtype ?? "NS")) throw new Error("invalid_watchdog_dns");
+      if ((!target.rrtype || target.rrtype === "NS") && (!Array.isArray(target.nameservers) || target.nameservers.length === 0 || target.nameservers.some(host => !hostnamePattern.test(host)))) throw new Error("invalid_watchdog_nameservers");
+      if (target.url || target.redirect || target.expect || target.bodyIncludes || target.method) throw new Error("ambiguous_watchdog_dns");
+    } else {
+      publicHttps(target.url);
+      if (target.method && target.method !== "HEAD") throw new Error("invalid_watchdog_method");
+      if (target.status && (!Array.isArray(target.status) || target.status.length === 0 || target.status.some(code => !Number.isInteger(code) || code < 200 || code >= 500))) throw new Error("invalid_watchdog_status");
+      if (target.maxDurationMs !== undefined && (!Number.isInteger(target.maxDurationMs) || target.maxDurationMs < 250 || target.maxDurationMs > 12000)) throw new Error("invalid_watchdog_latency");
+      if (target.bodyIncludes !== undefined && (typeof target.bodyIncludes !== "string" || target.bodyIncludes.length === 0)) throw new Error("invalid_watchdog_body");
+      if (target.redirect) {
+        if (!hostnamePattern.test(target.redirect.host) || (target.redirect.path && !target.redirect.path.startsWith("/")) || (target.redirect.follow !== undefined && typeof target.redirect.follow !== "boolean")) throw new Error("invalid_watchdog_redirect");
+      }
+    }
+  }
+  return [...targets, ...rows];
+}
+
+function targetsFromBindings(env) {
+  const groups = [env.WATCHDOG_EXTRA_TARGETS, env.WATCHDOG_EXTRA_TARGETS_2, env.WATCHDOG_EXTRA_TARGETS_3, env.WATCHDOG_EXTRA_TARGETS_4].filter(Boolean);
+  if (!groups.length) return targets;
+  const rows = groups.map(group => JSON.parse(group));
+  if (rows.some(group => !Array.isArray(group))) throw new Error("invalid_watchdog_targets");
+  return configuredTargets(JSON.stringify(rows.flat()));
+}
+
+function includesJson(value, expected) {
+  if (expected === null || typeof expected !== "object") return value === expected;
+  if (!value || typeof value !== "object" || Array.isArray(value) !== Array.isArray(expected)) return false;
+  return Object.entries(expected).every(([key, item]) => Object.hasOwn(value, key) && includesJson(value[key], item));
+}
+
+function redirectMatches(next, contract) {
+  return next.protocol === "https:" && next.hostname === contract.host && !next.port && !next.username && !next.password && (!contract.path || next.pathname === contract.path);
+}
+
 export async function probe(target, fetcher = fetch) {
   const start = Date.now();
   let status = 0;
   let success = false;
   try {
-    const options = {redirect: "manual", signal: AbortSignal.timeout(12000), headers: {"User-Agent": "LLMSX-Offhost-Watchdog/1.0"}};
-    let response = await fetcher(target.url, options);
-    status = response.status;
-    if (target.redirectHost && [301, 302, 307, 308].includes(response.status)) {
-      const next = new URL(response.headers.get("Location"), target.url);
-      await response.body?.cancel();
-      if (next.protocol !== "https:" || next.hostname !== target.redirectHost) throw new Error("unexpected_redirect");
-      response = await fetcher(next.href, options);
+    const options = {method: target.method ?? "GET", redirect: "manual", signal: AbortSignal.timeout(12000), headers: {"User-Agent": "LLMSX-Offhost-Watchdog/1.0"}};
+    if (target.dns) {
+      const url = new URL("https://cloudflare-dns.com/dns-query");
+      const rrtype = target.rrtype ?? "NS";
+      url.search = new URLSearchParams({name: target.dns, type: rrtype});
+      const response = await fetcher(url, {...options, headers: {...options.headers, Accept: "application/dns-json"}});
+      status = response.status;
+      const body = JSON.parse(await boundedText(response));
+      const answers = (body.Answer ?? []).filter(row => row.type === {A: 1, NS: 2, AAAA: 28}[rrtype]);
+      success = status === 200 && body.Status === 0 && answers.length > 0;
+      if (success && rrtype === "NS") {
+        const ns = new Set(answers.filter(row => row.name?.replace(/\.$/, "").toLowerCase() === target.dns).map(row => row.data?.replace(/\.$/, "").toLowerCase()));
+        success = ns.size === target.nameservers.length && target.nameservers.every(host => ns.has(host));
+      }
+    } else {
+      let response = await fetcher(target.url, options);
+      status = response.status;
+      const redirect = target.redirect ?? (target.redirectHost ? {host: target.redirectHost, follow: true} : undefined);
+      if (redirect) {
+        const location = response.headers.get("Location");
+        await response.body?.cancel();
+        if (!redirectStatuses.includes(status) || !location) throw new Error("expected_redirect");
+        const next = new URL(location, target.url);
+        if (!redirectMatches(next, redirect)) throw new Error("unexpected_redirect");
+        if (redirect.follow) {
+          next.search = "";
+          response = await fetcher(next.href, options);
+          status = response.status;
+        } else success = true;
+      }
+      if (!success) {
+        const text = await boundedText(response);
+        success = (target.status ?? [200]).includes(status);
+        if (success && target.expect !== undefined) success = includesJson(JSON.parse(text), target.expect);
+        else if (success && target.bodyIncludes) success = text.includes(target.bodyIncludes) && !/cloudflare access|<title>[^<]*just a moment/i.test(text);
+        else if (success && !target.status && target.method !== "HEAD") success = /<html(?:\s|>)/i.test(text) && !/cloudflare access|<title>[^<]*(?:sign in|just a moment)/i.test(text);
+      }
     }
-    status = response.status;
-    const text = await boundedText(response);
-    success = status === 200 && !/cloudflare access|<title>[^<]*(?:sign in|just a moment)/i.test(text);
-    if (success && target.expect) {
-      const body = JSON.parse(text);
-      success = Object.entries(target.expect).every(([key, value]) => body?.[key] === value);
-    } else if (success) success = /<html(?:\s|>)/i.test(text);
   } catch { success = false; /* Never store URLs with tokens or response bodies. */ }
-  return {name: target.name, phase: target.phase, checked_at: Math.floor(Date.now() / 1000), success: success ? 1 : 0, status, duration: (Date.now() - start) / 1000};
+  const elapsed = Date.now() - start;
+  if (target.maxDurationMs && elapsed > target.maxDurationMs) success = false;
+  return {name: target.name, phase: target.phase, checked_at: Math.floor(Date.now() / 1000), success: success ? 1 : 0, status, duration: elapsed / 1000};
 }
 
-export async function scheduled(_event, env) {
-  const checked = await Promise.all(targets.map(target => probe(target)));
-  const minute = Math.floor(Date.now() / 60000);
-  await env.DB.batch(checked.map(c => env.DB.prepare("INSERT OR IGNORE INTO checks(name,minute,checked_at,success,status,duration,phase) VALUES(?,?,?,?,?,?,?)").bind(c.name, minute, c.checked_at, c.success, c.status, c.duration, c.phase)));
-  // A small independent history survives loss of the Mac and its metrics store.
+export function targetsForMinute(configured, minute) {
+  return configured.filter(target => {
+    const offset = [...target.name].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return (minute + offset) % (target.interval ?? 1) === 0;
+  });
+}
+
+export function alertTransitions(rows, current) {
+  const observations = new Map(current.map(check => [check.name, check]));
+  return rows.flatMap(row => {
+    const check = observations.get(row.name);
+    if (!check || check.phase !== "production") return [];
+    if (row.firing !== 1 && row.history === "000") return [{...check, firing: 1}];
+    if (row.firing === 1 && row.history?.startsWith("11")) return [{...check, firing: 0}];
+    return [];
+  });
+}
+
+async function notify(env, due, checked, minute) {
+  if (!env.WATCHDOG_MAIL || !env.WATCHDOG_MAIL_FROM || !env.WATCHDOG_MAIL_TO) return;
+  const names = due.filter(target => target.phase === "production").map(({name, interval = 1}) => ({name, interval}));
+  const {results} = await env.DB.prepare(`
+    SELECT json_extract(d.value, '$.name') AS name, a.firing,
+      (SELECT group_concat(success, '') FROM (
+        SELECT success FROM checks
+        WHERE name = json_extract(d.value, '$.name')
+          AND minute BETWEEN ?1 - 2 * json_extract(d.value, '$.interval') AND ?1
+        ORDER BY minute DESC LIMIT 3
+      )) AS history
+    FROM json_each(?2) d
+    LEFT JOIN alert_state a ON a.name = json_extract(d.value, '$.name')
+  `).bind(minute, JSON.stringify(names)).all();
+  const transitions = alertTransitions(results, checked);
+  if (!transitions.length) return;
+  const failures = transitions.filter(item => item.firing).length;
+  await env.WATCHDOG_MAIL.send({
+    from: env.WATCHDOG_MAIL_FROM,
+    to: env.WATCHDOG_MAIL_TO,
+    subject: `[Fleet monitoring] ${failures} new failures, ${transitions.length - failures} recoveries`,
+    text: transitions.map(item => `${item.firing ? "FAILED" : "RECOVERED"} ${item.name} (HTTP ${item.status || "unavailable"}, ${item.duration.toFixed(2)}s)`).join("\n") +
+      "\n\nOpen the private fleet dashboard for current checks and investigation guidance: https://ops.llmsx.org/",
+  });
+  await env.DB.prepare(`
+    INSERT INTO alert_state(name, firing, notified_at)
+    SELECT json_extract(value, '$.name'), json_extract(value, '$.firing'), ?1
+    FROM json_each(?2) WHERE true
+    ON CONFLICT(name) DO UPDATE SET firing = excluded.firing, notified_at = excluded.notified_at
+  `).bind(Math.floor(Date.now() / 1000), JSON.stringify(transitions.map(({name, firing}) => ({name, firing})))).run();
+  console.log(JSON.stringify({event: "watchdog.notification_sent", sent_count: transitions.length}));
+}
+
+export async function scheduled(event, env) {
+  const minute = Math.floor((event.scheduledTime ?? Date.now()) / 60000);
+  const currentTargets = targetsForMinute(targetsFromBindings(env), minute);
+  // Bound concurrency and keep HTTP plus D1 requests below the Worker subrequest limit.
+  if (currentTargets.reduce((count, target) => count + (target.redirect?.follow || target.redirectHost ? 2 : 1), 0) > 46) throw new Error("watchdog_subrequest_budget");
+  const checked = [];
+  for (let start = 0; start < currentTargets.length; start += 6) {
+    checked.push(...await Promise.all(currentTargets.slice(start, start + 6).map(target => probe(target))));
+  }
+  if (checked.length) await env.DB.batch(checked.map(c => env.DB.prepare("INSERT OR IGNORE INTO checks(name,minute,checked_at,success,status,duration,phase) VALUES(?,?,?,?,?,?,?)").bind(c.name, minute, c.checked_at, c.success, c.status, c.duration, c.phase)));
   if (minute % 60 === 0) await env.DB.prepare("DELETE FROM checks WHERE checked_at < ?").bind(Math.floor(Date.now() / 1000) - 7 * 86400).run();
-  console.log(JSON.stringify({event: "watchdog.cycle", service_name: "fleet-watchdog", service_version: env.RELEASE_SHA, project: "fleet", environment: "production", timestamp: Date.now() / 1000, severity: checked.some(c => !c.success && c.phase === "production") ? "warn" : "info", outcome: "success"}));
+  try { await notify(env, currentTargets, checked, minute); }
+  catch (error) {
+    const code = typeof error?.code === "string" && /^E_[A-Z_]+$/.test(error.code) ? error.code : "unclassified";
+    console.error(JSON.stringify({event: "watchdog.notification_failed", code}));
+  }
+  const failed = checked.filter(c => !c.success && c.phase === "production").map(c => c.name);
+  console.log(JSON.stringify({event: "watchdog.cycle", service_name: "fleet-watchdog", service_version: env.RELEASE_SHA, project: "fleet", environment: "production", timestamp: Date.now() / 1000, severity: failed.length ? "warn" : "info", outcome: "success", checked_count: checked.length, failed_count: failed.length, failed}));
 }
 
 export async function handle(request, env) {
@@ -78,10 +222,14 @@ export async function handle(request, env) {
   if (url.pathname === "/health") return Response.json({status: "ok", revision: env.RELEASE_SHA}, {headers: {"Cache-Control": "no-store"}});
   if (!env.WATCHDOG_TOKEN || request.headers.get("Authorization") !== `Bearer ${env.WATCHDOG_TOKEN}`) return new Response("Unauthorized", {status: 401, headers: {"Cache-Control": "no-store"}});
   if (!["/metrics", "/status"].includes(url.pathname)) return new Response("Not found", {status: 404});
+  const selected = targetsFromBindings(env);
+  const info = selected.map(({name, phase, interval = 1}) => ({name, phase, interval}));
   const result = await env.DB.prepare("SELECT c.* FROM checks c JOIN (SELECT name,MAX(minute) minute FROM checks GROUP BY name) latest ON latest.name=c.name AND latest.minute=c.minute ORDER BY c.name").all();
-  if (url.pathname === "/status") return Response.json({revision: env.RELEASE_SHA, checks: result.results}, {headers: {"Cache-Control": "no-store"}});
+  const current = new Set(selected.map(target => target.name));
+  const checks = result.results.filter(row => current.has(row.name));
+  if (url.pathname === "/status") return Response.json({revision: env.RELEASE_SHA, checks, targets: info}, {headers: {"Cache-Control": "no-store"}});
   const lines = ["# TYPE fleet_watchdog_success gauge", "# TYPE fleet_watchdog_checked_timestamp_seconds gauge", "# TYPE fleet_watchdog_http_status gauge", "# TYPE fleet_watchdog_duration_seconds gauge"];
-  for (const target of targets) {
+  for (const target of selected) {
     const labels = `{project="${target.name}",phase="${target.phase}"}`;
     const row = result.results.find(c => c.name === target.name);
     lines.push(`fleet_watchdog_checked_timestamp_seconds${labels} ${row?.checked_at ?? 0}`);
