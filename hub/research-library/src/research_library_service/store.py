@@ -1102,6 +1102,11 @@ class LibraryStore:
             self.queue, guard, replay, extra={"projection_only": True, "dispatched": False,
                                             "affected_concepts": []})
 
+    def find_terms(self, terms, include_bodies=False, actor="local-admin"):
+        """Owner-local search of every stored row for private phrases; see the terms module."""
+        from .terms import find_terms
+        return find_terms(self, terms, include_bodies=include_bodies, actor=actor)
+
     def purge_concepts(self, concept_ids, apply=False, include_held=False, actor="local-admin"):
         """Owner-local erasure of concepts with their history; see the purge module."""
         from .purge import purge_concepts

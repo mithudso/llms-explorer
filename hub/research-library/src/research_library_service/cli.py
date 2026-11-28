@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import sys
+from pathlib import Path
 
 from .environment import load_environment
 from .service import MAX_REQUEST_BYTES, Service, public_error
@@ -53,6 +56,14 @@ def parser():
     purge.add_argument("--apply", action="store_true")
     purge.add_argument("--include-held", action="store_true",
                        help="Also erase a concept that a lease or a legacy reservation holds")
+    find = commands.add_parser(
+        "find-terms",
+        help="Read every stored row for private phrases; owner-local, writes its report to files")
+    find.add_argument("--terms-file", required=True, help="One private phrase per line")
+    find.add_argument("--out-dir", required=True,
+                      help="Private directory for report.json, concept-ids.txt and concepts/")
+    find.add_argument("--bodies", action="store_true",
+                      help="Also read source snapshot and artifact bodies, which takes longer")
     request = commands.add_parser("request")
     request.add_argument("operation", nargs="?",
                          help="Optional allowlisted operation; otherwise stdin envelope names it")
@@ -82,6 +93,37 @@ def _request(args, stream):
     return packet["operation"], packet.get("arguments", {})
 
 
+def _find_terms(service, args):
+    """Run the phrase search and keep its findings in private files. Only counts are printed."""
+    with open(args.terms_file, encoding="utf-8") as source:
+        terms = [line.strip() for line in source if line.strip()]
+    report = service.dispatch("find_terms", {"terms": terms, "include_bodies": args.bodies},
+                              role="admin", actor="local-admin")
+    out = Path(args.out_dir)
+    (out / "concepts").mkdir(parents=True, exist_ok=True)
+    os.chmod(out, 0o700)
+    os.chmod(out / "concepts", 0o700)
+
+    def private(path, text):
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as target:
+            target.write(text)
+
+    existing = [entry["id"] for entry in report["concepts"] if entry["exists"]]
+    private(out / "report.json", json.dumps(report, ensure_ascii=False, indent=1, default=str))
+    private(out / "concept-ids.txt", "".join(f"{cid}\n" for cid in existing))
+    for cid in existing:
+        document = service.store.concepts.find_one(service.store._owned({"_id": cid}))
+        name = re.sub(r"[^a-z0-9-]+", "_", cid)
+        private(out / "concepts" / f"{name}.json",
+                json.dumps(document, ensure_ascii=False, indent=1, default=str))
+    return {"rows_read": sum(report["rows_read"].values()),
+            "rows_with_a_phrase": report["rows_with_a_phrase"],
+            "concepts_with_a_phrase": len(report["concepts"]),
+            "of_them_still_stored": len(existing), "not_read": report["not_read"],
+            "written_to": str(out)}
+
+
 def main(argv=None, *, service=None, input_stream=None) -> int:
     args = parser().parse_args(argv)
     try:
@@ -96,6 +138,9 @@ def main(argv=None, *, service=None, input_stream=None) -> int:
                        port=args.port, allow_remote=args.allow_remote, role=args.stdio_role)
             return 0
         service = service or Service()
+        if args.command == "find-terms":
+            print(json.dumps(_find_terms(service, args)), flush=True)
+            return 0
         if args.command == "request":
             operation, arguments = _request(args, input_stream or sys.stdin)
         elif args.command == "writer-grant":
