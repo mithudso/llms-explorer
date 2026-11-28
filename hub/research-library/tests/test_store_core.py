@@ -370,6 +370,7 @@ def test_family_links_keep_completion_and_other_relations_invalidate_it(store):
     store.completion_verifier = lambda current, receipt: {"artifact_sha256": digest(current), "gate": "v4"}
     proof = store.complete(done["_id"], 2, token, {"trusted": "reference"})["completion"]
 
+    assert store.status()["family_links_keep_completion"] is True
     added = store.relation_mutate(done["_id"], parent["_id"], "parent", "add",
                                   revisions(store, done, parent), granted["tokens"])
     assert added["verification_invalidated"] is False

@@ -342,7 +342,9 @@ class LibraryStore:
                 "schema": SCHEMA, "counts": {name: getattr(self, name).count_documents(self._owned())
                     for name in ("concepts", "versions", "sources", "snapshots", "queue")},
                 "active_leases": self.leases.count_documents(self._owned({"status": "held",
-                    "expires_at": {"$gt": self._now()}})), "graph_revision": (graph or {}).get("revision", 0)}
+                    "expires_at": {"$gt": self._now()}})), "graph_revision": (graph or {}).get("revision", 0),
+                # Lets a client tell, before it writes, that placing a concept is safe for verified work.
+                "family_links_keep_completion": True}
 
     def concept_get(self, concept_id, revision=None):
         cid = globals()["concept_id"](concept_id)
