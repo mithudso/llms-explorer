@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import json
+import secrets
 
 from .models import MANAGED_BY, RELATION_FIELDS, LeaseConflict, concept_id, digest
 
@@ -127,6 +128,33 @@ def _version_document(row):
     return doc
 
 
+def _sweep(store, wanted):
+    """Take the identities out of every concept and stored revision that still mentions them.
+
+    The known link fields are found with a query. An import can also leave an identity in other
+    metadata, such as a list of other parents it considered, so every row is read once.
+    """
+    fixed = {"concepts": 0, "versions": 0}
+    for row in list(_scan(store.concepts, store._owned())):
+        if not _mentions(row, wanted):
+            continue
+
+        def save(session, cid=row["_id"]):
+            doc = store.concepts.find_one(store._owned({"_id": cid}), session=session)
+            original = copy.deepcopy(doc)
+            if doc is None or not _strip(doc, wanted):
+                return 0
+            store._save(doc, original, ACTOR, session, invalidate=False)
+            return 1
+        fixed["concepts"] += store._tx(save)
+    for row in _scan(store.versions, store._owned()):
+        if _mentions(row, wanted) and _strip(row, wanted):
+            row["content_sha256"] = digest(_version_document(row))
+            store.versions.replace_one({"_id": row["_id"]}, row)
+            fixed["versions"] += 1
+    return fixed
+
+
 def residual(store, ids):
     """How many rows of each collection still mention one of the identities."""
     wanted = set(_ids(ids))
@@ -160,7 +188,7 @@ def purge_concepts(store, concept_ids, apply=False, include_held=False, actor="l
     ids = _ids(concept_ids)
     if not isinstance(apply, bool) or not isinstance(include_held, bool):
         raise ValueError("Purge switches must be true or false")
-    plan, skipped = [], []
+    plan, skipped, gone = [], [], set()
     for cid in ids:
         doc = store.concepts.find_one(store._owned({"_id": cid}))
         counts = {name: _collection(store, name).count_documents(store._owned({field: cid}))
@@ -168,7 +196,9 @@ def purge_concepts(store, concept_ids, apply=False, include_held=False, actor="l
         counts["publications"] = _collection(store, "publications").count_documents(
             {"managed_by": MANAGED_BY, "concept_id": cid})
         if doc is None and not any(counts.values()):
+            # Already erased. What other rows still say about it is swept below all the same.
             skipped.append({"id_sha256": digest(cid.encode()), "reason": "not found"})
+            gone.add(cid)
             continue
         reason = "" if include_held else _held(store, cid)
         if reason:
@@ -189,7 +219,12 @@ def purge_concepts(store, concept_ids, apply=False, include_held=False, actor="l
               "other_versions_scrubbed": history}
     report = {"applied": False, "requested": len(ids), "purged": len(plan), "skipped": skipped,
               "removed": totals, "live_concepts": sum(row["live"] for row in plan)}
-    if not apply or not plan:
+    sweep = chosen | gone
+    if not apply:
+        if sweep:
+            report["mentioned_now"] = residual(store, sorted(sweep))["mentions"]
+        return report
+    if not sweep:
         return report
 
     moved_to = {}
@@ -228,7 +263,7 @@ def purge_concepts(store, concept_ids, apply=False, include_held=False, actor="l
                 store._save(doc, original, ACTOR, session, invalidate=False)
         return len(changed)
 
-    relinked = store._tx(detach)
+    relinked = store._tx(detach) if chosen else 0
 
     def erase(session):
         removed = {"concepts": store.concepts.delete_many(
@@ -241,27 +276,29 @@ def purge_concepts(store, concept_ids, apply=False, include_held=False, actor="l
             session=session).deleted_count
         return removed
 
-    removed = store._tx(erase)
+    removed = store._tx(erase) if chosen else {}
 
     scrubbed = 0
-    for row in list(_scan(store.versions, store._owned(
-            {"concept_id": {"$nin": sorted(chosen)}, **_references(chosen)}))):
-        if _strip(row, chosen):
-            row["content_sha256"] = digest(_version_document(row))
-            store.versions.replace_one({"_id": row["_id"]}, row)
-            scrubbed += 1
-    # A receipt written by the relinking above mentions the purged identity too.
-    stale = _receipts(store, chosen)
+    if chosen:
+        for row in list(_scan(store.versions, store._owned(
+                {"concept_id": {"$nin": sorted(chosen)}, **_references(chosen)}))):
+            if _strip(row, chosen):
+                row["content_sha256"] = digest(_version_document(row))
+                store.versions.replace_one({"_id": row["_id"]}, row)
+                scrubbed += 1
+    swept = _sweep(store, sweep)
+    stale = _receipts(store, sweep)
     for start in range(0, len(stale), 500):
         store.receipts.delete_many({"_id": {"$in": stale[start:start + 500]}})
-    removed.update(receipts=len(stale), other_concepts_relinked=relinked,
-                   other_versions_scrubbed=scrubbed)
+    removed.update(receipts=len(stale), other_concepts_relinked=relinked + swept["concepts"],
+                   other_versions_scrubbed=scrubbed + swept["versions"])
     at = store._date()
-    record = {"_id": "purge:" + digest([sorted(chosen), at])[:32], "managed_by": MANAGED_BY,
+    # Two runs on the same identities in one second must not share a record.
+    record = {"_id": "purge:" + secrets.token_hex(16), "managed_by": MANAGED_BY,
               "kind": "purge", "at": at, "actor": str(actor)[:128], "concepts": len(chosen),
-              "id_sha256": sorted(digest(cid.encode()) for cid in chosen), "removed": removed,
+              "id_sha256": sorted(digest(cid.encode()) for cid in sweep), "removed": removed,
               "include_held": include_held}
     json.dumps(record)
     store.meta.insert_one(record)
     return {**report, "applied": True, "removed": removed, "audit_record": record["_id"],
-            "still_mentioned": residual(store, sorted(chosen))["mentions"]}
+            "still_mentioned": residual(store, sorted(sweep))["mentions"]}

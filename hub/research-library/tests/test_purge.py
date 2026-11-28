@@ -85,6 +85,28 @@ def test_a_purge_erases_the_concept_its_history_and_every_mention(store):
     assert again["purged"] == 0 and again["skipped"][0]["reason"] == "not found"
 
 
+def test_a_purge_sweeps_an_identity_out_of_import_metadata_even_on_a_rerun(store):
+    _, customer, kept, _, neighbour = family(store)
+    # An import can leave the identity in metadata that no link field covers.
+    leads = {"import_family_parent_leads": {"other_parents": [customer, "c:elsewhere"]}}
+    store.concepts.update_one({"_id": neighbour}, {"$set": {"metadata": leads}})
+    store.versions.update_many({"concept_id": kept}, {"$set": {"metadata": leads}})
+    dry = store.purge_concepts([customer])
+    assert dry["mentioned_now"]["concepts"] >= 2 and dry["applied"] is False
+    report = store.purge_concepts([customer], apply=True)
+    assert report["still_mentioned"] == {}
+    assert store.concept_get(neighbour)["metadata"] == {
+        "import_family_parent_leads": {"other_parents": ["c:elsewhere"]}}
+    for row in store.versions.find({"concept_id": kept}):
+        assert customer not in json.dumps(row.get("metadata"))
+        assert row["content_sha256"] == digest(purge._version_document(row))
+    # The identity is gone, and a later import leaves it in metadata again: a rerun sweeps it.
+    store.concepts.update_one({"_id": neighbour}, {"$set": {"metadata": leads}})
+    rerun = store.purge_concepts([customer], apply=True)
+    assert rerun["purged"] == 0 and rerun["applied"] is True
+    assert rerun["removed"]["other_concepts_relinked"] == 1 and rerun["still_mentioned"] == {}
+
+
 def test_a_purge_erases_a_tombstone_and_its_kept_revisions(store):
     doc, = make(store, "Old customer note")
     tokens = lease(store, [doc])["tokens"]
