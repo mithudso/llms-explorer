@@ -42,7 +42,7 @@ uv export --directory hub/research-library --frozen --no-dev --no-emit-project \
 uv venv --python 3.13 "$runtime/.venv"
 uv pip sync --python "$runtime/.venv/bin/python" "$runtime/requirements.txt"
 uv pip install --python "$runtime/.venv/bin/python" --no-deps \
-  "$runtime/wheels/research_library_service-0.2.7-py3-none-any.whl"
+  "$runtime/wheels/research_library_service-0.2.8-py3-none-any.whl"
 ```
 
 Create an owner-only server environment file using a local secret manager or
@@ -296,6 +296,48 @@ research run. Run artifacts, snapshot bodies and search units are not read.
 A concept that a lease or a legacy reservation holds is skipped. `--include-held` erases it
 anyway. The operation exists only here: no MCP tool and no remote role reaches it. Its audit
 record in the metadata collection holds hashes and counts, never an identity or a name.
+
+## Erase runs, sources and receipts that hold a phrase
+
+A phrase can also sit in rows that belong to no concept: a research run (its subject, a
+checkpoint, a ledger item, a compiled file), a source, and the receipts kept for retried
+requests. `purge-rows` erases those:
+
+```sh
+"$python_bin" -m research_library_service.cli --env-file "$server_env" \
+  purge-rows --terms-file terms.txt            # reports what it would remove
+"$python_bin" -m research_library_service.cli --env-file "$server_env" \
+  purge-rows --terms-file terms.txt --apply
+```
+
+A run is erased whole: every revision, ledger item, file, search unit and lease stored under
+it. A file body is stored once by its content, so a body that another run's file still lists is
+kept. A run that an owner holds a live lease on is skipped unless `--include-held` is given. A
+source that a stored concept still cites is skipped and counted: purge those concepts first and
+run it again. `--bodies` also reads source snapshot and file bodies. Rows that belong to a
+concept are counted in `concept_rows_with_a_phrase` and left for `purge-concepts`. The answer
+holds counts and the kind of each run (`run_shapes`), never a phrase, an identity or a subject,
+and `still_holding` says what a second read still finds.
+
+## Record suggested parent links
+
+An import keeps where a concept belongs as a suggestion until someone records it. A client
+records one through a research lease, which a paused, stopped or legacy run's reservation
+refuses. `place-parents` records every open suggestion on the library's own machine:
+
+```sh
+"$python_bin" -m research_library_service.cli --env-file "$server_env" \
+  place-parents                                 # reports what it would record
+"$python_bin" -m research_library_service.cli --env-file "$server_env" \
+  place-parents --apply --past-holds --out-file "$HOME/.local/share/research-library/links.json"
+```
+
+Without `--past-holds` a concept that such a run reserves, or whose queue entry is paused or
+held, is left alone. With it the link is recorded and the reservation stays exactly as it was:
+it still keeps a second researcher off the concept. A concept that a live research lease holds
+is never touched, and neither is one whose placement someone chose by hand. A parent link is
+placement, so a verified concept stays verified. The command prints counts; `--out-file` keeps
+the outcome of each link in a file readable by its owner only.
 
 ## Storage and consistency
 

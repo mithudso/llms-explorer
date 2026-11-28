@@ -100,6 +100,7 @@ class LibraryStore:
         self.claim_identity = claim_identity or default_claim_identity
         self._import_context = ContextVar("research_import_scope_" + str(id(self)), default=None)
         self._evidence_context = ContextVar("research_evidence_scope_" + str(id(self)), default=None)
+        self._past_holds = ContextVar("research_past_holds_" + str(id(self)), default=False)
 
     def _now(self):
         return float(self.clock())
@@ -787,7 +788,24 @@ class LibraryStore:
             raise ValueError("Lease TTL must be 30..3600 seconds")
         return value
 
+    @contextmanager
+    def past_holds(self, actor):
+        """Owner-local: let one bounded operation lease concepts that a run reserves.
+
+        A paused, stopped or legacy run's reservation and a held queue entry stay as they are.
+        A live research lease is still refused.
+        """
+        if not isinstance(actor, str) or not actor.startswith("local-"):
+            raise PermissionError("Working past a reservation requires an owner-local invocation")
+        token = self._past_holds.set(True)
+        try:
+            yield self
+        finally:
+            self._past_holds.reset(token)
+
     def _reservations(self, ids, owner, run_id):
+        if self._past_holds.get():
+            return
         if self.reservation_provider:
             held = self.reservation_provider(ids, owner, run_id)
             if held:
@@ -803,7 +821,8 @@ class LibraryStore:
             for cid in ids:
                 self._get(cid, session)
                 held_queue = self.queue.find_one(self._owned({"_id": cid}), session=session)
-                if held_queue and (held_queue.get("stop") or held_queue.get("status") in {"paused", "held"}):
+                if not self._past_holds.get() and held_queue and (
+                        held_queue.get("stop") or held_queue.get("status") in {"paused", "held"}):
                     raise LeaseConflict("The queue is paused, held, or stopped; explicit operator recovery is required")
                 prior = self.leases.find_one(self._owned({"_id": cid}), session=session)
                 if prior and prior.get("status") == "held" and prior["expires_at"] > self._now():
@@ -1106,6 +1125,18 @@ class LibraryStore:
         """Owner-local search of every stored row for private phrases; see the terms module."""
         from .terms import find_terms
         return find_terms(self, terms, include_bodies=include_bodies, actor=actor)
+
+    def purge_rows(self, terms, apply=False, include_held=False, include_bodies=False,
+                   actor="local-admin"):
+        """Owner-local erasure of runs, sources and receipts that hold a private phrase."""
+        from .purge_rows import purge_rows
+        return purge_rows(self, terms, apply=apply, include_held=include_held,
+                          include_bodies=include_bodies, actor=actor)
+
+    def place_parents(self, apply=False, past_holds=False, actor="local-admin"):
+        """Owner-local recording of suggested parent links; see the family_place module."""
+        from .family_place import place_parents
+        return place_parents(self, apply=apply, past_holds=past_holds, actor=actor)
 
     def purge_concepts(self, concept_ids, apply=False, include_held=False, actor="local-admin"):
         """Owner-local erasure of concepts with their history; see the purge module."""
