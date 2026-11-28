@@ -23,7 +23,7 @@ WRITE_STORE = {
     "source_put", "source_delete", "source_link", "relation_mutate",
     "lease_acquire", "lease_renew", "lease_release", "queue_put",
 }
-ADMIN_STORE = {"provision", "complete", "queue_recover", "purge_concepts"}
+ADMIN_STORE = {"provision", "complete", "queue_recover", "purge_concepts", "find_terms"}
 READ_RUNS = {"run_get", "run_list", "run_ledger", "artifact_get", "artifact_list"}
 WRITE_RUNS = {"run_create", "run_checkpoint", "run_item_put", "run_lease", "artifact_put"}
 WRITE_OUTPUTS = {"compile", "artifact_index"}
@@ -232,7 +232,8 @@ class Service:
         arguments = dict(arguments or {})
         validate_arguments(arguments, operation)
         if operation in WRITE_STORE | WRITE_RUNS | WRITE_OUTPUTS | {
-                "complete", "publish", "coordinate", "queue_recover", "purge_concepts"}:
+                "complete", "publish", "coordinate", "queue_recover", "purge_concepts",
+                "find_terms"}:
             arguments["actor"] = actor or f"local-{role}"
         if operation == "run_provision":
             if arguments:
@@ -242,6 +243,8 @@ class Service:
             raise PermissionError("Queue recovery requires an owner-local invocation")
         if operation == "purge_concepts" and not arguments["actor"].startswith("local-"):
             raise PermissionError("A purge requires an owner-local invocation")
+        if operation == "find_terms" and not arguments["actor"].startswith("local-"):
+            raise PermissionError("A phrase search requires an owner-local invocation")
         if operation == "coordinate":
             if not arguments["actor"].startswith("local-"):
                 raise PermissionError("Legacy coordination requires an owner-local invocation")

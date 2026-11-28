@@ -42,7 +42,7 @@ uv export --directory hub/research-library --frozen --no-dev --no-emit-project \
 uv venv --python 3.13 "$runtime/.venv"
 uv pip sync --python "$runtime/.venv/bin/python" "$runtime/requirements.txt"
 uv pip install --python "$runtime/.venv/bin/python" --no-deps \
-  "$runtime/wheels/research_library_service-0.2.6-py3-none-any.whl"
+  "$runtime/wheels/research_library_service-0.2.7-py3-none-any.whl"
 ```
 
 Create an owner-only server environment file using a local secret manager or
@@ -254,6 +254,23 @@ chosen environment file path, not secret values. `--start` replaces only this
 owned launchd job. Without `--start`, it writes the definition without activating
 it. It does not provision MongoDB, install the runtime, change a tunnel, register
 clients, modify hooks, or restart unrelated research/skill services.
+
+## Find private phrases
+
+A listing shows a concept's name and description. A customer name can also sit in a claim, an
+evidence quote, a queue note or a run. `find-terms` reads every stored row in full:
+
+```sh
+"$python_bin" -m research_library_service.cli --env-file "$server_env" \
+  find-terms --terms-file terms.txt --out-dir "$HOME/.local/share/research-library/findings"
+```
+
+`terms.txt` holds one phrase per line. A phrase matches as a whole word or phrase, ignoring
+case, and its words may be joined by a space, a hyphen or an underscore, so it is also found in
+an identity. The command prints counts only. It writes `report.json` (each concept with the
+fields that hold a phrase), `concept-ids.txt` (ready for `purge-concepts --ids-file`) and a full
+copy of each such concept under `concepts/`, all readable by their owner only. `--bodies` also
+reads source snapshot and artifact bodies. Delete the terms file afterwards.
 
 ## Erase a concept
 
