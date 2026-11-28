@@ -3,7 +3,15 @@
 Use this before discovery in `/dr`, concept-family-explorer (CFE), and rabbithole.
 The installed helper lives beside research-scout at `scripts/scout.py`. A repository
 copy lives in `.claude/skills/research-scout/`. No scout exists is a normal outcome:
-continue ordinary research. Never start a new scout or block research solely for a miss.
+continue ordinary research. Never block research on a missing, slow or failed scout.
+
+0. **Outsourced dispatch.** When no scouted bundle newer than 14 days exists for the exact concept and
+   parent and `scripts/agy_fanout.py doctor` exits 0, the orchestrator may start the Antigravity fan-out
+   described in [antigravity-fanout.md](antigravity-fanout.md) (`run --preset <dr|cfe-seeds|cfe-frontier|
+   full-suite|rabbithole> ... --background`; `run` itself skips concepts with a fresh scouted bundle). Do not
+   start scouts any other way. Join with `status --wait` only as long as the remaining time budget allows,
+   then continue; a refusal (exit 3), failure, quota stop or timeout means ordinary discovery with no delay.
+   The result is a normal bundle, read by steps 1 to 5 below.
 
 1. For a named concept, run `scout.py seeds --concept "<exact concept>" --parent
    "<exact parent>"`. It validates bundles, returns at most six distinct URLs,

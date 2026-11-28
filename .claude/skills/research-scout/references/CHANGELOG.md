@@ -2,6 +2,8 @@
 
 # Changelog
 
+2026-11-27 v1.2.1->v1.3.0 — outsourced scouting: `scripts/agy_fanout.py` fans out read-only Antigravity agents (presets dr, cfe-seeds, cfe-frontier, full-suite, rabbithole), screens concepts for private terms, reuses fresh bundles, merges leads into a schema 1.0.0 bundle, and adds a deterministic `probe-llms`; consumer step 0 added; schema stays 1.0.0; tests in evals/test_agy_fanout.py use a stub agy.
+
 2026-11-11 sko repair v1.2.0->v1.2.1 — bounded blind-review repairs and publication-safe scoped trigger corpus; runtime/factual recertification and global sync remain separately gated.
 
 2026-11-11 sko v1.1.0->v1.2.0 — Pass H predicted 10/10->10/10 pos, 0/10->0/10 false positives; 4 Medium findings fixed in reviewed scope; global sync and blind review deferred.

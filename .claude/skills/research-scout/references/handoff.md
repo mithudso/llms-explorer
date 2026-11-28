@@ -109,3 +109,8 @@ bridges added in skill v1.1.0. The repository's Codex adapter imports relevant
 leads automatically. Claude uses the installed `with_scout.py` research bridge.
 Other runtimes need an explicit orchestrator handoff. Do not add an invented
 `--scout` flag to `/dr`. Bundle schema remains v1.0.0; skill versions may advance.
+
+Bundles written by `scripts/agy_fanout.py` (Antigravity fan-out) use this schema unchanged: concepts carry
+selection kind `frontier` or `family-anchor` with the run's `tasks.json` as their path, every source's
+`tool` is `agy:<model>` and its limitations say it was observed by an Antigravity agent. Read
+[antigravity-fanout.md](antigravity-fanout.md) for the dispatch contract.

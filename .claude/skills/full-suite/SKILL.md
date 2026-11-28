@@ -4,8 +4,8 @@ description: >-
   TRIGGER: "/full-suite X", "do a full suite on X", "concept map plus skills and llms packs", "fully exhaust X with artifacts".
   SKIP: one named topic → dr; family gaps without llms packs → concept-family-explorer; one existing llms file or corpus concept extraction → llms-txt-tooling (references/llms-deep-optimizer/llms-deep-optimizer.md; references/llms-concept-abstractor/llms-concept-abstractor.md); cited report only → deep-research; tree rebalance only → skill-tree-architect; audit this skill → skill-optimizer.
 name: full-suite
-version: "1.2.1"
-updated: "2026-11-11"
+version: "1.3.0"
+updated: "2026-11-27"
 model: claude-opus-5-5
 effort: xhigh
 category: meta
@@ -17,7 +17,8 @@ keywords:
   - categorical llms.txt
   - per-concept and rollup files
   - frontrunner scout
-  - haiku scout
+  - antigravity scout
+  - agy fan-out
   - keyword and semantic index
   - concept tree registration
   - do a full suite on
@@ -55,7 +56,7 @@ research step; never duplicates its mechanics.
 
 | Step | Delegate | Produces |
 |---|---|---|
-| 0. Scout | Haiku-low frontrunner (this skill, new) | Seeded warm-start cache (URL library + mirrors) |
+| 0. Scout | Antigravity fan-out (read-only agents) plus a scripted llms.txt probe; Haiku-low fallback | Scout bundle of unverified leads, mirrored `llms.txt` bodies |
 | 1. Plan | `concept-family-explorer --dryRun` | Scored, capped concept list |
 | 2. Exhaust | `concept-family-explorer` (real run) → fans out to `/dr` per concept | Installed/updated skills, concept-tree writes, `/sko`+`/pdo` already applied by CFE's own Step 9, tree rebalanced by `skill-tree-architect` (CFE Step 9b) |
 | 3. Compile per-concept | `llms-concept-abstractor` (`/lca`) per researched concept | `llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, `llms-vocabulary.txt`, FTS5 + embedding indexes |
@@ -92,27 +93,44 @@ floor), **dryRun**. One addition:
 - `--no-scout` — skip Step 0 (the frontrunner pass) and go straight to Step 1. Use when the
   subject has no discoverable web-facing domains (an internal-only or purely conceptual
   subject) — the scout would spend a batch of calls finding nothing.
+- `--no-agy` — run Step 0 with the Haiku fallback instead of the Antigravity fan-out. Use when Antigravity is unavailable, unauthenticated or unwanted for this subject; the `llms.txt` probe still runs.
 
 `dryRun` propagates: Step 0 still runs (it's cheap and the plan benefits from it), but Steps
 2–4 do not.
 
-## Step 0 — Frontrunner scout (new; the only original work in this skill)
+## Step 0 — Frontrunner scout (outsourced to Antigravity)
 
 **Why this exists:** `/dr`'s own per-concept research (Phase 1) is the expensive, citation-grade
 pass — 3+ independent sources, saturation-gated, budget-tracked. Before spending that budget on
-N concepts, a cheap pass can often tell you which concepts have a fast path (a site that
-publishes its own `llms.txt`) and which don't, without touching `/dr`'s budget or quality bar
-at all.
+N concepts, a parallel pass finds each concept's authority domains and first candidate sources and
+tells you which sites publish their own `llms.txt`. It runs on read-only Antigravity agents plus a
+scripted probe, not in this session, so it costs none of this run's context and none of `/dr`'s
+budget or quality bar.
 
 1. Run `concept-family-explorer --dryRun` first (Step 1, brought forward) to get the scored,
    capped concept list — the scout must not scout concepts CFE would reject anyway.
-2. For each selected concept, identify 1–3 candidate authority domains: from the concept name
-   itself if it names a product/company, else from one quick `WebSearch` for "<concept> official
-   docs/site". Cap this identification pass — do not spend the expensive tool budget hunting for
-   candidates; a concept with no obvious domain (an abstract/academic topic) just gets no scout
-   pass and goes to Step 1 with no seed.
-3. Dispatch one Agent per concept with a candidate domain, **model: haiku**, batched at the same
-   cap CFE's own fan-out uses (4 concurrent). Brief, verbatim:
+2. Run `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py doctor`. Exit 0 and no `--no-agy`: continue. Otherwise use the fallback below.
+3. **Fan out.** `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py run --preset full-suite --concept "<c1>" --parent "<subject>" --concept "<c2>" --parent "<subject>" ...`
+   for every selected concept. Up to three sibling concepts share an agent; each cluster gets a `domains` agent and a
+   `primary` agent. Add `--background` and join with `status <run-dir> --wait <seconds>` to work in parallel. The run skips
+   concepts that already have a scouted bundle newer than 14 days and refuses any concept containing a private term
+   (exit 3, nothing sent: rename it or scout it without Antigravity).
+4. **Probe.** `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py probe-llms --from-run <run-dir> --mirror`. A script, not an agent, checks `/llms.txt` and
+   `/llms-full.txt` on every authority host the agents found (www and bare twins, apex fallback, redirects followed, HTML
+   soft 404s rejected) and mirrors each found `llms.txt` to `~/.claude/skill-consolidation/mirrors/<host>.md`. A controlled
+   Haiku trial on this exact check produced 4 false negatives in 12 checks, every one from stopping at a literal-path 404,
+   which is why the check is scripted.
+5. **Hand off.** The leads are the scout bundle, read through `research-scout`'s `references/consumer.md` (`scout.py seeds`,
+   `with_scout.py`, the repository adapter). Nothing else is cached. `/dr` and CFE reacquire and read every source under their
+   usual freshness, origin and evidence gates. A scout failure, refusal or timeout skips only that seed and is reported; it
+   never blocks family research, and a scout "not found" is provisional, never a fact.
+6. Report the agent count, tokens, refusals and failures, and the probe hit rate (hosts with a fast-path `llms.txt`). All are
+   informational; none gates anything below.
+
+**Fallback: Haiku scouts.** Use only when `doctor` fails, `--no-agy` is set, or the fan-out exits 4 or 5. For each selected
+concept identify 1–3 candidate authority domains (from the concept name when it names a product or company, else one quick
+`WebSearch` for "<concept> official docs/site"; a concept with no obvious domain gets no scout pass). Dispatch one Agent per
+concept with a candidate domain, **model: haiku**, at most 4 concurrent, with this brief, verbatim:
    > "Check `<domain>/llms.txt` and `<domain>/llms-full.txt` (WebFetch, not search). A 404 on
    > the literal path is NOT sufficient to report 'not found': follow any redirect to
    > completion, and if the path was a subpath, also try the apex domain (`llms.txt` files
@@ -123,17 +141,9 @@ at all.
    > searches for `<concept>` to list candidate source URLs. Work fast and cheap — this is
    > throwaway preliminary scouting whose only job is to save the next, heavier research pass
    > time; do not verify claims, do not synthesize, just report what you found and where."
-   This is explicitly a cost/time optimization, never a quality gate — nothing the scout reports
-   is asserted as fact anywhere downstream; it only seeds caches (next step). **A scout "not
-   found" is provisional, never a fact**: a controlled Haiku-vs-Sonnet trial on this exact task
-   (6 sites, 12 existence checks) found Haiku-low's positive findings and shape classifications
-   reasonable, but 4/12 false negatives — every one from stopping at a literal-path 404 instead
-   of the apex/redirect fallback above (the prompt patch here is that trial's direct fix, not a
-   hypothetical). Because Step 0's output only seeds caches and never gates Step 2, a residual
-   false negative here costs at most the seed it would have provided — `/dr`'s independent source discovery and evidence checks still run for every concept regardless of the scout result.
-4. **Keep private candidate handoffs.** Use `research-scout`'s `references/handoff.md` and helper to save the selected exact concept/parent names, URLs, access labels and provenance in its private scout root. Its `scout.json` is authoritative; validate it and render the handoff. Do not call retired `tam_save_url` APIs or invent mirror/cache conventions. `/dr` and CFE consume validated bounded seeds through `research-scout/references/consumer.md`, then independently reacquire readable sources and apply their existing freshness, origin and evidence gates. A scout failure skips only that concept's seed and is reported; it never blocks family research.
-5. Report the scout's domain-hit rate (how many of N concepts had a fast path) — this is
-   informational only; it does not gate anything below.
+Save the returned URLs, access labels and provenance as a private scout bundle with `research-scout`'s `references/handoff.md`
+and helper; do not use retired `tam_save_url` APIs or invent new cache conventions. Run `probe-llms --host <domain>[,<domain>] --mirror`
+over the same domains regardless: where it disagrees with a Haiku "not found", the probe wins.
 
 ## Step 1 — Plan (delegate)
 
@@ -205,7 +215,7 @@ not per-file here.
 
 ```
 # /full-suite report — <subject>
-Scout: N concepts scouted, M with a fast-path llms.txt hit, private handoff paths and retained/blocked lead counts
+Scout: N concepts, K agents (T tokens, R refused, F failed) or the Haiku fallback; M of N authority hosts with a fast-path llms.txt (probe hit rate); scout run id and lead counts
 Exhaustion (CFE): exit status · concepts researched · rounds · budget used vs cap
 Per-concept packs (/lca): N built, M skipped (reason) · index counts (keyword + semantic)
 Rollup (/ldo --family): path · members count · pass table summary
@@ -248,3 +258,4 @@ research) → `llms-concept-abstractor` direct. Auditing *this* skill itself →
 - `/full-suite "internal deployment pipeline" --no-scout --budget-minutes=45` — no public web
   presence to scout, time-boxed.
 - `/full-suite "conformal prediction" --dryRun` — scout + scored plan only, no research spend.
+- `/full-suite "internal pricing model" --no-agy` — keep the scout in this session on the Haiku fallback.

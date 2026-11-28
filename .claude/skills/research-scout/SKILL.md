@@ -2,18 +2,19 @@
 name: research-scout
 description: >-
   Find web source leads and frontier proposals for LLMS-Explorer's pending research queue; save private resumable handoffs.
-  TRIGGER: "scout sources before /dr", "find source leads for queued concepts", "resume this scout batch", "propose frontier candidates".
+  TRIGGER: "scout sources before /dr", "find source leads for queued concepts", "resume this scout batch", "propose frontier candidates", "fan out Antigravity scouts".
   SKIP: verified research or expert-skill creation → dr; family inventory, CVS and accepted gap selection → concept-family-explorer; exhaustive one-concept research → rabbithole.
 whenToUse:
   - "Scout sources for the next four queued MongoDB concepts."
   - "Resume this scout run and record its remaining access gaps."
   - "Find source-backed frontier proposals for this parent concept."
+  - "Fan out Antigravity agents to scout and seed these concepts before /dr."
 related_skills:
   - "dr"
   - "concept-family-explorer"
   - "rabbithole"
-version: "1.2.1"
-updated: "2026-11-11"
+version: "1.3.0"
+updated: "2026-11-27"
 model: claude-sonnet-5-5
 effort: medium
 category: meta
@@ -36,6 +37,16 @@ Before reading the selected research domain and queue raw, locate its llms files
 3. Use `llms-facts.txt` and `llms-sitemap.txt` for lookups. Treat `llms-small.txt` as a map, not a fact store.
 4. If you have the repo, search its code before opening llms files. Verify each fact you act on against the authoritative file and line.
 5. Index and llms hits are leads. Confirm them against readable source text before acting.
+
+## Outsourced dispatch (Antigravity fan-out)
+
+The orchestrators (`/dr`, concept-family-explorer, rabbithole, full-suite) outsource their scouting and
+first seeding to read-only Antigravity agents through `scripts/agy_fanout.py`, which writes the same
+bundle this skill defines. Dispatch only through that script: it screens every concept for private
+terms, caps parallelism, reuses scouted bundles newer than 14 days, and returns lead candidates, never
+claims. Read [references/antigravity-fanout.md](references/antigravity-fanout.md) for commands, presets,
+the privacy gate and failure handling. A manual scout (below) and an outsourced scout are interchangeable
+to consumers.
 
 ## Start or resume
 

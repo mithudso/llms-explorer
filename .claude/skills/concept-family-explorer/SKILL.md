@@ -4,8 +4,8 @@ description: >-
   TRIGGER: "what am I missing about X", "map the concept space", "find adjacent/sibling concepts", "expand my concept tree to saturation".
   SKIP: one ordinary topic → dr; exhaustive depth inside one concept → rabbithole; cited report only → deep-research; create one skill interactively → skill-creator; skill audit → skill-optimizer; prompt optimization → prompt-helper-optimizer / prompt-deep-optimizer; reorganize existing tree → skill-tree-architect.
 name: concept-family-explorer
-version: "1.15.1"
-updated: "2026-11-11"
+version: "1.16.0"
+updated: "2026-11-27"
 model: claude-sonnet-5-5
 effort: max
 category: meta
@@ -103,6 +103,7 @@ Before discovery, research dispatch or publication, read [research-evidence.md](
 - **budget** (optional) — `maxConcepts` (no default; set only when the user asks for a topic-count budget), `maxRounds` (default 3 frontier re-expansions after the run-start snapshot), `budgetMinutes` (optional wall-clock cap; accepted as `--budget-minutes=N` command-style — see Step 8 budget clause). The initial frontier has no default concept-count cap. Bound work with source-sharing cohorts, bounded concurrency, authority floors, novelty gates, and per-concept status tracking. State explicit caps used in report.
 - **threshold** (optional) — minimum Concept Viability Score to research (default 3.2 / 5.0). Lower = wider net; raise = selective.
 - **dryRun** (optional) — when true, do everything except call `/dr`, `skill-optimizer`, `prompt-deep-optimizer`; output scored plan only. Side-effect contract: writes **no** run-state checkpoint (plan-only preview must never be offered for resume), takes **no** run lock; the Step 1 CQ file DOES persist (durable, reusable evidence — a later real run replays it) — but check the lock before that one write: live lock ⇒ skip the CQ persist and note it (never race the lock holder). Use first on unfamiliar subject so user can approve scope.
+- **noAgyScout** (optional, `--no-agy-scout`) — skip the Antigravity scouting fan-out under "Research scout handoffs"; the handoff steps run unchanged.
 
 Subject missing → ask once. Subject broad ("everything about AI") → ask user to name entry point or pick highest-value sub-area; unbounded family never saturates.
 
@@ -127,6 +128,17 @@ Record retained and rejected leads with reasons in this run's private notes or
 briefs, including scout run, revision, bundle hash, source ID and URL. Leave scout
 bundles unchanged. Keep the normal source, negation, authority, scope, claim-gate,
 CVS and saturation rules; scout leads do not establish verified claims or completion.
+
+### Outsourced scouting and seeding (Antigravity fan-out)
+
+Family scouting and cohort seeding run on read-only Antigravity agents while you work. Default on when `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py doctor` exits 0. `--no-agy-scout`, or a user who rules out Antigravity, skips it and leaves the handoff steps above unchanged.
+
+1. Before Step 1, start the family scout in the background: `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py run --preset cfe-frontier --background --concept "<exact subject>" --parent "<exact parent, or empty for a root>"`. Five agents cover the neighborhoods (parent, siblings, children, adjacent, frontier) and return candidate names with source leads.
+2. Join with `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py status <run-dir> --wait <seconds>` before Step 3 and review `frontier_candidates` as described above. CFE still repeats inventory, alias expansion, placement, usefulness and CVS for every candidate; a proposal is not a GAP.
+3. Before Step 6, scout the selected cohort: `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py run --preset cfe-seeds --background --concept "<c>" --parent "<p>" ...` (sibling concepts share an agent, `--cluster` up to 3; concepts with a scouted bundle newer than 14 days are skipped). Give each `/dr` brief the scout run id, say scouting is done, and pass `--no-agy-scout` to it so `/dr` does not fan out a second time.
+4. `dryRun` may run step 1: it writes only private scout bundles outside the checkout and no run-state. Say in the plan that the family scout ran.
+
+A failed `doctor`, a privacy refusal (exit 3), all agents failing (exit 4), an authentication or quota stop (exit 5) or a timeout means the unmodified steps; never block the loop. Leads and proposals stay unverified (see above). Repository copy: `.claude/skills/research-scout/scripts/agy_fanout.py`. Contract and failure modes: `~/.claude/skills/research-scout/references/antigravity-fanout.md`.
 
 ## Workflow
 
