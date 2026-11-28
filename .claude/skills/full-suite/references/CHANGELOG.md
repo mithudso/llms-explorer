@@ -2,6 +2,8 @@
 
 # Changelog
 
+2026-11-27 v1.2.1->v1.3.0 — Step 0 outsourced to read-only Antigravity agents through research-scout's `agy_fanout.py` (`--preset full-suite`) with a scripted `probe-llms` for llms.txt and llms-full.txt; the Haiku scouts remain as the fallback; `--no-agy` added; report gains agent, token, refusal and probe hit-rate counts; global sync remains separately gated.
+
 2026-11-11 sko repair v1.2.0->v1.2.1 — bounded blind-review repairs and publication-safe scoped trigger corpus; runtime/factual recertification and global sync remain separately gated.
 
 2026-11-11 sko v1.1.0->v1.2.0 — Pass H predicted 10/10->10/10 pos, 0/10->0/10 false positives; 4 Medium findings fixed in reviewed scope; global sync and blind review deferred.

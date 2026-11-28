@@ -4,8 +4,8 @@ description: >-
   TRIGGER: "/rabbithole", "deepen my understanding of X", "exhaust X completely", "go as deep as possible on X".
   SKIP: family/domain gaps → concept-family-explorer; one ordinary research pass → dr; extract concept mentions from an existing corpus → llms-txt-tooling (references/llms-concept-abstractor/llms-concept-abstractor.md); reorganize existing skill tree → skill-tree-architect.
 name: rabbithole
-version: "1.4.1"
-updated: "2026-11-11"
+version: "1.5.0"
+updated: "2026-11-27"
 model: gpt-6.1-sol
 effort: medium
 category: meta
@@ -139,6 +139,7 @@ concept ─▶ [1] scope & boundary ─▶ [2] pass 0: broad draft ─▶ [3] pa
 - **budgetMinutes** (optional) — wall-clock cap, same contract as `concept-family-explorer`.
 - **seedMaterial** (optional) — a corpus, docset, or file the user already has; used as
   Pass 0 evidence before any web research, so passes don't re-derive what's already on disk.
+- **noAgyScout** (optional, `--no-agy-scout`) — skip the Antigravity scouting fan-out under "Research scout handoffs"; Pass 0 seeding then follows the unchanged handoff steps.
 
 ## Research scout handoffs
 
@@ -160,6 +161,16 @@ Record retained and rejected leads with reasons in this run's private notes or
 briefs, including scout run, revision, bundle hash, source ID and URL. Leave scout
 bundles unchanged. Keep the normal source, negation, authority, scope, claim-gate,
 CVS and saturation rules; scout leads do not establish verified claims or completion.
+
+### Outsourced scouting and seeding (Antigravity fan-out)
+
+Pass 0 seeding runs on read-only Antigravity agents when `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py doctor` exits 0. `--no-agy-scout` skips it. Scope it to the one concept:
+
+`python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py run --preset rabbithole --background --concept "<exact concept>" --parent "<exact parent>" [--alias a,b]`
+
+Five agents cover mechanism, parts and sub-types, limits and failure modes, primary sources, and expert disagreement. Do Step 1 (scope and boundary) while they work, join with `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py status <run-dir> --wait <seconds>` before Step 2, and read the bundle through `scout.py seeds` as above. Sibling or adjacent concepts the agents surface go to `concept-family-explorer` as handoffs; they are not researched here. For a later gap-focused pass, re-scout only the named gap with `--angles <matching angles> --focus "<gap wording>"`; a focused run always scouts, even when a bundle is fresh. A scout URL, repeated query or repeated source still adds no researched novelty to the measured rate.
+
+A failed `doctor`, a privacy refusal (exit 3), all agents failing (exit 4), an authentication or quota stop (exit 5) or a timeout means ordinary Pass 0 with no delay. Repository copy: `.claude/skills/research-scout/scripts/agy_fanout.py`. Contract and failure modes: `~/.claude/skills/research-scout/references/antigravity-fanout.md`.
 
 ## Workflow
 

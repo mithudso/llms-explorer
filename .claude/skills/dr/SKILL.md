@@ -16,8 +16,8 @@ related_skills:
   - "rabbithole"
   - "llms-txt-tooling"
   - "research-scout"
-version: "3.6.1"
-updated: "2026-11-11"
+version: "3.7.0"
+updated: "2026-11-27"
 category: meta
 metadata:
   changelog_ref: references/CHANGELOG.md
@@ -121,6 +121,7 @@ claim evidence before upgrading, and keep the accepted historical artifact intac
 | `--verify-claims` | required before promotion at every depth and on refresh | Blind claim gate (Phase 2 step 4). |
 | `--crosspoll` | **off** | Phase 4 peer edits. Opt-in: it is the riskiest phase and the least valuable per minute. |
 | `--cross-model` | off | Route the blind gate through another frontier model per `~/.claude/skill-consolidation/cross-model-gate.md`. |
+| `--no-agy-scout` | off (dispatch on) | Skip the Antigravity scouting fan-out under "Research scout handoffs". Orchestrator-level only; never forwarded to the research runtime or its adapter. |
 
 **Depth contract** (also recorded in the run's `manifest.json` as `depth_contract`):
 
@@ -148,6 +149,16 @@ Slim workers do not load this skill. For Claude, use the installed scout
 research bridge for the `research` call; all other runtime commands remain direct.
 The repository Codex adapter loads bounded scout seeds automatically. Never
 substitute scout queries for independent discovery or required negation.
+
+### Outsourced scouting and seeding (Antigravity fan-out)
+
+Scouting and the first source seeding run on read-only Antigravity agents, so this workflow's own tokens go to reading sources and building claims. Default on when `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py doctor` exits 0. `--no-agy-scout` skips it; it is an orchestrator-level option and is never passed to the research runtime or its adapter.
+
+1. After Phase 0 step 1 names the concepts, start one background fan-out for all of them: `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py run --preset dr --background --concept "<exact concept>" --parent "<exact parent>" [--concept ... --parent ...]`. It skips concepts that already have a scouted bundle newer than 14 days, so repeating the call is safe. Skip the call when the dispatching orchestrator (`concept-family-explorer`, `full-suite`) already gave you a scout run id.
+2. Continue Phase 0. Before Phase 1 step 4, join with `python3 ~/.claude/skills/research-scout/scripts/agy_fanout.py status <run-dir> --wait <seconds>` (exit 2 means still running). Wait no longer than the remaining `--budget-minutes` allows, then go on without it.
+3. Phase 1 reads the bundle through the existing `scout.py seeds` and `with_scout.py` path. Nothing else changes.
+
+A failed `doctor`, a privacy refusal (exit 3), all agents failing (exit 4), an authentication or quota stop (exit 5) or a timeout means ordinary discovery with no further delay. The leads are unverified: read the sources, qualify origins, and run your own discovery and negation rounds; the agents' queries satisfy no floor. Repository copy: `.claude/skills/research-scout/scripts/agy_fanout.py`. Contract and failure modes: `~/.claude/skills/research-scout/references/antigravity-fanout.md`.
 
 ## Phase 0 — Plan (one message to the user)
 

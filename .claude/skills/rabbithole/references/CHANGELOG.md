@@ -2,6 +2,8 @@
 
 # Changelog
 
+2026-11-27 v1.4.1->v1.5.0 — outsourced Pass 0 scouting and seeding: five read-only Antigravity agents (mechanism, parts, limits, primary sources, disagreement) through research-scout's `agy_fanout.py`; default on when `doctor` passes, `--no-agy-scout` opts out, gap-focused re-scouts via `--focus`; the novelty measure is unchanged; global sync remains separately gated.
+
 2026-11-11 sko repair v1.4.0->v1.4.1 — bounded blind-review repairs and publication-safe scoped trigger corpus; runtime/factual recertification and global sync remain separately gated.
 
 2026-11-11 sko v1.3.1->v1.4.0 — Pass H predicted 10/10->10/10 pos, 0/10->0/10 false positives; 3 Medium findings fixed in reviewed scope; global sync and blind review deferred.

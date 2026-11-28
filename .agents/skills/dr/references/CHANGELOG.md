@@ -2,6 +2,8 @@
 
 # Changelog
 
+2026-11-27 v3.6.1->v3.7.0 — outsourced scouting and first seeding: read-only Antigravity fan-out through research-scout's `agy_fanout.py` before Phase 1, default on when `doctor` passes, `--no-agy-scout` opts out; evidence, negation and completion gates unchanged; global sync remains separately gated.
+
 2026-11-11 sko repair v3.6.0->v3.6.1 — bounded blind-review repairs and publication-safe scoped trigger corpus; runtime/factual recertification and global sync remain separately gated.
 
 2026-11-11 sko v3.5.0->v3.6.0 — Pass H predicted 10/10->10/10 pos, 0/10->0/10 false positives; 7 Medium findings fixed in reviewed scope; global sync and blind review deferred.
