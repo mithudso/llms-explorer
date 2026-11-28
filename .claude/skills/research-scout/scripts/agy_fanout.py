@@ -619,7 +619,9 @@ def parse_remote(value):
 def remote_command(argv, schema_path):
     """argv of the local agy call -> (ssh-ready shell command, schema text sent on stdin). The prompt stays public concept names only."""
     args = ["agy"] + [("schema.json" if part == str(schema_path) else part) for part in argv[1:]]
-    command = ('PATH="$HOME/.local/bin:$PATH"; d=$(mktemp -d) || exit 97; trap \'rm -rf "$d"\' EXIT; '
+    # agy keeps its sign-in in the desktop keyring, and switches to an empty file store when it sees an ssh session.
+    command = ('unset SSH_CONNECTION SSH_CLIENT SSH_TTY; U=$(id -u); export XDG_RUNTIME_DIR=/run/user/$U DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$U/bus; '
+               'PATH="$HOME/.local/bin:$PATH"; d=$(mktemp -d) || exit 97; trap \'rm -rf "$d"\' EXIT; '
                'cd "$d" && cat > schema.json && ' + shlex.join(args) + " </dev/null")
     return command, Path(schema_path).read_text(encoding="utf-8")
 
