@@ -20,9 +20,9 @@ MAX_TERM_CHARS = 200
 # concept. Chunk bodies are read only when asked, because they are large.
 ROWS = (("concepts", "_id"), ("versions", "concept_id"), ("claim_versions", "concept_id"),
         ("queue", "_id"), ("publications", "concept_id"), ("receipts", None),
-        ("sources", None), ("source_versions", None), ("runs", None), ("run_versions", None),
-        ("run_items", None), ("item_versions", None), ("artifacts", None),
-        ("artifact_heads", None))
+        ("sources", None), ("source_versions", None), ("snapshots", None), ("runs", None),
+        ("run_versions", None), ("run_items", None), ("item_versions", None),
+        ("artifacts", None), ("artifact_heads", None), ("artifact_units", None))
 BODIES = ("snapshot_chunks", "artifact_chunks")
 _WORD = re.compile(r"[^\W_]", re.UNICODE)
 
@@ -100,4 +100,4 @@ def find_terms(store, terms, include_bodies=False, actor="local-admin"):
         entry["exists"] = cid in current
     return {"terms": len(terms), "rows_read": scanned, "rows_with_a_phrase": collections,
             "concepts": sorted(concepts.values(), key=lambda entry: entry["id"]),
-            "not_read": [] if include_bodies else list(BODIES) + ["artifact_units"]}
+            "not_read": [] if include_bodies else list(BODIES)}

@@ -64,6 +64,24 @@ def parser():
                       help="Private directory for report.json, concept-ids.txt and concepts/")
     find.add_argument("--bodies", action="store_true",
                       help="Also read source snapshot and artifact bodies, which takes longer")
+    rows = commands.add_parser(
+        "purge-rows",
+        help="Erase runs, sources and receipts that hold a private phrase; owner-local, "
+             "a dry run unless --apply")
+    rows.add_argument("--terms-file", required=True, help="One private phrase per line")
+    rows.add_argument("--apply", action="store_true")
+    rows.add_argument("--include-held", action="store_true",
+                      help="Also erase a run that an owner holds a live lease on")
+    rows.add_argument("--bodies", action="store_true",
+                      help="Also read source snapshot and file bodies, which takes longer")
+    place = commands.add_parser(
+        "place-parents",
+        help="Record the parent links an import suggested; owner-local, a dry run unless --apply")
+    place.add_argument("--apply", action="store_true")
+    place.add_argument("--past-holds", action="store_true",
+                       help="Also place a concept that a paused, stopped or legacy run reserves")
+    place.add_argument("--out-file",
+                       help="Private file for the outcome of each link; only counts are printed")
     request = commands.add_parser("request")
     request.add_argument("operation", nargs="?",
                          help="Optional allowlisted operation; otherwise stdin envelope names it")
@@ -124,6 +142,20 @@ def _find_terms(service, args):
             "written_to": str(out)}
 
 
+def _place_parents(service, args):
+    """Record the suggested parent links. Only counts are printed; the links go to a file."""
+    report = service.dispatch("place_parents", {"apply": args.apply,
+                                                "past_holds": args.past_holds},
+                              role="admin", actor="local-admin")
+    edges = report.pop("edges")
+    if args.out_file:
+        descriptor = os.open(args.out_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as target:
+            json.dump(edges, target, ensure_ascii=False, indent=1)
+        report["written_to"] = args.out_file
+    return report
+
+
 def main(argv=None, *, service=None, input_stream=None) -> int:
     args = parser().parse_args(argv)
     try:
@@ -141,6 +173,9 @@ def main(argv=None, *, service=None, input_stream=None) -> int:
         if args.command == "find-terms":
             print(json.dumps(_find_terms(service, args)), flush=True)
             return 0
+        if args.command == "place-parents":
+            print(json.dumps(_place_parents(service, args)), flush=True)
+            return 0
         if args.command == "request":
             operation, arguments = _request(args, input_stream or sys.stdin)
         elif args.command == "writer-grant":
@@ -153,6 +188,12 @@ def main(argv=None, *, service=None, input_stream=None) -> int:
                 wanted = [line.strip() for line in source if line.strip()]
             operation, arguments = "purge_concepts", {
                 "concept_ids": wanted, "apply": args.apply, "include_held": args.include_held}
+        elif args.command == "purge-rows":
+            with open(args.terms_file, encoding="utf-8") as source:
+                phrases = [line.strip() for line in source if line.strip()]
+            operation, arguments = "purge_rows", {
+                "terms": phrases, "apply": args.apply, "include_held": args.include_held,
+                "include_bodies": args.bodies}
         elif args.command == "provision":
             operation, arguments = "provision", {"wait_seconds": args.wait}
         elif args.command == "search":

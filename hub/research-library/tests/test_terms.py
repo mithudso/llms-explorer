@@ -52,7 +52,7 @@ def test_every_row_is_read_and_a_concept_is_named_with_the_fields_that_hold_a_ph
     assert found[named]["exists"] is True and found[named]["state"] == "frontier"
     assert report["rows_with_a_phrase"]["concepts"] == 2 and report["rows_read"]["concepts"] == 3
     assert report["rows_with_a_phrase"]["receipts"] >= 2
-    assert report["not_read"] == ["snapshot_chunks", "artifact_chunks", "artifact_units"]
+    assert report["not_read"] == ["snapshot_chunks", "artifact_chunks"]
     # The phrase itself is never part of the answer.
     assert "acme corp" not in json.dumps([report["rows_read"], report["rows_with_a_phrase"]]).lower()
     assert clean not in found
