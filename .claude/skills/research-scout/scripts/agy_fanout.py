@@ -41,7 +41,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import scout
 
-SKILL_VERSION = "1.3.0"
+SKILL_VERSION = "1.3.1"
 DEFAULT_MODEL = "gemini-3.8-flash-medium"
 DEFAULT_TIMEOUT = "8m"
 MAX_PARALLEL_HARD = 8
@@ -247,35 +247,100 @@ INTERNAL_HOST = re.compile(r"\b(?:[\w-]+\.)+(?:internal|corp|local|lan|intranet)
 PRIVATE_IP = re.compile(
     r"\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01])|127\.\d{1,3}|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7]))\.\d{1,3}\.\d{1,3}\b"
 )
-BUILTIN_TERMS = ("morgan stanley", "ms financing", "mithudso")
+# Structural rules above are safe to publish. Name terms are not: customer, person and project names load at run
+# time from private sources only and are never written to this file, to logs, to bundles or to output.
+BUILTIN_TERMS = ("mithudso",)  # the public organization slug: a structural check, not a name list
+NAME_TERM_MIN = 2
 _privacy_cache = {}
 
 
-def _repo_scrub():
-    """The repository's own denylist matcher, when its checkout is reachable."""
-    if "scrub" in _privacy_cache:
-        return _privacy_cache["scrub"]
-    scrub = None
-    bases = [os.environ.get("LLMS_EXPLORER_REPO"), str(Path.home() / "dev" / "llms-explorer")]
-    for base in filter(None, bases):
-        directory = Path(base).expanduser() / "scripts"
-        module_path = directory / "publish_scrub.py"
+def _slug(text):
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def _gate_terms():
+    """Terms from the repository's own privacy gate (`gate.denylist()`), when a checkout with its script is reachable."""
+    if "gate" in _privacy_cache:
+        return _privacy_cache["gate"]
+    terms = []
+    for base in filter(None, [os.environ.get("LLMS_EXPLORER_REPO"), str(Path.home() / "dev" / "llms-explorer")]):
+        module_path = Path(base).expanduser() / "scripts" / "check_publish_privacy.py"
         if not module_path.is_file():
             continue
-        original_path = list(sys.path)
         try:
-            sys.path.insert(0, str(directory))
-            spec = importlib.util.spec_from_file_location("agy_fanout_publish_scrub", module_path)
+            spec = importlib.util.spec_from_file_location("agy_fanout_privacy_gate", module_path)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            scrub = (module._matches, list(module.gate.denylist()))
+            terms = [t for t in module.denylist() if isinstance(t, str)]
             break
-        except Exception:
-            scrub = None
-        finally:
-            sys.path[:] = original_path
-    _privacy_cache["scrub"] = scrub
-    return scrub
+        except Exception:  # an unusable checkout must never block scouting
+            terms = []
+    _privacy_cache["gate"] = terms
+    return terms
+
+
+def _file_terms(directory):
+    try:
+        text = (Path(directory) / ".privacy-denylist").read_text(encoding="utf-8")
+    except OSError:
+        return []
+    return [line.strip() for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")]
+
+
+def _skaas_block_terms():
+    """Block terms from the SKaaS client configuration (read only; keys ending in `block_terms`)."""
+    try:
+        data = json.loads((Path.home() / ".skaas" / "config.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    return [t for key, value in data.items() if key.endswith("block_terms") and isinstance(value, list) for t in value if isinstance(t, str)]
+
+
+def load_name_terms(repo=None):
+    """(terms, per-source counts) of private name terms. The terms are never printed, logged or stored; use the counts."""
+    key = ("names", str(repo or ""))
+    if key in _privacy_cache:
+        return _privacy_cache[key]
+    directories = [Path.cwd(), repo, Path.home() / ".global-ai-hub", Path.home() / "dev" / "llms-explorer"]
+    files = [t for directory in dict.fromkeys(d for d in directories if d) for t in _file_terms(directory)]
+    sources = {
+        "env": [t.strip() for t in os.environ.get("PRIVACY_DENYLIST", "").split(",") if t.strip()],
+        "files": files,
+        "publish_gate": _gate_terms(),
+        "skaas_config": _skaas_block_terms(),
+    }
+    seen, terms, counts = set(), [], {}
+    for name, values in sources.items():
+        usable = [t for t in values if len(t) >= NAME_TERM_MIN]
+        counts[name] = len({t.lower() for t in usable})
+        for term in usable:
+            if term.lower() not in seen:
+                seen.add(term.lower())
+                terms.append(term)
+    _privacy_cache[key] = (terms, counts)
+    return _privacy_cache[key]
+
+
+def name_term_match(text, terms):
+    """True when any private term occurs in `text`, compared as lower-case text and as a hyphenated slug."""
+    lowered, slug = text.lower(), _slug(text)
+    for term in terms:
+        low, term_slug = term.lower(), _slug(term)
+        if low in lowered or low in slug or (term_slug and term_slug in slug):
+            return True
+    return False
+
+
+def privacy_summary(repo=None):
+    """Counts only. `name_denylist_active` is False when no private name list is loaded, which switches name screening off."""
+    terms, counts = load_name_terms(repo)
+    summary = {"name_denylist_active": bool(terms), "name_terms": len(terms), "sources": counts}
+    if not terms:
+        summary["warning"] = ("no private name denylist is active, so name protection is off: set PRIVACY_DENYLIST (comma-separated) "
+                              "or add a .privacy-denylist file (one term per line) to the checkout, ~/.global-ai-hub or ~/dev/llms-explorer")
+    return summary
 
 
 def _identity_patterns():
@@ -295,18 +360,9 @@ def _identity_patterns():
     return patterns
 
 
-def _extra_terms():
-    terms = [t.strip().lower() for t in os.environ.get("AGY_SCOUT_DENY", "").split(",") if t.strip()]
-    path = Path.home() / ".claude" / "skill-consolidation" / "agy-denylist.txt"
-    if path.is_file():
-        terms += [line.strip().lower() for line in path.read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith("#")]
-    return terms
-
-
-def privacy_findings(text):
-    """Return category names (never the matched text) that make `text` unsafe to send out."""
+def privacy_findings(text, repo=None):
+    """Return rule categories (never the matched text) that make `text` unsafe to send out."""
     found = []
-    lowered = text.lower()
     if EMAIL.search(text):
         found.append("email-address")
     if HOME_PATH.search(text):
@@ -318,11 +374,8 @@ def privacy_findings(text):
         found.append("secret-like-token")
     if INTERNAL_HOST.search(text) or PRIVATE_IP.search(text):
         found.append("internal-host")
-    if any(term in lowered for term in (*BUILTIN_TERMS, *_extra_terms())):
-        found.append("denylisted-term")
-    scrub = _repo_scrub()
-    if scrub and scrub[0](text, scrub[1]):
-        found.append("repository-denylist")
+    if name_term_match(text, (*BUILTIN_TERMS, *load_name_terms(repo)[0])):
+        found.append("private-name-term")
     if any(pattern.search(text) for pattern in _identity_patterns()):
         found.append("local-identity")
     return found
@@ -505,19 +558,18 @@ def concept_text(concept):
     return "\n".join([concept["name"], concept["parent"], *concept.get("aliases", [])])
 
 
-def screen(concepts, focus):
-    """Split concepts into those safe to send and refusals. A refusal records an index, a digest and categories, never the text."""
+def screen(concepts, focus, repo=None):
+    """Split concepts into those safe to send and refusals. A refusal records a position and rule categories, never text."""
     allowed, refused = [], []
-    focus_findings = privacy_findings(focus) if focus else []
     for index, concept in enumerate(concepts):
-        findings = privacy_findings(concept_text(concept))
+        findings = privacy_findings(concept_text(concept), repo)
         if findings:
-            digest = hashlib.sha256(concept_text(concept).encode()).hexdigest()[:8]
-            refused.append({"concept_index": index, "digest": digest, "reasons": findings})
+            refused.append({"concept_index": index, "categories": findings})
         else:
             allowed.append(concept)
+    focus_findings = privacy_findings(focus, repo) if focus else []
     if focus_findings:
-        refused.append({"concept_index": None, "digest": hashlib.sha256(focus.encode()).hexdigest()[:8], "reasons": [f"focus: {r}" for r in focus_findings]})
+        refused.append({"concept_index": None, "categories": [f"focus: {c}" for c in focus_findings]})
         allowed = []
     return allowed, refused
 
@@ -561,8 +613,9 @@ def build_options(args):
 
 def prepare(args):
     preset_name, concepts, angles, cluster, focus, topic = collect_plan(args)
-    allowed, refused = screen(concepts, focus)
-    if privacy_findings(topic):
+    repo = resolve_repo(getattr(args, "repo", None))
+    allowed, refused = screen(concepts, focus, repo)
+    if privacy_findings(topic, repo):
         topic = allowed[0]["name"] if allowed else "refused run"
     fresh = fresh_concepts(allowed, scout_root(args.root), args.reuse_days) if not focus else {}
     reused = [{"name": c["name"], "parent": c["parent"], "run_dir": fresh[(c["name"], c["parent"])]} for c in allowed if (c["name"], c["parent"]) in fresh]
@@ -571,6 +624,7 @@ def prepare(args):
     return {
         "preset": preset_name, "concepts": allowed, "angles": angles, "cluster": cluster,
         "focus": focus, "topic": topic, "tasks": tasks, "refused": refused, "reused": reused, "options": build_options(args),
+        "privacy": {k: v for k, v in privacy_summary(repo).items()},
     }
 
 
@@ -851,7 +905,7 @@ def merge(run_dir, final=False):
     queries, query_index, sources, by_url, candidates = [], {}, [], {}, {}
     domains, usage = [], {"agents": 0, "total_tokens": 0, "input_tokens": 0, "output_tokens": 0, "seconds": 0.0}
     task_ok, task_failed, task_pending = [], [], []
-    refused_note = [f"privacy gate refused concept #{r['concept_index']} (digest {r['digest']}): {', '.join(r['reasons'])}; it was not sent and is not in this bundle"
+    refused_note = [f"privacy gate refused concept #{r['concept_index']}: {', '.join(r['categories'])}; it was not sent and is not in this bundle"
                     for r in doc.get("refused", [])]
 
     def add_source(task, lead, bound_ids, searched_at, query_ids):
@@ -1170,7 +1224,9 @@ def cmd_probe(args):
 
 def cmd_doctor(args):
     path = agy_binary()
-    info = {"agy": path, "version": None, "flags_ok": False, "model": default_model(), "live": None, "ok": False}
+    privacy = privacy_summary(resolve_repo(None))
+    info = {"agy": path, "version": None, "flags_ok": False, "model": default_model(), "live": None, "ok": False,
+            "privacy": {k: v for k, v in privacy.items() if k != "warning"}, "warnings": [privacy["warning"]] if "warning" in privacy else []}
     if not path:
         info["error"] = "agy is not on PATH"
         print(json.dumps(info, indent=2))
@@ -1214,7 +1270,7 @@ def describe(plan):
     return {
         "preset": plan["preset"], "topic": plan["topic"], "angles": plan["angles"], "cluster": plan["cluster"], "options": plan["options"],
         "tasks": [{"id": t["id"], "angle": t["angle"], "kind": t["kind"], "concepts": [c["name"] for c in t["concepts"]]} for t in plan["tasks"]],
-        "refused": plan["refused"], "reused": plan["reused"],
+        "refused": plan["refused"], "reused": plan["reused"], "privacy": plan["privacy"],
     }
 
 

@@ -119,14 +119,20 @@ class Base(unittest.TestCase):
         stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
         self.configure()
         patcher = mock.patch.dict(os.environ, {"PATH": f"{self.bin}{os.pathsep}{os.environ['PATH']}", "AGY_STUB_CONFIG": str(self.dir / "stub.json"),
-                                                "HOME": str(self.home), "AGY_SCOUT_DENY": "", "LLMS_EXPLORER_REPO": str(self.repo)})
+                                                "HOME": str(self.home), "PRIVACY_DENYLIST": "", "LLMS_EXPLORER_REPO": str(self.repo)})
         patcher.start()
         self.addCleanup(patcher.stop)
         patcher = mock.patch.object(fan, "RETRY_BACKOFF_SECONDS", 0)
         patcher.start()
         self.addCleanup(patcher.stop)
+        # private name lists are looked up in the cwd, the checkout, the hub and the home checkout: keep all of them synthetic
+        self.cwd = self.dir / "cwd"
+        self.cwd.mkdir()
+        previous = Path.cwd()
+        os.chdir(self.cwd)
+        self.addCleanup(os.chdir, previous)
         fan._privacy_cache.clear()
-        fan._privacy_cache["scrub"] = None
+        self.addCleanup(fan._privacy_cache.clear)
 
     def configure(self, **settings):
         base = {"log": str(self.log), "dir": str(self.dir)}
@@ -186,9 +192,18 @@ class PlanTests(Base):
         self.assertEqual(run_cli(["plan", "--preset", "dr"])[0], 1)
 
 
+SYNTHETIC_TERMS = "acme-widgets,globex corp"
+
+
 class PrivacyTests(Base):
-    def test_refusal_sends_nothing_and_exits_3(self):
-        for name in ("Mail me at someone@example.org", "Look in ~/projects", "Key sk-abcdefghijklmnopqrstuvwxyz0123", "Host db.corp", "Morgan Stanley migration",
+    def use_terms(self, value=SYNTHETIC_TERMS):
+        patcher = mock.patch.dict(os.environ, {"PRIVACY_DENYLIST": value})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        fan._privacy_cache.clear()
+
+    def test_structural_refusal_sends_nothing_and_exits_3(self):
+        for name in ("Mail me at someone@example.org", "Look in ~/projects", "Key sk-abcdefghijklmnopqrstuvwxyz0123", "Host db.corp",
                      "Server 192.168." + "4.20", "token " + "Ab1" * 14):
             code, out, _ = run_cli(self.run_args(concepts=((name, "P"),)))
             self.assertEqual(code, 3, name)
@@ -196,13 +211,62 @@ class PrivacyTests(Base):
         self.assertEqual(self.events(), [])
         self.assertFalse(self.root.exists())
 
-    def test_custom_denylist_env_and_file(self):
-        with mock.patch.dict(os.environ, {"AGY_SCOUT_DENY": "acmesecret"}):
-            self.assertEqual(run_cli(self.run_args(concepts=(("About AcmeSecret", "P"),)))[0], 3)
-        denylist = self.home / ".claude" / "skill-consolidation"
-        denylist.mkdir(parents=True)
-        (denylist / "agy-denylist.txt").write_text("# private\nzebracorp\n")
-        self.assertEqual(run_cli(self.run_args(concepts=(("ZebraCorp roadmap", "P"),)))[0], 3)
+    def test_name_terms_from_the_environment_refuse_and_are_never_printed(self):
+        self.use_terms()
+        for name in ("Acme Widgets migration", "GLOBEX CORP roadmap", "the acme-widgets api"):
+            code, out, err = run_cli(self.run_args(concepts=((name, "P"),)))
+            self.assertEqual(code, 3, name)
+            self.assertIn("nothing was sent", out)
+            refused = json.loads(out)["refused"]
+            self.assertEqual(refused, [{"concept_index": 0, "categories": ["private-name-term"]}])
+            for text in (out, err):
+                self.assertNotIn("acme", text.lower())
+                self.assertNotIn("globex", text.lower())
+        plan_code, plan_out, plan_err = run_cli(["plan", "--preset", "dr", "--concept", "Globex Corp pricing", "--parent", "P"])
+        self.assertEqual(plan_code, 3)
+        self.assertNotIn("globex", (plan_out + plan_err).lower())
+        self.assertEqual(self.events(), [])
+
+    def test_name_terms_load_from_every_private_source(self):
+        gate = self.repo / "scripts"
+        gate.mkdir()
+        (gate / "check_publish_privacy.py").write_text('def denylist():\n    return ["soylent corp"]\n')
+        hub, checkout = self.home / ".global-ai-hub", self.home / "dev" / "llms-explorer"
+        skaas = self.home / ".skaas"
+        for folder in (hub, checkout, skaas):
+            folder.mkdir(parents=True)
+        (self.cwd / ".privacy-denylist").write_text("# private list\ninitech holdings\n\n")
+        (self.repo / ".privacy-denylist").write_text("umbrella labs\n")
+        (hub / ".privacy-denylist").write_text("hooli group\n")
+        (checkout / ".privacy-denylist").write_text("pied piper\n")
+        (skaas / "config.json").write_text(json.dumps({"cloud_block_terms": ["vandelay industries"], "cloud_exclude": ["not-a-term"]}))
+        fan._privacy_cache.clear()
+        for name in ("Initech Holdings plan", "Umbrella Labs data", "Hooli Group notes", "Pied Piper compression", "Vandelay Industries latex", "Soylent Corp supply"):
+            code, out, err = run_cli(self.run_args(concepts=((name, "P"),)))
+            self.assertEqual(code, 3, name)
+            self.assertEqual(json.loads(out)["refused"][0]["categories"], ["private-name-term"], name)
+            self.assertNotIn(name.split()[0].lower(), (out + err).lower())
+        self.assertEqual(run_cli(self.run_args(concepts=(("Exclusion list not-a-term", "P"),)))[0], 0)
+
+    def test_refused_terms_are_never_stored_or_logged(self):
+        self.use_terms()
+        code, out, err = run_cli(self.run_args("--skip-refused", concepts=(("Fine topic", "P"), ("Acme Widgets internals", "P"))))
+        run_dir = Path(json.loads(out)["run_dir"])
+        self.assertEqual(code, 0)
+        self.assertEqual({c["name"] for c in self.bundle(json.loads(out))["concepts"]}, {"Fine topic"})
+        everything = out + err + "".join(path.read_text(errors="replace") for path in run_dir.rglob("*") if path.is_file())
+        everything += self.log.read_text() if self.log.exists() else ""
+        for term in ("acme", "widgets", "globex"):
+            self.assertNotIn(term, everything.lower())
+        refusal = json.loads((run_dir / "tasks.json").read_text())["refused"]
+        self.assertEqual(refusal, [{"concept_index": 1, "categories": ["private-name-term"]}])
+
+    def test_focus_text_is_screened_too(self):
+        self.use_terms()
+        code, out, _ = run_cli(self.run_args("--focus", "limits of Globex Corp"))
+        self.assertEqual(code, 3)
+        self.assertEqual(json.loads(out)["refused"][0]["categories"], ["focus: private-name-term"])
+        self.assertEqual(self.events(), [])
 
     def test_skip_refused_runs_the_rest_and_records_the_refusal(self):
         code, out, _ = run_cli(self.run_args("--skip-refused", concepts=(("Fine topic", "P"), ("Mail someone@example.org", "P"))))
@@ -216,14 +280,19 @@ class PrivacyTests(Base):
             if path.is_file():
                 self.assertNotIn("someone@example.org", path.read_text(errors="replace"), path)
         refusal = json.loads((Path(json.loads(out)["run_dir"]) / "tasks.json").read_text())["refused"]
-        self.assertEqual([r["reasons"] for r in refusal], [["email-address"]])
-        self.assertEqual(refusal[0]["concept_index"], 1)
+        self.assertEqual(refusal, [{"concept_index": 1, "categories": ["email-address"]}])
 
     def test_identity_words_use_whole_word_matching(self):
-        with mock.patch.object(fan, "_identity_patterns", return_value=[fan.re.compile(r"\bmitch\b", fan.re.IGNORECASE)]):
-            self.assertEqual(fan.privacy_findings("Mitch notes"), ["local-identity"])
-            self.assertEqual(fan.privacy_findings("Mitchell chemiosmotic hypothesis"), [])
+        with mock.patch.object(fan, "_identity_patterns", return_value=[fan.re.compile(r"\bjdoe\b", fan.re.IGNORECASE)]):
+            self.assertEqual(fan.privacy_findings("Jdoe notes"), ["local-identity"])
+            self.assertEqual(fan.privacy_findings("Jdoeson chemiosmotic hypothesis"), [])
         self.assertEqual(fan.privacy_findings("alpha-synuclein-aggregation-inhibitors-and-buntanetap"), [])
+
+    def test_the_source_has_no_hard_coded_name_terms(self):
+        source = (SCRIPTS / "agy_fanout.py").read_text()
+        self.assertEqual(fan.BUILTIN_TERMS, ("mithudso",))
+        self.assertIn("PRIVACY_DENYLIST", source)
+        self.assertNotIn("AGY_SCOUT_DENY", source)
 
     def test_root_inside_checkout_is_refused(self):
         code, _, err = run_cli(["run", "--preset", "dr", "--concept", "A", "--parent", "P", "--root", str(self.repo / "out"), "--repo", str(self.repo)])
@@ -444,6 +513,29 @@ class RunTests(Base):
 
 
 class DoctorTests(Base):
+    def test_doctor_counts_private_name_terms_and_warns_when_there_are_none(self):
+        code, out, _ = run_cli(["doctor"])
+        info = json.loads(out)
+        self.assertEqual(code, 0)
+        self.assertFalse(info["privacy"]["name_denylist_active"])
+        self.assertEqual(info["privacy"]["name_terms"], 0)
+        self.assertTrue(any("name protection is off" in w for w in info["warnings"]))
+        with mock.patch.dict(os.environ, {"PRIVACY_DENYLIST": SYNTHETIC_TERMS}):
+            fan._privacy_cache.clear()
+            code, out, _ = run_cli(["doctor"])
+        info = json.loads(out)
+        self.assertEqual(code, 0)
+        self.assertEqual(info["privacy"], {"name_denylist_active": True, "name_terms": 2, "sources": {"env": 2, "files": 0, "publish_gate": 0, "skaas_config": 0}})
+        self.assertEqual(info["warnings"], [])
+        for term in ("acme", "globex"):
+            self.assertNotIn(term, out.lower())
+
+    def test_plan_reports_the_same_counts(self):
+        with mock.patch.dict(os.environ, {"PRIVACY_DENYLIST": SYNTHETIC_TERMS}):
+            fan._privacy_cache.clear()
+            _, out, _ = run_cli(["plan", "--preset", "dr", "--concept", "Alpha thing", "--parent", "Domain X"])
+        self.assertEqual(json.loads(out)["privacy"]["name_terms"], 2)
+
     def test_doctor_checks_binary_and_flags(self):
         code, out, _ = run_cli(["doctor"])
         info = json.loads(out)
