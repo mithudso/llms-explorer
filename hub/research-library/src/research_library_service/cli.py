@@ -45,6 +45,14 @@ def parser():
                         help="Owner-local source snapshot library; never a remote MCP path")
     ingest.add_argument("--dry-run", action="store_true")
     ingest.add_argument("--replace-import", action="store_true")
+    purge = commands.add_parser(
+        "purge-concepts",
+        help="Erase concepts with every stored revision; owner-local, a dry run unless --apply")
+    purge.add_argument("--ids-file", required=True,
+                       help="One concept identity per line, at most 100")
+    purge.add_argument("--apply", action="store_true")
+    purge.add_argument("--include-held", action="store_true",
+                       help="Also erase a concept that a lease or a legacy reservation holds")
     request = commands.add_parser("request")
     request.add_argument("operation", nargs="?",
                          help="Optional allowlisted operation; otherwise stdin envelope names it")
@@ -95,6 +103,11 @@ def main(argv=None, *, service=None, input_stream=None) -> int:
                 "credential_id": args.credential_id, "valid_days": args.valid_days}
         elif args.command == "writer-revoke":
             operation, arguments = "writer_revoke", {"credential_id": args.credential_id}
+        elif args.command == "purge-concepts":
+            with open(args.ids_file, encoding="utf-8") as source:
+                wanted = [line.strip() for line in source if line.strip()]
+            operation, arguments = "purge_concepts", {
+                "concept_ids": wanted, "apply": args.apply, "include_held": args.include_held}
         elif args.command == "provision":
             operation, arguments = "provision", {"wait_seconds": args.wait}
         elif args.command == "search":
