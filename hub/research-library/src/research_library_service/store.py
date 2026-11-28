@@ -955,13 +955,18 @@ class LibraryStore:
                     raise Conflict("The requested relation does not exist")
                 link(cid, fields[0], tid, action != "remove")
                 link(tid, fields[1], cid, action != "remove")
+            # A family link places a concept in the tree and states no fact. The claims,
+            # evidence and sources that a gate verified are untouched, so both ends keep
+            # their completion. Every other relation still invalidates it.
+            placement = relation in {"parent", "child"}
             saved = []
             for key, doc in loaded.items():
                 if doc != original[key]:
-                    saved.append(self._save(doc, original[key], actor, session))
+                    saved.append(self._save(doc, original[key], actor, session,
+                                            invalidate=not placement))
             return {"concepts": [self._public(d) for d in saved], "unchanged": not saved,
                     "affected_concepts": [{"concept_id": d["_id"], "revision": d["revision"]} for d in saved],
-                    "verification_invalidated": bool(saved)}
+                    "verification_invalidated": bool(saved) and not placement}
         return self._mutate("relation_mutate", dict(concept_id=cid, target_id=tid, relation=relation,
             action=action, expected_revisions=expected_revisions, lease_tokens=lease_tokens), actor, request_id, change)
 

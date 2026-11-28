@@ -361,6 +361,40 @@ def test_trusted_completion_then_mutation_invalidates_gate(store):
     assert updated["state"] == "incomplete" and updated["completion"]["status"] == "unverified"
 
 
+def test_family_links_keep_completion_and_other_relations_invalidate_it(store):
+    done, parent, other = make(store, "Verified Child", "Family Root", "Neighbour")
+    granted = lease(store, [done, parent, other])
+    _, claim = evidence_fixture(store)
+    token = granted["tokens"][done["_id"]]
+    store.claim_mutate(done["_id"], "add", claim, expected_revision=1, lease_token=token)
+    store.completion_verifier = lambda current, receipt: {"artifact_sha256": digest(current), "gate": "v4"}
+    proof = store.complete(done["_id"], 2, token, {"trusted": "reference"})["completion"]
+
+    added = store.relation_mutate(done["_id"], parent["_id"], "parent", "add",
+                                  revisions(store, done, parent), granted["tokens"])
+    assert added["verification_invalidated"] is False
+    child = store.concept_get(done["_id"])
+    assert child["parent_id"] == parent["_id"] and child["revision"] == 4
+    assert child["state"] == "complete" and child["completion"] == proof
+    assert child["claims"][0]["qualification"] == "SUPPORTED"
+    assert store.concept_get(parent["_id"])["children_ids"] == [done["_id"]]
+
+    # The same holds from the parent's side and when the link is removed again.
+    store.relation_mutate(done["_id"], parent["_id"], "parent", "remove",
+                          revisions(store, done, parent), granted["tokens"])
+    listed = store.relation_mutate(parent["_id"], done["_id"], "child", "add",
+                                   revisions(store, done, parent), granted["tokens"])
+    assert listed["verification_invalidated"] is False
+    assert store.concept_get(done["_id"])["completion"] == proof
+
+    related = store.relation_mutate(done["_id"], other["_id"], "related", "add",
+                                    revisions(store, done, other), granted["tokens"])
+    assert related["verification_invalidated"] is True
+    demoted = store.concept_get(done["_id"])
+    assert demoted["state"] == "incomplete" and demoted["completion"]["status"] == "unverified"
+    assert demoted["parent_id"] == parent["_id"]
+
+
 def test_cvs_null_hard_gates_and_queue_stop_are_preserved(store):
     doc, = make(store, "Scored Frontier")
     assert doc["cvs"] is None

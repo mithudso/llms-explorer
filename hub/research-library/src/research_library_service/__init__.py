@@ -1,3 +1,3 @@
 """Versioned MongoDB research working library and coordination service."""
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"

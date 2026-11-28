@@ -288,7 +288,8 @@ def apply_family_batch(store, edges, source_identity):
                 changed[parent]["children_ids"] = sorted(set([
                     *changed[parent].get("children_ids", []), child]))
             _cycles(store, changed, [edge["concept_id"] for edge in edges], session)
-            saved = [store._prepare_save(changed[cid], rows[cid], ACTOR)
+            # A parent link is placement, not a factual change, so completion is kept.
+            saved = [store._prepare_save(changed[cid], rows[cid], ACTOR, invalidate=False)
                      for cid in sorted(ids) if changed[cid] != rows[cid]]
             if saved:
                 writes = [ReplaceOne(store._owned({"_id": doc["_id"],
@@ -306,7 +307,7 @@ def apply_family_batch(store, edges, source_identity):
                 "source_identity": identity, "updated": updated, "unchanged": len(edges) - updated,
                 "affected_concepts": [{"concept_id": doc["_id"], "revision": doc["revision"]}
                                       for doc in saved], "input_revisions": expected,
-                "output_revisions": output, "verification_invalidated": bool(saved),
+                "output_revisions": output, "verification_invalidated": False,
                 "request_id": request_id}
             store.meta.replace_one(store._owned({"_id": ledger_id}), {
                 "_id": ledger_id, "managed_by": MANAGED_BY, "receipt": receipt},

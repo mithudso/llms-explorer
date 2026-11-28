@@ -42,7 +42,7 @@ uv export --directory hub/research-library --frozen --no-dev --no-emit-project \
 uv venv --python 3.13 "$runtime/.venv"
 uv pip sync --python "$runtime/.venv/bin/python" "$runtime/requirements.txt"
 uv pip install --python "$runtime/.venv/bin/python" --no-deps \
-  "$runtime/wheels/research_library_service-0.2.2-py3-none-any.whl"
+  "$runtime/wheels/research_library_service-0.2.3-py3-none-any.whl"
 ```
 
 Create an owner-only server environment file using a local secret manager or
@@ -316,7 +316,10 @@ read/list/status outputs omit token values and hashes.
 ## Publication and protected work
 
 CRUD persists working drafts. Wording, evidence or source changes invalidate old
-claim qualification/completion. Callers cannot grant themselves `SUPPORTED`,
+claim qualification/completion. A parent/child link only places a concept in its
+family: recording, moving or removing one keeps the completion of both ends, and
+its receipt reports `verification_invalidated: false`. Related, adjacent,
+prerequisite and dependent links still invalidate it. Callers cannot grant themselves `SUPPORTED`,
 `COMPLETED`, or a trusted gate result by editing fields. Claim lineage stays
 stable across edits while exact claim identities change with the bound content.
 Descriptions, aliases and other discovery metadata remain unreviewed metadata;
