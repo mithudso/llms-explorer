@@ -1102,6 +1102,12 @@ class LibraryStore:
             self.queue, guard, replay, extra={"projection_only": True, "dispatched": False,
                                             "affected_concepts": []})
 
+    def purge_concepts(self, concept_ids, apply=False, include_held=False, actor="local-admin"):
+        """Owner-local erasure of concepts with their history; see the purge module."""
+        from .purge import purge_concepts
+        return purge_concepts(self, concept_ids, apply=apply, include_held=include_held,
+                              actor=actor)
+
     def queue_recover(self, concept_id, expected_queue_revision, reason,
                       actor="local-admin", request_id=""):
         """Operator-local recovery; never clears a filesystem STOP or legacy hold."""

@@ -42,7 +42,7 @@ uv export --directory hub/research-library --frozen --no-dev --no-emit-project \
 uv venv --python 3.13 "$runtime/.venv"
 uv pip sync --python "$runtime/.venv/bin/python" "$runtime/requirements.txt"
 uv pip install --python "$runtime/.venv/bin/python" --no-deps \
-  "$runtime/wheels/research_library_service-0.2.3-py3-none-any.whl"
+  "$runtime/wheels/research_library_service-0.2.4-py3-none-any.whl"
 ```
 
 Create an owner-only server environment file using a local secret manager or
@@ -254,6 +254,29 @@ chosen environment file path, not secret values. `--start` replaces only this
 owned launchd job. Without `--start`, it writes the definition without activating
 it. It does not provision MongoDB, install the runtime, change a tunnel, register
 clients, modify hooks, or restart unrelated research/skill services.
+
+## Erase a concept
+
+A delete writes a tombstone and keeps every earlier revision. A concept that must not exist at
+all, such as one that names a customer, is erased with a purge on the library's own machine:
+
+```sh
+"$python_bin" -m research_library_service.cli --env-file "$server_env" \
+  purge-concepts --ids-file ids.txt            # reports what it would remove
+"$python_bin" -m research_library_service.cli --env-file "$server_env" \
+  purge-concepts --ids-file ids.txt --apply
+```
+
+`ids.txt` holds one concept identity per line, at most 100. A purge removes the concept, its
+revisions, claim revisions, queue entry, lease and publication records, and the receipts that
+mention it. It also takes the identity out of other concepts: a child moves to the purged
+concept's parent, links are dropped, and stored revisions of other concepts are scrubbed with
+their content hash recomputed. The answer lists what still mentions the identity, for example a
+research run. Run artifacts, snapshot bodies and search units are not read.
+
+A concept that a lease or a legacy reservation holds is skipped. `--include-held` erases it
+anyway. The operation exists only here: no MCP tool and no remote role reaches it. Its audit
+record in the metadata collection holds hashes and counts, never an identity or a name.
 
 ## Storage and consistency
 
