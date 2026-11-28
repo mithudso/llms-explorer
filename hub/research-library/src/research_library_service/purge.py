@@ -90,6 +90,10 @@ def _held(store, cid):
         store._reservations([cid], ACTOR, "")
     except LeaseConflict:
         return "a legacy active, paused or STOP reservation holds it"
+    except KeyError:
+        # The reservation check looks the concept up and does not find a tombstone. Nobody can
+        # be working on a concept that is already deleted.
+        return ""
     return ""
 
 

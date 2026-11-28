@@ -91,6 +91,12 @@ def test_a_purge_erases_a_tombstone_and_its_kept_revisions(store):
     store.concept_delete(doc["_id"], 1, tokens[doc["_id"]])
     store.lease_release([doc["_id"]], tokens, "agent-a")
     assert store.versions.count_documents({"concept_id": doc["_id"]}) == 2
+    # The legacy reservation check looks a concept up and fails on a tombstone.
+    def legacy(ids, owner, run_id):
+        for cid in ids:
+            store._get(cid)
+        return []
+    store.reservation_provider = legacy
     report = store.purge_concepts([doc["_id"]], apply=True)
     assert report["live_concepts"] == 0 and report["removed"]["versions"] == 2
     assert mentions(store, doc["_id"]) == {}
