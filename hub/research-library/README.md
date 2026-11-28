@@ -42,7 +42,7 @@ uv export --directory hub/research-library --frozen --no-dev --no-emit-project \
 uv venv --python 3.13 "$runtime/.venv"
 uv pip sync --python "$runtime/.venv/bin/python" "$runtime/requirements.txt"
 uv pip install --python "$runtime/.venv/bin/python" --no-deps \
-  "$runtime/wheels/research_library_service-0.2.5-py3-none-any.whl"
+  "$runtime/wheels/research_library_service-0.2.6-py3-none-any.whl"
 ```
 
 Create an owner-only server environment file using a local secret manager or
@@ -271,7 +271,9 @@ all, such as one that names a customer, is erased with a purge on the library's 
 revisions, claim revisions, queue entry, lease and publication records, and the receipts that
 mention it. It also takes the identity out of other concepts: a child moves to the purged
 concept's parent, links are dropped, and stored revisions of other concepts are scrubbed with
-their content hash recomputed. The answer lists what still mentions the identity, for example a
+their content hash recomputed. Every concept and stored revision is read once for any other
+field that holds the identity, and a run on an identity that is already erased still sweeps
+what is left of it. The answer lists what still mentions the identity, for example a
 research run. Run artifacts, snapshot bodies and search units are not read.
 
 A concept that a lease or a legacy reservation holds is skipped. `--include-held` erases it
