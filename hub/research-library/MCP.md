@@ -233,6 +233,12 @@ require `expected_revisions` and `lease_tokens` maps for every affected endpoint
 }
 ```
 
+A `parent` or `child` edit is placement only. `research_status` says so with
+`family_links_keep_completion: true`; a service that lacks the field invalidates
+completion on every relation edit. It raises the revision of each
+affected concept and keeps their state and completion, so a verified concept
+stays verified. Every other relation invalidates completion as a draft edit does.
+
 On conflict, read current records and reconcile; do not guess a newer revision
 or overwrite another agent. Retry a transiently interrupted exact operation with
 its original unique `request_id`. Changing its arguments requires a new request
