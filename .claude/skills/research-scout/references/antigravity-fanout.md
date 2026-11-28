@@ -94,7 +94,7 @@ concept has a negation query, else `partial` (`in_progress` while agents run). F
 
 ## Running on the NUC or the 5080 (`--remote`)
 
-`--remote nuc,5080` (or `AGY_SCOUT_REMOTE=nuc,5080`) runs each `agy` call on those boxes over `ssh` instead of on this Mac, rotating between them, still one call at a time. Only the public prompt and the output schema are sent; the scratch directory is created and removed on the remote box. A host that is unreachable (ssh exit 255), lacks `agy`, or is not signed in is skipped for the rest of the run, and the call falls back to this machine. `--remote local` turns it off. Each box needs `agy` signed in once, interactively: `ssh -t nuc agy` and `ssh -t 5080 agy`, then follow the sign-in link. Until then the boxes are skipped.
+`--remote nuc,5080` (or `AGY_SCOUT_REMOTE=nuc,5080`) runs each `agy` call on those boxes over `ssh` instead of on this Mac, rotating between them, still one call at a time. Only the public prompt and the output schema are sent; the scratch directory is created and removed on the remote box. A host that is unreachable (ssh exit 255), lacks `agy`, or is not signed in is skipped for the rest of the run, and the call falls back to this machine. `--remote local` turns it off. Each box needs `agy` signed in once, interactively (`ssh -t nuc agy`, then follow the sign-in link) with its desktop keyring unlocked. The remote command clears `SSH_CONNECTION`, `SSH_CLIENT` and `SSH_TTY` and points `DBUS_SESSION_BUS_ADDRESS` at the user's session bus, because `agy` otherwise sees an ssh session and looks for its sign-in in an empty file store (log line "Using file-based token storage because SSH session detected").
 
 ## Privacy gate
 
