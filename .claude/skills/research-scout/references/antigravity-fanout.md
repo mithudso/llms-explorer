@@ -14,7 +14,7 @@ falls back to the previous behavior. A failed, refused, slow or absent scout nev
 
 ```bash
 S=~/.claude/skills/research-scout/scripts/agy_fanout.py   # repository copy: .claude/skills/research-scout/scripts/
-python3 $S doctor [--live]                    # agy on PATH, headless flags present; --live adds one small ping
+python3 $S doctor [--live]                    # agy on PATH, headless flags present, private name-term counts; --live adds one small ping
 python3 $S plan --preset dr --concept "<exact concept>" --parent "<exact parent>"    # dry run: tasks, argv, reuse, refusals
 python3 $S run  --preset dr --concept "<c>" --parent "<p>" [--concept ... --parent ...] [--background]
 python3 $S status <run-dir> [--wait SECONDS]  # exit 2 while running, 0 when finished
@@ -96,12 +96,24 @@ concept has a negation query, else `partial` (`in_progress` while agents run). F
 
 Prompts contain public concept names and generic instructions only. Before anything is sent, every concept
 (name, parent, aliases) and the focus text are screened. A concept is refused if it contains an email address,
-a home-directory path, a key- or token-like string, an internal hostname or private address, a customer name or
-repository denylist term (`publish_scrub` when the checkout is reachable), a term from `AGY_SCOUT_DENY`
-(comma-separated) or `~/.claude/skill-consolidation/agy-denylist.txt`, or the local account or host name as a whole word.
-Default: any refusal exits 3 and sends nothing. `--skip-refused` drops the refused concepts and runs the rest.
-A refusal is recorded as a concept index, a digest and category names only, never the text, and the refused
-concept is absent from `tasks.json` and the bundle. Remove or rename it, or research it without Antigravity.
+a home-directory path, a key- or token-like string, an internal hostname or private address, the local account or
+host name as a whole word, or a private name term.
+
+Name terms (customers, people, projects) are never written into this skill, its tests, its docs or its output. They
+load at run time from private sources only, and are matched as lower-case text and as a hyphenated slug:
+
+- the `PRIVACY_DENYLIST` environment variable (comma-separated);
+- `.privacy-denylist` files (one term per line, `#` comments) in the current directory, the `--repo` checkout,
+  `~/.global-ai-hub` and `~/dev/llms-explorer`;
+- the repository's own `denylist()` from `scripts/check_publish_privacy.py`, when a checkout with that script is reachable;
+- the block terms (keys ending `block_terms`) in `~/.skaas/config.json`, read only.
+
+`doctor` and `plan` report how many private name terms are active, in total and per source, as counts only, and
+`doctor` warns when there are none: name protection is then off, and only the structural rules above apply. The gate
+never prints, logs or stores a matched term. A refusal is a concept index plus rule categories (for example
+`private-name-term`), recorded in `tasks.json` and the bundle's remaining steps; the refused concept is absent from
+both. Default: any refusal exits 3 and sends nothing. `--skip-refused` drops the refused concepts and runs the rest.
+Remove or rename the concept, or research it without Antigravity.
 
 ## Failure modes
 
