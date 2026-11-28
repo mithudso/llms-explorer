@@ -43,7 +43,7 @@ Before reading the selected research domain and queue raw, locate its llms files
 The orchestrators (`/dr`, concept-family-explorer, rabbithole, full-suite) outsource their scouting and
 first seeding to read-only Antigravity agents through `scripts/agy_fanout.py`, which writes the same
 bundle this skill defines. Dispatch only through that script: it screens every concept for private
-terms (name terms load from private sources only), caps parallelism, reuses scouted bundles newer than 14 days, and returns lead candidates, never
+terms (name terms load from private sources only), runs one agent at a time (optionally on the NUC or 5080 with `--remote`), reuses scouted bundles newer than 14 days, and returns lead candidates, never
 claims. Read [references/antigravity-fanout.md](references/antigravity-fanout.md) for commands, presets,
 the privacy gate and failure handling. A manual scout (below) and an outsourced scout are interchangeable
 to consumers.
@@ -128,7 +128,7 @@ Edit only this run's `scout.json`, `prompts.md` and `memory.md`. Checkpoint afte
 each concept: increment `revision`, update `updated_at` and `delta`, preserve
 previous queries/leads, and write the JSON atomically. Keep `memory.md` at the
 same revision with completed work, blockers and exact next steps. One writer
-owns a run; use separate runs for concurrent scouts.
+owns a run; do not start a second scout run while one is running: each run launches its own `agy`, and concurrent processes crashed the Mac.
 
 Mark concepts `scouted`, `no-leads` or `blocked`; leave untouched ones `pending`.
 Use run status `ready` only after every selected concept has been searched and

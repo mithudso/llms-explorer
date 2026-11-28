@@ -35,7 +35,7 @@ unauthenticated, out of quota or given an unknown model.
 
 ## Presets and angles
 
-One headless `agy -p` per (concept cluster x angle), at most `--max-parallel` (default 4, hard cap 8) at once.
+One headless `agy -p` per (concept cluster x angle), run strictly one after another (`--max-parallel` is accepted for old callers but is always 1; since 1.4.0, because up to 8 concurrent `agy` processes exhausted the Mac's RAM and crashed it). A preset with five angles therefore takes about five agent runs in sequence; narrow it with `--angles`.
 
 | Preset | Angles (one agent each) | Default cluster | Caller |
 | --- | --- | --- | --- |
@@ -91,6 +91,10 @@ path of the run's `tasks.json`; status is `scouted` (has leads), `no-leads` (age
 concept has a negation query, else `partial` (`in_progress` while agents run). Files in the run directory
 (directory 0700, files 0600): `scout.json`, `handoff.md`, `prompts.md`, `memory.md`, `tasks.json`, `schema.json`,
 `status.json`, `domains.json`, and `agents/<task>.json` plus `.stderr` per agent. One writer per run (`run.lock`).
+
+## Running on the NUC or the 5080 (`--remote`)
+
+`--remote nuc,5080` (or `AGY_SCOUT_REMOTE=nuc,5080`) runs each `agy` call on those boxes over `ssh` instead of on this Mac, rotating between them, still one call at a time. Only the public prompt and the output schema are sent; the scratch directory is created and removed on the remote box. A host that is unreachable (ssh exit 255), lacks `agy`, or is not signed in is skipped for the rest of the run, and the call falls back to this machine. `--remote local` turns it off. Each box needs `agy` signed in once, interactively: `ssh -t nuc agy` and `ssh -t 5080 agy`, then follow the sign-in link. Until then the boxes are skipped.
 
 ## Privacy gate
 

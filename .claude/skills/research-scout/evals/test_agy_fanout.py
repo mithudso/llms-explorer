@@ -301,21 +301,21 @@ class PrivacyTests(Base):
 
 
 class RunTests(Base):
-    def test_parallel_run_builds_a_valid_bundle(self):
-        self.configure(sleep=0.4)
+    def test_run_is_single_threaded_even_when_more_is_requested(self):
+        self.configure(sleep=0.2)
         argv = self.run_args("--max-parallel", "3", concepts=(("Alpha thing", "Domain X"), ("Beta thing", "Domain X")))
         code, out, _ = run_cli(argv)
         summary = json.loads(out)
         self.assertEqual(code, 0, out)
         self.assertEqual(summary["tasks"], {"total": 6, "ok": 6, "failed": 0, "pending": 0, "refused": 0})
-        # concurrency cap respected and actually used
+        # never more than one agy at a time: parallel agy processes crashed the Mac
         starts, ends = self.events("start"), self.events("end")
         stamps = sorted([(r["t"], 1) for r in starts] + [(r["t"], -1) for r in ends])
         level = peak = 0
         for _, delta in stamps:
             level += delta
             peak = max(peak, level)
-        self.assertTrue(2 <= peak <= 3, peak)
+        self.assertEqual(peak, 1, peak)
         bundle = self.bundle(summary)
         scout.validate(bundle)
         self.assertEqual(bundle["status"], "ready")
@@ -640,6 +640,52 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(fan.expand_host("docs.example.co.uk"),
                          ["https://docs.example.co.uk", "https://example.co.uk", "https://www.example.co.uk"])
         self.assertEqual(fan.expand_host("docs.example.com")[:2], ["https://docs.example.com", "https://example.com"])
+
+
+class RemoteTests(Base):
+    def ssh_stub(self, mode="ok"):
+        stub = self.bin / "ssh"
+        stub.write_text(f"""#!/bin/sh
+echo call >> "{self.dir}/ssh.log"
+[ "{mode}" = "down" ] && exit 255
+for last; do :; done
+exec sh -c "$last"
+""")
+        stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
+
+    def setUp(self):
+        super().setUp()
+        fan.REMOTE_BAD_HOSTS.clear()
+        self.addCleanup(fan.REMOTE_BAD_HOSTS.clear)
+
+    def test_remote_host_runs_the_agents(self):
+        self.ssh_stub()
+        code, out, _ = run_cli(self.run_args("--remote", "boxa"))
+        summary = json.loads(out)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(summary["tasks"]["ok"], 3)
+        self.assertEqual(len((self.dir / "ssh.log").read_text().splitlines()), 3)
+
+    def test_unreachable_remote_falls_back_to_this_machine_once(self):
+        self.ssh_stub("down")
+        code, out, _ = run_cli(self.run_args("--remote", "boxa,boxb"))
+        summary = json.loads(out)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(summary["tasks"]["ok"], 3)
+        # each bad host is tried once, then skipped for the rest of the run
+        self.assertEqual(len((self.dir / "ssh.log").read_text().splitlines()), 2)
+
+    def test_local_keyword_turns_remote_off(self):
+        self.ssh_stub()
+        with mock.patch.dict(os.environ, {"AGY_SCOUT_REMOTE": "boxa"}):
+            code, out, _ = run_cli(self.run_args("--remote", "local"))
+        self.assertEqual(code, 0, out)
+        self.assertFalse((self.dir / "ssh.log").exists())
+
+    def test_bad_host_name_is_refused(self):
+        code, _, err = run_cli(self.run_args("--remote", "a;rm -rf x"))
+        self.assertEqual(code, 1)
+        self.assertIn("invalid remote host", err)
 
 
 if __name__ == "__main__":
