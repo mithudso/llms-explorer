@@ -24,6 +24,7 @@ import ipaddress
 import json
 import os
 import re
+import shlex
 import shutil
 import socket
 import subprocess
@@ -41,10 +42,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import scout
 
-SKILL_VERSION = "1.3.1"
+SKILL_VERSION = "1.4.0"
 DEFAULT_MODEL = "gemini-3.8-flash-medium"
 DEFAULT_TIMEOUT = "8m"
-MAX_PARALLEL_HARD = 8
+# One headless agy at a time. Several at once (the old default of 4, cap 8) used all of the Mac's RAM and
+# crashed it on 2026-11-28. Work spreads across machines (--remote), never across concurrent local processes.
+MAX_PARALLEL_HARD = 1
+REMOTE_ENV = "AGY_SCOUT_REMOTE"
+REMOTE_BAD_HOSTS = set()
+_REMOTE_COUNTER = [0]
 MAX_LEADS_PER_TASK = 8
 MAX_QUERIES_PER_TASK = 20
 MAX_CANDIDATES_PER_TASK = 12
@@ -598,6 +604,26 @@ def fresh_concepts(concepts, root, days):
     return {key: value for key, value in found.items() if key in wanted}
 
 
+def parse_remote(value):
+    """Hosts that run `agy` in place of this machine: --remote a,b, else AGY_SCOUT_REMOTE. `local` or `none` turns it off."""
+    raw = value if value is not None else os.environ.get(REMOTE_ENV, "")
+    hosts = [h.strip() for h in str(raw).split(",") if h.strip()]
+    if any(h.lower() in ("local", "none", "off") for h in hosts):
+        return []
+    for host in hosts:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._@-]{0,100}", host):
+            raise FanoutError(f"invalid remote host {host!r}")
+    return hosts
+
+
+def remote_command(argv, schema_path):
+    """argv of the local agy call -> (ssh-ready shell command, schema text sent on stdin). The prompt stays public concept names only."""
+    args = ["agy"] + [("schema.json" if part == str(schema_path) else part) for part in argv[1:]]
+    command = ('PATH="$HOME/.local/bin:$PATH"; d=$(mktemp -d) || exit 97; trap \'rm -rf "$d"\' EXIT; '
+               'cd "$d" && cat > schema.json && ' + shlex.join(args) + " </dev/null")
+    return command, Path(schema_path).read_text(encoding="utf-8")
+
+
 def build_options(args):
     parallel = max(1, min(int(args.max_parallel), MAX_PARALLEL_HARD))
     parse_duration(args.timeout)
@@ -608,6 +634,7 @@ def build_options(args):
         "retries": max(0, min(int(args.retries), 3)),
         "max_parallel": parallel,
         "budget_minutes": args.budget_minutes or 0,
+        "remote": parse_remote(getattr(args, "remote", None)),
     }
 
 
@@ -725,6 +752,40 @@ def validate_output(output):
     return None
 
 
+def launch(argv, work, schema_path, hosts, limit, entry, record):
+    """Run one agy call, one at a time. Remote hosts first (rotated), then this machine. A host that is unreachable or signed out is skipped for the rest of the run."""
+    order = []
+    if hosts:
+        live = [h for h in hosts if h not in REMOTE_BAD_HOSTS]
+        if live:
+            offset = _REMOTE_COUNTER[0] % len(live)
+            _REMOTE_COUNTER[0] += 1
+            order = live[offset:] + live[:offset]
+    for host in order + [None]:
+        try:
+            if host:
+                command, schema_text = remote_command(argv, schema_path)
+                proc = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", host, command], input=schema_text, cwd=work,
+                                      capture_output=True, text=True, timeout=limit, check=False, env={**os.environ, "NO_COLOR": "1"})
+            else:
+                proc = subprocess.run(argv, cwd=work, capture_output=True, text=True, timeout=limit, check=False,
+                                      env={**os.environ, "NO_COLOR": "1"})
+            stdout, stderr, code = proc.stdout, proc.stderr, proc.returncode
+        except subprocess.TimeoutExpired as error:
+            stdout, stderr, code = "", f"timeout after {limit}s", -1
+            entry["timeout"] = True
+            record["error"] = clean(str(error), 300)
+        except OSError as error:
+            stdout, stderr, code = "", str(error), -2
+        entry["host"] = host or "local"
+        if host and (code in (255, 97, 127) or fatal_kind(f"{stderr}\n{stdout}")):
+            REMOTE_BAD_HOSTS.add(host)
+            entry.setdefault("skipped_hosts", []).append(host)
+            continue
+        break
+    return stdout, stderr, code
+
+
 def run_agent(run_dir, task, options, deadline):
     """Run one task with retries. Returns the result record written to agents/<id>.json."""
     run_dir = Path(run_dir)
@@ -742,16 +803,7 @@ def run_agent(run_dir, task, options, deadline):
         argv = agy_argv(prompt, run_dir / "schema.json", options["model"], options["effort"], options["timeout"])
         started = time.time()
         entry = {"attempt": attempt, "started_at": scout.now()}
-        try:
-            proc = subprocess.run(argv, cwd=work, capture_output=True, text=True, timeout=timeout_s + 60, check=False,
-                                  env={**os.environ, "NO_COLOR": "1"})
-            stdout, stderr, code = proc.stdout, proc.stderr, proc.returncode
-        except subprocess.TimeoutExpired as error:
-            stdout, stderr, code = "", f"timeout after {timeout_s + 60}s", -1
-            entry["timeout"] = True
-            record["error"] = clean(str(error), 300)
-        except OSError as error:
-            stdout, stderr, code = "", str(error), -2
+        stdout, stderr, code = launch(argv, work, run_dir / "schema.json", options.get("remote") or [], timeout_s + 60, entry, record)
         entry["duration_seconds"] = round(time.time() - started, 2)
         entry["exit_code"] = code
         (run_dir / "agents" / f"{task['id']}.stderr").write_text(stderr[-20000:], encoding="utf-8")
@@ -1308,7 +1360,7 @@ def cmd_run(args):
         for key, value in (("model", args.model), ("effort", args.effort), ("timeout", args.timeout if args.timeout != DEFAULT_TIMEOUT else None)):
             if value:
                 doc["options"][key] = value
-        if args.max_parallel != 4:
+        if args.max_parallel != 1:
             doc["options"]["max_parallel"] = max(1, min(int(args.max_parallel), MAX_PARALLEL_HARD))
         if args.budget_minutes:
             doc["options"]["budget_minutes"] = args.budget_minutes
@@ -1407,7 +1459,8 @@ def build_parser():
         p.add_argument("--cluster", type=int, help="sibling concepts per agent, 1 to 3 (default per preset)")
         p.add_argument("--focus", help="a named gap inside the concept; narrows every angle")
         p.add_argument("--topic", help="bundle topic (default: first concept)")
-        p.add_argument("--max-parallel", type=int, default=4, help=f"concurrent agents, hard maximum {MAX_PARALLEL_HARD}")
+        p.add_argument("--max-parallel", type=int, default=1, help="accepted for old callers; always one agent at a time (hard maximum 1)")
+        p.add_argument("--remote", help=f"comma-separated ssh hosts that run agy instead of this machine, e.g. nuc,5080 (default: ${REMOTE_ENV}; `local` turns it off)")
         p.add_argument("--timeout", default=DEFAULT_TIMEOUT, help="per-agent print timeout, e.g. 8m")
         p.add_argument("--retries", type=int, default=1)
         p.add_argument("--model", help=f"agy model slug (default {DEFAULT_MODEL}, or AGY_SCOUT_MODEL)")

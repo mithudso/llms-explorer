@@ -13,3 +13,5 @@
 version: 1.1.0
 updated: 2026-10-29
 delta: 1.0.0 to 1.1.0: bounded consumer seeds and headless worker bridges; schema stays 1.0.0.
+
+- 2026-11-28 v1.4.0 — single-threaded scouting: `--max-parallel` is always 1 (was default 4, cap 8; concurrent `agy` processes crashed the Mac); new `--remote` / `AGY_SCOUT_REMOTE` runs `agy` calls on other boxes over ssh with fallback to local.
